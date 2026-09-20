@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Processamento Estatístico de Linguagem Natural · AcademicHub</title>
+<meta name="description" content="N-gramas, suavização, Naive Bayes, TF-IDF e embeddings: linguagem como probabilidade.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/15-processamento-estatistico-linguagem-natural">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="A virada estatística" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-chart-simple text-indigo-400 mr-2"></i>Linguagem como probabilidade</h2>
+  <div class="ah-prose">
+    <p>
+      A abordagem <a href="09-processamento-linguagem-natural.html" class="text-indigo-400 hover:underline">simbólica</a>
+      tenta escrever as regras do idioma. A abordagem <strong>estatística</strong> desiste disso e faz outra
+      pergunta: <em>dado um corpus grande o suficiente, qual é a continuação mais provável?</em>
+      Nenhuma gramática, nenhum linguista — apenas contagem.
+    </p>
+    <p>
+      A frase que resume a virada é atribuída a Fred Jelinek, da IBM, nos anos 80: cada vez que um linguista
+      saía da equipe, o reconhecimento de fala melhorava. Provocação à parte, o ponto é real: métodos que
+      aprendem de dados superaram, tarefa após tarefa, as regras escritas à mão.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#64748b">
+      <span class="ah-badge ah-badge-slate mb-2">Simbólico</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Gramáticas escritas por humanos. Preciso e explicável, mas frágil diante de texto real, gírias e erros de digitação.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#6366f1">
+      <span class="ah-badge mb-2">Estatístico</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Modelos treinados em corpora. Robusto a ruído e variação, mas exige dados e não explica suas decisões.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N-GRAMAS ============================ -->
+<section id="ngramas" data-toc="Modelo de n-gramas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-indigo-400 mr-2"></i>Modelo de linguagem por n-gramas</h2>
+  <div class="ah-prose">
+    <p>
+      Estimar <code>P(palavra | toda a frase anterior)</code> é impossível — nenhum corpus contém todas as
+      frases. A <strong>suposição de Markov</strong> corta o nó: basta olhar as <em>n − 1</em> palavras
+      anteriores. É uma aproximação grosseira do idioma que funciona surpreendentemente bem.
+    </p>
+  </div>
+
+  <div class="text-center font-mono text-sm py-4 my-3 bg-slate-950 rounded-xl border border-slate-800">
+    P(w₁ … w<sub>k</sub>) ≈ ∏<sub>i</sub> P(w<sub>i</sub> | w<sub>i−n+1</sub> … w<sub>i−1</sub>)
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-6">
+    <div class="lg:col-span-2 space-y-3">
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-400 block mb-2">Corpus de treinamento (edite à vontade — o modelo é recontado na hora)</label>
+        <textarea id="ng-corpus" rows="5"
+          class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-300 font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+      </div>
+      <div class="ah-card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Texto gerado pelo modelo</h3>
+          <button id="ng-gerar" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i> Gerar</button>
+        </div>
+        <div id="ng-saida" class="bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-200 leading-relaxed min-h-[90px]"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Distribuição da próxima palavra</h3>
+        <p class="text-[11px] text-slate-500 mb-3">Contexto atual: <span id="ng-ctx" class="font-mono text-indigo-300"></span></p>
+        <div id="ng-dist" class="space-y-1.5"></div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-300 flex justify-between mb-1">Ordem do modelo (n) <span id="ng-n-v" class="font-mono text-indigo-300">2</span></label>
+        <input id="ng-n" type="range" min="1" max="4" value="2" class="w-full accent-indigo-500">
+        <p id="ng-n-desc" class="text-[10px] text-slate-500 mt-2 leading-relaxed"></p>
+      </div>
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-300 flex justify-between mb-1">Palavras a gerar <span id="ng-len-v" class="font-mono text-indigo-300">28</span></label>
+        <input id="ng-len" type="range" min="8" max="70" value="28" class="w-full accent-indigo-500">
+      </div>
+      <div class="ah-card p-4 space-y-2 text-[11px]">
+        <div class="flex justify-between"><span class="text-slate-400">Tokens no corpus</span><span id="ng-tok" class="font-mono text-slate-200">—</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Vocabulário</span><span id="ng-voc" class="font-mono text-slate-200">—</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Contextos distintos</span><span id="ng-ctxs" class="font-mono text-slate-200">—</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Contextos com 1 continuação</span><span id="ng-unicos" class="font-mono text-amber-300">—</span></div>
+      </div>
+      <div class="ah-callout ah-callout-warn text-[11px]">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div><b>Esparsidade:</b> aumente <em>n</em> para 4 e veja o número de contextos com uma única continuação
+        disparar. O modelo passa a <em>copiar</em> o corpus em vez de generalizar — e qualquer sequência inédita
+        recebe probabilidade zero.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-droplet"></i>
+    <div>
+      <strong>Suavização (smoothing)</strong> é a solução clássica para o zero absoluto: Laplace (soma 1 a toda
+      contagem), Good-Turing, Kneser-Ney. A ideia é sempre a mesma — tirar um pouco de massa dos eventos vistos
+      e distribuí-la entre os não vistos. Nenhuma sequência pode ter probabilidade exatamente zero.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NAIVE BAYES ============================ -->
+<section id="bayes" data-toc="Classificador Naive Bayes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope-open-text text-indigo-400 mr-2"></i>Naive Bayes: o classificador de texto que não morre</h2>
+  <p class="ah-lead text-sm mb-5">
+    Simples, rápido e ainda competitivo como linha de base. Ele calcula <code>P(classe | texto)</code> supondo
+    que as palavras são <strong>independentes entre si</strong> — uma premissa obviamente falsa, e ainda assim
+    eficaz. Escreva uma mensagem e veja a decisão sendo montada palavra por palavra.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-400 block mb-2">Mensagem a classificar</label>
+        <textarea id="nb-texto" rows="3"
+          class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">ganhe agora um premio gratis clique no link</textarea>
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          <button class="ah-chip text-[10px] nb-ex" data-t="ganhe agora um premio gratis clique no link">exemplo spam</button>
+          <button class="ah-chip text-[10px] nb-ex" data-t="prezado aluno a aula de amanha sera sobre o trabalho final">exemplo legítimo</button>
+          <button class="ah-chip text-[10px] nb-ex" data-t="urgente confirme seus dados da conta">ambíguo</button>
+        </div>
+      </div>
+      <div id="nb-resultado"></div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Contribuição de cada palavra</h3>
+        <div id="nb-palavras" class="space-y-1.5"></div>
+        <p class="text-[10px] text-slate-500 mt-3 leading-relaxed">
+          Usamos o logaritmo das probabilidades: somar logs evita que o produto de muitos números pequenos
+          vire zero por limite de precisão. A palavra com barra maior é a que mais puxou a decisão.
+        </p>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Corpus de treinamento</h3>
+        <div id="nb-corpus" class="space-y-1 max-h-72 overflow-y-auto text-[11px]"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">A fórmula</h3>
+        <div class="font-mono text-[11px] text-slate-300 leading-relaxed text-center py-2">
+          classe = argmax<sub>c</sub> [ log P(c) + Σ<sub>w</sub> log P(w | c) ]
+        </div>
+        <p class="text-[10px] text-slate-500 leading-relaxed">
+          <b class="text-slate-400">P(w | c)</b> é estimado com suavização de Laplace:
+          <span class="font-mono">(contagem(w, c) + 1) / (total(c) + |V|)</span> — garantindo que uma palavra
+          nunca vista não zere a classe inteira.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TF-IDF ============================ -->
+<section id="tfidf" data-toc="TF-IDF" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-weight-scale text-indigo-400 mr-2"></i>TF-IDF: quais palavras realmente importam</h2>
+  <p class="ah-lead text-sm mb-5">
+    Contar frequência premia “de”, “a”, “que”. O <strong>TF-IDF</strong> corrige isso: uma palavra vale mais
+    quando é frequente <em>neste</em> documento e rara <em>nos demais</em>. É o que faz um buscador distinguir
+    o assunto do texto do ruído de fundo.
+  </p>
+
+  <div class="text-center font-mono text-sm py-3 mb-5 bg-slate-950 rounded-xl border border-slate-800">
+    tfidf(w, d) = <span class="text-sky-300">tf(w, d)</span> × <span class="text-amber-300">log( N / df(w) )</span>
+  </div>
+
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table" id="tfidf-tabela"></table>
+  </div>
+  <p class="text-[11px] text-slate-500 mt-3 italic">
+    Quatro documentos curtos de exemplo. Repare que palavras presentes em <em>todos</em> eles recebem
+    IDF igual a zero — informativamente inúteis para diferenciar documentos.
+  </p>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-arrow-right"></i>
+    <div>
+      <strong>E depois do TF-IDF?</strong> Ele representa cada documento por um vetor esparso de contagens, onde
+      “carro” e “automóvel” são dimensões totalmente distintas. Os <em>embeddings</em> (word2vec, GloVe, e hoje
+      os Transformers) trocam isso por vetores densos aprendidos, em que palavras de sentido próximo ficam
+      próximas no espaço — e relações viram aritmética: <code>rei − homem + mulher ≈ rainha</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre PLN estatístico.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Por que aumentar <em>n</em> num modelo de n-gramas nem sempre melhora o resultado?</p>
+      <button class="ah-quiz-opt">Porque n grande deixa o modelo mais lento apenas</button>
+      <button class="ah-quiz-opt">Porque contextos longos ficam raros no corpus: o modelo decora em vez de generalizar</button>
+      <button class="ah-quiz-opt">Porque n maior que 2 é matematicamente inválido</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É o compromisso entre contexto e esparsidade. Com n = 4, a maioria dos contextos aparece uma única vez —
+        o modelo reproduz trechos literais do corpus e não sabe o que fazer com qualquer sequência nova.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. O que há de “ingênuo” (naive) no Naive Bayes?</p>
+      <button class="ah-quiz-opt">Usar o teorema de Bayes</button>
+      <button class="ah-quiz-opt">Não usar suavização</button>
+      <button class="ah-quiz-opt">Supor que as palavras de um texto são independentes entre si dada a classe</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Obviamente “nota” e “fiscal” não são independentes. Mas a premissa simplifica brutalmente o cálculo e,
+        para <em>classificar</em>, basta que a ordem das classes saia certa — as probabilidades em si ficam mal
+        calibradas, e isso raramente importa.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Uma palavra que aparece em <strong>todos</strong> os documentos do corpus tem TF-IDF:</p>
+      <button class="ah-quiz-opt">Zero — porque log(N/N) = log(1) = 0</button>
+      <button class="ah-quiz-opt">Máximo, por ser muito frequente</button>
+      <button class="ah-quiz-opt">Indefinido</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        E é exatamente o comportamento desejado: se a palavra está em toda parte, ela não ajuda a distinguir
+        nada. O IDF funciona como uma remoção de stopwords automática, calculada a partir do próprio corpus.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Modelo de n-gramas ===================== */
+(function ngramas() {
+  const CORPUS = `a inteligencia artificial estuda agentes que percebem o ambiente e agem sobre ele
+a busca heuristica usa uma funcao que estima o custo restante ate o objetivo
+o aprendizado de maquina aprende padroes a partir de exemplos rotulados
+a rede neural ajusta pesos para reduzir o erro na saida
+o algoritmo genetico evolui uma populacao de solucoes candidatas
+a busca cega nao usa nenhuma informacao sobre a distancia ate o objetivo
+o agente racional escolhe a acao que maximiza o desempenho esperado
+a logica de primeira ordem representa objetos predicados e quantificadores
+o sistema especialista explica como chegou a conclusao usando regras
+a colonia de formigas deposita feromonio nas arestas do caminho mais curto
+o processamento de linguagem natural analisa texto em varios niveis
+a funcao de ativacao introduz nao linearidade na rede neural`;
+
+  const $ = id => document.getElementById(id);
+  $('ng-corpus').value = CORPUS;
+  let modelo = {}, tokens = [];
+
+  const DESC = {
+    1: 'Unigrama: cada palavra é sorteada ignorando o contexto. O resultado é incoerente — mas respeita a frequência das palavras.',
+    2: 'Bigrama: olha uma palavra atrás. Já produz trechos localmente plausíveis, sem coerência global.',
+    3: 'Trigrama: duas palavras de contexto. Frases mais naturais, mas o modelo começa a copiar o corpus.',
+    4: '4-gramas: três palavras de contexto. Em corpus pequeno, praticamente reproduz o original — esparsidade extrema.'
+  };
+
+  function treina() {
+    const n = +$('ng-n').value;
+    tokens = $('ng-corpus').value.toLowerCase().match(/[a-zà-ú]+/g) || [];
+    modelo = {};
+    for (let i = 0; i <= tokens.length - n; i++) {
+      const ctx = tokens.slice(i, i + n - 1).join(' ');
+      const prox = tokens[i + n - 1];
+      (modelo[ctx] = modelo[ctx] || {})[prox] = (modelo[ctx][prox] || 0) + 1;
+    }
+    const ctxs = Object.keys(modelo);
+    const unicos = ctxs.filter(c => Object.keys(modelo[c]).length === 1).length;
+    $('ng-tok').textContent = tokens.length;
+    $('ng-voc').textContent = new Set(tokens).size;
+    $('ng-ctxs').textContent = ctxs.length;
+    $('ng-unicos').textContent = ctxs.length ? unicos + ' (' + Math.round(unicos / ctxs.length * 100) + '%)' : '—';
+    $('ng-n-desc').textContent = DESC[n];
+  }
+
+  function sorteia(dist) {
+    const tot = Object.values(dist).reduce((a, b) => a + b, 0);
+    let r = Math.random() * tot;
+    for (const [p, c] of Object.entries(dist)) { r -= c; if (r <= 0) return p; }
+    return Object.keys(dist)[0];
+  }
+
+  function gerar() {
+    treina();
+    const n = +$('ng-n').value, len = +$('ng-len').value;
+    const ctxs = Object.keys(modelo);
+    if (!ctxs.length) return;
+
+    let atual = ctxs[Math.floor(Math.random() * ctxs.length)];
+    let saida = atual ? atual.split(' ') : [];
+    let ultimoCtx = atual;
+
+    for (let i = 0; i < len; i++) {
+      const dist = modelo[atual];
+      if (!dist) {
+        atual = ctxs[Math.floor(Math.random() * ctxs.length)];
+        continue;
+      }
+      const prox = sorteia(dist);
+      saida.push(prox);
+      ultimoCtx = atual;
+      atual = n === 1 ? '' : saida.slice(-(n - 1)).join(' ');
+    }
+
+    $('ng-saida').textContent = saida.join(' ');
+
+    const dist = modelo[ultimoCtx] || {};
+    const tot = Object.values(dist).reduce((a, b) => a + b, 0) || 1;
+    $('ng-ctx').textContent = ultimoCtx === '' ? '(nenhum — unigrama)' : '“' + ultimoCtx + '”';
+    $('ng-dist').innerHTML = Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([p, c]) => `
+      <div>
+        <div class="flex justify-between text-[11px] mb-0.5">
+          <span class="text-slate-300 font-mono">${p}</span>
+          <span class="text-indigo-300 font-mono">${(c / tot * 100).toFixed(1)}%</span>
+        </div>
+        <div class="ah-progress"><i style="width:${c / tot * 100}%"></i></div>
+      </div>`).join('') || '<p class="text-[11px] text-slate-600 italic">contexto sem continuações</p>';
+  }
+
+  $('ng-n').addEventListener('input', e => { $('ng-n-v').textContent = e.target.value; gerar(); });
+  $('ng-len').addEventListener('input', e => { $('ng-len-v').textContent = e.target.value; });
+  $('ng-corpus').addEventListener('input', treina);
+  $('ng-gerar').addEventListener('click', gerar);
+  gerar();
+})();
+
+/* ===================== Naive Bayes ===================== */
+(function naiveBayes() {
+  const TREINO = [
+    ['spam', 'ganhe dinheiro facil agora clique no link'],
+    ['spam', 'voce foi premiado clique aqui para receber seu premio gratis'],
+    ['spam', 'oferta imperdivel promocao gratis por tempo limitado clique'],
+    ['spam', 'urgente sua conta sera bloqueada confirme seus dados agora'],
+    ['spam', 'credito pre aprovado sem consulta dinheiro rapido na conta'],
+    ['spam', 'parabens voce ganhou um premio clique no link e receba'],
+    ['ham', 'prezado aluno a aula de amanha comeca as oito horas'],
+    ['ham', 'segue em anexo o material da disciplina de inteligencia artificial'],
+    ['ham', 'bom dia poderia confirmar a data da entrega do trabalho'],
+    ['ham', 'a reuniao do projeto foi remarcada para quinta feira'],
+    ['ham', 'obrigado pelo retorno vou revisar o relatorio e envio amanha'],
+    ['ham', 'lembrete a prova sera sobre busca e aprendizado de maquina']
+  ];
+
+  const tok = t => (t.toLowerCase().match(/[a-zà-ú]+/g) || []);
+  const cont = { spam: {}, ham: {} }, total = { spam: 0, ham: 0 }, docs = { spam: 0, ham: 0 };
+  const vocab = new Set();
+
+  TREINO.forEach(([c, t]) => {
+    docs[c]++;
+    tok(t).forEach(w => { cont[c][w] = (cont[c][w] || 0) + 1; total[c]++; vocab.add(w); });
+  });
+  const V = vocab.size;
+  const logP = (w, c) => Math.log(((cont[c][w] || 0) + 1) / (total[c] + V));
+
+  function classifica() {
+    const palavras = tok(document.getElementById('nb-texto').value);
+    const nDocs = docs.spam + docs.ham;
+    let lsSpam = Math.log(docs.spam / nDocs), lsHam = Math.log(docs.ham / nDocs);
+    const detalhe = palavras.map(w => {
+      const ps = logP(w, 'spam'), ph = logP(w, 'ham');
+      lsSpam += ps; lsHam += ph;
+      return { w, ps, ph, delta: ps - ph, vista: vocab.has(w) };
+    });
+
+    /* converte log-odds em probabilidade */
+    const m = Math.max(lsSpam, lsHam);
+    const pSpam = Math.exp(lsSpam - m) / (Math.exp(lsSpam - m) + Math.exp(lsHam - m));
+    const ehSpam = pSpam > 0.5;
+
+    document.getElementById('nb-resultado').innerHTML = `
+      <div class="ah-card p-5 text-center" style="border:1px solid ${ehSpam ? 'rgba(239,68,68,.45)' : 'rgba(16,185,129,.45)'};
+           background:${ehSpam ? 'rgba(239,68,68,.08)' : 'rgba(16,185,129,.08)'}">
+        <div class="text-3xl mb-1">${ehSpam ? '🚫' : '✅'}</div>
+        <div class="text-lg font-bold ${ehSpam ? 'text-rose-300' : 'text-emerald-300'}">
+          ${ehSpam ? 'SPAM' : 'LEGÍTIMO (ham)'}</div>
+        <div class="text-xs text-slate-400 mt-1">P(spam) = ${(pSpam * 100).toFixed(1)}%</div>
+        <div class="ah-progress mt-3"><i style="width:${pSpam * 100}%;background:${ehSpam ? '#ef4444' : '#10b981'}"></i></div>
+        <div class="font-mono text-[10px] text-slate-500 mt-3">
+          log P(spam|texto) = ${lsSpam.toFixed(2)} &nbsp;·&nbsp; log P(ham|texto) = ${lsHam.toFixed(2)}</div>
+      </div>`;
+
+    const maxAbs = Math.max(...detalhe.map(d => Math.abs(d.delta)), 0.001);
+    document.getElementById('nb-palavras').innerHTML = detalhe.length ? detalhe.map(d => {
+      const pct = (Math.abs(d.delta) / maxAbs) * 50;
+      const puxaSpam = d.delta > 0;
+      return `<div class="flex items-center gap-2 text-[11px]">
+        <span class="font-mono w-24 truncate ${d.vista ? 'text-slate-300' : 'text-slate-600 italic'}">${d.w}</span>
+        <div class="flex-1 h-3 bg-slate-950 rounded-sm relative border border-slate-800">
+          <div class="absolute top-0 bottom-0" style="left:50%;width:1px;background:#475569"></div>
+          <div class="absolute top-0 bottom-0 rounded-sm" style="
+            ${puxaSpam ? `left:50%;width:${pct}%;background:rgba(239,68,68,.75)` : `right:50%;width:${pct}%;background:rgba(16,185,129,.75)`}"></div>
+        </div>
+        <span class="font-mono w-12 text-right ${puxaSpam ? 'text-rose-300' : 'text-emerald-300'}">${d.delta >= 0 ? '+' : ''}${d.delta.toFixed(2)}</span>
+      </div>`;
+    }).join('') + '<p class="text-[10px] text-slate-500 pt-2">← puxa para legítimo &nbsp;|&nbsp; puxa para spam →<br>Palavras em cinza-itálico não apareciam no treino: a suavização de Laplace as trata com probabilidade pequena, mas não nula.</p>'
+      : '<p class="text-[11px] text-slate-600 italic">digite uma mensagem</p>';
+  }
+
+  document.getElementById('nb-corpus').innerHTML = TREINO.map(([c, t]) => `
+    <div class="flex gap-2 items-start px-2 py-1 rounded ${c === 'spam' ? 'bg-rose-500/5' : 'bg-emerald-500/5'}">
+      <span class="ah-badge ${c === 'spam' ? 'ah-badge-rose' : 'ah-badge-emerald'} shrink-0 text-[9px]">${c}</span>
+      <span class="text-slate-400 leading-snug">${t}</span>
+    </div>`).join('');
+
+  document.getElementById('nb-texto').addEventListener('input', classifica);
+  document.querySelectorAll('.nb-ex').forEach(b => b.addEventListener('click', () => {
+    document.getElementById('nb-texto').value = b.getAttribute('data-t');
+    classifica();
+  }));
+  classifica();
+})();
+
+/* ===================== TF-IDF ===================== */
+(function tfidf() {
+  const DOCS = [
+    'o agente inteligente percebe o ambiente e age sobre o ambiente',
+    'o algoritmo de busca explora o espaco de estados ate o objetivo',
+    'a rede neural aprende pesos a partir de exemplos e ajusta o erro',
+    'o agente aprende com exemplos e escolhe a acao de maior recompensa'
+  ];
+  const tok = t => t.match(/[a-zà-ú]+/g) || [];
+  const N = DOCS.length;
+  const tf = DOCS.map(d => {
+    const m = {}; const ts = tok(d);
+    ts.forEach(w => m[w] = (m[w] || 0) + 1);
+    Object.keys(m).forEach(w => m[w] /= ts.length);
+    return m;
+  });
+  const df = {};
+  DOCS.forEach((d, i) => new Set(tok(d)).forEach(w => df[w] = (df[w] || 0) + 1));
+
+  const palavras = Object.keys(df).sort((a, b) => df[b] - df[a] || a.localeCompare(b)).slice(0, 14);
+  const idf = w => Math.log(N / df[w]);
+
+  document.getElementById('tfidf-tabela').innerHTML = `
+    <thead><tr><th>Palavra</th><th class="text-center">df</th><th class="text-center">idf</th>
+      ${DOCS.map((_, i) => `<th class="text-center">tf-idf D${i + 1}</th>`).join('')}</tr></thead>
+    <tbody>${palavras.map(w => {
+      const vals = tf.map(m => (m[w] || 0) * idf(w));
+      const max = Math.max(...vals, 0.0001);
+      return `<tr>
+        <td class="font-mono">${w}</td>
+        <td class="text-center text-slate-400">${df[w]}</td>
+        <td class="text-center font-mono ${idf(w) === 0 ? 'text-rose-400' : 'text-amber-300'}">${idf(w).toFixed(2)}</td>
+        ${vals.map(v => `<td class="text-center font-mono ${v === max && v > 0 ? 'text-emerald-300 font-bold' : v > 0 ? 'text-slate-400' : 'text-slate-700'}">
+            ${v > 0 ? v.toFixed(3) : '—'}</td>`).join('')}
+      </tr>`;
+    }).join('')}</tbody>`;
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

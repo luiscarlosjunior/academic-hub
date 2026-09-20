@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistemas Multiagentes · AcademicHub</title>
+<meta name="description" content="Agentes autônomos, arquitetura BDI, coordenação, protocolos de negociação e comportamento emergente.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐝</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/10-sistemas-multiagentes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Um agente, muitos agentes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-users-gear text-indigo-400 mr-2"></i>Quando um agente não basta</h2>
+  <div class="ah-prose">
+    <p>
+      Em um <strong>sistema multiagente</strong> (SMA) não há controlador central: vários agentes autônomos,
+      com informação parcial e objetivos próprios, interagem e produzem um comportamento global.
+      O projetista não programa o resultado — programa os <em>indivíduos</em> e as <em>regras de interação</em>.
+    </p>
+    <p>
+      É a escolha natural quando o problema já é distribuído (trânsito, logística, mercados, redes elétricas),
+      quando um ponto único de controle seria frágil, ou quando cada parte pertence a um dono diferente.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Propriedades de um agente</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3" id="props"></div>
+</section>
+
+<!-- ============================ EMERGÊNCIA ============================ -->
+<section id="emergencia" data-toc="Comportamento emergente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-dove text-indigo-400 mr-2"></i>Três regras locais, um bando inteiro</h2>
+  <p class="ah-lead text-sm mb-5">
+    Ninguém comanda um bando de pássaros. Craig Reynolds mostrou em 1986 que <strong>três regras locais</strong>
+    bastam para reproduzir o fenômeno. Desligue uma delas e observe o que se perde — é a melhor definição
+    prática de <em>emergência</em>: o todo tem propriedades que nenhuma parte tem.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
+    <div class="lg:col-span-3">
+      <div class="ah-stage" style="height:360px"><canvas id="boidsCanvas" style="height:360px"></canvas></div>
+      <p class="text-[11px] text-slate-500 mt-2">Clique na área para adicionar um obstáculo (predador) e veja o bando se dividir e se reagrupar.</p>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4 space-y-4" id="boids-ctrl"></div>
+      <div class="ah-card p-4">
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-400">Coesão do bando</span><span id="boids-metrica" class="font-mono text-indigo-300">—</span></div>
+        <div class="ah-progress"><i id="boids-bar" style="width:0%"></i></div>
+        <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">Mede o quanto os agentes voam alinhados. Nenhum agente calcula isso — é uma propriedade do sistema.</p>
+      </div>
+      <button id="boids-reset" class="ah-btn ah-btn-ghost w-full"><i class="fa-solid fa-rotate-left"></i> Reiniciar bando</button>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      Zere a <strong>separação</strong>: os agentes colapsam em um ponto. Zere o <strong>alinhamento</strong>:
+      viram uma nuvem sem direção. Zere a <strong>coesão</strong>: o bando se dissolve. As três regras
+      se equilibram — e nenhuma delas “sabe” o que é um bando.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ BDI ============================ -->
+<section id="bdi" data-toc="Arquitetura BDI" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-brain text-indigo-400 mr-2"></i>BDI: crenças, desejos e intenções</h2>
+  <div class="ah-prose">
+    <p>
+      A arquitetura BDI modela o agente com vocabulário da psicologia popular — e não por analogia frouxa:
+      a separação entre o que se acredita, o que se quer e o que se está <em>comprometido</em> a fazer
+      resolve um problema real de engenharia, o de não recomeçar o planejamento a cada micromudança do ambiente.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-5" id="bdi-cards"></div>
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-anchor"></i>
+    <div>
+      <strong>Por que “intenção” importa?</strong> Uma intenção é um compromisso: o agente persiste no plano
+      mesmo diante de pequenas mudanças, em vez de reconsiderar tudo a cada ciclo. Sem isso ele fica
+      indeciso; com compromisso demais, fica teimoso. Calibrar essa persistência é o problema central do BDI.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CONTRACT NET ============================ -->
+<section id="coordenacao" data-toc="Coordenação e negociação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-handshake text-indigo-400 mr-2"></i>Como agentes dividem trabalho: Contract Net</h2>
+  <p class="ah-lead text-sm mb-5">
+    O <strong>Contract Net Protocol</strong> (Smith, 1980) organiza a distribuição de tarefas como uma
+    licitação: quem tem a tarefa anuncia, quem pode executar dá um lance, e o melhor lance vence.
+    Nenhum agente precisa conhecer a capacidade de todos os outros de antemão.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="cnpCanvas" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="cnp-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Iniciar licitação</button>
+        <button id="cnp-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> Passo</button>
+        <button id="cnp-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i></button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Fases do protocolo</h3>
+        <div id="cnp-fases" class="space-y-1.5"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Mensagens trocadas</h3>
+        <div id="cnp-log" class="font-mono text-[10px] text-slate-400 space-y-1 max-h-44 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Outras formas de coordenação</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Quadro-negro (blackboard)</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Área compartilhada onde agentes publicam resultados parciais. Simples, mas vira gargalo.</p></div>
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Estigmergia</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Comunicação <em>através do ambiente</em>, como o feromônio das
+      <a href="13-otimizacao-colonia-formigas.html" class="text-indigo-400 hover:underline">formigas</a>. Sem mensagens diretas.</p></div>
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Leilões e mercados</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Preços coordenam a alocação de recursos escassos entre agentes egoístas.</p></div>
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Organizações e papéis</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Hierarquias, normas e permissões definem quem pode fazer o quê — governança do sistema.</p></div>
+  </div>
+</section>
+
+<!-- ============================ COOPERAR OU NÃO ============================ -->
+<section id="dilema" data-toc="Cooperar ou competir" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chess text-indigo-400 mr-2"></i>Quando cooperar é racional</h2>
+  <p class="ah-lead text-sm mb-5">
+    No <strong>dilema do prisioneiro</strong>, trair é sempre melhor individualmente — e leva os dois ao pior
+    resultado coletivo. Mas se o jogo se <em>repete</em>, a sombra do futuro muda tudo. Rode o torneio e veja
+    qual estratégia acumula mais pontos.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Matriz de recompensas (pontos do agente da linha)</h3>
+      <table class="ah-table text-center">
+        <thead><tr><th></th><th class="text-center text-emerald-400">Outro coopera</th><th class="text-center text-rose-400">Outro trai</th></tr></thead>
+        <tbody>
+          <tr><td class="text-emerald-400">Eu coopero</td><td class="text-center">3 <span class="text-slate-500">(bom mútuo)</span></td><td class="text-center text-rose-300">0 <span class="text-slate-500">(otário)</span></td></tr>
+          <tr><td class="text-rose-400">Eu traio</td><td class="text-center text-emerald-300">5 <span class="text-slate-500">(tentação)</span></td><td class="text-center">1 <span class="text-slate-500">(punição mútua)</span></td></tr>
+        </tbody>
+      </table>
+      <div class="flex items-center gap-3 mt-4">
+        <label class="text-xs text-slate-400">Rodadas</label>
+        <input id="dp-rodadas" type="range" min="1" max="200" value="60" class="flex-1 accent-indigo-500">
+        <span id="dp-rodadas-v" class="font-mono text-indigo-300 text-sm w-8">60</span>
+      </div>
+      <button id="dp-run" class="ah-btn ah-btn-primary w-full mt-3"><i class="fa-solid fa-trophy"></i> Rodar torneio</button>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Placar do torneio (todos contra todos)</h3>
+      <div id="dp-placar" class="space-y-2"></div>
+      <p id="dp-nota" class="text-[11px] text-slate-500 mt-4 leading-relaxed"></p>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Surpresa:</strong> num torneio único com essa mistura, “sempre trai” costuma liderar — ele
+      explora os cooperadores ingênuos. O resultado famoso de Axelrod não é sobre uma rodada, e sim sobre o
+      <em>longo prazo</em>: quando as estratégias bem-sucedidas se <strong>reproduzem</strong>, o quadro vira.
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-7 mb-3">A versão evolutiva: estratégias que se reproduzem</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    Agora cada estratégia ocupa uma fatia da população, e essa fatia cresce proporcionalmente ao desempenho
+    contra a <em>população atual</em>. Observe as duas fases: “sempre trai” cresce devorando os cooperadores
+    ingênuos — e depois murcha, porque só lhe restam outros traidores para enfrentar.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:260px"><canvas id="evoDpCanvas" style="height:260px"></canvas></div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">População final</h3>
+        <div id="dp-evo-legenda" class="space-y-1.5"></div>
+      </div>
+      <button id="dp-evo" class="ah-btn ah-btn-primary w-full"><i class="fa-solid fa-dna"></i> Simular 120 gerações</button>
+      <div id="dp-evo-nota" class="ah-callout ah-callout-ok text-[11px]"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre sistemas multiagentes.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. “Comportamento emergente” significa:</p>
+      <button class="ah-quiz-opt">Que um agente líder coordena os demais</button>
+      <button class="ah-quiz-opt">Que os agentes foram programados com o objetivo global</button>
+      <button class="ah-quiz-opt">Que o padrão global surge das interações locais, sem estar codificado em nenhum agente</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Nenhum boid tem a variável “formação do bando”. O padrão existe apenas no nível do sistema.
+        Isso é poderoso — e perigoso: emergência também produz engarrafamentos, bolhas e oscilações
+        que ninguém projetou.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. No Contract Net, o gerente escolhe o executor com base em:</p>
+      <button class="ah-quiz-opt">Nas propostas recebidas, que revelam custo e disponibilidade de cada agente</button>
+      <button class="ah-quiz-opt">Num cadastro central de capacidades</button>
+      <button class="ah-quiz-opt">Na ordem de chegada dos agentes</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Essa é a elegância do protocolo: a informação necessária para decidir é <em>revelada pela própria
+        negociação</em>. O sistema se adapta quando agentes entram, saem ou ficam sobrecarregados, sem
+        nenhum registro central.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Por que o “olho por olho” (tit-for-tat) vai bem no torneio repetido?</p>
+      <button class="ah-quiz-opt">Porque nunca perde uma rodada sequer</button>
+      <button class="ah-quiz-opt">Porque é gentil, retalia, perdoa e é previsível — permite cooperação estável</button>
+      <button class="ah-quiz-opt">Porque trai antes do adversário</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Axelrod mostrou que ele nunca vence um confronto individual — mas acumula mais pontos no total.
+        Contra cooperadores, colhe 3 por rodada; contra traidores, perde só a primeira rodada. É o argumento
+        clássico de por que a cooperação sobrevive entre agentes egoístas.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Propriedades do agente ===================== */
+const PROPS = [
+  ['Autonomia', 'fa-robot', 'Opera sem intervenção direta e controla o próprio estado e suas ações.'],
+  ['Reatividade', 'fa-bolt', 'Percebe o ambiente e responde a mudanças em tempo hábil.'],
+  ['Proatividade', 'fa-bullseye', 'Toma iniciativa dirigida a objetivos, em vez de só reagir.'],
+  ['Habilidade social', 'fa-comments', 'Interage com outros agentes por uma linguagem de comunicação (FIPA-ACL, KQML).']
+];
+document.getElementById('props').innerHTML = PROPS.map(p => `
+  <div class="ah-card ah-card-hover p-4">
+    <i class="fa-solid ${p[1]} text-indigo-400 mb-2"></i>
+    <h4 class="text-xs font-bold text-white mb-1">${p[0]}</h4>
+    <p class="text-[11px] text-slate-400 leading-relaxed">${p[2]}</p>
+  </div>`).join('');
+
+/* ===================== BDI ===================== */
+const BDI = [
+  ['Beliefs — Crenças', 'fa-eye', '#38bdf8', 'O que o agente <em>acredita</em> sobre o mundo. Pode estar errado ou desatualizado: é informação, não verdade.', 'estoque(peça A) = 12'],
+  ['Desires — Desejos', 'fa-heart', '#a855f7', 'Estados de coisas que o agente gostaria de alcançar. Podem ser muitos e até conflitantes entre si.', 'manter estoque ≥ 20'],
+  ['Intentions — Intenções', 'fa-flag', '#10b981', 'Os desejos que o agente <strong>escolheu perseguir</strong> e com os quais se comprometeu. Guiam o plano atual.', 'executar plano: comprar 10 peças A']
+];
+document.getElementById('bdi-cards').innerHTML = BDI.map(b => `
+  <div class="ah-card p-5" style="border-top:3px solid ${b[2]}">
+    <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background:${b[2]}22;color:${b[2]}">
+      <i class="fa-solid ${b[1]}"></i></div>
+    <h4 class="ah-h3 mb-2 text-sm">${b[0]}</h4>
+    <p class="text-xs text-slate-400 leading-relaxed mb-3">${b[3]}</p>
+    <code class="text-[10px] text-slate-500">${b[4]}</code>
+  </div>`).join('');
+
+/* ===================== Boids ===================== */
+(function boids() {
+  const P = { separacao: 1.4, alinhamento: 1.0, coesao: 0.9, raio: 60, vel: 90 };
+  let agentes = [], obst = [];
+  const cv = AH.canvas('boidsCanvas', desenha);
+
+  function init() {
+    agentes = Array.from({ length: 70 }, () => ({
+      x: Math.random() * cv.w, y: Math.random() * cv.h,
+      vx: AH.rand(-1, 1), vy: AH.rand(-1, 1)
+    }));
+    obst = [];
+  }
+
+  function passo(dt) {
+    const R = P.raio, R2 = R * R;
+    agentes.forEach(b => {
+      let sx = 0, sy = 0, ax = 0, ay = 0, cx = 0, cy = 0, n = 0, ns = 0;
+      agentes.forEach(o => {
+        if (o === b) return;
+        const dx = o.x - b.x, dy = o.y - b.y, d2 = dx * dx + dy * dy;
+        if (d2 > R2 || d2 === 0) return;
+        n++; ax += o.vx; ay += o.vy; cx += o.x; cy += o.y;
+        if (d2 < 640) { ns++; sx -= dx / Math.sqrt(d2); sy -= dy / Math.sqrt(d2); }
+      });
+      if (n) {
+        b.vx += ((ax / n) - b.vx) * P.alinhamento * dt * 2;
+        b.vy += ((ay / n) - b.vy) * P.alinhamento * dt * 2;
+        b.vx += ((cx / n) - b.x) * 0.0016 * P.coesao;
+        b.vy += ((cy / n) - b.y) * 0.0016 * P.coesao;
+      }
+      if (ns) { b.vx += sx * P.separacao * dt * 6; b.vy += sy * P.separacao * dt * 6; }
+
+      obst.forEach(o => {
+        const dx = b.x - o.x, dy = b.y - o.y, d = Math.hypot(dx, dy) || 1;
+        if (d < 90) { b.vx += (dx / d) * (90 - d) * dt * 2.6; b.vy += (dy / d) * (90 - d) * dt * 2.6; }
+      });
+
+      const v = Math.hypot(b.vx, b.vy) || 1;
+      b.vx = b.vx / v; b.vy = b.vy / v;
+      b.x += b.vx * P.vel * dt; b.y += b.vy * P.vel * dt;
+      if (b.x < 0) b.x += cv.w; if (b.x > cv.w) b.x -= cv.w;
+      if (b.y < 0) b.y += cv.h; if (b.y > cv.h) b.y -= cv.h;
+    });
+
+    /* métrica de coesão: módulo da velocidade média */
+    const mx = agentes.reduce((s, b) => s + b.vx, 0) / agentes.length;
+    const my = agentes.reduce((s, b) => s + b.vy, 0) / agentes.length;
+    const coesao = Math.round(Math.hypot(mx, my) * 100);
+    document.getElementById('boids-metrica').textContent = coesao + '%';
+    document.getElementById('boids-bar').style.width = coesao + '%';
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    obst.forEach(o => {
+      ctx.fillStyle = 'rgba(239,68,68,.16)'; ctx.strokeStyle = 'rgba(239,68,68,.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(o.x, o.y, 22, 0, 6.29); ctx.fill(); ctx.stroke();
+    });
+    agentes.forEach(b => {
+      const a = Math.atan2(b.vy, b.vx);
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a);
+      ctx.fillStyle = '#818cf8';
+      ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, 4); ctx.lineTo(-3, 0); ctx.lineTo(-5, -4);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  const CTRL = [['separacao', 'Separação', 'evitar colidir com vizinhos'],
+                ['alinhamento', 'Alinhamento', 'voar na direção média dos vizinhos'],
+                ['coesao', 'Coesão', 'aproximar-se do centro do grupo']];
+  document.getElementById('boids-ctrl').innerHTML = CTRL.map(c => `
+    <div>
+      <label class="text-xs text-slate-300 flex justify-between mb-1">${c[1]}
+        <span id="bv-${c[0]}" class="font-mono text-indigo-300">${P[c[0]].toFixed(1)}</span></label>
+      <input type="range" data-b="${c[0]}" min="0" max="30" value="${P[c[0]] * 10}" class="w-full accent-indigo-500">
+      <p class="text-[10px] text-slate-500 mt-0.5">${c[2]}</p>
+    </div>`).join('');
+
+  document.getElementById('boids-ctrl').addEventListener('input', e => {
+    const k = e.target.getAttribute('data-b');
+    if (!k) return;
+    P[k] = +e.target.value / 10;
+    document.getElementById('bv-' + k).textContent = P[k].toFixed(1);
+  });
+  document.getElementById('boids-reset').addEventListener('click', init);
+  cv.el.addEventListener('click', e => {
+    const r = cv.el.getBoundingClientRect();
+    obst.push({ x: e.clientX - r.left, y: e.clientY - r.top });
+    if (obst.length > 3) obst.shift();
+  });
+
+  init();
+  AH.loop(cv.el, dt => { passo(dt); cv.draw(cv.ctx, cv.w, cv.h); }).start();
+})();
+
+/* ===================== Contract Net ===================== */
+(function cnp() {
+  const AG = [
+    { nome: 'Gerente', tipo: 'g' },
+    { nome: 'Agente A', custo: 7 }, { nome: 'Agente B', custo: 4 },
+    { nome: 'Agente C', custo: 9 }, { nome: 'Agente D', custo: null }
+  ];
+  const FASES = [
+    ['1. Anúncio (call for proposals)', 'O gerente divulga a tarefa a todos os candidatos.'],
+    ['2. Propostas (propose / refuse)', 'Cada agente avalia sua capacidade e responde com um custo — ou recusa.'],
+    ['3. Adjudicação (accept / reject)', 'O gerente escolhe a melhor proposta e avisa a todos.'],
+    ['4. Execução e resultado (inform)', 'O contratado executa e devolve o resultado ao gerente.']
+  ];
+  let fase = 0, timer = null, log = [];
+  const cv = AH.canvas('cnpCanvas', desenha);
+
+  function pos(i, w, h) {
+    if (i === 0) return { x: w / 2, y: 46 };
+    const n = AG.length - 1;
+    return { x: 50 + ((i - 1) + 0.5) * ((w - 100) / n), y: h - 58 };
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const vencedor = 2; // Agente B (custo 4)
+
+    AG.forEach((a, i) => {
+      if (i === 0) return;
+      const p0 = pos(0, w, h), p = pos(i, w, h);
+      let cor = 'rgba(100,116,139,.25)', texto = '';
+      if (fase >= 1) { cor = 'rgba(99,102,241,.55)'; texto = 'cfp'; }
+      if (fase >= 2) {
+        if (a.custo === null) { cor = 'rgba(239,68,68,.5)'; texto = 'recusa'; }
+        else { cor = 'rgba(245,158,11,.6)'; texto = 'proposta: ' + a.custo; }
+      }
+      if (fase >= 3) {
+        if (i === vencedor) { cor = 'rgba(16,185,129,.8)'; texto = 'aceita'; }
+        else if (a.custo !== null) { cor = 'rgba(100,116,139,.35)'; texto = 'rejeita'; }
+      }
+      if (fase >= 4 && i === vencedor) texto = 'inform: concluído';
+
+      ctx.strokeStyle = cor; ctx.lineWidth = fase >= 3 && i === vencedor ? 3 : 1.6;
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y + 26); ctx.lineTo(p.x, p.y - 26); ctx.stroke();
+
+      if (texto) {
+        ctx.fillStyle = cor.replace(/[\d.]+\)$/, '1)');
+        ctx.font = '600 10px Fira Code, monospace'; ctx.textAlign = 'center';
+        ctx.fillText(texto, (p0.x + p.x) / 2 + (i < 3 ? -26 : 26), (p0.y + p.y) / 2);
+      }
+    });
+
+    AG.forEach((a, i) => {
+      const p = pos(i, w, h);
+      const ehVencedor = fase >= 3 && i === 2;
+      ctx.fillStyle = i === 0 ? 'rgba(99,102,241,.25)' : ehVencedor ? 'rgba(16,185,129,.25)' : '#1e293b';
+      ctx.strokeStyle = i === 0 ? '#6366f1' : ehVencedor ? '#10b981' : 'rgba(100,116,139,.5)';
+      ctx.lineWidth = 2;
+      AH.roundRect(ctx, p.x - 44, p.y - 20, 88, 40, 10); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = i === 0 ? '#c7d2fe' : ehVencedor ? '#6ee7b7' : '#cbd5e1';
+      ctx.font = '700 11px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(a.nome, p.x, p.y - 4);
+      ctx.font = '9px Fira Code, monospace'; ctx.fillStyle = 'rgba(148,163,184,.8)';
+      ctx.fillText(i === 0 ? 'tem a tarefa' : a.custo === null ? 'ocupado' : 'custo ' + a.custo, p.x, p.y + 10);
+    });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function pinta() {
+    document.getElementById('cnp-fases').innerHTML = FASES.map((f, i) => `
+      <div class="px-2.5 py-2 rounded-lg border text-[11px] leading-snug ${fase > i
+        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+        : fase === i + 1 ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-200'
+        : 'border-slate-800 bg-slate-950 text-slate-500'}">
+        <b>${f[0]}</b><div class="opacity-75">${f[1]}</div></div>`).join('');
+    document.getElementById('cnp-log').innerHTML = log.length
+      ? log.map(l => `<div>${l}</div>`).join('')
+      : '<div class="text-slate-600 italic">nenhuma mensagem ainda</div>';
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  function passo() {
+    if (fase >= 4) return;
+    fase++;
+    if (fase === 1) log = ['Gerente → todos: <span class="text-indigo-300">cfp</span> (transportar carga X)'];
+    if (fase === 2) log.push('A → Gerente: <span class="text-amber-300">propose(7)</span>',
+                             'B → Gerente: <span class="text-amber-300">propose(4)</span>',
+                             'C → Gerente: <span class="text-amber-300">propose(9)</span>',
+                             'D → Gerente: <span class="text-rose-300">refuse</span> (sem capacidade)');
+    if (fase === 3) log.push('Gerente → B: <span class="text-emerald-300">accept-proposal</span>',
+                             'Gerente → A, C: <span class="text-slate-400">reject-proposal</span>');
+    if (fase === 4) log.push('B → Gerente: <span class="text-emerald-300">inform-done</span> (tarefa concluída)');
+    pinta();
+  }
+
+  document.getElementById('cnp-step').addEventListener('click', passo);
+  document.getElementById('cnp-reset').addEventListener('click', () => {
+    clearInterval(timer); timer = null; fase = 0; log = []; pinta();
+    document.getElementById('cnp-play').innerHTML = '<i class="fa-solid fa-play"></i> Iniciar licitação';
+  });
+  document.getElementById('cnp-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar licitação'; return; }
+    if (fase >= 4) { fase = 0; log = []; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(() => {
+      passo();
+      if (fase >= 4) { clearInterval(timer); timer = null; document.getElementById('cnp-play').innerHTML = '<i class="fa-solid fa-play"></i> Reiniciar'; }
+    }, 1300);
+  });
+  pinta();
+})();
+
+/* ===================== Dilema do prisioneiro iterado ===================== */
+(function dilema() {
+  const R = { CC: 3, CD: 0, DC: 5, DD: 1 };
+  const ESTRATEGIAS = [
+    { nome: 'Sempre coopera', desc: 'Nunca trai, aconteça o que acontecer.', f: () => 'C' },
+    { nome: 'Sempre trai', desc: 'Trai em todas as rodadas.', f: () => 'D' },
+    { nome: 'Olho por olho', desc: 'Coopera na primeira; depois repete o último movimento do oponente.', f: (m, o) => o.length ? o[o.length - 1] : 'C' },
+    { nome: 'Rancoroso', desc: 'Coopera até a primeira traição; depois trai para sempre.', f: (m, o) => o.includes('D') ? 'D' : 'C' },
+    { nome: 'Aleatório', desc: 'Sorteia cooperar ou trair a cada rodada.', f: () => Math.random() < 0.5 ? 'C' : 'D' }
+  ];
+
+  function duelo(a, b, n) {
+    const ha = [], hb = [];
+    let pa = 0, pb = 0;
+    for (let i = 0; i < n; i++) {
+      const ma = a.f(ha, hb), mb = b.f(hb, ha);
+      ha.push(ma); hb.push(mb);
+      pa += R[ma + mb]; pb += R[mb + ma];
+    }
+    return [pa, pb];
+  }
+
+  function torneio() {
+    const n = +document.getElementById('dp-rodadas').value;
+    const pontos = ESTRATEGIAS.map(() => 0);
+    ESTRATEGIAS.forEach((a, i) => ESTRATEGIAS.forEach((b, j) => {
+      if (j <= i) return;
+      const [pa, pb] = duelo(a, b, n);
+      pontos[i] += pa; pontos[j] += pb;
+    }));
+    const max = Math.max(...pontos);
+    const ordem = ESTRATEGIAS.map((e, i) => ({ e, p: pontos[i] })).sort((x, y) => y.p - x.p);
+
+    document.getElementById('dp-placar').innerHTML = ordem.map((o, k) => `
+      <div class="ah-card p-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-semibold ${k === 0 ? 'text-emerald-300' : 'text-white'}">
+            ${k === 0 ? '<i class="fa-solid fa-crown mr-1"></i>' : ''}${o.e.nome}</span>
+          <span class="font-mono text-sm ${k === 0 ? 'text-emerald-400' : 'text-slate-400'}">${o.p}</span>
+        </div>
+        <div class="ah-progress mb-1.5"><i style="width:${(o.p / max) * 100}%;background:${k === 0 ? '#10b981' : '#6366f1'}"></i></div>
+        <p class="text-[10px] text-slate-500 leading-snug">${o.e.desc}</p>
+      </div>`).join('');
+
+    const campeao = ordem[0].e.nome;
+    document.getElementById('dp-nota').innerHTML = n <= 3
+      ? 'Com <b>poucas rodadas</b> não há futuro para punir ninguém: trair é simplesmente melhor.'
+      : `Campeão com ${n} rodadas: <b class="text-white">${campeao}</b>. O placar depende de <b>quem está no torneio</b> —
+         estratégias exploradoras vão bem enquanto houver cooperadores ingênuos para explorar. É por isso que
+         o experimento decisivo é o evolutivo, logo abaixo.`;
+  }
+
+  document.getElementById('dp-rodadas').addEventListener('input', e => {
+    document.getElementById('dp-rodadas-v').textContent = e.target.value;
+    torneio();
+  });
+  document.getElementById('dp-run').addEventListener('click', torneio);
+  torneio();
+
+  /* ---------- versão evolutiva (dinâmica do replicador) ---------- */
+  const CORES = ['#38bdf8', '#ef4444', '#10b981', '#a855f7', '#f59e0b'];
+  const cvEvo = AH.canvas('evoDpCanvas', desenhaEvo);
+  let historico = [];
+
+  function mediaPorRodada(i, j, n) {
+    const [pa] = duelo(ESTRATEGIAS[i], ESTRATEGIAS[j], n);
+    return pa / n;
+  }
+
+  function simulaEvolucao() {
+    const n = 40, geracoes = 120;
+    let share = ESTRATEGIAS.map(() => 1 / ESTRATEGIAS.length);
+
+    /* matriz de recompensa média entre estratégias (recalculada: “aleatório” varia) */
+    const M = ESTRATEGIAS.map((_, i) => ESTRATEGIAS.map((_, j) => mediaPorRodada(i, j, n)));
+
+    historico = [share.slice()];
+    for (let g = 0; g < geracoes; g++) {
+      const fit = share.map((_, i) => share.reduce((s, sj, j) => s + sj * M[i][j], 0));
+      const media = fit.reduce((s, f, i) => s + f * share[i], 0) || 1;
+      share = share.map((s, i) => Math.max(0, s * fit[i] / media));
+      const tot = share.reduce((a, b) => a + b, 0) || 1;
+      share = share.map(s => s / tot);
+      historico.push(share.slice());
+    }
+
+    const final = historico[historico.length - 1];
+    document.getElementById('dp-evo-legenda').innerHTML = ESTRATEGIAS.map((e, i) => `
+      <div class="flex items-center gap-2 text-[11px]">
+        <span class="w-3 h-3 rounded-sm shrink-0" style="background:${CORES[i]}"></span>
+        <span class="text-slate-300 flex-1 truncate">${e.nome}</span>
+        <span class="font-mono ${final[i] > 0.4 ? 'text-emerald-300' : 'text-slate-500'}">${(final[i] * 100).toFixed(1)}%</span>
+      </div>`).join('');
+
+    const vencedor = final.indexOf(Math.max(...final));
+    document.getElementById('dp-evo-nota').innerHTML =
+      `<i class="fa-solid fa-flag-checkered"></i><div>Após 120 gerações, <b>${ESTRATEGIAS[vencedor].nome}</b>
+       domina a população. Estratégias <em>gentis</em> (que nunca traem primeiro) mas <em>retaliadoras</em>
+       sobrevivem porque colhem 3 pontos por rodada entre si, enquanto traidores presos uns aos outros colhem 1.</div>`;
+
+    cvEvo.draw(cvEvo.ctx, cvEvo.w, cvEvo.h);
+  }
+
+  function desenhaEvo(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    if (!historico.length) return;
+    const x = g => 36 + (g / (historico.length - 1)) * (w - 50);
+    const y = v => h - 24 - v * (h - 40);
+
+    ctx.strokeStyle = 'rgba(148,163,184,.14)'; ctx.lineWidth = 1;
+    [0, .25, .5, .75, 1].forEach(v => {
+      ctx.beginPath(); ctx.moveTo(36, y(v)); ctx.lineTo(w - 14, y(v)); ctx.stroke();
+      ctx.fillStyle = 'rgba(148,163,184,.55)'; ctx.font = '9px Fira Code, monospace';
+      ctx.fillText(Math.round(v * 100) + '%', 6, y(v) + 3);
+    });
+    ctx.fillStyle = 'rgba(148,163,184,.6)'; ctx.font = '10px Inter, sans-serif';
+    ctx.fillText('gerações →', w - 78, h - 7);
+
+    ESTRATEGIAS.forEach((e, i) => {
+      ctx.strokeStyle = CORES[i]; ctx.lineWidth = 2.2; ctx.beginPath();
+      historico.forEach((s, g) => g ? ctx.lineTo(x(g), y(s[i])) : ctx.moveTo(x(g), y(s[i])));
+      ctx.stroke();
+    });
+  }
+
+  document.getElementById('dp-evo').addEventListener('click', simulaEvolucao);
+  simulaEvolucao();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

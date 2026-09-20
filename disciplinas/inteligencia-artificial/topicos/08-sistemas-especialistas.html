@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistemas Especialistas Baseados em Regras · AcademicHub</title>
+<meta name="description" content="Arquitetura, aquisição de conhecimento, fatores de certeza e explicação — construa um diagnóstico ao vivo.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/08-sistemas-especialistas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="O que é um SE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-user-doctor text-indigo-400 mr-2"></i>Engarrafar a experiência de um especialista</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>sistema especialista</strong> é um programa que resolve, dentro de um domínio estreito,
+      problemas que normalmente exigiriam um humano experiente — e, principalmente, <strong>explica</strong>
+      como chegou à conclusão. Ele não é inteligente de modo geral: é profundamente competente em uma coisa só.
+    </p>
+    <p>
+      Tecnicamente é um <a href="07-sistemas-de-producao.html" class="text-indigo-400 hover:underline">sistema de produção</a>
+      com três acréscimos decisivos: tratamento de <strong>incerteza</strong>, módulo de <strong>explicação</strong>
+      e um processo formal de <strong>aquisição de conhecimento</strong>.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Arquitetura</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="arq"></div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-user-tie"></i>
+    <div>
+      O <strong>engenheiro de conhecimento</strong> é quem entrevista o especialista e converte um saber tácito
+      (“quando vejo isso, desconfio daquilo”) em regras explícitas. Esse trabalho é o mais caro do projeto —
+      ficou conhecido como o <em>gargalo da aquisição de conhecimento</em>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ INCERTEZA ============================ -->
+<section id="certeza" data-toc="Fatores de certeza" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-percent text-indigo-400 mr-2"></i>Quando o especialista diz “provavelmente”</h2>
+  <div class="ah-prose">
+    <p>
+      Nenhum especialista real fala em certezas absolutas. O MYCIN introduziu o <strong>fator de certeza</strong>
+      (CF), um número de <code>−1</code> (certamente falso) a <code>+1</code> (certamente verdadeiro), com
+      <code>0</code> significando “não sei”. Não é probabilidade — é uma medida heurística de confiança, criada
+      porque os médicos não conseguiam fornecer as probabilidades condicionais que Bayes exigia.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-5">
+    <div class="ah-card p-4">
+      <h4 class="text-xs font-bold text-white mb-2">Propagação pela regra</h4>
+      <code class="text-[11px] text-indigo-300 block leading-relaxed">CF(conclusão) = CF(premissas) × CF(regra)</code>
+      <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">A confiança na conclusão nunca supera a confiança na evidência.</p>
+    </div>
+    <div class="ah-card p-4">
+      <h4 class="text-xs font-bold text-white mb-2">Conjunção e disjunção</h4>
+      <code class="text-[11px] text-indigo-300 block leading-relaxed">CF(A ∧ B) = min(CF(A), CF(B))<br>CF(A ∨ B) = max(CF(A), CF(B))</code>
+      <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">A corrente é tão forte quanto o elo mais fraco.</p>
+    </div>
+    <div class="ah-card p-4">
+      <h4 class="text-xs font-bold text-white mb-2">Evidências que se somam</h4>
+      <code class="text-[11px] text-indigo-300 block leading-relaxed">CF = CF₁ + CF₂ · (1 − CF₁)</code>
+      <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">Duas pistas fracas reforçam uma à outra, mas nunca ultrapassam 1.</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Laboratório: diagnóstico de um computador que não inicia</h3>
+  <p class="text-sm text-slate-400 mb-5">
+    Responda com o <em>grau de confiança</em> de cada observação. O sistema propaga os fatores de certeza pelas
+    regras e ordena as hipóteses. Clique em <strong>“por quê?”</strong> em qualquer hipótese para ver a cadeia de raciocínio.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h4 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-4">Observações do usuário</h4>
+      <div id="se-perguntas" class="space-y-4"></div>
+      <button id="se-zerar" class="ah-btn ah-btn-ghost w-full mt-5"><i class="fa-solid fa-rotate-left"></i> Zerar respostas</button>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-5">
+        <h4 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Hipóteses ordenadas por certeza</h4>
+        <div id="se-hipoteses" class="space-y-2"></div>
+      </div>
+      <div id="se-explica" class="ah-card p-5 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-xs font-bold uppercase tracking-wide text-slate-400">Explicação — “por quê?”</h4>
+          <button id="se-fecha" class="text-slate-500 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="se-explica-corpo" class="space-y-2 text-[11px]"></div>
+      </div>
+      <div class="ah-card p-5">
+        <h4 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Base de conhecimento</h4>
+        <div id="se-kb" class="space-y-1.5 font-mono text-[10px]"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ EXPLICAÇÃO ============================ -->
+<section id="explicacao" data-toc="Explicação e transparência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-comment-dots text-indigo-400 mr-2"></i>Por que a explicação é o diferencial</h2>
+  <div class="ah-prose">
+    <p>
+      Um especialista humano que não sabe justificar o diagnóstico não é levado a sério. Com software é igual:
+      sem explicação, ninguém adota o sistema. É por isso que todo SE clássico responde a duas perguntas.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+    <div class="ah-card p-5 border-l-2" style="border-left-color:#38bdf8">
+      <h3 class="ah-h3 mb-2 text-sm">“Por quê?” — durante a consulta</h3>
+      <p class="text-xs text-slate-400 leading-relaxed mb-3">O usuário pergunta por que aquela informação está sendo pedida. O sistema mostra a regra que está tentando satisfazer.</p>
+      <div class="ah-code text-[10px]">&gt; A máquina emite bipes? <b class="text-sky-300">por quê?</b><br>
+        <span class="cm">Estou tentando aplicar R4: SE não há vídeo E há bipes ENTÃO falha de memória (CF 0,8)</span></div>
+    </div>
+    <div class="ah-card p-5 border-l-2" style="border-left-color:#10b981">
+      <h3 class="ah-h3 mb-2 text-sm">“Como?” — depois da conclusão</h3>
+      <p class="text-xs text-slate-400 leading-relaxed mb-3">O usuário pede a derivação completa. O sistema reconstitui a cadeia de regras que levou à resposta.</p>
+      <div class="ah-code text-[10px]">&gt; <b class="text-emerald-300">como</b> concluiu falha de memória?<br>
+        <span class="cm">R4 disparou com CF 0,72, a partir de: “sem vídeo” (0,9) e “bipes” (1,0)</span></div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-link"></i>
+    <div>
+      Essa preocupação voltou com força hoje sob o nome de <strong>IA explicável (XAI)</strong>. A diferença é
+      que, num SE, a explicação é <em>gratuita</em> — ela é o próprio caminho da inferência. Numa rede neural,
+      é preciso reconstruí-la por aproximação (LIME, SHAP, mapas de atenção).
+    </div>
+  </div>
+</section>
+
+<!-- ============================ HISTÓRIA E LIMITES ============================ -->
+<section id="historia" data-toc="Clássicos e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-landmark text-indigo-400 mr-2"></i>Os clássicos — e por que o mercado esfriou</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
+    <div class="ah-card p-5"><span class="ah-badge mb-2">1965</span>
+      <h3 class="ah-h3 mb-1 text-sm">DENDRAL</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Inferia a estrutura molecular a partir de espectrometria de massa. O primeiro SE de verdade: mostrou que conhecimento específico vale mais que raciocínio geral.</p></div>
+    <div class="ah-card p-5"><span class="ah-badge mb-2">1972</span>
+      <h3 class="ah-h3 mb-1 text-sm">MYCIN</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">~600 regras para infecções do sangue. Desempenho comparável ao de especialistas; nunca foi usado clinicamente, por questões de responsabilidade legal e integração.</p></div>
+    <div class="ah-card p-5"><span class="ah-badge mb-2">1980</span>
+      <h3 class="ah-h3 mb-1 text-sm">XCON / R1</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Configurava pedidos de computadores VAX na DEC. Economia estimada de US$ 40 milhões por ano — o caso comercial que lançou a onda dos anos 80.</p></div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3 text-emerald-400"><i class="fa-solid fa-thumbs-up mr-2"></i>Pontos fortes</h3>
+      <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
+        <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Conhecimento explícito, auditável e revisável por não programadores</li>
+        <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Explicação nativa de cada conclusão</li>
+        <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Desempenho constante: não cansa, não esquece, não varia com o humor</li>
+        <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Preserva e distribui a experiência de quem se aposenta</li>
+        <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Não exige base de dados histórica — só um especialista</li>
+      </ul>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3 text-rose-400"><i class="fa-solid fa-thumbs-down mr-2"></i>Limitações</h3>
+      <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
+        <li class="flex gap-2"><i class="fa-solid fa-xmark text-rose-400 mt-0.5"></i><strong>Fragilidade nas bordas:</strong> fora do domínio previsto, erra com a mesma confiança</li>
+        <li class="flex gap-2"><i class="fa-solid fa-xmark text-rose-400 mt-0.5"></i><strong>Não aprende:</strong> cada regra nova é trabalho manual</li>
+        <li class="flex gap-2"><i class="fa-solid fa-xmark text-rose-400 mt-0.5"></i><strong>Manutenção cara:</strong> em bases grandes, regras novas contradizem as antigas</li>
+        <li class="flex gap-2"><i class="fa-solid fa-xmark text-rose-400 mt-0.5"></i><strong>Sem bom senso:</strong> falta o conhecimento de mundo que ninguém pensa em escrever</li>
+        <li class="flex gap-2"><i class="fa-solid fa-xmark text-rose-400 mt-0.5"></i><strong>Gargalo humano:</strong> depende da disponibilidade do especialista</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-arrows-rotate"></i>
+    <div>
+      <strong>Nem tudo morreu.</strong> A tecnologia vive hoje em <em>motores de regras de negócio</em>
+      (Drools, CLIPS, decision tables), em sistemas de conformidade e em pipelines híbridos — onde um
+      <a href="06-machine-learning.html" class="text-indigo-400 hover:underline">modelo estatístico</a> propõe e
+      um conjunto de regras audita.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre sistemas especialistas.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Duas regras independentes concluem a mesma hipótese com CF 0,6 e CF 0,5. O CF combinado é:</p>
+      <button class="ah-quiz-opt">1,10 — as certezas se somam</button>
+      <button class="ah-quiz-opt">0,80 — <code>0,6 + 0,5·(1 − 0,6)</code></button>
+      <button class="ah-quiz-opt">0,30 — multiplicam-se</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A fórmula de combinação garante que o resultado cresça mas nunca alcance 1: cada evidência nova cobre
+        parte do que ainda faltava. Duas pistas moderadas viram uma suspeita forte — mas não uma certeza.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que o MYCIN não usou probabilidades bayesianas?</p>
+      <button class="ah-quiz-opt">Porque Bayes ainda não era conhecido</button>
+      <button class="ah-quiz-opt">Porque o computador da época não fazia multiplicação</button>
+      <button class="ah-quiz-opt">Porque exigiria probabilidades condicionais que os médicos não sabiam estimar</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Uma rede bayesiana completa precisa de <em>muitos</em> números difíceis de obter. Os fatores de certeza
+        foram um atalho de engenharia: fáceis de eliciar, mas sem fundamentação teórica sólida — hoje se prefere
+        redes bayesianas quando os dados existem.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Qual cenário <em>não</em> favorece um sistema especialista?</p>
+      <button class="ah-quiz-opt">Reconhecer objetos em fotografias</button>
+      <button class="ah-quiz-opt">Validar conformidade tributária de notas fiscais</button>
+      <button class="ah-quiz-opt">Diagnosticar falhas em um tipo específico de máquina industrial</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Percepção não se escreve em regras: ninguém consegue enunciar “SE tais pixels ENTÃO é um gato”.
+        Domínios perceptuais pedem <a href="14-redes-neurais.html" class="text-indigo-400 hover:underline">redes neurais</a>;
+        domínios normativos e simbólicos pedem regras.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Arquitetura ===================== */
+const ARQ = [
+  ['Base de conhecimento', 'fa-book', '#38bdf8', 'Regras e fatos do domínio, com seus fatores de certeza. É o ativo do sistema.'],
+  ['Memória de trabalho', 'fa-clipboard', '#a855f7', 'Os dados do caso em análise: o que o usuário respondeu nesta consulta.'],
+  ['Motor de inferência', 'fa-gears', '#10b981', 'Aplica as regras, propaga certezas e decide o que perguntar em seguida.'],
+  ['Interface de consulta', 'fa-comments', '#f59e0b', 'Faz perguntas em linguagem do domínio e apresenta as conclusões.'],
+  ['Módulo de explicação', 'fa-circle-question', '#ec4899', 'Responde “por quê?” e “como?”, exibindo a cadeia de regras usada.'],
+  ['Aquisição de conhecimento', 'fa-user-pen', '#6366f1', 'Ferramentas para o especialista revisar e acrescentar regras sem programar.']
+];
+document.getElementById('arq').innerHTML = ARQ.map(a => `
+  <div class="ah-card ah-card-hover p-4" style="border-top:3px solid ${a[2]}">
+    <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background:${a[2]}22;color:${a[2]}">
+      <i class="fa-solid ${a[1]}"></i></div>
+    <h4 class="text-xs font-bold text-white mb-1">${a[0]}</h4>
+    <p class="text-[11px] text-slate-400 leading-relaxed">${a[3]}</p>
+  </div>`).join('');
+
+/* ===================== SE com fatores de certeza ===================== */
+(function especialista() {
+  const PERG = [
+    { id: 'sem_video', txt: 'A tela fica totalmente apagada (sem imagem)?' },
+    { id: 'bipes', txt: 'A máquina emite uma sequência de bipes ao ligar?' },
+    { id: 'sem_energia', txt: 'Nenhum LED acende e a ventoinha não gira?' },
+    { id: 'desliga_sozinho', txt: 'Liga, funciona alguns minutos e desliga sozinho?' },
+    { id: 'muito_quente', txt: 'O gabinete fica muito quente ao toque?' },
+    { id: 'tela_azul', txt: 'Aparece tela azul / erro do sistema durante a inicialização?' },
+    { id: 'ruido_disco', txt: 'Ouve-se um clique repetitivo vindo do disco?' }
+  ];
+  const REGRAS = [
+    { id: 'R1', se: ['sem_energia'], entao: 'Fonte de alimentação com defeito', cf: 0.85 },
+    { id: 'R2', se: ['sem_video', 'bipes'], entao: 'Memória RAM mal encaixada ou defeituosa', cf: 0.80 },
+    { id: 'R3', se: ['sem_video'], entao: 'Cabo de vídeo ou monitor com problema', cf: 0.45 },
+    { id: 'R4', se: ['desliga_sozinho', 'muito_quente'], entao: 'Superaquecimento (cooler/pasta térmica)', cf: 0.90 },
+    { id: 'R5', se: ['desliga_sozinho'], entao: 'Fonte de alimentação com defeito', cf: 0.40 },
+    { id: 'R6', se: ['tela_azul'], entao: 'Corrupção do sistema operacional ou driver', cf: 0.65 },
+    { id: 'R7', se: ['ruido_disco'], entao: 'Disco rígido com falha física', cf: 0.88 },
+    { id: 'R8', se: ['tela_azul', 'ruido_disco'], entao: 'Disco rígido com falha física', cf: 0.70 },
+    { id: 'R9', se: ['bipes', 'muito_quente'], entao: 'Superaquecimento (cooler/pasta térmica)', cf: 0.50 }
+  ];
+  const OPCOES = [
+    ['Não', -1, '#ef4444'], ['Provavelmente não', -0.5, '#f87171'],
+    ['Não sei', 0, '#64748b'], ['Provavelmente sim', 0.5, '#34d399'], ['Sim', 1, '#10b981']
+  ];
+
+  const resp = {};
+  PERG.forEach(p => resp[p.id] = 0);
+  let aberta = null;
+
+  const combina = (a, b) => a >= 0 && b >= 0 ? a + b * (1 - a)
+    : a < 0 && b < 0 ? a + b * (1 + a)
+    : (a + b) / (1 - Math.min(Math.abs(a), Math.abs(b)));
+
+  function infere() {
+    const hip = {};
+    REGRAS.forEach(r => {
+      const cfPrem = Math.min(...r.se.map(s => resp[s]));
+      if (cfPrem <= 0) return;                       // regra só dispara com evidência positiva
+      const cf = cfPrem * r.cf;
+      if (!hip[r.entao]) hip[r.entao] = { cf: 0, regras: [] };
+      hip[r.entao].cf = combina(hip[r.entao].cf, cf);
+      hip[r.entao].regras.push({ id: r.id, se: r.se, cfPrem, cfRegra: r.cf, cf });
+    });
+    return Object.entries(hip).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.cf - a.cf);
+  }
+
+  function pinta() {
+    document.getElementById('se-perguntas').innerHTML = PERG.map(p => `
+      <div>
+        <p class="text-xs text-slate-300 mb-2 leading-snug">${p.txt}</p>
+        <div class="flex flex-wrap gap-1">
+          ${OPCOES.map(o => `
+            <button data-p="${p.id}" data-v="${o[1]}"
+              class="px-2 py-1 rounded-md text-[10px] font-semibold border transition"
+              style="${resp[p.id] === o[1]
+                ? `background:${o[2]}22;border-color:${o[2]};color:${o[2]}`
+                : 'background:#020617;border-color:#334155;color:#64748b'}">${o[0]}</button>`).join('')}
+        </div>
+      </div>`).join('');
+
+    const hip = infere();
+    document.getElementById('se-hipoteses').innerHTML = hip.length ? hip.map(h => {
+      const pct = Math.round(h.cf * 100);
+      const cor = h.cf > 0.7 ? '#10b981' : h.cf > 0.4 ? '#f59e0b' : '#64748b';
+      return `<div class="ah-card p-3">
+        <div class="flex items-center justify-between gap-2 mb-1.5">
+          <span class="text-xs font-semibold text-white leading-snug">${h.nome}</span>
+          <span class="font-mono text-sm shrink-0" style="color:${cor}">CF ${h.cf.toFixed(2)}</span>
+        </div>
+        <div class="ah-progress mb-2"><i style="width:${pct}%;background:${cor}"></i></div>
+        <button data-exp="${h.nome}" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold">
+          <i class="fa-solid fa-circle-question mr-1"></i>por quê?</button>
+      </div>`;
+    }).join('') : '<p class="text-xs text-slate-500 italic">Responda às perguntas para gerar hipóteses.</p>';
+
+    if (aberta) {
+      const h = hip.find(x => x.nome === aberta);
+      const box = document.getElementById('se-explica');
+      if (h) {
+        box.classList.remove('hidden');
+        document.getElementById('se-explica-corpo').innerHTML =
+          `<p class="text-slate-300 mb-2">Concluí <b class="text-white">${h.nome}</b> com CF ${h.cf.toFixed(2)} a partir de:</p>` +
+          h.regras.map(r => `
+            <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono leading-relaxed">
+              <div class="text-indigo-300">${r.id}: SE ${r.se.map(s => PERG.find(p => p.id === s).txt.replace('?', '')).join(' E ')}</div>
+              <div class="text-slate-500">CF(premissas) = ${r.cfPrem.toFixed(2)} &nbsp;×&nbsp; CF(regra) = ${r.cfRegra.toFixed(2)}
+                &nbsp;→&nbsp; <b class="text-emerald-300">${r.cf.toFixed(2)}</b></div>
+            </div>`).join('') +
+          (h.regras.length > 1
+            ? `<p class="text-slate-400 mt-2">As ${h.regras.length} evidências foram combinadas por
+               <code class="text-indigo-300">CF₁ + CF₂·(1 − CF₁)</code>, resultando em <b class="text-white">${h.cf.toFixed(2)}</b>.</p>`
+            : '');
+      } else box.classList.add('hidden');
+    }
+
+    document.getElementById('se-kb').innerHTML = REGRAS.map(r => {
+      const ativa = Math.min(...r.se.map(s => resp[s])) > 0;
+      return `<div class="px-2 py-1.5 rounded-md border leading-snug ${ativa
+        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : 'border-slate-800 bg-slate-950 text-slate-500'}">
+        <b>${r.id}</b>: SE ${r.se.join(' ∧ ')} ENTÃO ${r.entao} <span class="opacity-70">[CF ${r.cf}]</span></div>`;
+    }).join('');
+  }
+
+  document.getElementById('se-perguntas').addEventListener('click', e => {
+    const b = e.target.closest('[data-p]');
+    if (!b) return;
+    resp[b.getAttribute('data-p')] = +b.getAttribute('data-v');
+    pinta();
+  });
+  document.getElementById('se-hipoteses').addEventListener('click', e => {
+    const b = e.target.closest('[data-exp]');
+    if (!b) return;
+    aberta = b.getAttribute('data-exp');
+    pinta();
+    document.getElementById('se-explica').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+  document.getElementById('se-fecha').addEventListener('click', () => {
+    aberta = null;
+    document.getElementById('se-explica').classList.add('hidden');
+  });
+  document.getElementById('se-zerar').addEventListener('click', () => {
+    PERG.forEach(p => resp[p.id] = 0);
+    aberta = null;
+    document.getElementById('se-explica').classList.add('hidden');
+    pinta();
+  });
+
+  resp['sem_video'] = 1; resp['bipes'] = 0.5;
+  pinta();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

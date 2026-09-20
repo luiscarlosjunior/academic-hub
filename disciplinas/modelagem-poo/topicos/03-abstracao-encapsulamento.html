@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abstração e Encapsulamento · AcademicHub</title>
+<meta name="description" content="Esconder o "como" e expor o "o quê": visibilidade, getters/setters e invariantes protegidas.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/03-abstracao-encapsulamento">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ ABSTRAÇÃO ============================ -->
+<section id="abstracao" data-toc="Abstração" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-eye-slash text-emerald-400 mr-2"></i>Abstração: decidir o que <em>não</em> modelar</h2>
+  <div class="ah-prose">
+    <p>
+      Uma pessoa real tem milhares de características. Nenhum sistema precisa de todas. <strong>Abstrair</strong>
+      é escolher o subconjunto relevante <em>para aquele propósito</em> e descartar o resto com consciência.
+    </p>
+    <p>
+      Por isso não existe “o modelo correto de Pessoa”: existe o modelo adequado ao contexto.
+      Escolha o sistema abaixo e veja a mesma entidade do mundo real virar três classes diferentes.
+    </p>
+  </div>
+
+  <div class="flex flex-wrap gap-2 my-5" id="abs-btns"></div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div id="abs-classe"></div>
+    <div id="abs-nota" class="ah-card p-5"></div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Pergunta que guia toda abstração:</strong> “o sistema precisa <em>fazer</em> alguma coisa com
+      esse dado?”. Se a resposta for não, ele não entra no modelo — mesmo existindo no mundo real.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ENCAPSULAMENTO ============================ -->
+<section id="encapsulamento" data-toc="Encapsulamento na prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-emerald-400 mr-2"></i>Encapsulamento: o objeto defende o próprio estado</h2>
+  <p class="ah-lead text-sm mb-5">
+    Duas contas bancárias com a mesma finalidade e implementações opostas. Execute as operações nas duas e
+    compare — especialmente as que <strong>violam a regra de negócio</strong>.
+  </p>
+
+  <div class="flex flex-wrap gap-2 mb-5">
+    <button class="ah-btn" data-op="dep">depositar(500)</button>
+    <button class="ah-btn" data-op="saque-ok">sacar(200)</button>
+    <button class="ah-btn ah-btn-ghost" data-op="saque-alto">sacar(999999) <span class="text-rose-400 ml-1">⚠</span></button>
+    <button class="ah-btn ah-btn-ghost" data-op="direto">saldo = −5000 <span class="text-rose-400 ml-1">⚠</span></button>
+    <button class="ah-btn ah-btn-ghost" data-op="neg">depositar(−100) <span class="text-rose-400 ml-1">⚠</span></button>
+    <button class="ah-btn ah-btn-ghost ml-auto" data-op="reset"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card overflow-hidden" style="border-top:3px solid #ef4444">
+      <div class="px-5 py-3 border-b border-slate-700/60 flex items-center justify-between">
+        <h3 class="ah-h3 text-sm text-rose-300"><i class="fa-solid fa-lock-open mr-2"></i>Sem encapsulamento</h3>
+        <span class="ah-badge ah-badge-rose">atributo público</span>
+      </div>
+      <div class="p-5">
+        <pre class="ah-code text-[10px] mb-4"><span class="kw">public class</span> <span class="ty">ContaAberta</span> {
+    <span class="kw">public double</span> saldo;   <span class="cm">// exposto</span>
+}</pre>
+        <div class="text-center py-4 bg-slate-950 rounded-xl border border-slate-800 mb-3">
+          <div class="text-[10px] uppercase tracking-wide text-slate-500 font-bold mb-1">saldo</div>
+          <div id="c1-saldo" class="text-3xl font-bold font-mono">R$ 1.000,00</div>
+        </div>
+        <div id="c1-log" class="font-mono text-[10px] space-y-1 max-h-36 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <div class="ah-card overflow-hidden" style="border-top:3px solid #10b981">
+      <div class="px-5 py-3 border-b border-slate-700/60 flex items-center justify-between">
+        <h3 class="ah-h3 text-sm text-emerald-300"><i class="fa-solid fa-lock mr-2"></i>Com encapsulamento</h3>
+        <span class="ah-badge ah-badge-emerald">atributo privado</span>
+      </div>
+      <div class="p-5">
+        <pre class="ah-code text-[10px] mb-4"><span class="kw">public class</span> <span class="ty">ContaSegura</span> {
+    <span class="kw">private double</span> saldo;  <span class="cm">// protegido</span>
+
+    <span class="kw">public void</span> <span class="fn">depositar</span>(<span class="ty">double</span> v) {
+        <span class="kw">if</span> (v &lt;= <span class="num">0</span>) <span class="kw">throw new</span> <span class="ty">ValorInvalido</span>();
+        saldo += v;
+    }
+    <span class="kw">public void</span> <span class="fn">sacar</span>(<span class="ty">double</span> v) {
+        <span class="kw">if</span> (v &gt; saldo) <span class="kw">throw new</span> <span class="ty">SaldoInsuficiente</span>();
+        saldo -= v;
+    }
+    <span class="kw">public double</span> <span class="fn">getSaldo</span>() { <span class="kw">return</span> saldo; }
+}</pre>
+        <div class="text-center py-4 bg-slate-950 rounded-xl border border-slate-800 mb-3">
+          <div class="text-[10px] uppercase tracking-wide text-slate-500 font-bold mb-1">getSaldo()</div>
+          <div id="c2-saldo" class="text-3xl font-bold font-mono text-emerald-400">R$ 1.000,00</div>
+        </div>
+        <div id="c2-log" class="font-mono text-[10px] space-y-1 max-h-36 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>O ponto não é “usar private”.</strong> É que a regra de negócio precisa viver em um único lugar.
+      Uma classe com <code>private</code> + getter e setter para tudo continua completamente aberta — só que
+      com mais linhas. Encapsular é <em>não expor</em> o que não precisa ser exposto.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VISIBILIDADE ============================ -->
+<section id="visibilidade" data-toc="Visibilidade em UML" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-emerald-400 mr-2"></i>Os quatro níveis de visibilidade</h2>
+  <p class="ah-lead text-sm mb-5">
+    Na UML, o símbolo antes do nome indica quem enxerga o membro. Clique nas linhas para ver o efeito
+    na caixa de classe e no código Java equivalente.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card overflow-x-auto">
+      <table class="ah-table" id="vis-tabela"></table>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Caixa de classe em UML</h3>
+        <div class="ah-card overflow-hidden max-w-xs mx-auto">
+          <div class="bg-emerald-500/15 border-b border-emerald-500/30 px-4 py-2 text-center text-sm font-bold text-white">Funcionario</div>
+          <div id="vis-attr" class="px-4 py-3 border-b border-slate-700/60 font-mono text-[11px] space-y-1"></div>
+          <div id="vis-met" class="px-4 py-3 font-mono text-[11px] space-y-1"></div>
+        </div>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Java equivalente</h3>
+        <pre class="ah-code text-[10px]" id="vis-java"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TROCAR IMPLEMENTAÇÃO ============================ -->
+<section id="troca" data-toc="Por que isso importa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-screwdriver-wrench text-emerald-400 mr-2"></i>O teste definitivo: trocar o interior sem quebrar ninguém</h2>
+  <div class="ah-prose">
+    <p>
+      Encapsular bem significa poder reescrever o interior da classe sem que nenhum código cliente perceba.
+      Veja duas implementações completamente diferentes de <code>Temperatura</code> — e repare que o cliente
+      continua idêntico.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-5">
+    <div class="ah-card p-5">
+      <span class="ah-badge mb-2">versão 1 — guarda em Celsius</span>
+      <pre class="ah-code text-[10px]"><span class="kw">class</span> <span class="ty">Temperatura</span> {
+    <span class="kw">private double</span> celsius;
+
+    <span class="kw">public double</span> <span class="fn">getCelsius</span>() {
+        <span class="kw">return</span> celsius;
+    }
+    <span class="kw">public double</span> <span class="fn">getFahrenheit</span>() {
+        <span class="kw">return</span> celsius * <span class="num">1.8</span> + <span class="num">32</span>;
+    }
+}</pre>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">versão 2 — guarda em Kelvin</span>
+      <pre class="ah-code text-[10px]"><span class="kw">class</span> <span class="ty">Temperatura</span> {
+    <span class="kw">private double</span> kelvin;  <span class="cm">// mudou!</span>
+
+    <span class="kw">public double</span> <span class="fn">getCelsius</span>() {
+        <span class="kw">return</span> kelvin - <span class="num">273.15</span>;
+    }
+    <span class="kw">public double</span> <span class="fn">getFahrenheit</span>() {
+        <span class="kw">return</span> (kelvin - <span class="num">273.15</span>) * <span class="num">1.8</span> + <span class="num">32</span>;
+    }
+}</pre>
+    </div>
+    <div class="ah-card p-5 border-l-2" style="border-left-color:#10b981">
+      <span class="ah-badge ah-badge-emerald mb-2">o cliente — inalterado</span>
+      <pre class="ah-code text-[10px]"><span class="ty">Temperatura</span> t = sensor.<span class="fn">ler</span>();
+
+<span class="fn">println</span>(t.<span class="fn">getCelsius</span>());
+<span class="fn">println</span>(t.<span class="fn">getFahrenheit</span>());
+
+<span class="cm">// Nenhuma linha mudou.
+// O cliente nunca soube — e
+// nunca precisou saber — em
+// que unidade o valor era
+// guardado internamente.</span></pre>
+      <p class="text-[11px] text-slate-400 mt-3 leading-relaxed">
+        Se <code>celsius</code> fosse público, metade do sistema quebraria na hora da troca.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#11312a)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre os dois primeiros pilares.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Uma classe com todos os atributos <code>private</code> e um par getter/setter público para cada um está:</p>
+      <button class="ah-quiz-opt">Perfeitamente encapsulada</button>
+      <button class="ah-quiz-opt">Violando a sintaxe de Java</button>
+      <button class="ah-quiz-opt">Tão aberta quanto antes — os setters expõem o estado sem nenhuma regra</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É o “encapsulamento de fachada”. <code>conta.setSaldo(-5000)</code> passa igual. O correto é expor
+        <em>operações de negócio</em> (<code>depositar</code>, <code>sacar</code>) e não acesso bruto aos campos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Em UML, o símbolo <code>#</code> antes de um membro significa:</p>
+      <button class="ah-quiz-opt">protected — visível na própria classe e nas subclasses</button>
+      <button class="ah-quiz-opt">private</button>
+      <button class="ah-quiz-opt">static</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        <code>+</code> público, <code>−</code> privado, <code>#</code> protegido, <code>~</code> de pacote.
+        Membros <code>static</code> aparecem <u>sublinhados</u>, não com símbolo próprio.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Abstração, no contexto da modelagem, é:</p>
+      <button class="ah-quiz-opt">Tornar a classe abstract com a palavra-chave da linguagem</button>
+      <button class="ah-quiz-opt">Representar apenas as características relevantes para o propósito do sistema</button>
+      <button class="ah-quiz-opt">Esconder os atributos com private</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Cuidado com a ambiguidade do termo: <em>classe abstrata</em> é um recurso da linguagem (assunto do
+        <a href="05-classes-abstratas-interfaces.html" class="text-emerald-400 hover:underline">tópico 05</a>);
+        <em>abstração</em> é o princípio de modelagem. Esconder detalhes é encapsulamento — parente próximo,
+        mas coisa distinta.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Abstração: mesma entidade, três modelos ===================== */
+const CONTEXTOS = [
+  { n: 'Sistema acadêmico', i: 'fa-graduation-cap',
+    attrs: ['− matricula: String', '− nome: String', '− curso: Curso', '− coeficiente: double', '− semestre: int'],
+    mets: ['+ matricularEm(d: Disciplina)', '+ calcularCR(): double', '+ estaFormado(): boolean'],
+    nota: 'Aqui interessa o <b>vínculo com o curso</b>. Altura, tipo sanguíneo e salário existem no mundo real, mas nenhum caso de uso os utiliza — então ficam de fora.' },
+  { n: 'Sistema hospitalar', i: 'fa-hospital',
+    attrs: ['− prontuario: String', '− nome: String', '− tipoSanguineo: String', '− alergias: List&lt;String&gt;', '− dataNascimento: Data'],
+    mets: ['+ registrarConsulta(c: Consulta)', '+ podeReceber(m: Medicamento): boolean', '+ idade(): int'],
+    nota: 'O mesmo indivíduo, outro recorte: <b>alergias</b> viram atributo crítico e a data de nascimento importa porque a dosagem depende da idade.' },
+  { n: 'Folha de pagamento', i: 'fa-money-bill',
+    attrs: ['− cpf: String', '− nome: String', '− cargo: Cargo', '− salarioBase: double', '− dependentes: int'],
+    mets: ['+ calcularLiquido(): double', '+ descontarINSS(): double', '+ registrarPonto(h: Horas)'],
+    nota: 'Agora só o que afeta <b>dinheiro</b>. Curso e alergias somem; aparecem dependentes, porque mudam o imposto retido.' }
+];
+
+let ctxAtivo = 0;
+const btns = document.getElementById('abs-btns');
+btns.innerHTML = CONTEXTOS.map((c, i) =>
+  `<button class="ah-chip ${i === 0 ? 'active' : ''}" data-c="${i}"><i class="fa-solid ${c.i} mr-1"></i>${c.n}</button>`).join('');
+
+function pintaAbs() {
+  const c = CONTEXTOS[ctxAtivo];
+  document.getElementById('abs-classe').innerHTML = `
+    <div class="ah-card overflow-hidden ah-reveal visible">
+      <div class="bg-emerald-500/15 border-b border-emerald-500/30 px-4 py-2 text-center">
+        <span class="text-[10px] uppercase tracking-wide text-emerald-400 font-bold">${c.n}</span>
+        <div class="text-base font-bold text-white">Pessoa</div>
+      </div>
+      <div class="px-5 py-3 border-b border-slate-700/60 font-mono text-[11px] text-slate-300 space-y-1">
+        ${c.attrs.map(a => `<div>${a}</div>`).join('')}
+      </div>
+      <div class="px-5 py-3 font-mono text-[11px] text-slate-300 space-y-1">
+        ${c.mets.map(m => `<div>${m}</div>`).join('')}
+      </div>
+    </div>`;
+  document.getElementById('abs-nota').innerHTML = `
+    <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Por que só isso?</h3>
+    <p class="text-sm text-slate-300 leading-relaxed">${c.nota}</p>
+    <div class="mt-4 pt-4 border-t border-slate-700/60">
+      <p class="text-[11px] text-slate-500 leading-relaxed">
+        As três classes se chamam <code>Pessoa</code> e modelam a mesma entidade do mundo real.
+        Nenhuma está errada — cada uma é uma <b>abstração diferente</b>, guiada pelo propósito do sistema.</p>
+    </div>`;
+}
+
+btns.addEventListener('click', e => {
+  const b = e.target.closest('[data-c]');
+  if (!b) return;
+  ctxAtivo = +b.getAttribute('data-c');
+  btns.querySelectorAll('.ah-chip').forEach(c => c.classList.toggle('active', c === b));
+  pintaAbs();
+});
+pintaAbs();
+
+/* ===================== Duas contas ===================== */
+(function contas() {
+  let s1 = 1000, s2 = 1000;
+  const log1 = [], log2 = [];
+  const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function pinta() {
+    document.getElementById('c1-saldo').textContent = fmt(s1);
+    document.getElementById('c1-saldo').className = 'text-3xl font-bold font-mono ' + (s1 < 0 ? 'text-rose-400' : 'text-slate-200');
+    document.getElementById('c2-saldo').textContent = fmt(s2);
+    const render = (arr, el) => document.getElementById(el).innerHTML = arr.length
+      ? arr.slice(0, 8).map(l => `<div class="${l.k === 'erro' ? 'text-rose-400' : l.k === 'aviso' ? 'text-amber-400' : 'text-emerald-400'}">${l.t}</div>`).join('')
+      : '<div class="text-slate-600 italic">nenhuma operação</div>';
+    render(log1, 'c1-log'); render(log2, 'c2-log');
+  }
+
+  document.querySelector('[data-op="reset"]').parentElement.addEventListener('click', e => {
+    const b = e.target.closest('[data-op]');
+    if (!b) return;
+    const op = b.getAttribute('data-op');
+
+    if (op === 'reset') { s1 = 1000; s2 = 1000; log1.length = 0; log2.length = 0; return pinta(); }
+
+    if (op === 'dep') {
+      s1 += 500; log1.unshift({ k: 'ok', t: 'conta.saldo += 500 → ' + fmt(s1) });
+      s2 += 500; log2.unshift({ k: 'ok', t: 'depositar(500) → ' + fmt(s2) });
+    }
+    if (op === 'saque-ok') {
+      s1 -= 200; log1.unshift({ k: 'ok', t: 'conta.saldo -= 200 → ' + fmt(s1) });
+      s2 -= 200; log2.unshift({ k: 'ok', t: 'sacar(200) → ' + fmt(s2) });
+    }
+    if (op === 'saque-alto') {
+      s1 -= 999999; log1.unshift({ k: 'erro', t: '✗ conta.saldo -= 999999 → ' + fmt(s1) + ' (estado inválido!)' });
+      log2.unshift({ k: 'aviso', t: '⚠ SaldoInsuficienteException — saldo intacto' });
+    }
+    if (op === 'direto') {
+      s1 = -5000; log1.unshift({ k: 'erro', t: '✗ conta.saldo = -5000 → compilou e executou' });
+      log2.unshift({ k: 'aviso', t: '⚠ erro de compilação: saldo tem acesso private' });
+    }
+    if (op === 'neg') {
+      s1 += -100; log1.unshift({ k: 'erro', t: '✗ conta.saldo += -100 → depósito negativo aceito' });
+      log2.unshift({ k: 'aviso', t: '⚠ ValorInvalidoException — operação recusada' });
+    }
+    pinta();
+  });
+
+  pinta();
+})();
+
+/* ===================== Visibilidade ===================== */
+(function visibilidade() {
+  const NIVEIS = [
+    { s: '+', n: 'public', cor: '#10b981', q: 'Qualquer classe, de qualquer pacote',
+      u: 'A interface pública da classe — o que ela promete oferecer.' },
+    { s: '#', n: 'protected', cor: '#f59e0b', q: 'A própria classe e suas subclasses',
+      u: 'Detalhes que as subclasses precisam para especializar o comportamento.' },
+    { s: '~', n: 'package', cor: '#38bdf8', q: 'Classes do mesmo pacote',
+      u: 'Colaboração entre classes que formam um módulo coeso.' },
+    { s: '−', n: 'private', cor: '#ef4444', q: 'Somente a própria classe',
+      u: 'O padrão para atributos. Tudo que é detalhe interno começa aqui.' }
+  ];
+  let sel = 3;
+
+  function pinta() {
+    document.getElementById('vis-tabela').innerHTML = `
+      <thead><tr><th>UML</th><th>Java</th><th>Quem enxerga</th></tr></thead>
+      <tbody>${NIVEIS.map((n, i) => `
+        <tr data-v="${i}" class="cursor-pointer ${i === sel ? 'bg-emerald-500/10' : ''}">
+          <td class="font-mono text-lg text-center" style="color:${n.cor}">${n.s}</td>
+          <td class="font-mono" style="color:${n.cor}">${n.n}</td>
+          <td class="text-xs">${n.q}<div class="text-[10px] text-slate-500 mt-0.5">${n.u}</div></td>
+        </tr>`).join('')}</tbody>`;
+
+    const n = NIVEIS[sel];
+    document.getElementById('vis-attr').innerHTML =
+      `<div style="color:${n.cor}">${n.s} salario: double</div>
+       <div class="text-rose-400">− cpf: String</div>
+       <div class="text-emerald-400">+ nome: String</div>`;
+    document.getElementById('vis-met').innerHTML =
+      `<div class="text-emerald-400">+ calcularBonus(): double</div>
+       <div style="color:${n.cor}">${n.s} aplicarReajuste(p: double)</div>
+       <div class="text-slate-400"><u>+ getTotalFuncionarios(): int</u> <span class="text-[9px] text-slate-600">static</span></div>`;
+
+    document.getElementById('vis-java').innerHTML =
+      `<span class="kw">public class</span> <span class="ty">Funcionario</span> {
+    <span class="kw" style="color:${n.cor}">${n.n === 'package' ? '' : n.n + ' '}</span><span class="ty">double</span> salario;
+    <span class="kw">private</span> <span class="ty">String</span> cpf;
+    <span class="kw">public</span> <span class="ty">String</span> nome;
+
+    <span class="kw">public double</span> <span class="fn">calcularBonus</span>() { … }
+    <span class="kw" style="color:${n.cor}">${n.n === 'package' ? '' : n.n + ' '}</span><span class="kw">void</span> <span class="fn">aplicarReajuste</span>(<span class="ty">double</span> p) { … }
+    <span class="kw">public static int</span> <span class="fn">getTotalFuncionarios</span>() { … }
+}`;
+  }
+
+  document.getElementById('vis-tabela').addEventListener('click', e => {
+    const tr = e.target.closest('[data-v]');
+    if (!tr) return;
+    sel = +tr.getAttribute('data-v');
+    pinta();
+  });
+  pinta();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

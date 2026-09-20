@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algoritmos Genéticos e Autômatos Celulares · AcademicHub</title>
+<meta name="description" content="Seleção, crossover e mutação evoluindo uma população; e a vida artificial do Game of Life.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/11-algoritmos-geneticos-automatos-celulares">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Computação inspirada na vida" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-dna text-indigo-400 mr-2"></i>Duas ideias emprestadas da biologia</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Algoritmos genéticos</strong> e <strong>autômatos celulares</strong> nasceram da mesma pergunta:
+      até onde regras simples, repetidas muitas vezes, conseguem chegar? No primeiro caso a resposta é
+      “otimizam problemas que não sabemos resolver”; no segundo, “geram complexidade sem projetista”.
+    </p>
+    <p>
+      Um AG não precisa da derivada, nem que a função seja contínua, nem sequer de uma fórmula — basta
+      conseguir <em>pontuar</em> uma solução candidata. É o método de escolha quando o espaço de busca é
+      gigante, acidentado e mal comportado.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ AG: LABORATÓRIO ============================ -->
+<section id="ag" data-toc="Algoritmo genético (simulador)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-seedling text-indigo-400 mr-2"></i>Uma população procurando o pico</h2>
+  <p class="ah-lead text-sm mb-5">
+    A tarefa: encontrar o <strong>máximo global</strong> de uma função cheia de picos falsos. Cada indivíduo é
+    um cromossomo binário de 16 bits que codifica um valor de <em>x</em>. Note como a população
+    <strong>explora</strong> o espaço todo no início e vai <strong>convergindo</strong> ao redor dos melhores.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:300px"><canvas id="agCanvas" style="height:300px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="ag-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Evoluir</button>
+        <button id="ag-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> 1 geração</button>
+        <button id="ag-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Nova população</button>
+        <span class="text-[11px] text-slate-500 ml-auto">Cinza = pico local · Verde = máximo global</span>
+      </div>
+      <div class="ah-card p-4 mt-3">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Operadores aplicados na última geração</h3>
+        <div id="ag-operadores" class="font-mono text-[11px] space-y-1.5"></div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4 space-y-4">
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">População <span id="ag-pop-v" class="font-mono text-indigo-300">40</span></label>
+          <input id="ag-pop" type="range" min="10" max="200" step="10" value="40" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Taxa de crossover <span id="ag-cx-v" class="font-mono text-indigo-300">80%</span></label>
+          <input id="ag-cx" type="range" min="0" max="100" value="80" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Taxa de mutação <span id="ag-mu-v" class="font-mono text-indigo-300">2%</span></label>
+          <input id="ag-mu" type="range" min="0" max="40" value="2" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Elitismo <span id="ag-el-v" class="font-mono text-indigo-300">2</span></label>
+          <input id="ag-el" type="range" min="0" max="10" value="2" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 block mb-1">Seleção</label>
+          <select id="ag-sel" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-300 focus:outline-none">
+            <option value="torneio">Torneio (k = 3)</option>
+            <option value="roleta">Roleta (proporcional à aptidão)</option>
+            <option value="aleatoria">Aleatória (sem seleção)</option>
+          </select>
+        </div>
+      </div>
+      <div class="ah-card p-4 grid grid-cols-2 gap-2 text-center">
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="ag-ger" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">geração</div></div>
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="ag-melhor" class="text-lg font-bold text-emerald-400">—</div><div class="text-[10px] text-slate-500">melhor aptidão</div></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Melhor cromossomo</h3>
+        <div id="ag-crom" class="flex flex-wrap gap-0.5"></div>
+        <p id="ag-valor" class="text-[11px] text-slate-500 mt-2 font-mono"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Escolha “Aleatória” na seleção:</strong> a população passeia sem nunca melhorar — é a prova de que
+      o motor do AG é a seleção, não a mutação. Depois zere a mutação e mantenha o torneio: a população converge
+      rápido e <em>trava</em> num pico local, porque perdeu a diversidade genética. Os dois extremos falham.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CICLO DO AG ============================ -->
+<section id="ciclo" data-toc="Como um AG funciona" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-arrows-spin text-indigo-400 mr-2"></i>O ciclo evolutivo em cinco passos</h2>
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-7" id="ag-ciclo"></div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3 text-sm">Pseudocódigo</h3>
+      <pre class="ah-code text-[11px]"><span class="kw">função</span> <span class="fn">AlgoritmoGenético</span>(aptidão, n, geracoes):
+    pop ← <span class="num">n</span> indivíduos aleatórios
+
+    <span class="kw">para</span> g ← <span class="num">1</span> <span class="kw">até</span> geracoes:
+        avaliar aptidão de cada indivíduo
+        nova ← elite(pop)              <span class="cm">// elitismo</span>
+
+        <span class="kw">enquanto</span> |nova| &lt; n:
+            p1 ← <span class="fn">selecionar</span>(pop)
+            p2 ← <span class="fn">selecionar</span>(pop)
+            f1, f2 ← <span class="fn">cruzar</span>(p1, p2)     <span class="cm">// crossover</span>
+            <span class="fn">mutar</span>(f1); <span class="fn">mutar</span>(f2)
+            nova ← nova ∪ {f1, f2}
+
+        pop ← nova
+
+    <span class="kw">retorne</span> melhor(pop)</pre>
+    </div>
+    <div class="space-y-4">
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-sm">Métodos de seleção</h3>
+        <ul class="text-xs text-slate-400 space-y-2 leading-relaxed">
+          <li><strong class="text-white">Roleta:</strong> chance proporcional à aptidão. Simples, mas um super-indivíduo domina cedo demais.</li>
+          <li><strong class="text-white">Torneio:</strong> sorteia <em>k</em> indivíduos e o melhor vence. Pressão seletiva controlável por <em>k</em>; é o padrão na prática.</li>
+          <li><strong class="text-white">Por ranking:</strong> usa a posição, não o valor. Imune a escalas ruins de aptidão.</li>
+          <li><strong class="text-white">Elitismo:</strong> copia os melhores intactos. Garante que a melhor solução nunca piore.</li>
+        </ul>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-sm">Vocabulário</h3>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+          <span class="text-slate-500">Gene</span><span class="text-slate-300">um bit / parâmetro</span>
+          <span class="text-slate-500">Cromossomo</span><span class="text-slate-300">uma solução candidata</span>
+          <span class="text-slate-500">População</span><span class="text-slate-300">conjunto de candidatas</span>
+          <span class="text-slate-500">Aptidão</span><span class="text-slate-300">nota da solução</span>
+          <span class="text-slate-500">Geração</span><span class="text-slate-300">um ciclo completo</span>
+          <span class="text-slate-500">Fenótipo</span><span class="text-slate-300">a solução decodificada</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ AUTÔMATOS CELULARES ============================ -->
+<section id="life" data-toc="Autômatos celulares" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-border-all text-indigo-400 mr-2"></i>Autômatos celulares: complexidade a partir do nada</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma grade de células, cada uma viva ou morta, e <strong>quatro regras</strong> que só olham a vizinhança
+    imediata. O <em>Jogo da Vida</em> de Conway não tem objetivo, não tem aptidão e não tem autoridade central —
+    e mesmo assim produz estruturas que se movem, se reproduzem e computam.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="lifeCanvas" style="height:340px" class="cursor-crosshair"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="life-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Iniciar</button>
+        <button id="life-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i></button>
+        <button id="life-limpa" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-eraser"></i> Limpar</button>
+        <button id="life-rand" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-shuffle"></i> Aleatório</button>
+        <div class="flex gap-1.5 ml-auto" id="life-padroes"></div>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-2">Clique ou arraste na grade para desenhar células vivas.</p>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">As quatro regras</h3>
+        <ul class="text-[11px] text-slate-400 space-y-2 leading-relaxed">
+          <li><span class="ah-badge ah-badge-rose mr-1">&lt; 2</span> viva com menos de 2 vizinhas morre (solidão)</li>
+          <li><span class="ah-badge ah-badge-emerald mr-1">2–3</span> viva com 2 ou 3 vizinhas sobrevive</li>
+          <li><span class="ah-badge ah-badge-rose mr-1">&gt; 3</span> viva com mais de 3 morre (superpopulação)</li>
+          <li><span class="ah-badge ah-badge-sky mr-1">= 3</span> morta com exatamente 3 vizinhas nasce</li>
+        </ul>
+      </div>
+      <div class="ah-card p-4 grid grid-cols-2 gap-2 text-center">
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="life-ger" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">gerações</div></div>
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="life-vivas" class="text-lg font-bold text-emerald-400">0</div><div class="text-[10px] text-slate-500">células vivas</div></div>
+      </div>
+      <div class="ah-callout ah-callout-tip text-[11px]">
+        <i class="fa-solid fa-infinity"></i>
+        <div>O Jogo da Vida é <strong>Turing-completo</strong>: dá para construir portas lógicas, memória e até um
+        computador dentro dele. Complexidade universal a partir de quatro regras sobre vizinhos.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ REGRA ELEMENTAR ============================ -->
+<section id="regra" data-toc="Autômatos de uma dimensão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-barcode text-indigo-400 mr-2"></i>As 256 regras elementares</h2>
+  <p class="ah-lead text-sm mb-5">
+    Em uma dimensão, cada célula olha a si e às duas vizinhas: são 8 vizinhanças possíveis, e para cada uma
+    decidimos “viva” ou “morta”. Isso dá <strong>2⁸ = 256 regras</strong> no total. Comece de uma única célula
+    viva e veja o que cada regra desenha. Wolfram classificou os resultados em quatro classes de comportamento.
+  </p>
+
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <label class="text-xs text-slate-400">Regra</label>
+    <input id="ca-regra" type="range" min="0" max="255" value="30" class="flex-1 min-w-[160px] accent-indigo-500">
+    <span id="ca-regra-v" class="font-mono text-indigo-300 text-lg w-10 text-center">30</span>
+    <div class="flex gap-1.5">
+      <button class="ah-chip ca-pre" data-r="30">30 · caótica</button>
+      <button class="ah-chip ca-pre" data-r="90">90 · fractal</button>
+      <button class="ah-chip ca-pre" data-r="110">110 · universal</button>
+      <button class="ah-chip ca-pre" data-r="250">250 · trivial</button>
+    </div>
+    <label class="flex items-center gap-1.5 text-xs text-slate-400">
+      <input id="ca-rand" type="checkbox" class="accent-indigo-500"> início aleatório
+    </label>
+  </div>
+
+  <div class="ah-stage"><canvas id="caCanvas" style="height:300px"></canvas></div>
+  <div id="ca-tabela" class="flex flex-wrap gap-2 mt-4 justify-center"></div>
+  <p id="ca-nota" class="text-xs text-slate-400 mt-4 leading-relaxed text-center"></p>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Quatro perguntas sobre computação evolutiva.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. No AG, qual operador tem o papel principal de <em>explorar</em> regiões novas do espaço de busca?</p>
+      <button class="ah-quiz-opt">Seleção</button>
+      <button class="ah-quiz-opt">Mutação</button>
+      <button class="ah-quiz-opt">Elitismo</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A seleção <em>explota</em> o que já é bom; a mutação injeta variação que ninguém tinha. O crossover fica no
+        meio: recombina blocos existentes. Sem mutação, a diversidade perdida nunca volta — e o AG estagna
+        num pico local.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Para usar um AG num problema novo, o que é <strong>indispensável</strong>?</p>
+      <button class="ah-quiz-opt">Que a função seja derivável</button>
+      <button class="ah-quiz-opt">Que o espaço de busca seja contínuo</button>
+      <button class="ah-quiz-opt">Uma codificação das soluções e uma função de aptidão que as pontue</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É justamente por não exigir derivada nem continuidade que o AG entra onde o gradiente não vai:
+        escalas, rotas, layouts, topologias de rede. O custo é não haver garantia de otimalidade — só de
+        “bom o suficiente”.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Convergência prematura em um AG significa:</p>
+      <button class="ah-quiz-opt">A população perdeu diversidade e ficou presa num ótimo local</button>
+      <button class="ah-quiz-opt">O algoritmo encontrou o ótimo global rápido demais</button>
+      <button class="ah-quiz-opt">A aptidão ficou negativa</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Quando todos os indivíduos ficam parecidos, o crossover para de gerar novidade e só a mutação resta.
+        Soluções: reduzir a pressão seletiva, aumentar a mutação, usar nichos ou reiniciar parte da população.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. O que o Jogo da Vida ilustra sobre sistemas complexos?</p>
+      <button class="ah-quiz-opt">Que é preciso um controlador central para gerar ordem</button>
+      <button class="ah-quiz-opt">Que regras locais simples podem gerar padrões globais imprevisíveis</button>
+      <button class="ah-quiz-opt">Que autômatos celulares sempre estabilizam em poucas gerações</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Nenhuma célula “sabe” o que é um planador, mas planadores aparecem e atravessam a grade. E o
+        comportamento de longo prazo é <em>indecidível</em> no caso geral: não há atalho, é preciso simular.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Ciclo do AG ===================== */
+const CICLO = [
+  ['1. Inicialização', 'fa-dice', 'População aleatória cobrindo o espaço de busca.'],
+  ['2. Avaliação', 'fa-star', 'Cada indivíduo recebe uma nota da função de aptidão.'],
+  ['3. Seleção', 'fa-filter', 'Os mais aptos têm mais chance de gerar descendentes.'],
+  ['4. Crossover', 'fa-shuffle', 'Dois pais trocam trechos do cromossomo e produzem filhos.'],
+  ['5. Mutação', 'fa-bolt', 'Bits mudam com baixa probabilidade, injetando novidade.']
+];
+document.getElementById('ag-ciclo').innerHTML = CICLO.map((c, i) => `
+  <div class="ah-card p-4 relative">
+    <i class="fa-solid ${c[1]} text-indigo-400 mb-2"></i>
+    <h4 class="text-[11px] font-bold text-white mb-1">${c[0]}</h4>
+    <p class="text-[10px] text-slate-400 leading-relaxed">${c[2]}</p>
+    ${i < 4 ? '<i class="fa-solid fa-chevron-right absolute -right-2.5 top-1/2 text-slate-700 text-xs hidden md:block"></i>' : ''}
+  </div>`).join('');
+
+/* ===================== Algoritmo genético ===================== */
+(function ag() {
+  const BITS = 16;
+  /* paisagem multimodal: vários picos locais e um global perto de x = 0,72 */
+  const apt = x => Math.exp(-Math.pow((x - 0.72) / 0.09, 2)) * 1.0
+                 + Math.exp(-Math.pow((x - 0.25) / 0.07, 2)) * 0.78
+                 + Math.exp(-Math.pow((x - 0.45) / 0.05, 2)) * 0.62
+                 + Math.exp(-Math.pow((x - 0.92) / 0.05, 2)) * 0.55
+                 + 0.04 * Math.sin(40 * x);
+
+  let pop = [], ger = 0, timer = null, ops = [];
+  const cv = AH.canvas('agCanvas', desenha);
+  const decod = c => parseInt(c.join(''), 2) / (Math.pow(2, BITS) - 1);
+  const novo = () => Array.from({ length: BITS }, () => Math.random() < 0.5 ? 0 : 1);
+  const P = id => +document.getElementById(id).value;
+
+  function init() {
+    pop = Array.from({ length: P('ag-pop') }, novo);
+    ger = 0; ops = [];
+    pinta();
+  }
+
+  function seleciona(aptidoes) {
+    const modo = document.getElementById('ag-sel').value;
+    if (modo === 'aleatoria') return pop[Math.floor(Math.random() * pop.length)];
+    if (modo === 'roleta') {
+      const tot = aptidoes.reduce((a, b) => a + b, 0);
+      let r = Math.random() * tot;
+      for (let i = 0; i < pop.length; i++) { r -= aptidoes[i]; if (r <= 0) return pop[i]; }
+      return pop[pop.length - 1];
+    }
+    let melhor = Math.floor(Math.random() * pop.length);
+    for (let k = 1; k < 3; k++) {
+      const c = Math.floor(Math.random() * pop.length);
+      if (aptidoes[c] > aptidoes[melhor]) melhor = c;
+    }
+    return pop[melhor];
+  }
+
+  function geracao() {
+    const n = P('ag-pop');
+    while (pop.length < n) pop.push(novo());
+    pop.length = n;
+
+    const aptidoes = pop.map(c => apt(decod(c)));
+    const ordem = pop.map((c, i) => i).sort((a, b) => aptidoes[b] - aptidoes[a]);
+    const nova = ordem.slice(0, P('ag-el')).map(i => pop[i].slice());
+    ops = [];
+
+    while (nova.length < n) {
+      const p1 = seleciona(aptidoes), p2 = seleciona(aptidoes);
+      let f1 = p1.slice(), f2 = p2.slice();
+
+      if (Math.random() * 100 < P('ag-cx')) {
+        const corte = 1 + Math.floor(Math.random() * (BITS - 1));
+        f1 = p1.slice(0, corte).concat(p2.slice(corte));
+        f2 = p2.slice(0, corte).concat(p1.slice(corte));
+        if (ops.length < 2) ops.push({ tipo: 'crossover', p1, p2, f1, corte });
+      }
+      const mutar = f => f.map((b, i) => {
+        if (Math.random() * 100 < P('ag-mu')) {
+          if (ops.length < 4) ops.push({ tipo: 'mutação', pos: i });
+          return b ? 0 : 1;
+        }
+        return b;
+      });
+      nova.push(mutar(f1));
+      if (nova.length < n) nova.push(mutar(f2));
+    }
+    pop = nova; ger++;
+    pinta();
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const X = x => 22 + x * (w - 40), Y = v => h - 24 - (v / 1.12) * (h - 44);
+
+    /* curva de aptidão */
+    ctx.strokeStyle = 'rgba(148,163,184,.4)'; ctx.lineWidth = 1.6; ctx.beginPath();
+    for (let i = 0; i <= 320; i++) { const x = i / 320; i ? ctx.lineTo(X(x), Y(apt(x))) : ctx.moveTo(X(x), Y(apt(x))); }
+    ctx.stroke();
+
+    /* preenchimento sutil */
+    ctx.lineTo(X(1), Y(0)); ctx.lineTo(X(0), Y(0)); ctx.closePath();
+    ctx.fillStyle = 'rgba(99,102,241,.07)'; ctx.fill();
+
+    /* máximo global */
+    ctx.fillStyle = 'rgba(16,185,129,.9)'; ctx.font = '700 10px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('máximo global', X(0.72), Y(apt(0.72)) - 12);
+    ctx.strokeStyle = 'rgba(16,185,129,.45)'; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(X(0.72), Y(apt(0.72)) - 6); ctx.lineTo(X(0.72), Y(0)); ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* indivíduos */
+    const aptidoes = pop.map(c => apt(decod(c)));
+    const max = Math.max(...aptidoes);
+    pop.forEach((c, i) => {
+      const x = decod(c), v = aptidoes[i];
+      const ehMelhor = v === max;
+      ctx.fillStyle = ehMelhor ? '#10b981' : 'rgba(129,140,248,.75)';
+      ctx.beginPath(); ctx.arc(X(x), Y(v), ehMelhor ? 6 : 3.6, 0, 6.29); ctx.fill();
+      if (ehMelhor) { ctx.strokeStyle = '#6ee7b7'; ctx.lineWidth = 2; ctx.stroke(); }
+    });
+    ctx.textAlign = 'left';
+  }
+
+  function pinta() {
+    const aptidoes = pop.map(c => apt(decod(c)));
+    const iBest = aptidoes.indexOf(Math.max(...aptidoes));
+    const best = pop[iBest];
+
+    document.getElementById('ag-ger').textContent = ger;
+    document.getElementById('ag-melhor').textContent = aptidoes[iBest].toFixed(3).replace('.', ',');
+    document.getElementById('ag-crom').innerHTML = best.map(b =>
+      `<span class="w-4 h-5 rounded-sm flex items-center justify-center text-[9px] font-mono font-bold
+        ${b ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-500/50' : 'bg-slate-800 text-slate-500 border border-slate-700'}">${b}</span>`).join('');
+    document.getElementById('ag-valor').textContent =
+      `x = ${decod(best).toFixed(4).replace('.', ',')}   (decodificado de ${BITS} bits)`;
+
+    document.getElementById('ag-operadores').innerHTML = ops.length ? ops.slice(0, 3).map(o => {
+      if (o.tipo === 'crossover') {
+        const marca = a => a.map((b, i) => `<span class="${i < o.corte ? 'text-sky-300' : 'text-amber-300'}">${b}</span>`).join('');
+        return `<div class="bg-slate-950 border border-slate-800 rounded p-2 leading-relaxed">
+          <span class="text-slate-500">pai 1:</span> <span class="text-sky-300">${o.p1.join('')}</span><br>
+          <span class="text-slate-500">pai 2:</span> <span class="text-amber-300">${o.p2.join('')}</span><br>
+          <span class="text-slate-500">filho:</span> ${marca(o.f1)} <span class="text-slate-600">(corte no bit ${o.corte})</span></div>`;
+      }
+      return `<div class="text-rose-300">mutação no bit ${o.pos}</div>`;
+    }).join('') : '<span class="text-slate-600 italic">execute uma geração</span>';
+
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  ['ag-pop', 'ag-cx', 'ag-mu', 'ag-el'].forEach(id =>
+    document.getElementById(id).addEventListener('input', e => {
+      const alvo = document.getElementById(id + '-v');
+      alvo.textContent = id === 'ag-cx' || id === 'ag-mu' ? e.target.value + '%' : e.target.value;
+      if (id === 'ag-pop') init();
+    }));
+  document.getElementById('ag-step').addEventListener('click', geracao);
+  document.getElementById('ag-reset').addEventListener('click', init);
+  document.getElementById('ag-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Evoluir'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(geracao, 220);
+  });
+  init();
+})();
+
+/* ===================== Jogo da Vida ===================== */
+(function life() {
+  const CEL = 10;
+  let cols = 0, linhas = 0, grade = [], ger = 0, timer = null, desenhando = false;
+  const cv = AH.canvas('lifeCanvas', desenha);
+
+  const PADROES = {
+    'Planador': [[0,1],[1,2],[2,0],[2,1],[2,2]],
+    'Pulsar': [[0,2],[0,3],[0,4],[0,8],[0,9],[0,10],[2,0],[2,5],[2,7],[2,12],[3,0],[3,5],[3,7],[3,12],
+               [4,0],[4,5],[4,7],[4,12],[5,2],[5,3],[5,4],[5,8],[5,9],[5,10],
+               [7,2],[7,3],[7,4],[7,8],[7,9],[7,10],[8,0],[8,5],[8,7],[8,12],[9,0],[9,5],[9,7],[9,12],
+               [10,0],[10,5],[10,7],[10,12],[12,2],[12,3],[12,4],[12,8],[12,9],[12,10]],
+    'Nave': [[0,1],[0,4],[1,0],[2,0],[2,4],[3,0],[3,1],[3,2],[3,3]],
+    'Canhão': [[5,1],[5,2],[6,1],[6,2],[5,11],[6,11],[7,11],[4,12],[8,12],[3,13],[9,13],[3,14],[9,14],
+               [6,15],[4,16],[8,16],[5,17],[6,17],[7,17],[6,18],[3,21],[4,21],[5,21],[3,22],[4,22],[5,22],
+               [2,23],[6,23],[1,25],[2,25],[6,25],[7,25],[3,35],[4,35],[3,36],[4,36]]
+  };
+
+  function dim() {
+    cols = Math.max(10, Math.floor(cv.w / CEL));
+    linhas = Math.max(10, Math.floor(cv.h / CEL));
+    grade = Array.from({ length: linhas }, () => new Array(cols).fill(0));
+  }
+
+  function aleatorio() {
+    for (let y = 0; y < linhas; y++) for (let x = 0; x < cols; x++) grade[y][x] = Math.random() < 0.22 ? 1 : 0;
+    ger = 0; pinta();
+  }
+
+  function carrega(nome) {
+    grade = Array.from({ length: linhas }, () => new Array(cols).fill(0));
+    const p = PADROES[nome];
+    const oy = Math.max(1, Math.floor((linhas - 14) / 2)), ox = Math.max(1, Math.floor((cols - 40) / 2));
+    p.forEach(([y, x]) => { if (y + oy < linhas && x + ox < cols) grade[y + oy][x + ox] = 1; });
+    ger = 0; pinta();
+  }
+
+  function passo() {
+    const nova = grade.map(l => l.slice());
+    for (let y = 0; y < linhas; y++) {
+      for (let x = 0; x < cols; x++) {
+        let n = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const yy = (y + dy + linhas) % linhas, xx = (x + dx + cols) % cols;
+          n += grade[yy][xx];
+        }
+        nova[y][x] = grade[y][x] ? (n === 2 || n === 3 ? 1 : 0) : (n === 3 ? 1 : 0);
+      }
+    }
+    grade = nova; ger++;
+    pinta();
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(148,163,184,.06)'; ctx.lineWidth = 1;
+    for (let x = 0; x <= cols; x++) { ctx.beginPath(); ctx.moveTo(x * CEL, 0); ctx.lineTo(x * CEL, linhas * CEL); ctx.stroke(); }
+    for (let y = 0; y <= linhas; y++) { ctx.beginPath(); ctx.moveTo(0, y * CEL); ctx.lineTo(cols * CEL, y * CEL); ctx.stroke(); }
+    for (let y = 0; y < linhas; y++) for (let x = 0; x < cols; x++) {
+      if (!grade[y][x]) continue;
+      ctx.fillStyle = '#6366f1';
+      AH.roundRect(ctx, x * CEL + 1, y * CEL + 1, CEL - 2, CEL - 2, 2); ctx.fill();
+    }
+  }
+
+  function pinta() {
+    document.getElementById('life-ger').textContent = ger;
+    document.getElementById('life-vivas').textContent = grade.reduce((s, l) => s + l.reduce((a, b) => a + b, 0), 0);
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  function celula(e) {
+    const r = cv.el.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / CEL), y = Math.floor((e.clientY - r.top) / CEL);
+    if (y >= 0 && y < linhas && x >= 0 && x < cols) { grade[y][x] = 1; pinta(); }
+  }
+  cv.el.addEventListener('mousedown', e => { desenhando = true; celula(e); });
+  cv.el.addEventListener('mousemove', e => { if (desenhando) celula(e); });
+  window.addEventListener('mouseup', () => desenhando = false);
+
+  document.getElementById('life-padroes').innerHTML = Object.keys(PADROES)
+    .map(k => `<button class="ah-chip text-[10px]" data-pad="${k}">${k}</button>`).join('');
+  document.getElementById('life-padroes').addEventListener('click', e => {
+    const b = e.target.closest('[data-pad]');
+    if (b) carrega(b.getAttribute('data-pad'));
+  });
+  document.getElementById('life-step').addEventListener('click', passo);
+  document.getElementById('life-limpa').addEventListener('click', () => { dim(); ger = 0; pinta(); });
+  document.getElementById('life-rand').addEventListener('click', aleatorio);
+  document.getElementById('life-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(passo, 110);
+  });
+
+  dim(); carrega('Canhão');
+})();
+
+/* ===================== Autômato elementar 1D ===================== */
+(function elementar() {
+  const cv = AH.canvas('caCanvas', desenha);
+  const NOTAS = {
+    30: 'Regra 30 — <b>classe 3, caótica</b>. A partir de uma única célula, gera aleatoriedade de qualidade tão boa que já foi usada como gerador de números pseudoaleatórios.',
+    90: 'Regra 90 — <b>classe 2, fractal</b>. Desenha o triângulo de Sierpiński, o mesmo padrão que aparece no triângulo de Pascal módulo 2.',
+    110: 'Regra 110 — <b>classe 4, na fronteira do caos</b>. Provou-se <b>Turing-completa</b>: esta única regra, com condições iniciais adequadas, computa qualquer coisa.',
+    250: 'Regra 250 — <b>classe 1/2, trivial</b>. Padrão simples e repetitivo, sem surpresas.'
+  };
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const regra = +document.getElementById('ca-regra').value;
+    const cel = 3;
+    const n = Math.floor(w / cel), linhas = Math.floor(h / cel);
+    let linha = new Array(n).fill(0);
+    if (document.getElementById('ca-rand').checked) {
+      for (let i = 0; i < n; i++) linha[i] = Math.random() < 0.5 ? 1 : 0;
+    } else linha[Math.floor(n / 2)] = 1;
+
+    for (let y = 0; y < linhas; y++) {
+      for (let x = 0; x < n; x++) {
+        if (!linha[x]) continue;
+        ctx.fillStyle = `hsl(${238 - (y / linhas) * 60}, 78%, ${58 + (y / linhas) * 14}%)`;
+        ctx.fillRect(x * cel, y * cel, cel, cel);
+      }
+      const nova = new Array(n).fill(0);
+      for (let x = 0; x < n; x++) {
+        const e = linha[(x - 1 + n) % n], c = linha[x], d = linha[(x + 1) % n];
+        nova[x] = (regra >> ((e << 2) | (c << 1) | d)) & 1;
+      }
+      linha = nova;
+    }
+  }
+
+  function tabela() {
+    const regra = +document.getElementById('ca-regra').value;
+    document.getElementById('ca-tabela').innerHTML = [7, 6, 5, 4, 3, 2, 1, 0].map(i => {
+      const viz = [(i >> 2) & 1, (i >> 1) & 1, i & 1];
+      const saida = (regra >> i) & 1;
+      const q = v => `<span class="w-4 h-4 inline-block rounded-sm ${v ? 'bg-indigo-500' : 'bg-slate-800 border border-slate-700'}"></span>`;
+      return `<div class="text-center">
+        <div class="flex gap-0.5">${viz.map(q).join('')}</div>
+        <div class="text-slate-600 text-[9px] leading-none my-0.5">↓</div>
+        <div class="flex justify-center">${q(saida)}</div></div>`;
+    }).join('');
+
+    document.getElementById('ca-nota').innerHTML = NOTAS[regra] ||
+      `Regra ${regra} — a linha de baixo mostra, para cada uma das 8 vizinhanças possíveis, se a célula central
+       vive (roxo) ou morre na próxima geração. O número da regra é exatamente esses 8 bits lidos como binário.`;
+  }
+
+  function atualiza() {
+    document.getElementById('ca-regra-v').textContent = document.getElementById('ca-regra').value;
+    tabela();
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  document.getElementById('ca-regra').addEventListener('input', atualiza);
+  document.getElementById('ca-rand').addEventListener('change', atualiza);
+  document.querySelectorAll('.ca-pre').forEach(b => b.addEventListener('click', () => {
+    document.getElementById('ca-regra').value = b.getAttribute('data-r');
+    atualiza();
+  }));
+  atualiza();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do Diagrama ao Código (Java) · AcademicHub</title>
+<meta name="description" content="Tradução mecânica: cada símbolo UML vira uma construção Java — gere o código ao vivo.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⌨️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/15-do-diagrama-ao-codigo">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Tradução mecânica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-file-code text-emerald-400 mr-2"></i>Cada símbolo tem um equivalente exato</h2>
+  <div class="ah-prose">
+    <p>
+      A maior parte do diagrama de classes traduz-se para código de forma <strong>mecânica</strong>:
+      caixa vira classe, atributo vira campo, operação vira método, seta vira <code>extends</code>,
+      <code>implements</code> ou atributo. Saber essa tabela de correspondência de cor é o que transforma
+      o diagrama de “desenho bonito” em ferramenta de trabalho.
+    </p>
+    <p>
+      O que <em>não</em> é mecânico: multiplicidades viram decisões sobre tipo de coleção; composição vira
+      decisão sobre quem cria e destrói; e bidirecionalidade vira código de sincronização que ninguém gosta
+      de manter.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ TRADUTOR ============================ -->
+<section id="tradutor" data-toc="Tradutor interativo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-language text-emerald-400 mr-2"></i>Escolha o símbolo, veja o código</h2>
+  <p class="ah-lead text-sm mb-4">Selecione uma construção da UML à esquerda e a linguagem no topo do painel de código.</p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="space-y-1.5" id="tr-lista"></div>
+
+    <div class="lg:col-span-2 space-y-3">
+      <div class="ah-stage p-4">
+        <svg viewBox="0 0 460 170" class="w-full" style="height:170px" id="tr-svg"></svg>
+      </div>
+      <div class="ah-card overflow-hidden">
+        <div class="flex items-center gap-1.5 px-4 py-2 border-b border-slate-700/60 bg-slate-900/60">
+          <button class="ah-chip active text-[11px]" data-lang="java">Java</button>
+          <button class="ah-chip text-[11px]" data-lang="csharp">C#</button>
+          <button class="ah-chip text-[11px]" data-lang="python">Python</button>
+          <span id="tr-nome" class="ml-auto text-[11px] text-slate-500"></span>
+        </div>
+        <pre class="ah-code text-[10.5px] border-0 rounded-none" id="tr-codigo"></pre>
+      </div>
+      <div id="tr-nota" class="ah-callout ah-callout-info text-xs"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TABELA ============================ -->
+<section id="tabela" data-toc="Tabela de correspondência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>A tabela para consultar na prova</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Na UML</th><th>Em Java</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Caixa de classe</td><td class="font-mono">class Nome { }</td><td>Nome em <i>itálico</i> → <code>abstract</code></td></tr>
+        <tr><td>«interface»</td><td class="font-mono">interface Nome { }</td><td>Membros implicitamente públicos</td></tr>
+        <tr><td><code>+ atributo</code></td><td class="font-mono">public Tipo atributo;</td><td><code>−</code> private, <code>#</code> protected, <code>~</code> package</td></tr>
+        <tr><td><u>sublinhado</u></td><td class="font-mono">static</td><td>Vale para atributos e operações</td></tr>
+        <tr><td>Generalização (sólida ▷)</td><td class="font-mono">extends Super</td><td>Apenas uma superclasse</td></tr>
+        <tr><td>Realização (tracejada ▷)</td><td class="font-mono">implements Interface</td><td>Pode implementar várias</td></tr>
+        <tr><td>Associação <code>1</code></td><td class="font-mono">private Outro outro;</td><td>Referência simples</td></tr>
+        <tr><td>Associação <code>0..1</code></td><td class="font-mono">private Optional&lt;Outro&gt; outro;</td><td>Ou campo que aceita <code>null</code></td></tr>
+        <tr><td>Associação <code>*</code> / <code>1..*</code></td><td class="font-mono">private List&lt;Outro&gt; outros;</td><td><code>Set</code> se não houver repetição nem ordem</td></tr>
+        <tr><td>Composição ◆</td><td class="font-mono">final List&lt;Parte&gt; partes</td><td>O todo <b>cria</b> e <b>destrói</b> as partes</td></tr>
+        <tr><td>Agregação ◇</td><td class="font-mono">List&lt;Parte&gt; recebida no construtor</td><td>As partes vêm de fora e sobrevivem</td></tr>
+        <tr><td>Dependência ⇢</td><td class="font-mono">void m(Outro o) { }</td><td>Parâmetro, variável local ou retorno</td></tr>
+        <tr><td>Classe associativa</td><td class="font-mono">class Ligacao { A a; B b; … }</td><td>Vira uma classe própria com os atributos da relação</td></tr>
+        <tr><td>«enumeration»</td><td class="font-mono">enum Status { … }</td><td>Conjunto fechado de valores</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO COMPLETO ============================ -->
+<section id="completo" data-toc="Exemplo completo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Um modelo inteiro, traduzido</h2>
+  <p class="ah-lead text-sm mb-5">
+    Quatro classes, uma interface, uma herança, uma composição e uma associação — e o código correspondente,
+    arquivo por arquivo.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-stage p-4">
+      <svg viewBox="0 0 440 480" class="w-full" style="height:480px" id="ex-svg"></svg>
+    </div>
+    <div class="space-y-3">
+      <div class="flex flex-wrap gap-1.5" id="ex-arquivos"></div>
+      <div class="ah-card overflow-hidden">
+        <div class="px-4 py-2 border-b border-slate-700/60 bg-slate-900/60 font-mono text-[11px] text-emerald-300" id="ex-nome"></div>
+        <pre class="ah-code text-[10.5px] border-0 rounded-none max-h-[420px] overflow-y-auto" id="ex-codigo"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#11312a)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de tradução.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. <code>Turma "1" —— "3..40" Aluno</code> vira, no código de Turma:</p>
+      <button class="ah-quiz-opt">Um atributo <code>Aluno aluno;</code></button>
+      <button class="ah-quiz-opt">Nada — multiplicidade não gera código</button>
+      <button class="ah-quiz-opt">Uma coleção <code>List&lt;Aluno&gt;</code>, com validação de tamanho entre 3 e 40</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A coleção vem do “muitos”; os limites <code>3..40</code> são uma regra de negócio que o compilador
+        não garante — precisa virar validação explícita no método que adiciona alunos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. A diferença no código entre composição e agregação aparece principalmente:</p>
+      <button class="ah-quiz-opt">Em quem cria e destrói a parte: na composição, o próprio todo</button>
+      <button class="ah-quiz-opt">No tipo da coleção usada</button>
+      <button class="ah-quiz-opt">Na visibilidade do atributo</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Composição: <code>itens.add(new Item(...))</code> dentro do todo, coleção <code>final</code> e não
+        exposta. Agregação: a parte chega pronta pelo construtor ou por um <em>setter</em>. A sintaxe é
+        parecida; a <b>responsabilidade pelo ciclo de vida</b> é o que muda.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Uma <em>classe associativa</em> entre <code>Aluno</code> e <code>Disciplina</code>, com o atributo <code>nota</code>, vira:</p>
+      <button class="ah-quiz-opt">Um atributo <code>nota</code> em Aluno</button>
+      <button class="ah-quiz-opt">Uma classe própria, ex.: <code>Matricula</code>, ligando os dois e guardando a nota</button>
+      <button class="ah-quiz-opt">Um atributo <code>nota</code> em Disciplina</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A nota não pertence ao aluno (ele tem várias) nem à disciplina (ela tem várias): pertence ao
+        <b>par</b>. Esse é o sinal clássico de que a associação precisa virar classe — e, no banco, a tabela
+        de junção com colunas extras.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Tradutor UML → código ===================== */
+(function tradutor() {
+  const cx = (x, y, w, nome, membros, cor, estereotipo, italico) => {
+    const h = (estereotipo ? 38 : 26) + membros.length * 14 + 8;
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="#1e293b" stroke="${cor}" stroke-width="1.7"/>
+      ${estereotipo ? `<text x="${x + w / 2}" y="${y + 15}" text-anchor="middle" font-size="9"
+        font-family="Fira Code, monospace" fill="${cor}">«${estereotipo}»</text>` : ''}
+      <text x="${x + w / 2}" y="${y + (estereotipo ? 31 : 18)}" text-anchor="middle" font-size="11.5"
+        font-weight="700" font-family="Inter, sans-serif" fill="#fff" ${italico ? 'font-style="italic"' : ''}>${nome}</text>
+      <line x1="${x}" y1="${y + (estereotipo ? 38 : 26)}" x2="${x + w}" y2="${y + (estereotipo ? 38 : 26)}"
+        stroke="${cor}88" stroke-width="1.1"/>
+      ${membros.map((m, i) => `<text x="${x + 8}" y="${y + (estereotipo ? 52 : 40) + i * 14}" font-size="9"
+        font-family="Fira Code, monospace" fill="#cbd5e1">${m}</text>`).join('')}`;
+  };
+
+  const CONSTR = [
+    {
+      n: 'Classe simples', i: 'fa-square',
+      svg: cx(130, 30, 200, 'Produto', ['− nome: String', '− preco: double', '+ aplicarDesconto(p)'], '#10b981'),
+      nota: 'Visibilidade: <code>+</code> public, <code>−</code> private, <code>#</code> protected, <code>~</code> package.',
+      java: `<span class="kw">public class</span> <span class="ty">Produto</span> {
+    <span class="kw">private</span> <span class="ty">String</span> nome;
+    <span class="kw">private double</span> preco;
+
+    <span class="kw">public void</span> <span class="fn">aplicarDesconto</span>(<span class="ty">double</span> p) {
+        preco -= preco * p;
+    }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Produto</span> {
+    <span class="kw">private string</span> nome;
+    <span class="kw">private double</span> preco;
+
+    <span class="kw">public void</span> <span class="fn">AplicarDesconto</span>(<span class="kw">double</span> p) {
+        preco -= preco * p;
+    }
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Produto</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, nome, preco):
+        self.__nome = nome      <span class="cm"># “privado” por convenção</span>
+        self.__preco = preco
+
+    <span class="kw">def</span> <span class="fn">aplicar_desconto</span>(self, p):
+        self.__preco -= self.__preco * p`
+    },
+    {
+      n: 'Classe abstrata', i: 'fa-ghost',
+      svg: cx(130, 20, 200, 'Conta', ['# saldo: double', '+ depositar(v)', '+ taxaMensal()'], '#a855f7', null, true) +
+           cx(130, 118, 200, 'Poupanca', ['+ taxaMensal()'], '#10b981') +
+           `<line x1="230" y1="118" x2="230" y2="102" stroke="#a855f7" stroke-width="1.7"/>
+            <polygon points="230,84 221,102 239,102" fill="#0f172a" stroke="#a855f7" stroke-width="1.7"/>`,
+      nota: 'Nome e operações abstratas aparecem em <i>itálico</i>. A classe abstrata não pode ser instanciada.',
+      java: `<span class="kw">public abstract class</span> <span class="ty">Conta</span> {
+    <span class="kw">protected double</span> saldo;
+
+    <span class="kw">public void</span> <span class="fn">depositar</span>(<span class="ty">double</span> v) { saldo += v; }
+
+    <span class="kw">public abstract double</span> <span class="fn">taxaMensal</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Poupanca</span> <span class="kw">extends</span> <span class="ty">Conta</span> {
+    <span class="cm">@Override</span>
+    <span class="kw">public double</span> <span class="fn">taxaMensal</span>() { <span class="kw">return</span> <span class="num">0.005</span>; }
+}`,
+      csharp: `<span class="kw">public abstract class</span> <span class="ty">Conta</span> {
+    <span class="kw">protected double</span> saldo;
+
+    <span class="kw">public void</span> <span class="fn">Depositar</span>(<span class="kw">double</span> v) => saldo += v;
+
+    <span class="kw">public abstract double</span> <span class="fn">TaxaMensal</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Poupanca</span> : <span class="ty">Conta</span> {
+    <span class="kw">public override double</span> <span class="fn">TaxaMensal</span>() => <span class="num">0.005</span>;
+}`,
+      python: `<span class="kw">from</span> abc <span class="kw">import</span> ABC, abstractmethod
+
+<span class="kw">class</span> <span class="ty">Conta</span>(ABC):
+    <span class="kw">def</span> <span class="fn">depositar</span>(self, v):
+        self._saldo += v
+
+    <span class="cm">@abstractmethod</span>
+    <span class="kw">def</span> <span class="fn">taxa_mensal</span>(self): ...
+
+<span class="kw">class</span> <span class="ty">Poupanca</span>(<span class="ty">Conta</span>):
+    <span class="kw">def</span> <span class="fn">taxa_mensal</span>(self):
+        <span class="kw">return</span> <span class="num">0.005</span>`
+    },
+    {
+      n: 'Interface (realização)', i: 'fa-plug',
+      svg: cx(130, 20, 200, 'Pagavel', ['+ calcularValor()'], '#38bdf8', 'interface') +
+           cx(130, 118, 200, 'Fatura', ['+ calcularValor()'], '#10b981') +
+           `<line x1="230" y1="118" x2="230" y2="102" stroke="#38bdf8" stroke-width="1.7" stroke-dasharray="6 4"/>
+            <polygon points="230,84 221,102 239,102" fill="#0f172a" stroke="#38bdf8" stroke-width="1.7"/>`,
+      nota: 'Linha <b>tracejada</b> com ponta triangular vazada. Uma classe pode realizar várias interfaces.',
+      java: `<span class="kw">public interface</span> <span class="ty">Pagavel</span> {
+    <span class="ty">double</span> <span class="fn">calcularValor</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Fatura</span> <span class="kw">implements</span> <span class="ty">Pagavel</span> {
+    <span class="cm">@Override</span>
+    <span class="kw">public double</span> <span class="fn">calcularValor</span>() { <span class="kw">return</span> total; }
+}`,
+      csharp: `<span class="kw">public interface</span> <span class="ty">IPagavel</span> {
+    <span class="kw">double</span> <span class="fn">CalcularValor</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Fatura</span> : <span class="ty">IPagavel</span> {
+    <span class="kw">public double</span> <span class="fn">CalcularValor</span>() => total;
+}`,
+      python: `<span class="kw">from</span> typing <span class="kw">import</span> Protocol
+
+<span class="kw">class</span> <span class="ty">Pagavel</span>(Protocol):
+    <span class="kw">def</span> <span class="fn">calcular_valor</span>(self) -> <span class="ty">float</span>: ...
+
+<span class="kw">class</span> <span class="ty">Fatura</span>:          <span class="cm"># duck typing: basta ter o método</span>
+    <span class="kw">def</span> <span class="fn">calcular_valor</span>(self) -> <span class="ty">float</span>:
+        <span class="kw">return</span> self.total`
+    },
+    {
+      n: 'Associação 1 → *', i: 'fa-arrow-right-long',
+      svg: cx(20, 55, 175, 'Cliente', ['− nome: String'], '#10b981') +
+           cx(265, 55, 175, 'Pedido', ['− data: LocalDate'], '#10b981') +
+           `<line x1="195" y1="88" x2="255" y2="88" stroke="#10b981" stroke-width="1.8"/>
+            <polyline points="245,82 257,88 245,94" fill="none" stroke="#10b981" stroke-width="1.8"/>
+            <text x="205" y="80" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">1</text>
+            <text x="248" y="112" text-anchor="end" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>`,
+      nota: 'A seta indica <b>navegabilidade</b>: só o Cliente conhece seus Pedidos. O lado “muitos” vira coleção.',
+      java: `<span class="kw">public class</span> <span class="ty">Cliente</span> {
+    <span class="kw">private</span> <span class="ty">String</span> nome;
+    <span class="kw">private</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; pedidos = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Pedido</span> p) {
+        pedidos.<span class="fn">add</span>(p);
+    }
+    <span class="kw">public</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; <span class="fn">getPedidos</span>() {
+        <span class="kw">return</span> <span class="ty">Collections</span>.<span class="fn">unmodifiableList</span>(pedidos);
+    }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Cliente</span> {
+    <span class="kw">private readonly</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; pedidos = <span class="kw">new</span>();
+
+    <span class="kw">public string</span> Nome { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public</span> <span class="ty">IReadOnlyList</span>&lt;<span class="ty">Pedido</span>&gt; Pedidos => pedidos;
+
+    <span class="kw">public void</span> <span class="fn">Adicionar</span>(<span class="ty">Pedido</span> p) => pedidos.<span class="fn">Add</span>(p);
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Cliente</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, nome):
+        self.nome = nome
+        self._pedidos: <span class="ty">list</span>[<span class="ty">Pedido</span>] = []
+
+    <span class="kw">def</span> <span class="fn">adicionar</span>(self, pedido):
+        self._pedidos.append(pedido)
+
+    <span class="cm">@property</span>
+    <span class="kw">def</span> <span class="fn">pedidos</span>(self):
+        <span class="kw">return</span> <span class="fn">tuple</span>(self._pedidos)   <span class="cm"># imutável</span>`
+    },
+    {
+      n: 'Composição ◆', i: 'fa-diamond',
+      svg: cx(20, 55, 175, 'Pedido', ['− numero: String'], '#ef4444') +
+           cx(265, 55, 175, 'ItemPedido', ['− quantidade: int'], '#ef4444') +
+           `<line x1="195" y1="88" x2="255" y2="88" stroke="#ef4444" stroke-width="1.8"/>
+            <polygon points="195,88 207,81 219,88 207,95" fill="#ef4444" stroke="#ef4444" stroke-width="1.6"/>
+            <text x="248" y="112" text-anchor="end" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">1..*</text>`,
+      nota: 'O losango <b>preenchido</b> fica do lado do todo. O todo cria e destrói as partes; elas não existem sozinhas.',
+      java: `<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; itens = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="cm">// é o Pedido que CRIA o item</span>
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Produto</span> p, <span class="ty">int</span> qtd) {
+        itens.<span class="fn">add</span>(<span class="kw">new</span> <span class="ty">ItemPedido</span>(p, qtd));
+    }
+
+    <span class="cm">// ao descartar o Pedido, os itens vão junto</span>
+    <span class="kw">public void</span> <span class="fn">limpar</span>() { itens.<span class="fn">clear</span>(); }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private readonly</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; itens = <span class="kw">new</span>();
+
+    <span class="kw">public void</span> <span class="fn">Adicionar</span>(<span class="ty">Produto</span> p, <span class="kw">int</span> qtd)
+        => itens.<span class="fn">Add</span>(<span class="kw">new</span> <span class="ty">ItemPedido</span>(p, qtd));
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Pedido</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, numero):
+        self.numero = numero
+        self._itens = []          <span class="cm"># criados aqui dentro</span>
+
+    <span class="kw">def</span> <span class="fn">adicionar</span>(self, produto, qtd):
+        self._itens.append(<span class="ty">ItemPedido</span>(produto, qtd))`
+    },
+    {
+      n: 'Agregação ◇', i: 'fa-diamond',
+      svg: cx(20, 55, 175, 'Time', ['− nome: String'], '#38bdf8') +
+           cx(265, 55, 175, 'Jogador', ['− nome: String'], '#38bdf8') +
+           `<line x1="195" y1="88" x2="255" y2="88" stroke="#38bdf8" stroke-width="1.8"/>
+            <polygon points="195,88 207,81 219,88 207,95" fill="#0f172a" stroke="#38bdf8" stroke-width="1.6"/>
+            <text x="248" y="112" text-anchor="end" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">1..*</text>`,
+      nota: 'Losango <b>vazado</b>. As partes chegam prontas de fora e sobrevivem ao fim do todo.',
+      java: `<span class="kw">public class</span> <span class="ty">Time</span> {
+    <span class="kw">private</span> <span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores;
+
+    <span class="cm">// recebe jogadores que já existiam</span>
+    <span class="kw">public</span> <span class="fn">Time</span>(<span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores) {
+        <span class="kw">this</span>.jogadores = jogadores;
+    }
+
+    <span class="kw">public void</span> <span class="fn">escalar</span>(<span class="ty">Jogador</span> j) { jogadores.<span class="fn">add</span>(j); }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Time</span> {
+    <span class="kw">private</span> <span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores;
+
+    <span class="kw">public</span> <span class="fn">Time</span>(<span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores)
+        => <span class="kw">this</span>.jogadores = jogadores;
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Time</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, nome, jogadores):
+        self.nome = nome
+        self.jogadores = jogadores   <span class="cm"># vieram de fora</span>`
+    },
+    {
+      n: 'Classe associativa', i: 'fa-link',
+      svg: cx(20, 30, 160, 'Aluno', ['− nome'], '#10b981') +
+           cx(280, 30, 160, 'Disciplina', ['− nome'], '#10b981') +
+           `<line x1="180" y1="58" x2="280" y2="58" stroke="#10b981" stroke-width="1.8"/>
+            <text x="190" y="50" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>
+            <text x="272" y="50" text-anchor="end" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>
+            <line x1="230" y1="58" x2="230" y2="105" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5 4"/>` +
+           cx(150, 105, 160, 'Matricula', ['− nota: double', '− faltas: int'], '#f59e0b'),
+      nota: 'Quando a relação “muitos-para-muitos” tem <b>atributos próprios</b>, ela vira uma classe — e, no banco, uma tabela de junção com colunas extras.',
+      java: `<span class="kw">public class</span> <span class="ty">Matricula</span> {
+    <span class="kw">private final</span> <span class="ty">Aluno</span> aluno;
+    <span class="kw">private final</span> <span class="ty">Disciplina</span> disciplina;
+    <span class="kw">private double</span> nota;
+    <span class="kw">private int</span> faltas;
+
+    <span class="kw">public boolean</span> <span class="fn">aprovado</span>() {
+        <span class="kw">return</span> nota &gt;= <span class="num">6.0</span> &amp;&amp; faltas &lt;= <span class="num">15</span>;
+    }
+}
+
+<span class="cm">// Aluno e Disciplina passam a referenciar Matricula,
+// não mais um ao outro diretamente</span>`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Matricula</span> {
+    <span class="kw">public</span> <span class="ty">Aluno</span> Aluno { <span class="kw">get</span>; <span class="kw">init</span>; }
+    <span class="kw">public</span> <span class="ty">Disciplina</span> Disciplina { <span class="kw">get</span>; <span class="kw">init</span>; }
+    <span class="kw">public double</span> Nota { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public int</span> Faltas { <span class="kw">get</span>; <span class="kw">set</span>; }
+
+    <span class="kw">public bool</span> <span class="fn">Aprovado</span>() => Nota &gt;= <span class="num">6.0</span> &amp;&amp; Faltas &lt;= <span class="num">15</span>;
+}`,
+      python: `<span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass
+
+<span class="cm">@dataclass</span>
+<span class="kw">class</span> <span class="ty">Matricula</span>:
+    aluno: <span class="ty">Aluno</span>
+    disciplina: <span class="ty">Disciplina</span>
+    nota: <span class="ty">float</span> = <span class="num">0.0</span>
+    faltas: <span class="ty">int</span> = <span class="num">0</span>
+
+    <span class="kw">def</span> <span class="fn">aprovado</span>(self) -> <span class="ty">bool</span>:
+        <span class="kw">return</span> self.nota &gt;= <span class="num">6.0</span> <span class="kw">and</span> self.faltas &lt;= <span class="num">15</span>`
+    },
+    {
+      n: 'Enumeração e estático', i: 'fa-list-ol',
+      svg: cx(130, 20, 200, 'Status', ['ABERTO', 'PAGO', 'CANCELADO'], '#a855f7', 'enumeration') +
+           cx(130, 118, 200, 'Pedido', ['− status: Status', '<tspan text-decoration="underline">− total: int</tspan>'], '#10b981'),
+      nota: 'Membros <u>sublinhados</u> são <code>static</code>: pertencem à classe, não à instância.',
+      java: `<span class="kw">public enum</span> <span class="ty">Status</span> {
+    ABERTO, PAGO, CANCELADO
+}
+
+<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private</span> <span class="ty">Status</span> status = <span class="ty">Status</span>.ABERTO;
+
+    <span class="cm">// sublinhado na UML = static</span>
+    <span class="kw">private static int</span> totalDePedidos = <span class="num">0</span>;
+}`,
+      csharp: `<span class="kw">public enum</span> <span class="ty">Status</span> { Aberto, Pago, Cancelado }
+
+<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private</span> <span class="ty">Status</span> status = <span class="ty">Status</span>.Aberto;
+    <span class="kw">private static int</span> totalDePedidos = <span class="num">0</span>;
+}`,
+      python: `<span class="kw">from</span> enum <span class="kw">import</span> Enum, auto
+
+<span class="kw">class</span> <span class="ty">Status</span>(Enum):
+    ABERTO = auto()
+    PAGO = auto()
+    CANCELADO = auto()
+
+<span class="kw">class</span> <span class="ty">Pedido</span>:
+    total_de_pedidos = <span class="num">0</span>      <span class="cm"># atributo de classe</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        self.status = <span class="ty">Status</span>.ABERTO`
+    }
+  ];
+
+  let sel = 0, lang = 'java';
+
+  function pinta() {
+    const c = CONSTR[sel];
+    document.getElementById('tr-lista').innerHTML = CONSTR.map((x, i) => `
+      <button data-c="${i}" class="w-full text-left px-3 py-2.5 rounded-lg border text-xs transition flex items-center gap-2
+        ${i === sel ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200' : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-600'}">
+        <i class="fa-solid ${x.i} text-[11px]"></i>${x.n}</button>`).join('');
+    document.getElementById('tr-svg').innerHTML = c.svg;
+    document.getElementById('tr-codigo').innerHTML = c[lang];
+    document.getElementById('tr-nota').innerHTML = `<i class="fa-solid fa-circle-info"></i><div>${c.nota}</div>`;
+    document.getElementById('tr-nome').textContent = c.n;
+  }
+
+  document.getElementById('tr-lista').addEventListener('click', e => {
+    const b = e.target.closest('[data-c]');
+    if (!b) return;
+    sel = +b.getAttribute('data-c'); pinta();
+  });
+  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    lang = b.getAttribute('data-lang');
+    document.querySelectorAll('[data-lang]').forEach(x => x.classList.toggle('active', x === b));
+    pinta();
+  }));
+  pinta();
+})();
+
+/* ===================== Exemplo completo ===================== */
+(function exemplo() {
+  const ARQUIVOS = {
+    'Pagavel.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="cm">/** Contrato: qualquer coisa que possa ser paga. */</span>
+<span class="kw">public interface</span> <span class="ty">Pagavel</span> {
+    <span class="ty">double</span> <span class="fn">calcularTotal</span>();
+}`,
+    'Pedido.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="kw">import</span> java.time.LocalDate;
+<span class="kw">import</span> java.util.*;
+
+<span class="kw">public class</span> <span class="ty">Pedido</span> <span class="kw">implements</span> <span class="ty">Pagavel</span> {
+
+    <span class="kw">private final</span> <span class="ty">String</span> numero;
+    <span class="kw">private final</span> <span class="ty">LocalDate</span> data;
+    <span class="kw">private</span> <span class="ty">Status</span> status = <span class="ty">Status</span>.ABERTO;
+
+    <span class="cm">// associação 1: todo pedido tem um cliente</span>
+    <span class="kw">private final</span> <span class="ty">Cliente</span> cliente;
+
+    <span class="cm">// composição 1..*: o pedido é dono dos itens</span>
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; itens = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Pedido</span>(<span class="ty">String</span> numero, <span class="ty">Cliente</span> cliente) {
+        <span class="kw">this</span>.numero = <span class="ty">Objects</span>.<span class="fn">requireNonNull</span>(numero);
+        <span class="kw">this</span>.cliente = <span class="ty">Objects</span>.<span class="fn">requireNonNull</span>(cliente);
+        <span class="kw">this</span>.data = <span class="ty">LocalDate</span>.<span class="fn">now</span>();
+    }
+
+    <span class="cm">// o Pedido CRIA o item — isso é composição</span>
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Produto</span> p, <span class="ty">int</span> quantidade) {
+        <span class="kw">if</span> (status != <span class="ty">Status</span>.ABERTO)
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"Pedido já fechado"</span>);
+        itens.<span class="fn">add</span>(<span class="kw">new</span> <span class="ty">ItemPedido</span>(p, quantidade));
+    }
+
+    <span class="cm">@Override</span>
+    <span class="kw">public double</span> <span class="fn">calcularTotal</span>() {
+        <span class="kw">return</span> itens.<span class="fn">stream</span>()
+                    .<span class="fn">mapToDouble</span>(<span class="ty">ItemPedido</span>::subtotal)
+                    .<span class="fn">sum</span>();
+    }
+
+    <span class="cm">// multiplicidade 1..* vira regra de negócio explícita</span>
+    <span class="kw">public void</span> <span class="fn">fechar</span>() {
+        <span class="kw">if</span> (itens.<span class="fn">isEmpty</span>())
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"Pedido precisa de ao menos 1 item"</span>);
+        status = <span class="ty">Status</span>.AGUARDANDO_PAGAMENTO;
+    }
+
+    <span class="kw">public</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; <span class="fn">getItens</span>() {
+        <span class="kw">return</span> <span class="ty">Collections</span>.<span class="fn">unmodifiableList</span>(itens);
+    }
+}`,
+    'ItemPedido.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="cm">/** Parte de um Pedido. Não faz sentido existir sozinho. */</span>
+<span class="kw">public class</span> <span class="ty">ItemPedido</span> {
+
+    <span class="kw">private final</span> <span class="ty">Produto</span> produto;   <span class="cm">// associação 1</span>
+    <span class="kw">private final</span> <span class="ty">int</span> quantidade;
+
+    <span class="cm">// visibilidade de pacote: só o Pedido cria itens</span>
+    <span class="fn">ItemPedido</span>(<span class="ty">Produto</span> produto, <span class="ty">int</span> quantidade) {
+        <span class="kw">if</span> (quantidade &lt;= <span class="num">0</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"Quantidade inválida"</span>);
+        <span class="kw">this</span>.produto = produto;
+        <span class="kw">this</span>.quantidade = quantidade;
+    }
+
+    <span class="kw">public double</span> <span class="fn">subtotal</span>() {
+        <span class="kw">return</span> produto.<span class="fn">getPreco</span>() * quantidade;
+    }
+}`,
+    'Produto.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="kw">public class</span> <span class="ty">Produto</span> {
+
+    <span class="kw">private final</span> <span class="ty">String</span> nome;
+    <span class="kw">private double</span> preco;
+
+    <span class="kw">public</span> <span class="fn">Produto</span>(<span class="ty">String</span> nome, <span class="ty">double</span> preco) {
+        <span class="kw">this</span>.nome = nome;
+        <span class="fn">setPreco</span>(preco);
+    }
+
+    <span class="kw">public void</span> <span class="fn">setPreco</span>(<span class="ty">double</span> preco) {
+        <span class="kw">if</span> (preco &lt; <span class="num">0</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"Preço negativo"</span>);
+        <span class="kw">this</span>.preco = preco;
+    }
+
+    <span class="kw">public double</span> <span class="fn">getPreco</span>() { <span class="kw">return</span> preco; }
+    <span class="kw">public</span> <span class="ty">String</span> <span class="fn">getNome</span>()  { <span class="kw">return</span> nome; }
+}`,
+    'Cliente.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="kw">import</span> java.util.*;
+
+<span class="kw">public class</span> <span class="ty">Cliente</span> {
+
+    <span class="kw">private final</span> <span class="ty">String</span> nome;
+    <span class="kw">private final</span> <span class="ty">String</span> email;
+
+    <span class="cm">// associação * — navegável só deste lado</span>
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; pedidos = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Cliente</span>(<span class="ty">String</span> nome, <span class="ty">String</span> email) {
+        <span class="kw">this</span>.nome = nome;
+        <span class="kw">this</span>.email = email;
+    }
+
+    <span class="kw">public</span> <span class="ty">Pedido</span> <span class="fn">novoPedido</span>(<span class="ty">String</span> numero) {
+        <span class="ty">Pedido</span> p = <span class="kw">new</span> <span class="ty">Pedido</span>(numero, <span class="kw">this</span>);
+        pedidos.<span class="fn">add</span>(p);
+        <span class="kw">return</span> p;
+    }
+}`,
+    'Status.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="cm">/** Vem do diagrama de máquina de estados do Pedido. */</span>
+<span class="kw">public enum</span> <span class="ty">Status</span> {
+    ABERTO,
+    AGUARDANDO_PAGAMENTO,
+    PAGO,
+    ENVIADO,
+    ENTREGUE,
+    CANCELADO
+}`
+  };
+
+  const nomes = Object.keys(ARQUIVOS);
+  let atual = 'Pedido.java';
+
+  /* diagrama do exemplo */
+  const caixa = (x, y, w, nome, membros, cor, est) => {
+    const h = (est ? 38 : 26) + membros.length * 14 + 8;
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="#1e293b" stroke="${cor}" stroke-width="1.7"/>
+      ${est ? `<text x="${x + w / 2}" y="${y + 15}" text-anchor="middle" font-size="9"
+        font-family="Fira Code, monospace" fill="${cor}">«${est}»</text>` : ''}
+      <text x="${x + w / 2}" y="${y + (est ? 31 : 18)}" text-anchor="middle" font-size="11.5" font-weight="700"
+        font-family="Inter, sans-serif" fill="#fff">${nome}</text>
+      <line x1="${x}" y1="${y + (est ? 38 : 26)}" x2="${x + w}" y2="${y + (est ? 38 : 26)}" stroke="${cor}88" stroke-width="1.1"/>
+      ${membros.map((m, i) => `<text x="${x + 8}" y="${y + (est ? 52 : 40) + i * 14}" font-size="9"
+        font-family="Fira Code, monospace" fill="#cbd5e1">${m}</text>`).join('')}`;
+  };
+
+  document.getElementById('ex-svg').innerHTML =
+    caixa(130, 10, 180, 'Pagavel', ['+ calcularTotal()'], '#38bdf8', 'interface') +
+    caixa(120, 110, 200, 'Pedido', ['− numero: String', '− status: Status', '+ adicionar(p, q)', '+ calcularTotal()'], '#10b981') +
+    `<line x1="220" y1="110" x2="220" y2="94" stroke="#38bdf8" stroke-width="1.7" stroke-dasharray="6 4"/>
+     <polygon points="220,76 211,94 229,94" fill="#0f172a" stroke="#38bdf8" stroke-width="1.7"/>` +
+    caixa(10, 250, 170, 'Cliente', ['− nome: String', '− email: String'], '#10b981') +
+    `<line x1="120" y1="180" x2="95" y2="250" stroke="#10b981" stroke-width="1.7"/>
+     <text x="100" y="205" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>
+     <text x="86" y="242" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">1</text>` +
+    caixa(240, 250, 190, 'ItemPedido', ['− quantidade: int', '+ subtotal()'], '#ef4444') +
+    `<line x1="290" y1="194" x2="320" y2="250" stroke="#ef4444" stroke-width="1.8"/>
+     <polygon points="290,194 301,200 296,212 285,206" fill="#ef4444" stroke="#ef4444" stroke-width="1.5"/>
+     <text x="322" y="242" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">1..*</text>` +
+    caixa(240, 370, 190, 'Produto', ['− nome: String', '− preco: double'], '#10b981') +
+    `<line x1="335" y1="320" x2="335" y2="370" stroke="#10b981" stroke-width="1.7"/>
+     <text x="340" y="362" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">1</text>` +
+    caixa(10, 370, 170, 'Status', ['ABERTO', 'PAGO', '…'], '#a855f7', 'enumeration') +
+    `<line x1="180" y1="395" x2="230" y2="395" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5 4" opacity=".5"/>`;
+
+  function pinta() {
+    document.getElementById('ex-arquivos').innerHTML = nomes.map(n =>
+      `<button data-f="${n}" class="ah-chip text-[10px] ${n === atual ? 'active' : ''}">
+        <i class="fa-brands fa-java mr-1"></i>${n}</button>`).join('');
+    document.getElementById('ex-nome').textContent = 'br/com/loja/dominio/' + atual;
+    document.getElementById('ex-codigo').innerHTML = ARQUIVOS[atual];
+  }
+
+  document.getElementById('ex-arquivos').addEventListener('click', e => {
+    const b = e.target.closest('[data-f]');
+    if (!b) return;
+    atual = b.getAttribute('data-f'); pinta();
+  });
+  pinta();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

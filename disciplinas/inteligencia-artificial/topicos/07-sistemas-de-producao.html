@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistemas de Produção · AcademicHub</title>
+<meta name="description" content="Memória de trabalho, base de regras e o ciclo reconhece-resolve-age; encadeamento para frente e para trás.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/07-sistemas-de-producao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Anatomia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-gears text-indigo-400 mr-2"></i>Conhecimento que se executa sozinho</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>sistema de produção</strong> separa radicalmente o <em>conhecimento</em> do <em>controle</em>.
+      O conhecimento vira um conjunto de regras independentes no formato
+      <code>SE ⟨condições⟩ ENTÃO ⟨ações⟩</code>; o controle é um motor genérico que não sabe nada do domínio —
+      ele só repete um ciclo. Trocar o domínio significa trocar as regras, não o programa.
+    </p>
+    <p>
+      É a arquitetura por trás dos <a href="08-sistemas-especialistas.html" class="text-indigo-400 hover:underline">sistemas
+      especialistas</a>, de motores de regras de negócio (Drools, CLIPS) e de modelos cognitivos como o SOAR e o ACT-R.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#38bdf8">
+      <div class="w-10 h-10 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center mb-3"><i class="fa-solid fa-database"></i></div>
+      <h3 class="ah-h3 mb-2 text-sm">Memória de trabalho</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Os fatos conhecidos <em>agora</em>. Volátil: muda a cada ciclo, conforme regras disparam.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#a855f7">
+      <div class="w-10 h-10 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center mb-3"><i class="fa-solid fa-list-ol"></i></div>
+      <h3 class="ah-h3 mb-2 text-sm">Base de regras (produções)</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">O conhecimento permanente. Regras <strong>não se chamam</strong>: elas apenas existem e são ativadas quando o padrão casa.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#10b981">
+      <div class="w-10 h-10 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-3"><i class="fa-solid fa-rotate"></i></div>
+      <h3 class="ah-h3 mb-2 text-sm">Motor de inferência</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Executa o ciclo <strong>reconhece → resolve → age</strong> até não haver mais regras aplicáveis.</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">O ciclo de reconhecimento e ação</h3>
+  <div class="ah-stage p-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="ciclo"></div>
+    <p class="text-[11px] text-slate-500 text-center mt-4">O ciclo se repete até o conjunto de conflito ficar vazio (quiescência) ou uma regra mandar parar.</p>
+  </div>
+</section>
+
+<!-- ============================ ENCADEAMENTO ============================ -->
+<section id="motor" data-toc="Motor de inferência (simulador)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-indigo-400 mr-2"></i>O motor, passo a passo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Diagnóstico de um carro que não liga. Marque os sintomas observados e acompanhe o motor em
+    <strong class="text-sky-400">encadeamento para frente</strong> (dos fatos às conclusões) ou
+    <strong class="text-amber-400">para trás</strong> (da hipótese aos fatos que a sustentam).
+  </p>
+
+  <div class="flex flex-wrap items-center gap-2 mb-5">
+    <div class="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-700" id="dir-btns">
+      <button class="ah-chip active" data-dir="frente"><i class="fa-solid fa-arrow-right mr-1"></i> Para frente (data-driven)</button>
+      <button class="ah-chip" data-dir="tras"><i class="fa-solid fa-arrow-left mr-1"></i> Para trás (goal-driven)</button>
+    </div>
+    <div class="flex items-center gap-2 ml-auto">
+      <select id="estrategia" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none">
+        <option value="ordem">Resolução: primeira da lista</option>
+        <option value="especifica">Resolução: mais específica</option>
+        <option value="recente">Resolução: fato mais recente</option>
+      </select>
+      <button id="pr-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> Ciclo</button>
+      <button id="pr-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Executar</button>
+      <button id="pr-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
+    <div class="ah-card p-4">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Sintomas observados</h3>
+      <div id="pr-fatos" class="space-y-1"></div>
+      <div id="pr-alvo-box" class="mt-4 hidden">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Hipótese a provar</h3>
+        <select id="pr-alvo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-amber-300 focus:outline-none"></select>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Base de regras</h3>
+        <div id="pr-regras" class="space-y-1.5 font-mono text-[11px]"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Conjunto de conflito <span class="normal-case font-normal text-slate-500">— regras que poderiam disparar agora</span></h3>
+        <div id="pr-conflito" class="flex flex-wrap gap-1.5 min-h-[32px]"></div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Memória de trabalho</h3>
+        <div id="pr-wm" class="flex flex-wrap gap-1.5 min-h-[40px]"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Traço da execução</h3>
+        <div id="pr-log" class="font-mono text-[10px] text-slate-400 space-y-1 max-h-48 overflow-y-auto"></div>
+      </div>
+      <div id="pr-conclusao" class="ah-callout ah-callout-info text-xs">
+        <i class="fa-solid fa-hourglass-start"></i><div>Marque sintomas e execute o motor.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMPARAÇÃO ============================ -->
+<section id="comparacao" data-toc="Frente × trás" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-arrow-right-arrow-left text-indigo-400 mr-2"></i>Qual direção usar?</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th class="text-sky-400">Para frente</th><th class="text-amber-400">Para trás</th></tr></thead>
+      <tbody>
+        <tr><td>Ponto de partida</td><td>Fatos disponíveis</td><td>Hipótese/objetivo</td></tr>
+        <tr><td>Movimento</td><td>Antecedente → consequente</td><td>Consequente → antecedente</td></tr>
+        <tr><td>Bom quando</td><td>Há muitos dados e poucas conclusões possíveis</td><td>Há poucas hipóteses e muitos dados possíveis</td></tr>
+        <tr><td>Aplicações típicas</td><td>Monitoramento, alarmes, configuração, controle de processo</td><td>Diagnóstico, suporte técnico, Prolog</td></tr>
+        <tr><td>Risco</td><td>Derivar muito fato irrelevante</td><td>Perguntar ao usuário mais do que o necessário</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-7 mb-3">Estratégias de resolução de conflito</h3>
+  <p class="text-sm text-slate-400 mb-4">Quando várias regras podem disparar, é a estratégia que decide a ordem — e a ordem muda o resultado. Troque a estratégia no simulador e compare o traço.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Ordem textual</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">A primeira regra da lista vence. Simples e previsível, mas transforma a ordem do arquivo em conhecimento implícito.</p></div>
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Especificidade</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Vence a regra com mais condições: o caso particular tem prioridade sobre o geral. Trata exceções naturalmente.</p></div>
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Recência</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Vence a regra que usa o fato adicionado mais recentemente. Mantém o foco na linha de raciocínio atual.</p></div>
+    <div class="ah-card p-4"><h4 class="text-xs font-bold text-white mb-1">Refração</h4>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Uma regra não dispara duas vezes com os mesmos fatos. É o que impede laços infinitos.</p></div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-bolt"></i>
+    <div>
+      <strong>E se houver 10.000 regras?</strong> Testar todas a cada ciclo é inviável. O algoritmo
+      <strong>Rete</strong> (Forgy, 1979) monta uma rede que memoriza casamentos parciais e recalcula apenas o
+      que mudou — trocando tempo por memória. É o coração de CLIPS, Jess e Drools.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ BUSCA ============================ -->
+<section id="busca" data-toc="Produção como busca" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-indigo-400 mr-2"></i>Todo sistema de produção é uma busca</h2>
+  <div class="ah-prose">
+    <p>
+      Repare na estrutura: a memória de trabalho é um <strong>estado</strong>, cada regra aplicável é uma
+      <strong>ação</strong>, e o conjunto de conflito é a <strong>fronteira</strong>. A estratégia de resolução
+      de conflito é exatamente o critério que escolhe qual nó expandir — o mesmo papel da fila, da pilha ou do
+      <code>f(n)</code> em <a href="03-busca-cega.html" class="text-indigo-400 hover:underline">busca cega</a> e
+      <a href="04-busca-heuristica.html" class="text-indigo-400 hover:underline">heurística</a>.
+    </p>
+  </div>
+  <div class="ah-card overflow-x-auto mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Sistema de produção</th><th>Problema de busca</th></tr></thead>
+      <tbody>
+        <tr><td>Memória de trabalho</td><td>Estado atual</td></tr>
+        <tr><td>Regra aplicável</td><td>Ação / operador</td></tr>
+        <tr><td>Conjunto de conflito</td><td>Fronteira</td></tr>
+        <tr><td>Resolução de conflito</td><td>Estratégia de busca</td></tr>
+        <tr><td>Quiescência</td><td>Fronteira vazia (falha) ou objetivo atingido</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre sistemas de produção.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. A grande vantagem arquitetural de um sistema de produção é:</p>
+      <button class="ah-quiz-opt">Ser mais rápido que código imperativo</button>
+      <button class="ah-quiz-opt">Não precisar de memória</button>
+      <button class="ah-quiz-opt">Separar conhecimento (regras) de controle (motor), permitindo mudar um sem tocar no outro</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Regras são modulares e declarativas: um especialista do domínio pode revisar e acrescentar regras sem
+        entender o motor. Em compensação, o fluxo de execução fica implícito — o que dificulta depurar bases grandes.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Um sistema de suporte técnico pergunta ao usuário só o que é necessário para confirmar ou descartar uma hipótese. Ele usa:</p>
+      <button class="ah-quiz-opt">Encadeamento para trás</button>
+      <button class="ah-quiz-opt">Encadeamento para frente</button>
+      <button class="ah-quiz-opt">Busca em largura sobre os fatos</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Partindo da hipótese, o motor descobre quais premissas precisa e só então pergunta. Para frente
+        exigiria coletar todos os sintomas antes de começar — no diagnóstico, isso é caro e cansativo.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Sem a estratégia de <em>refração</em>, o que tende a acontecer?</p>
+      <button class="ah-quiz-opt">O sistema para cedo demais</button>
+      <button class="ah-quiz-opt">A mesma regra dispara repetidamente com os mesmos fatos — laço infinito</button>
+      <button class="ah-quiz-opt">A memória de trabalho fica vazia</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Como a regra continua satisfeita depois de disparar, ela volta ao conjunto de conflito no ciclo seguinte.
+        A refração marca a ativação como já usada, garantindo progresso.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Ciclo reconhece-resolve-age ===================== */
+const FASES = [
+  ['1. Reconhece (match)', 'fa-magnifying-glass', '#38bdf8', 'Compara a memória de trabalho com o antecedente de cada regra. As regras satisfeitas formam o <strong>conjunto de conflito</strong>.'],
+  ['2. Resolve o conflito', 'fa-code-fork', '#a855f7', 'Se mais de uma regra pode disparar, uma estratégia escolhe: ordem, especificidade, recência, prioridade…'],
+  ['3. Age (fire)', 'fa-bolt', '#10b981', 'Executa o consequente: adiciona, remove ou altera fatos — o que modifica a memória e recomeça o ciclo.']
+];
+document.getElementById('ciclo').innerHTML = FASES.map((f, i) => `
+  <div class="ah-card p-4 relative ah-card-hover" style="border-top:3px solid ${f[2]}">
+    <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background:${f[2]}22;color:${f[2]}">
+      <i class="fa-solid ${f[1]}"></i></div>
+    <h4 class="text-xs font-bold text-white mb-1.5">${f[0]}</h4>
+    <p class="text-[11px] text-slate-400 leading-relaxed">${f[3]}</p>
+    ${i < 2 ? '<i class="fa-solid fa-arrow-right absolute -right-3 top-1/2 text-slate-600 hidden sm:block"></i>' : '<i class="fa-solid fa-rotate-left absolute -right-1 -bottom-1 text-slate-700 hidden sm:block"></i>'}
+  </div>`).join('');
+
+/* ===================== Sistema de produção: carro não liga ===================== */
+(function producao() {
+  const SINTOMAS = [
+    'motor não gira', 'motor gira mas não pega', 'luzes fracas',
+    'tanque vazio', 'cheiro de combustível', 'estalo ao girar a chave', 'faz mais de um ano sem revisão'
+  ];
+  const REGRAS = [
+    { se: ['motor não gira', 'luzes fracas'], entao: 'sistema elétrico fraco' },
+    { se: ['motor não gira', 'estalo ao girar a chave'], entao: 'motor de arranque suspeito' },
+    { se: ['sistema elétrico fraco'], entao: 'DIAGNÓSTICO: bateria descarregada' },
+    { se: ['motor de arranque suspeito', 'sistema elétrico fraco'], entao: 'DIAGNÓSTICO: trocar motor de arranque' },
+    { se: ['tanque vazio'], entao: 'DIAGNÓSTICO: sem combustível' },
+    { se: ['motor gira mas não pega', 'cheiro de combustível'], entao: 'motor afogado' },
+    { se: ['motor afogado'], entao: 'DIAGNÓSTICO: aguardar e dar partida com acelerador a fundo' },
+    { se: ['motor gira mas não pega', 'faz mais de um ano sem revisão'], entao: 'ignição suspeita' },
+    { se: ['ignição suspeita'], entao: 'DIAGNÓSTICO: verificar velas e cabos' }
+  ];
+  const METAS = REGRAS.filter(r => r.entao.startsWith('DIAGNÓSTICO')).map(r => r.entao);
+
+  let dir = 'frente';
+  let observados = new Set();
+  let wm = [];            // fatos na memória (ordem = recência)
+  let usadas = new Set(); // refração
+  let log = [];
+  let conflito = [];
+  let ultimaRegra = -1;
+  let concluiu = null;
+  let timer = null;
+
+  const $ = id => document.getElementById(id);
+
+  function reset() {
+    clearInterval(timer); timer = null;
+    $('pr-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar';
+    wm = [...observados];
+    usadas = new Set(); log = []; conflito = []; ultimaRegra = -1; concluiu = null;
+    calcConflito();
+    pinta();
+  }
+
+  function calcConflito() {
+    conflito = [];
+    REGRAS.forEach((r, i) => {
+      if (usadas.has(i)) return;
+      if (wm.includes(r.entao)) return;
+      if (r.se.every(c => wm.includes(c))) conflito.push(i);
+    });
+  }
+
+  function escolhe() {
+    if (!conflito.length) return -1;
+    const est = $('estrategia').value;
+    if (est === 'especifica') {
+      return conflito.reduce((a, b) => REGRAS[b].se.length > REGRAS[a].se.length ? b : a);
+    }
+    if (est === 'recente') {
+      const rec = i => Math.min(...REGRAS[i].se.map(c => wm.length - 1 - wm.lastIndexOf(c)));
+      return conflito.reduce((a, b) => rec(b) < rec(a) ? b : a);
+    }
+    return conflito[0];
+  }
+
+  /* -------- encadeamento para frente -------- */
+  function cicloFrente() {
+    calcConflito();
+    if (concluiu) return;
+    const i = escolhe();
+    if (i < 0) {
+      log.unshift('■ quiescência: nenhuma regra aplicável');
+      concluiu = wm.find(f => f.startsWith('DIAGNÓSTICO')) || 'nenhum';
+      pinta(); return;
+    }
+    const r = REGRAS[i];
+    usadas.add(i);
+    wm.push(r.entao);
+    ultimaRegra = i;
+    log.unshift(`R${i + 1} dispara → adiciona “${r.entao}”`);
+    if (r.entao.startsWith('DIAGNÓSTICO')) concluiu = r.entao;
+    calcConflito();
+    pinta();
+  }
+
+  /* -------- encadeamento para trás -------- */
+  /* Pilha de tarefas: {t:'prova'} tenta provar uma meta; {t:'conclui'}
+     verifica, na volta, se as premissas da regra escolhida foram satisfeitas. */
+  let pilha = [];
+
+  function finalizaTras() {
+    const alvo = $('pr-alvo').value;
+    if (wm.includes(alvo)) concluiu = alvo;
+    else if (!pilha.length) concluiu = 'não provado';
+  }
+
+  function cicloTras() {
+    if (concluiu) return;
+    if (!pilha.length) {
+      const alvo = $('pr-alvo').value;
+      pilha = [{ t: 'prova', meta: alvo, ri: 0 }];
+      log.unshift(`objetivo: provar “${alvo}”`);
+      pinta(); return;
+    }
+
+    const topo = pilha[pilha.length - 1];
+
+    if (topo.t === 'prova') {
+      if (wm.includes(topo.meta)) {
+        pilha.pop();
+        log.unshift(`✓ “${topo.meta}” provado`);
+        finalizaTras(); pinta(); return;
+      }
+      if (SINTOMAS.includes(topo.meta)) {
+        pilha.pop();
+        if (observados.has(topo.meta)) { wm.push(topo.meta); log.unshift(`✓ “${topo.meta}” foi observado`); }
+        else log.unshift(`✗ “${topo.meta}” não foi observado`);
+        finalizaTras(); pinta(); return;
+      }
+      const cands = REGRAS.map((r, i) => ({ r, i })).filter(x => x.r.entao === topo.meta);
+      if (topo.ri >= cands.length) {
+        pilha.pop();
+        log.unshift(`✗ esgotadas as regras para “${topo.meta}”`);
+        finalizaTras(); pinta(); return;
+      }
+      const alvoRegra = cands[topo.ri];
+      topo.ri++;
+      ultimaRegra = alvoRegra.i;
+      log.unshift(`R${alvoRegra.i + 1}: para provar “${topo.meta}” preciso de ${alvoRegra.r.se.join(' ∧ ')}`);
+      pilha.push({ t: 'conclui', meta: topo.meta, regra: alvoRegra.i });
+      alvoRegra.r.se.slice().reverse().forEach(c => pilha.push({ t: 'prova', meta: c, ri: 0 }));
+      pinta(); return;
+    }
+
+    /* t === 'conclui' */
+    pilha.pop();
+    const r = REGRAS[topo.regra];
+    if (r.se.every(c => wm.includes(c))) {
+      wm.push(topo.meta);
+      log.unshift(`✓ premissas satisfeitas → deriva “${topo.meta}”`);
+    } else {
+      log.unshift(`✗ R${topo.regra + 1} falhou: premissa ausente`);
+    }
+    finalizaTras(); pinta();
+  }
+
+  function pinta() {
+    $('pr-fatos').innerHTML = SINTOMAS.map(s => `
+      <label class="flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700/30 text-[11px] leading-snug">
+        <input type="checkbox" data-s="${s}" ${observados.has(s) ? 'checked' : ''} class="accent-sky-500 mt-0.5">
+        <span class="${observados.has(s) ? 'text-white' : 'text-slate-400'}">${s}</span>
+      </label>`).join('');
+
+    $('pr-regras').innerHTML = REGRAS.map((r, i) => {
+      const noConflito = conflito.includes(i);
+      const disparou = usadas.has(i);
+      const cls = i === ultimaRegra ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-200'
+        : disparou ? 'border-slate-700 bg-slate-900 text-slate-500 line-through decoration-slate-700'
+        : noConflito ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+        : 'border-slate-800 bg-slate-950 text-slate-500';
+      return `<div class="px-2 py-1.5 rounded-md border ${cls} leading-snug">
+        <span class="opacity-60">R${i + 1}:</span> SE ${r.se.join(' ∧ ')} <span class="opacity-60">ENTÃO</span> <b>${r.entao}</b></div>`;
+    }).join('');
+
+    $('pr-conflito').innerHTML = conflito.length
+      ? conflito.map(i => `<span class="ah-badge ah-badge-amber">R${i + 1}</span>`).join('')
+      : '<span class="text-[11px] text-slate-600 italic">vazio</span>';
+
+    $('pr-wm').innerHTML = wm.length
+      ? wm.map(f => `<span class="ah-badge ${f.startsWith('DIAGNÓSTICO') ? 'ah-badge-emerald' : observados.has(f) ? 'ah-badge-sky' : ''}">${f}</span>`).join('')
+      : '<span class="text-[11px] text-slate-600 italic">vazia</span>';
+
+    $('pr-log').innerHTML = log.slice(0, 14).map(l =>
+      `<div class="${l[0] === '✓' ? 'text-emerald-400' : l[0] === '✗' ? 'text-rose-400' : l[0] === '■' ? 'text-sky-400' : ''}">${l}</div>`).join('')
+      || '<div class="text-slate-600 italic">aguardando…</div>';
+
+    const box = $('pr-conclusao');
+    if (concluiu && concluiu !== 'nenhum' && concluiu !== 'não provado') {
+      box.className = 'ah-callout ah-callout-ok text-xs';
+      box.innerHTML = `<i class="fa-solid fa-circle-check"></i><div><strong>${concluiu}</strong></div>`;
+    } else if (concluiu) {
+      box.className = 'ah-callout ah-callout-warn text-xs';
+      box.innerHTML = '<i class="fa-solid fa-circle-question"></i><div>Nenhuma conclusão possível com os sintomas marcados.</div>';
+    } else {
+      box.className = 'ah-callout ah-callout-info text-xs';
+      box.innerHTML = '<i class="fa-solid fa-hourglass-start"></i><div>Execute o motor para ver o diagnóstico.</div>';
+    }
+  }
+
+  $('pr-fatos').addEventListener('change', e => {
+    const s = e.target.getAttribute('data-s');
+    if (!s) return;
+    if (e.target.checked) observados.add(s); else observados.delete(s);
+    pilha = [];
+    reset();
+  });
+  $('dir-btns').addEventListener('click', e => {
+    const b = e.target.closest('[data-dir]');
+    if (!b) return;
+    dir = b.getAttribute('data-dir');
+    document.querySelectorAll('#dir-btns .ah-chip').forEach(c => c.classList.toggle('active', c === b));
+    $('pr-alvo-box').classList.toggle('hidden', dir !== 'tras');
+    pilha = [];
+    reset();
+  });
+  $('pr-step').addEventListener('click', () => dir === 'frente' ? cicloFrente() : cicloTras());
+  $('pr-reset').addEventListener('click', () => { pilha = []; reset(); });
+  $('pr-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Executar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(() => {
+      dir === 'frente' ? cicloFrente() : cicloTras();
+      if (concluiu) { clearInterval(timer); timer = null; $('pr-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar'; }
+    }, 750);
+  });
+  $('estrategia').addEventListener('change', () => { pilha = []; reset(); });
+
+  $('pr-alvo').innerHTML = METAS.map(m => `<option value="${m}">${m.replace('DIAGNÓSTICO: ', '')}</option>`).join('');
+  observados.add('motor não gira'); observados.add('luzes fracas');
+  reset();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

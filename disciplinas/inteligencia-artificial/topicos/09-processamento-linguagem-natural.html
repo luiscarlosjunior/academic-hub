@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Processamento de Linguagem Natural · AcademicHub</title>
+<meta name="description" content="O pipeline clássico: tokenização, morfologia, sintaxe, semântica e pragmática.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/09-processamento-linguagem-natural">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Por que linguagem é difícil" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-comments text-indigo-400 mr-2"></i>Por que a linguagem humana é tão difícil</h2>
+  <div class="ah-prose">
+    <p>
+      Linguagens de programação foram <em>projetadas</em> para serem não ambíguas. A linguagem natural cresceu
+      sozinha, é cheia de exceções, depende do contexto e supõe um mundo compartilhado entre quem fala e
+      quem ouve. Um computador não tem esse mundo.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6" id="ambiguidades"></div>
+
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      Este tópico cobre a abordagem <strong>simbólica</strong> do PLN — regras, gramáticas e análise estrutural.
+      A abordagem <strong>estatística</strong>, que domina hoje, está em
+      <a href="15-processamento-estatistico-linguagem-natural.html" class="text-indigo-400 hover:underline">Processamento Estatístico de Linguagem Natural</a>.
+      As duas se complementam: a estrutura linguística continua sendo o vocabulário com que descrevemos o que os modelos fazem.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Os níveis de análise" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-indigo-400 mr-2"></i>Seis níveis, do som ao contexto</h2>
+  <p class="ah-lead text-sm mb-5">Cada nível resolve um tipo de pergunta. Clique para ver o que acontece — e o que dá errado — em cada um.</p>
+  <div class="space-y-2" id="niveis-lista"></div>
+</section>
+
+<!-- ============================ PIPELINE ============================ -->
+<section id="pipeline" data-toc="Pipeline ao vivo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-next text-indigo-400 mr-2"></i>O pré-processamento, etapa por etapa</h2>
+  <p class="ah-lead text-sm mb-5">
+    Digite qualquer frase e veja o texto ser transformado até virar algo que um algoritmo consegue usar.
+    Cada etapa <strong>joga informação fora</strong> de propósito — o desafio é descartar o que não importa
+    para a tarefa.
+  </p>
+
+  <input id="pln-texto" value="Os alunos estavam estudando os algoritmos de busca na universidade."
+         class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-200 mb-5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="pln-etapas"></div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Nem sempre remova stopwords.</strong> Em classificação de tópicos elas atrapalham; em análise de
+      sentimento, “<em>não</em>” é a palavra mais importante da frase. Toda etapa do pipeline é uma decisão
+      dependente da tarefa, nunca um ritual.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SINTAXE ============================ -->
+<section id="sintaxe" data-toc="Análise sintática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-indigo-400 mr-2"></i>Gramática e árvore sintática</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma <strong>gramática livre de contexto</strong> descreve como as palavras se combinam. O analisador
+    (<em>parser</em>) usa essas regras para montar a árvore que revela <em>quem fez o quê</em>.
+    Escolha uma frase e veja a árvore se desenhar.
+  </p>
+
+  <div class="flex flex-wrap gap-2 mb-4" id="frases-btns"></div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage p-4" style="min-height:300px">
+        <svg id="arvore" viewBox="0 0 640 300" class="w-full" style="height:300px"></svg>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Gramática (GLC)</h3>
+        <pre class="ah-code text-[10px]">S   → SN SV
+SN  → Det N | Det Adj N | Det N SP | N
+SV  → V | V SN | V SN SP | V SP
+SP  → Prep SN
+
+Det → o | a | os | as | um
+N   → gato | rato | telescópio | menino | parque
+V   → viu | comeu | correu
+Adj → pequeno | grande
+Prep→ com | no | de</pre>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Leitura da árvore</h3>
+        <p id="arvore-nota" class="text-[11px] text-slate-400 leading-relaxed"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code-branch"></i>
+    <div>
+      <strong>Ambiguidade sintática é a regra, não a exceção.</strong> “O menino viu o gato com o telescópio”
+      tem <em>duas</em> árvores válidas: o sintagma preposicional pode se ligar ao verbo (o menino usou o
+      telescópio) ou ao substantivo (o gato estava com o telescópio). A gramática não decide — só a semântica
+      e o contexto decidem.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ APLICAÇÕES ============================ -->
+<section id="aplicacoes" data-toc="Tarefas e aplicações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-list-check text-indigo-400 mr-2"></i>Tarefas clássicas de PLN</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Tarefa</th><th>O que faz</th><th>Onde aparece</th></tr></thead>
+      <tbody>
+        <tr><td>Etiquetagem morfossintática (POS)</td><td>Atribui a classe gramatical a cada palavra</td><td>Base para quase todo o resto</td></tr>
+        <tr><td>Reconhecimento de entidades (NER)</td><td>Encontra pessoas, lugares, datas, valores</td><td>Extração de dados de contratos e notícias</td></tr>
+        <tr><td>Análise de sentimento</td><td>Classifica a polaridade de um texto</td><td>Monitoramento de marca, pesquisa de satisfação</td></tr>
+        <tr><td>Resolução de correferência</td><td>Descobre a quem “ele”, “ela”, “isso” se referem</td><td>Sumarização, perguntas e respostas</td></tr>
+        <tr><td>Desambiguação de sentido</td><td>Escolhe o sentido correto de uma palavra polissêmica</td><td>Tradução automática, busca semântica</td></tr>
+        <tr><td>Tradução automática</td><td>Converte texto entre idiomas</td><td>De regras → estatística → redes neurais</td></tr>
+        <tr><td>Sumarização</td><td>Condensa mantendo o essencial</td><td>Jurídico, notícias, prontuários</td></tr>
+        <tr><td>Perguntas e respostas</td><td>Responde em linguagem natural</td><td>Assistentes, busca conversacional</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre análise de linguagem.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. “Vi o homem no parque com o binóculo.” Que tipo de ambiguidade é essa?</p>
+      <button class="ah-quiz-opt">Léxica — “binóculo” tem vários sentidos</button>
+      <button class="ah-quiz-opt">Sintática (de ligação) — não se sabe a que constituinte o sintagma se prende</button>
+      <button class="ah-quiz-opt">Pragmática — depende de quem fala</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É o clássico <em>PP-attachment</em>: “com o binóculo” pode modificar “vi”, “o homem” ou “o parque”.
+        As palavras são claras; a <strong>estrutura</strong> é que tem mais de uma leitura válida.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Diferença entre <em>stemming</em> e <em>lematização</em>:</p>
+      <button class="ah-quiz-opt">Stemming corta sufixos por heurística; lematização devolve a forma de dicionário usando morfologia real</button>
+      <button class="ah-quiz-opt">São sinônimos</button>
+      <button class="ah-quiz-opt">Stemming é para inglês, lematização para português</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O stemmer é rápido e grosseiro: “universidade” → “univers”, que nem é palavra. O lematizador consulta
+        vocabulário e classe gramatical: “foram” → “ir”. Stemming serve para busca; lematização, para análise linguística.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. “Você pode me passar o sal?” — responder apenas “posso” falha em que nível?</p>
+      <button class="ah-quiz-opt">Sintático</button>
+      <button class="ah-quiz-opt">Morfológico</button>
+      <button class="ah-quiz-opt">Pragmático</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A frase é sintaticamente uma pergunta e semanticamente uma questão sobre capacidade — mas
+        <strong>pragmaticamente</strong> é um pedido. Captar a intenção por trás da forma é o nível mais
+        difícil do PLN, e onde assistentes ainda tropeçam.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Ambiguidades ===================== */
+const AMB = [
+  ['Léxica', 'fa-book-open', '“Ele foi ao <b>banco</b>.”', 'Instituição financeira, assento ou margem do rio? A palavra tem vários sentidos e só o contexto resolve.'],
+  ['Sintática', 'fa-code-branch', '“Vi o gato <b>com o telescópio</b>.”', 'Quem tinha o telescópio? A mesma sequência de palavras admite árvores diferentes.'],
+  ['Semântica', 'fa-brain', '“Todo aluno leu <b>um livro</b>.”', 'O mesmo livro para todos, ou um livro diferente por aluno? É o escopo dos quantificadores da lógica de primeira ordem.'],
+  ['Pragmática', 'fa-comment-dots', '“Está <b>frio</b> aqui.”', 'Constatação sobre o tempo — ou pedido para fechar a janela? Depende de quem fala, para quem, e onde.']
+];
+document.getElementById('ambiguidades').innerHTML = AMB.map(a => `
+  <div class="ah-card ah-card-hover p-4">
+    <div class="flex items-center gap-2 mb-2">
+      <i class="fa-solid ${a[1]} text-indigo-400"></i>
+      <h4 class="text-sm font-bold text-white">Ambiguidade ${a[0]}</h4>
+    </div>
+    <p class="text-sm text-slate-200 italic mb-2">${a[2]}</p>
+    <p class="text-xs text-slate-400 leading-relaxed">${a[3]}</p>
+  </div>`).join('');
+
+/* ===================== Níveis ===================== */
+const NIV = [
+  ['Fonologia / Fonética', 'fa-volume-high', '#0ea5e9', 'Sons da fala e sua representação.',
+   'Necessário em reconhecimento de voz e síntese. Problema típico: “mais” e “mas” soam quase iguais.'],
+  ['Morfologia', 'fa-puzzle-piece', '#6366f1', 'Estrutura interna das palavras: radical, prefixo, sufixo, flexão.',
+   '“Desnecessariamente” = des + necessári + a + mente. Permite reconhecer que “correu” e “correndo” têm o mesmo radical.'],
+  ['Sintaxe', 'fa-sitemap', '#a855f7', 'Como as palavras se combinam em frases bem formadas.',
+   'Determina sujeito, objeto e modificadores. “O cachorro mordeu o homem” ≠ “O homem mordeu o cachorro” — mesmas palavras, sintaxe diferente.'],
+  ['Semântica', 'fa-brain', '#ec4899', 'Significado literal, independente do contexto.',
+   'Mapeia a frase para uma representação lógica. “João deu o livro a Maria” → Dar(João, Livro, Maria).'],
+  ['Pragmática', 'fa-comment-dots', '#f59e0b', 'Significado <em>em uso</em>: intenção, implicatura, ironia.',
+   '“Que belo dia!” debaixo de chuva significa o oposto. Exige modelar o falante, não só a frase.'],
+  ['Discurso', 'fa-align-left', '#10b981', 'Relações entre frases num texto inteiro.',
+   'Correferência (“ele” = quem?), coesão e estrutura argumentativa. Indispensável para sumarizar.']
+];
+document.getElementById('niveis-lista').innerHTML = NIV.map((n, i) => `
+  <details class="ah-card overflow-hidden group" ${i === 1 ? 'open' : ''}>
+    <summary class="p-4 cursor-pointer flex items-center gap-3 hover:bg-slate-700/20 transition list-none">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background:${n[2]}22;color:${n[2]}">
+        <i class="fa-solid ${n[1]}"></i></div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-bold text-white">${n[0]}</div>
+        <div class="text-[11px] text-slate-400">${n[3]}</div>
+      </div>
+      <i class="fa-solid fa-chevron-down text-slate-500 text-xs group-open:rotate-180 transition"></i>
+    </summary>
+    <div class="px-4 pb-4 pl-16 text-xs text-slate-400 leading-relaxed">${n[4]}</div>
+  </details>`).join('');
+
+/* ===================== Pipeline de pré-processamento ===================== */
+(function pipeline() {
+  const STOP = new Set(['o','a','os','as','um','uma','de','da','do','das','dos','em','no','na','nos','nas',
+    'e','ou','que','se','por','para','com','sem','ao','aos','à','às','é','são','foi','eram','estavam','está',
+    'seu','sua','este','esta','isso','mais','como','mas','já','também','the','of']);
+
+  /* stemmer de sufixos simplificado para o português */
+  const SUF = ['issimo','issima','mente','acao','acoes','ando','endo','indo','aram','eram','iram','ava','ia',
+               'ando','ador','ades','ade','ista','ismo','oes','aes','eis','ns','is','s','a','o','e'];
+  function stem(p) {
+    if (p.length <= 4) return p;
+    for (const s of SUF) {
+      if (p.length - s.length >= 4 && p.endsWith(s)) return p.slice(0, -s.length);
+    }
+    return p;
+  }
+  const semAcento = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  /* etiquetador POS por regras (didático, não exaustivo) */
+  function pos(p) {
+    const base = semAcento(p);
+    if (['o','a','os','as','um','uma','uns','umas'].includes(base)) return ['Det', '#38bdf8'];
+    if (['de','da','do','das','dos','em','no','na','nos','nas','com','por','para','sem','a','ao'].includes(base)) return ['Prep', '#f59e0b'];
+    if (['e','ou','mas','que','porque'].includes(base)) return ['Conj', '#64748b'];
+    if (/(ando|endo|indo|aram|eram|iram|ava|ou|ar|er|ir|am|eu|iu)$/.test(base)) return ['Verbo', '#10b981'];
+    if (/(mente)$/.test(base)) return ['Advérbio', '#ec4899'];
+    if (/(vel|oso|osa|ico|ica|ante|ente)$/.test(base)) return ['Adjetivo', '#a855f7'];
+    return ['Substantivo', '#6366f1'];
+  }
+
+  const caixa = (titulo, icone, desc, corpo) => `
+    <div class="ah-card p-4">
+      <div class="flex items-center gap-2 mb-1">
+        <i class="fa-solid ${icone} text-indigo-400 text-xs"></i>
+        <h4 class="text-xs font-bold text-white">${titulo}</h4>
+      </div>
+      <p class="text-[10px] text-slate-500 mb-2 leading-snug">${desc}</p>
+      <div class="flex flex-wrap gap-1">${corpo}</div>
+    </div>`;
+
+  const tag = (t, cls) => `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono ${cls || 'bg-slate-900 border border-slate-700 text-slate-300'}">${t}</span>`;
+
+  function render() {
+    const txt = document.getElementById('pln-texto').value;
+    const tokens = (txt.toLowerCase().match(/[a-zà-ú]+|\d+|[.,!?;:]/g) || []);
+    const palavras = tokens.filter(t => /[a-zà-ú\d]/.test(t));
+    const semStop = palavras.filter(t => !STOP.has(t));
+    const stems = semStop.map(t => stem(semAcento(t)));
+    const bigramas = [];
+    for (let i = 0; i < semStop.length - 1; i++) bigramas.push(semStop[i] + ' ' + semStop[i + 1]);
+
+    document.getElementById('pln-etapas').innerHTML =
+      caixa('1. Tokenização', 'fa-scissors',
+        `Quebra o texto em unidades. ${tokens.length} tokens (pontuação conta).`,
+        tokens.map(t => tag(t)).join('')) +
+      caixa('2. Normalização', 'fa-text-height',
+        'Minúsculas e remoção de acentos e pontuação — reduz variações da mesma palavra.',
+        palavras.map(t => tag(semAcento(t))).join('')) +
+      caixa('3. Remoção de stopwords', 'fa-filter',
+        `Palavras muito frequentes carregam pouca informação temática. ${palavras.length - semStop.length} removida(s).`,
+        semStop.map(t => tag(t, 'bg-indigo-500/15 border border-indigo-500/30 text-indigo-200')).join('')) +
+      caixa('4. Stemming', 'fa-scissors',
+        'Corta sufixos para agrupar formas da mesma família: “estudando”, “estudos” → “estud”.',
+        stems.map(t => tag(t, 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-200')).join('')) +
+      caixa('5. Etiquetagem morfossintática', 'fa-tags',
+        'Atribui a classe gramatical de cada palavra — a entrada da análise sintática.',
+        palavras.map(t => {
+          const [cls, cor] = pos(t);
+          return `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono border"
+            style="background:${cor}18;border-color:${cor}55;color:${cor}">${t}<span class="opacity-60">/${cls}</span></span>`;
+        }).join('')) +
+      caixa('6. N-gramas (bigramas)', 'fa-link',
+        'Pares consecutivos preservam um mínimo de ordem — a ponte para os modelos estatísticos.',
+        bigramas.map(t => tag(t, 'bg-amber-500/10 border border-amber-500/30 text-amber-200')).join('') || '<span class="text-[10px] text-slate-600 italic">texto curto demais</span>');
+  }
+
+  document.getElementById('pln-texto').addEventListener('input', render);
+  render();
+})();
+
+/* ===================== Árvore sintática ===================== */
+(function sintaxe() {
+  const FRASES = [
+    { t: 'O gato comeu o rato', nota: 'Estrutura canônica: sintagma nominal (sujeito) + sintagma verbal com objeto direto. A árvore diz que “o rato” é argumento de “comeu”.',
+      a: ['S', ['SN', ['Det', 'O'], ['N', 'gato']], ['SV', ['V', 'comeu'], ['SN', ['Det', 'o'], ['N', 'rato']]]] },
+    { t: 'O menino viu o gato com o telescópio [leitura 1]', nota: 'Leitura 1 — o <b>sintagma preposicional se liga ao verbo</b>: o menino usou o telescópio para ver.',
+      a: ['S', ['SN', ['Det', 'O'], ['N', 'menino']],
+              ['SV', ['V', 'viu'], ['SN', ['Det', 'o'], ['N', 'gato']],
+                     ['SP', ['Prep', 'com'], ['SN', ['Det', 'o'], ['N', 'telescópio']]]]] },
+    { t: 'O menino viu o gato com o telescópio [leitura 2]', nota: 'Leitura 2 — o <b>sintagma preposicional se liga ao substantivo</b>: o gato é que estava com o telescópio. Mesmas palavras, outra árvore.',
+      a: ['S', ['SN', ['Det', 'O'], ['N', 'menino']],
+              ['SV', ['V', 'viu'],
+                     ['SN', ['Det', 'o'], ['N', 'gato'],
+                            ['SP', ['Prep', 'com'], ['SN', ['Det', 'o'], ['N', 'telescópio']]]]]] },
+    { t: 'O gato pequeno correu no parque', nota: 'O adjetivo entra dentro do sintagma nominal; “no parque” é um adjunto do verbo.',
+      a: ['S', ['SN', ['Det', 'O'], ['N', 'gato'], ['Adj', 'pequeno']],
+              ['SV', ['V', 'correu'], ['SP', ['Prep', 'no'], ['SN', ['Det', 'o'], ['N', 'parque']]]]] }
+  ];
+
+  const svg = document.getElementById('arvore');
+  const CORES = { S: '#818cf8', SN: '#38bdf8', SV: '#10b981', SP: '#f59e0b', Det: '#64748b', N: '#a855f7', V: '#34d399', Adj: '#ec4899', Prep: '#fbbf24' };
+
+  /* mede a largura em folhas de cada subárvore */
+  function folhas(n) {
+    if (typeof n[1] === 'string') return 1;
+    return n.slice(1).reduce((s, c) => s + folhas(c), 0);
+  }
+
+  function desenha(arv) {
+    const W = 640, H = 300, unidade = W / Math.max(folhas(arv), 1);
+    let out = '';
+    let k = 0;
+
+    (function pos(n, prof, x0) {
+      const larg = folhas(n) * unidade;
+      const x = x0 + larg / 2;
+      const y = 28 + prof * 58;
+      const cor = CORES[n[0]] || '#94a3b8';
+
+      if (typeof n[1] === 'string') {
+        out += `<line class="ah-draw visible" x1="${x}" y1="${y + 10}" x2="${x}" y2="${y + 40}" stroke="rgba(148,163,184,.35)" stroke-width="1.4"/>`;
+        out += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${cor}"
+                  font-family="Inter, sans-serif" opacity="0"><animate attributeName="opacity" to="1" dur=".4s" begin="${k * 0.07}s" fill="freeze"/>${n[0]}</text>`;
+        out += `<text x="${x}" y="${y + 54}" text-anchor="middle" font-size="13" fill="#e2e8f0"
+                  font-family="Fira Code, monospace" opacity="0"><animate attributeName="opacity" to="1" dur=".4s" begin="${(k + 1) * 0.07}s" fill="freeze"/>${n[1]}</text>`;
+        k += 2;
+        return x;
+      }
+
+      let cx = x0;
+      const filhos = [];
+      n.slice(1).forEach(c => {
+        filhos.push(pos(c, prof + 1, cx));
+        cx += folhas(c) * unidade;
+      });
+
+      filhos.forEach(fx => {
+        out += `<line x1="${x}" y1="${y + 8}" x2="${fx}" y2="${y + 50}" stroke="rgba(148,163,184,.35)" stroke-width="1.4" opacity="0">
+                  <animate attributeName="opacity" to="1" dur=".4s" begin="${k * 0.07}s" fill="freeze"/></line>`;
+      });
+      out += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="13" font-weight="700" fill="${cor}"
+                font-family="Inter, sans-serif" opacity="0"><animate attributeName="opacity" to="1" dur=".4s" begin="${k * 0.07}s" fill="freeze"/>${n[0]}</text>`;
+      k++;
+      return x;
+    })(arv, 0, 0);
+
+    svg.innerHTML = out;
+  }
+
+  const btns = document.getElementById('frases-btns');
+  btns.innerHTML = FRASES.map((f, i) =>
+    `<button class="ah-chip ${i === 0 ? 'active' : ''}" data-fr="${i}">${f.t}</button>`).join('');
+  btns.addEventListener('click', e => {
+    const b = e.target.closest('[data-fr]');
+    if (!b) return;
+    btns.querySelectorAll('.ah-chip').forEach(c => c.classList.toggle('active', c === b));
+    const f = FRASES[+b.getAttribute('data-fr')];
+    desenha(f.a);
+    document.getElementById('arvore-nota').innerHTML = f.nota;
+  });
+
+  desenha(FRASES[0].a);
+  document.getElementById('arvore-nota').innerHTML = FRASES[0].nota;
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

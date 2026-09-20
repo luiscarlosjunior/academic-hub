@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Machine Learning · AcademicHub</title>
+<meta name="description" content="Aprendizado supervisionado, não supervisionado e por reforço; treino/teste, overfitting e métricas.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/06-machine-learning">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="A virada de chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-indigo-400 mr-2"></i>Programar regras × aprender regras</h2>
+  <div class="ah-prose">
+    <p>
+      Na programação tradicional, você escreve as regras e o computador produz respostas. No aprendizado de
+      máquina, você fornece <strong>exemplos de respostas</strong> e o computador produz as regras.
+      É a mesma inversão que separa um sistema especialista de um classificador treinado.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#64748b">
+      <span class="ah-badge ah-badge-slate mb-2">Programação clássica</span>
+      <div class="font-mono text-xs text-slate-400 leading-relaxed">
+        regras + dados &nbsp;→&nbsp; <span class="text-white">PROGRAMA</span> &nbsp;→&nbsp; respostas
+      </div>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#6366f1">
+      <span class="ah-badge mb-2">Aprendizado de máquina</span>
+      <div class="font-mono text-xs text-slate-400 leading-relaxed">
+        dados + respostas &nbsp;→&nbsp; <span class="text-indigo-300">TREINAMENTO</span> &nbsp;→&nbsp; <span class="text-white">modelo (as regras)</span>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Os três regimes de aprendizado</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="regimes"></div>
+</section>
+
+<!-- ============================ REGRESSÃO ============================ -->
+<section id="regressao" data-toc="Treinar = minimizar erro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-indigo-400 mr-2"></i>O que acontece durante o treinamento</h2>
+  <p class="ah-lead text-sm mb-5">
+    Treinar é <strong>descer uma ladeira</strong>. O modelo começa com parâmetros aleatórios, mede o erro,
+    calcula para que lado o erro diminui (o gradiente) e dá um passo nessa direção. Repita milhares de vezes.
+    <strong class="text-white">Clique no gráfico</strong> para adicionar pontos e veja a reta perseguir os dados.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="regCanvas" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="reg-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Treinar</button>
+        <button id="reg-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> 1 época</button>
+        <button id="reg-novo" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-shuffle"></i> Novos dados</button>
+        <button id="reg-limpa" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-eraser"></i> Limpar</button>
+        <label class="flex items-center gap-2 text-xs text-slate-400 ml-auto">
+          taxa de aprendizado
+          <input id="reg-lr" type="range" min="1" max="120" value="30" class="w-24 accent-indigo-500">
+          <span id="reg-lr-v" class="font-mono text-indigo-300 w-12">0,030</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Modelo</h3>
+        <div class="font-mono text-sm bg-slate-950 rounded-lg p-3 border border-slate-800 text-center">
+          ŷ = <span id="reg-w" class="text-indigo-300">0,00</span>·x + <span id="reg-b" class="text-purple-300">0,00</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-center mt-3">
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="reg-epoca" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">épocas</div></div>
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="reg-erro" class="text-lg font-bold text-amber-400">—</div><div class="text-[10px] text-slate-500">erro (MSE)</div></div>
+        </div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Curva de erro</h3>
+        <div class="ah-stage"><canvas id="lossCanvas" style="height:110px"></canvas></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Gradiente descendente</h3>
+        <pre class="ah-code text-[10px]"><span class="kw">repita</span>:
+  ŷ ← w·x + b
+  erro ← média((ŷ − y)²)
+  ∂w ← 2·média((ŷ − y)·x)
+  ∂b ← 2·média(ŷ − y)
+  w ← w − α·∂w
+  b ← b − α·∂b</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-gauge-high"></i>
+    <div>
+      <strong>Experimente puxar a taxa de aprendizado para o máximo.</strong> A reta oscila cada vez mais longe
+      e o erro explode: o passo é grande demais e o algoritmo “pula” o fundo do vale. Muito baixa, e o treino
+      nunca termina. Escolher α é a primeira decisão prática de todo projeto de ML.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ OVERFITTING ============================ -->
+<section id="overfitting" data-toc="Underfitting e overfitting" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-indigo-400 mr-2"></i>O erro que todo iniciante comete</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um modelo que acerta 100% no treino pode ser <em>péssimo</em> na vida real: ele decorou o ruído em vez de
+    aprender o padrão. Mova o grau do polinômio e compare o erro nos pontos de <span class="text-sky-400 font-semibold">treino</span>
+    com o erro nos pontos de <span class="text-amber-400 font-semibold">teste</span> — que o modelo nunca viu.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:300px"><canvas id="ovCanvas" style="height:300px"></canvas></div>
+      <div class="flex items-center gap-3 mt-3">
+        <label class="text-xs text-slate-400">Grau do polinômio</label>
+        <input id="ov-grau" type="range" min="1" max="12" value="3" class="flex-1 accent-indigo-500">
+        <span id="ov-grau-v" class="font-mono text-indigo-300 text-sm w-8 text-center">3</span>
+        <button id="ov-novo" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-shuffle"></i></button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-sky-400">Erro de treino</span><span id="ov-tr" class="font-mono text-sky-300">—</span></div>
+            <div class="ah-progress"><i id="ov-tr-bar" style="width:0%;background:#38bdf8"></i></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-amber-400">Erro de teste</span><span id="ov-te" class="font-mono text-amber-300">—</span></div>
+            <div class="ah-progress"><i id="ov-te-bar" style="width:0%;background:#f59e0b"></i></div>
+          </div>
+        </div>
+      </div>
+      <div id="ov-diag" class="ah-callout ah-callout-info text-xs"></div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Como combater o overfitting</h3>
+        <ul class="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+          <li>• Mais dados de treino</li>
+          <li>• Modelo mais simples (menos parâmetros)</li>
+          <li>• Regularização (L1 / L2, <em>dropout</em>)</li>
+          <li>• Validação cruzada para escolher hiperparâmetros</li>
+          <li>• Parada antecipada (<em>early stopping</em>)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-scissors"></i>
+    <div>
+      <strong>Regra de ouro:</strong> o conjunto de teste só pode ser usado <em>uma vez</em>, no fim.
+      Se você ajustar hiperparâmetros olhando o teste, ele vira treino disfarçado — use um conjunto de
+      <strong>validação</strong> separado, ou validação cruzada <em>k-fold</em>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MÉTRICAS ============================ -->
+<section id="metricas" data-toc="Métricas de classificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-indigo-400 mr-2"></i>Acurácia engana</h2>
+  <p class="ah-lead text-sm mb-5">
+    Num problema em que 99% dos e-mails são legítimos, um modelo que diz “nunca é spam” tem 99% de acurácia
+    e é inútil. Mexa na matriz de confusão e veja as métricas reagirem.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div>
+      <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div></div>
+        <div class="text-slate-400 font-semibold pb-1">Previsto +</div>
+        <div class="text-slate-400 font-semibold pb-1">Previsto −</div>
+
+        <div class="text-slate-400 font-semibold flex items-center justify-end pr-2">Real +</div>
+        <div class="ah-card p-3 border-emerald-500/40" style="background:rgba(16,185,129,.1)">
+          <div class="text-[10px] text-emerald-400 mb-1">Verdadeiro positivo</div>
+          <input id="m-vp" type="number" value="80" min="0" class="w-full bg-transparent text-center text-xl font-bold text-emerald-300 focus:outline-none">
+        </div>
+        <div class="ah-card p-3 border-rose-500/40" style="background:rgba(239,68,68,.08)">
+          <div class="text-[10px] text-rose-400 mb-1">Falso negativo</div>
+          <input id="m-fn" type="number" value="20" min="0" class="w-full bg-transparent text-center text-xl font-bold text-rose-300 focus:outline-none">
+        </div>
+
+        <div class="text-slate-400 font-semibold flex items-center justify-end pr-2">Real −</div>
+        <div class="ah-card p-3 border-amber-500/40" style="background:rgba(245,158,11,.08)">
+          <div class="text-[10px] text-amber-400 mb-1">Falso positivo</div>
+          <input id="m-fp" type="number" value="30" min="0" class="w-full bg-transparent text-center text-xl font-bold text-amber-300 focus:outline-none">
+        </div>
+        <div class="ah-card p-3 border-slate-600">
+          <div class="text-[10px] text-slate-400 mb-1">Verdadeiro negativo</div>
+          <input id="m-vn" type="number" value="870" min="0" class="w-full bg-transparent text-center text-xl font-bold text-slate-300 focus:outline-none">
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-3 text-center">Edite os quatro valores para simular cenários.</p>
+    </div>
+
+    <div class="space-y-2" id="m-saida"></div>
+  </div>
+</section>
+
+<!-- ============================ ALGORITMOS ============================ -->
+<section id="algoritmos" data-toc="Mapa dos algoritmos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-sitemap text-indigo-400 mr-2"></i>Qual algoritmo usar?</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Algoritmo</th><th>Tipo</th><th>Bom quando</th><th>Cuidado com</th></tr></thead>
+      <tbody>
+        <tr><td>Regressão linear/logística</td><td>Supervisionado</td><td>Relação aproximadamente linear; precisa explicar coeficientes</td><td>Relações não lineares</td></tr>
+        <tr><td>Árvore de decisão</td><td>Supervisionado</td><td>Regras interpretáveis; dados mistos</td><td>Overfitting sem poda</td></tr>
+        <tr><td>Random Forest / Gradient Boosting</td><td>Supervisionado</td><td>Dados tabulares em geral — o padrão de mercado</td><td>Menos interpretável; custo de treino</td></tr>
+        <tr><td>k-NN</td><td>Supervisionado</td><td>Fronteiras irregulares, poucos dados</td><td>Muitas dimensões; custo na predição</td></tr>
+        <tr><td>SVM</td><td>Supervisionado</td><td>Margem clara, dados de alta dimensão</td><td>Escolha do kernel; bases enormes</td></tr>
+        <tr><td>Naive Bayes</td><td>Supervisionado</td><td>Texto, baseline rápido</td><td>Supõe independência entre atributos</td></tr>
+        <tr><td>k-Means</td><td>Não supervisionado</td><td>Segmentar clientes, comprimir cores</td><td>Exige escolher k; clusters esféricos</td></tr>
+        <tr><td>PCA</td><td>Não supervisionado</td><td>Reduzir dimensões, visualizar</td><td>Componentes perdem significado</td></tr>
+        <tr><td>Q-Learning / DQN</td><td>Por reforço</td><td>Decisão sequencial com recompensa</td><td>Precisa de muitas interações</td></tr>
+        <tr><td>Redes neurais profundas</td><td>Supervisionado</td><td>Imagem, áudio, texto — dados não estruturados</td><td>Muitos dados, ajuste fino, caixa-preta</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Quatro perguntas sobre a prática de ML.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Erro de treino baixíssimo e erro de teste alto. Isso é:</p>
+      <button class="ah-quiz-opt">Underfitting — o modelo é simples demais</button>
+      <button class="ah-quiz-opt">Overfitting — o modelo decorou o ruído do treino</button>
+      <button class="ah-quiz-opt">Um bug no cálculo do erro</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É a assinatura clássica do overfitting: alta variância. Mova o grau do polinômio para 12 na animação acima
+        e veja a curva passar por todos os pontos de treino enquanto despenca entre eles.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Detecção de fraude: 0,1% das transações são fraudulentas. Qual métrica <em>não</em> serve como principal?</p>
+      <button class="ah-quiz-opt">Recall (sensibilidade)</button>
+      <button class="ah-quiz-opt">F1-score</button>
+      <button class="ah-quiz-opt">Acurácia</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Prever “nunca é fraude” já dá 99,9% de acurácia. Em bases desbalanceadas, use precisão, recall, F1
+        ou AUC. Experimente na matriz acima: zere VP e FP e veja a acurácia continuar altíssima.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Você testou 20 configurações e escolheu a melhor pelo conjunto de teste. O problema é:</p>
+      <button class="ah-quiz-opt">O teste virou parte do treino — a estimativa de desempenho ficou otimista demais</button>
+      <button class="ah-quiz-opt">Nenhum, é assim que se faz</button>
+      <button class="ah-quiz-opt">Só que demora muito</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Cada olhada no teste vaza informação para dentro da sua decisão. Separe treino / validação / teste,
+        ou use validação cruzada no treino e guarde o teste para a medição final, feita uma única vez.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. Um robô aprende a andar recebendo recompensa por distância percorrida. Esse é um caso de:</p>
+      <button class="ah-quiz-opt">Aprendizado supervisionado</button>
+      <button class="ah-quiz-opt">Aprendizado por reforço</button>
+      <button class="ah-quiz-opt">Aprendizado não supervisionado</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Não há resposta correta rotulada para cada instante — só um sinal de recompensa atrasado.
+        O agente precisa descobrir sozinho quais ações levaram ao resultado (o problema da
+        <em>atribuição de crédito</em>).
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Regimes ===================== */
+const REG = [
+  ['Supervisionado', 'fa-tags', '#6366f1', 'Aprende com exemplos <strong>rotulados</strong>: cada entrada vem com a resposta certa.',
+   'Classificação (spam/não spam) e regressão (preço do imóvel)'],
+  ['Não supervisionado', 'fa-object-group', '#a855f7', 'Só tem os dados, sem rótulos. Busca <strong>estrutura escondida</strong>.',
+   'Agrupamento de clientes, redução de dimensão, detecção de anomalias'],
+  ['Por reforço', 'fa-trophy', '#10b981', 'Aprende <strong>agindo</strong>: tenta, recebe recompensa ou punição, ajusta a política.',
+   'Jogos, robótica, controle de tráfego, recomendação sequencial']
+];
+document.getElementById('regimes').innerHTML = REG.map(r => `
+  <div class="ah-card ah-card-hover p-5" style="border-top:3px solid ${r[2]}">
+    <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background:${r[2]}22;color:${r[2]}">
+      <i class="fa-solid ${r[1]}"></i></div>
+    <h4 class="ah-h3 mb-2 text-sm">${r[0]}</h4>
+    <p class="text-xs text-slate-400 leading-relaxed mb-3">${r[3]}</p>
+    <p class="text-[11px] text-slate-500"><strong class="text-slate-400">Exemplos:</strong> ${r[4]}</p>
+  </div>`).join('');
+
+/* ===================== Regressão + gradiente descendente ===================== */
+(function regressao() {
+  let pts = [], w = 0, b = 0, epoca = 0, hist = [], timer = null;
+  const cv = AH.canvas('regCanvas', desenha);
+  const cvL = AH.canvas('lossCanvas', desenhaLoss);
+
+  const X = (x, wid) => 44 + x * (wid - 64);
+  const Y = (y, hei) => hei - 34 - y * (hei - 56);
+  const invX = (px, wid) => (px - 44) / (wid - 64);
+  const invY = (py, hei) => (hei - 34 - py) / (hei - 56);
+
+  function gera() {
+    const a = AH.rand(0.4, 1.1), c = AH.rand(0.05, 0.3);
+    pts = Array.from({ length: 22 }, () => {
+      const x = Math.random();
+      return { x, y: AH.clamp(a * x + c + AH.rand(-0.09, 0.09), 0.02, 0.98) };
+    });
+    reinicia();
+  }
+  function reinicia() { w = AH.rand(-0.5, 0.5); b = AH.rand(0, 0.4); epoca = 0; hist = []; pinta(); }
+
+  function mse() {
+    if (!pts.length) return 0;
+    return pts.reduce((s, p) => s + Math.pow(w * p.x + b - p.y, 2), 0) / pts.length;
+  }
+
+  function epocaGD() {
+    if (!pts.length) return;
+    const lr = +document.getElementById('reg-lr').value / 1000;
+    let dw = 0, db = 0;
+    pts.forEach(p => { const e = (w * p.x + b) - p.y; dw += 2 * e * p.x; db += 2 * e; });
+    w -= lr * dw / pts.length;
+    b -= lr * db / pts.length;
+    epoca++;
+    hist.push(AH.clamp(mse(), 0, 1));
+    if (hist.length > 200) hist.shift();
+    pinta();
+  }
+
+  function desenha(ctx, wid, hei) {
+    ctx.clearRect(0, 0, wid, hei);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, wid, hei);
+    ctx.strokeStyle = 'rgba(148,163,184,.12)'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const gy = Y(i / 4, hei), gx = X(i / 4, wid);
+      ctx.beginPath(); ctx.moveTo(44, gy); ctx.lineTo(wid - 20, gy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, 22); ctx.lineTo(gx, hei - 34); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(148,163,184,.6)'; ctx.font = '10px Inter, sans-serif';
+    ctx.fillText('x (entrada)', wid / 2 - 26, hei - 12);
+    ctx.save(); ctx.translate(14, hei / 2 + 24); ctx.rotate(-Math.PI / 2);
+    ctx.fillText('y (saída)', 0, 0); ctx.restore();
+
+    /* resíduos */
+    pts.forEach(p => {
+      const yp = w * p.x + b;
+      ctx.strokeStyle = 'rgba(245,158,11,.4)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(X(p.x, wid), Y(p.y, hei)); ctx.lineTo(X(p.x, wid), Y(yp, hei)); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+    /* reta */
+    ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(X(0, wid), Y(b, hei)); ctx.lineTo(X(1, wid), Y(w + b, hei)); ctx.stroke();
+    /* pontos */
+    pts.forEach(p => {
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath(); ctx.arc(X(p.x, wid), Y(p.y, hei), 4.5, 0, 6.29); ctx.fill();
+    });
+    if (!pts.length) {
+      ctx.fillStyle = 'rgba(148,163,184,.6)'; ctx.font = '12px Inter, sans-serif';
+      ctx.fillText('Clique para adicionar pontos', wid / 2 - 80, hei / 2);
+    }
+  }
+
+  function desenhaLoss(ctx, wid, hei) {
+    ctx.clearRect(0, 0, wid, hei);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, wid, hei);
+    if (hist.length < 2) return;
+    const max = Math.max(...hist, 0.01);
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.beginPath();
+    hist.forEach((v, i) => {
+      const x = 6 + (i / (hist.length - 1)) * (wid - 12);
+      const y = hei - 6 - (v / max) * (hei - 16);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  function pinta() {
+    document.getElementById('reg-w').textContent = w.toFixed(2).replace('.', ',');
+    document.getElementById('reg-b').textContent = b.toFixed(2).replace('.', ',');
+    document.getElementById('reg-epoca').textContent = epoca;
+    document.getElementById('reg-erro').textContent = pts.length ? mse().toFixed(4).replace('.', ',') : '—';
+    cv.draw(cv.ctx, cv.w, cv.h);
+    cvL.draw(cvL.ctx, cvL.w, cvL.h);
+  }
+
+  cv.el.addEventListener('click', e => {
+    const r = cv.el.getBoundingClientRect();
+    const x = invX(e.clientX - r.left, cv.w), y = invY(e.clientY - r.top, cv.h);
+    if (x >= 0 && x <= 1 && y >= 0 && y <= 1) { pts.push({ x, y }); pinta(); }
+  });
+  document.getElementById('reg-lr').addEventListener('input', e =>
+    document.getElementById('reg-lr-v').textContent = (e.target.value / 1000).toFixed(3).replace('.', ','));
+  document.getElementById('reg-step').addEventListener('click', epocaGD);
+  document.getElementById('reg-novo').addEventListener('click', gera);
+  document.getElementById('reg-limpa').addEventListener('click', () => { pts = []; reinicia(); });
+  document.getElementById('reg-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Treinar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(epocaGD, 60);
+  });
+  gera();
+})();
+
+/* ===================== Overfitting ===================== */
+(function overfitting() {
+  let treino = [], teste = [], grau = 3, coef = [];
+  const cv = AH.canvas('ovCanvas', desenha);
+  const f = x => 0.5 + 0.34 * Math.sin(6.0 * x) - 0.1 * x;   // função "verdadeira"
+
+  function gera() {
+    treino = Array.from({ length: 11 }, (_, i) => {
+      const x = i / 10;
+      return { x, y: AH.clamp(f(x) + AH.rand(-0.07, 0.07), 0.03, 0.97) };
+    });
+    teste = Array.from({ length: 14 }, () => {
+      const x = Math.random();
+      return { x, y: AH.clamp(f(x) + AH.rand(-0.07, 0.07), 0.03, 0.97) };
+    });
+    ajusta();
+  }
+
+  /* mínimos quadrados via eliminação de Gauss sobre as equações normais */
+  function ajusta() {
+    const n = grau + 1;
+    const A = Array.from({ length: n }, () => new Array(n + 1).fill(0));
+    treino.forEach(p => {
+      const pot = Array.from({ length: 2 * n }, (_, k) => Math.pow(p.x, k));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) A[i][j] += pot[i + j];
+        A[i][n] += pot[i] * p.y;
+      }
+    });
+    for (let i = 0; i < n; i++) A[i][i] += 1e-9;               // regularização mínima (estabilidade)
+    for (let i = 0; i < n; i++) {
+      let piv = i;
+      for (let k = i + 1; k < n; k++) if (Math.abs(A[k][i]) > Math.abs(A[piv][i])) piv = k;
+      [A[i], A[piv]] = [A[piv], A[i]];
+      if (Math.abs(A[i][i]) < 1e-12) continue;
+      for (let k = i + 1; k < n; k++) {
+        const fa = A[k][i] / A[i][i];
+        for (let j = i; j <= n; j++) A[k][j] -= fa * A[i][j];
+      }
+    }
+    coef = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) {
+      let s = A[i][n];
+      for (let j = i + 1; j < n; j++) s -= A[i][j] * coef[j];
+      coef[i] = Math.abs(A[i][i]) < 1e-12 ? 0 : s / A[i][i];
+    }
+    pinta();
+  }
+
+  const pred = x => coef.reduce((s, c, k) => s + c * Math.pow(x, k), 0);
+  const erro = arr => arr.reduce((s, p) => s + Math.pow(pred(p.x) - p.y, 2), 0) / arr.length;
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const X = x => 20 + x * (w - 40), Y = y => h - 20 - y * (h - 40);
+
+    ctx.strokeStyle = 'rgba(148,163,184,.1)';
+    for (let i = 0; i <= 4; i++) { const gy = Y(i / 4); ctx.beginPath(); ctx.moveTo(20, gy); ctx.lineTo(w - 20, gy); ctx.stroke(); }
+
+    /* função verdadeira */
+    ctx.strokeStyle = 'rgba(148,163,184,.45)'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 120; i++) { const x = i / 120; i ? ctx.lineTo(X(x), Y(f(x))) : ctx.moveTo(X(x), Y(f(x))); }
+    ctx.stroke(); ctx.setLineDash([]);
+
+    /* modelo */
+    ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5; ctx.beginPath();
+    let fora = false;
+    for (let i = 0; i <= 200; i++) {
+      const x = i / 200, y = pred(x);
+      const py = Y(AH.clamp(y, -0.4, 1.4));
+      if (y < -0.4 || y > 1.4) { fora = true; ctx.moveTo(X(x), py); }
+      else i && !fora ? ctx.lineTo(X(x), py) : ctx.moveTo(X(x), py);
+      fora = false;
+    }
+    ctx.stroke();
+
+    treino.forEach(p => { ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 5, 0, 6.29); ctx.fill(); });
+    teste.forEach(p => {
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 4.5, 0, 6.29); ctx.stroke();
+    });
+
+    ctx.fillStyle = 'rgba(148,163,184,.65)'; ctx.font = '10px Inter, sans-serif';
+    ctx.fillText('— — função real   ● treino   ○ teste', 24, 16);
+  }
+
+  function pinta() {
+    const et = erro(treino), ev = erro(teste);
+    document.getElementById('ov-tr').textContent = et.toFixed(4).replace('.', ',');
+    document.getElementById('ov-te').textContent = ev.toFixed(4).replace('.', ',');
+    document.getElementById('ov-tr-bar').style.width = Math.min(100, et * 900) + '%';
+    document.getElementById('ov-te-bar').style.width = Math.min(100, ev * 900) + '%';
+
+    const d = document.getElementById('ov-diag');
+    if (grau <= 2) {
+      d.className = 'ah-callout ah-callout-warn text-xs';
+      d.innerHTML = '<i class="fa-solid fa-arrow-down"></i><div><strong>Underfitting.</strong> O modelo é rígido demais para a forma dos dados: erra no treino <em>e</em> no teste. Alto viés.</div>';
+    } else if (ev > et * 2.4 && grau >= 7) {
+      d.className = 'ah-callout ah-callout-warn text-xs';
+      d.innerHTML = '<i class="fa-solid fa-arrow-up"></i><div><strong>Overfitting.</strong> A curva passa pelos pontos de treino e delira entre eles. Erro de treino ínfimo, erro de teste alto. Alta variância.</div>';
+    } else {
+      d.className = 'ah-callout ah-callout-ok text-xs';
+      d.innerHTML = '<i class="fa-solid fa-circle-check"></i><div><strong>Boa generalização.</strong> Os dois erros estão próximos e baixos — o modelo capturou o padrão, não o ruído.</div>';
+    }
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  document.getElementById('ov-grau').addEventListener('input', e => {
+    grau = +e.target.value;
+    document.getElementById('ov-grau-v').textContent = grau;
+    ajusta();
+  });
+  document.getElementById('ov-novo').addEventListener('click', gera);
+  gera();
+})();
+
+/* ===================== Métricas ===================== */
+(function metricas() {
+  const $ = id => document.getElementById(id);
+  const ids = ['m-vp', 'm-fn', 'm-fp', 'm-vn'];
+
+  function calc() {
+    const vp = +$('m-vp').value || 0, fn = +$('m-fn').value || 0,
+          fp = +$('m-fp').value || 0, vn = +$('m-vn').value || 0;
+    const tot = vp + fn + fp + vn || 1;
+    const acc = (vp + vn) / tot;
+    const prec = vp + fp ? vp / (vp + fp) : 0;
+    const rec = vp + fn ? vp / (vp + fn) : 0;
+    const f1 = prec + rec ? 2 * prec * rec / (prec + rec) : 0;
+    const esp = vn + fp ? vn / (vn + fp) : 0;
+
+    const linha = (nome, val, cor, desc, formula) => `
+      <div class="ah-card p-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm font-semibold text-white">${nome}</span>
+          <span class="font-mono text-lg" style="color:${cor}">${(val * 100).toFixed(1)}%</span>
+        </div>
+        <div class="ah-progress mb-2"><i style="width:${val * 100}%;background:${cor}"></i></div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">${desc}</p>
+        <code class="text-[10px] text-slate-500">${formula}</code>
+      </div>`;
+
+    $('m-saida').innerHTML =
+      linha('Acurácia', acc, '#64748b', 'Fração de acertos no total. Enganosa em bases desbalanceadas.', '(VP+VN)/total') +
+      linha('Precisão', prec, '#38bdf8', 'Dos que o modelo marcou como positivos, quantos eram mesmo? Importa quando o falso positivo é caro.', 'VP/(VP+FP)') +
+      linha('Recall (sensibilidade)', rec, '#10b981', 'Dos positivos reais, quantos o modelo capturou? Importa quando deixar passar é caro (câncer, fraude).', 'VP/(VP+FN)') +
+      linha('Especificidade', esp, '#a855f7', 'Dos negativos reais, quantos foram corretamente descartados?', 'VN/(VN+FP)') +
+      linha('F1-score', f1, '#f59e0b', 'Média harmônica de precisão e recall — só é alta se as duas forem.', '2·P·R/(P+R)');
+  }
+
+  ids.forEach(id => $(id).addEventListener('input', calc));
+  calc();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

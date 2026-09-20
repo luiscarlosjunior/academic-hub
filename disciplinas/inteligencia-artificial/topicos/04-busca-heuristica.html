@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Busca Heurística (Melhor Custo, Gulosa, A*) · AcademicHub</title>
+<meta name="description" content="Heurísticas admissíveis e consistentes, f(n)=g(n)+h(n), A*, gulosa e comparação em labirintos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/04-busca-heuristica">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="O que é uma heurística" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-indigo-400 mr-2"></i>Dar uma pista ao algoritmo</h2>
+  <div class="ah-prose">
+    <p>
+      A busca cega trata todos os nós da fronteira como igualmente promissores. Mas se você está em Arad e quer
+      chegar a Bucareste, ir para o <em>leste</em> parece melhor do que ir para o <em>oeste</em> — mesmo sem
+      conhecer as estradas. Essa intuição, transformada em número, é a <strong>função heurística h(n)</strong>:
+      uma estimativa do custo restante de <em>n</em> até o objetivo.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#10b981">
+      <div class="font-mono text-2xl text-emerald-400 mb-1">g(n)</div>
+      <h3 class="text-sm font-bold text-white mb-1">Custo já pago</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Custo real do caminho do início até <em>n</em>. É um fato, não uma estimativa.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#f59e0b">
+      <div class="font-mono text-2xl text-amber-400 mb-1">h(n)</div>
+      <h3 class="text-sm font-bold text-white mb-1">Custo estimado restante</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Palpite informado de <em>n</em> até o objetivo. Vem do conhecimento do domínio.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#6366f1">
+      <div class="font-mono text-2xl text-indigo-400 mb-1">f(n) = g + h</div>
+      <h3 class="text-sm font-bold text-white mb-1">Custo estimado total</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">O critério do A*: estimativa do custo da melhor solução <em>que passa por n</em>.</p>
+    </div>
+  </div>
+
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Estratégia</th><th>Ordena a fronteira por</th><th>Comportamento</th><th>Ótima?</th></tr></thead>
+      <tbody>
+        <tr><td>Custo uniforme</td><td class="font-mono text-emerald-300">g(n)</td><td>Expande em círculos ao redor do início; ignora onde está o objetivo</td><td class="text-emerald-400">Sim</td></tr>
+        <tr><td>Melhor estimativa (gulosa)</td><td class="font-mono text-amber-300">h(n)</td><td>Corre na direção do objetivo; pode entrar em caminhos caros</td><td class="text-rose-400">Não</td></tr>
+        <tr><td>A*</td><td class="font-mono text-indigo-300">f(n) = g(n) + h(n)</td><td>Equilibra o que já custou e o que falta</td><td class="text-emerald-400">Sim, se h for admissível</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ MAPA DA ROMÊNIA ============================ -->
+<section id="romenia" data-toc="Mapa da Romênia (simulador)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-map-location-dot text-indigo-400 mr-2"></i>O mapa da Romênia, passo a passo</h2>
+  <p class="ah-lead text-sm mb-5">
+    O exemplo clássico: sair de <strong class="text-indigo-300">Arad</strong> e chegar a
+    <strong class="text-emerald-400">Bucareste</strong>. A heurística <code>h</code> é a
+    <em>distância em linha reta</em> até Bucareste — nunca superestima, porque nenhuma estrada é mais curta
+    que a reta. Compare as três estratégias e veja quem acha o caminho ótimo (418 km).
+  </p>
+
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <div class="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-700" id="ro-algos">
+      <button class="ah-chip" data-algo="UCS">Custo uniforme · g</button>
+      <button class="ah-chip" data-algo="GBFS">Gulosa · h</button>
+      <button class="ah-chip active" data-algo="ASTAR">A* · g + h</button>
+    </div>
+    <div class="flex items-center gap-2 ml-auto">
+      <button id="ro-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Executar</button>
+      <button id="ro-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i></button>
+      <button id="ro-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i></button>
+      <label class="flex items-center gap-1.5 text-xs text-slate-400">
+        <input id="ro-h" type="checkbox" checked class="accent-indigo-500"> mostrar h
+      </label>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:420px"><canvas id="roCanvas" style="height:420px"></canvas></div>
+      <div class="ah-legend mt-3 px-1">
+        <span><span class="dot" style="background:#6366f1"></span>Início (Arad)</span>
+        <span><span class="dot" style="background:#10b981"></span>Objetivo (Bucareste)</span>
+        <span><span class="dot" style="background:#f59e0b"></span>Fronteira</span>
+        <span><span class="dot" style="background:#475569"></span>Explorado</span>
+        <span><span class="dot" style="background:#34d399"></span>Solução</span>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Fronteira ordenada</h3>
+        <div id="ro-front" class="space-y-1 max-h-56 overflow-y-auto"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Resultado</h3>
+        <div class="grid grid-cols-2 gap-2 text-center mb-3">
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="ro-exp" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">cidades expandidas</div></div>
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="ro-custo" class="text-lg font-bold text-emerald-400">—</div><div class="text-[10px] text-slate-500">custo (km)</div></div>
+        </div>
+        <div id="ro-caminho" class="text-[11px] font-mono text-slate-400 leading-relaxed"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Rode a gulosa e compare.</strong> Ela vai de Arad → Sibiu → Fagaras → Bucareste (450 km) porque
+      Fagaras “parece” mais perto. O A* percebe que o desvio por Rimnicu Vilcea → Pitesti custa menos no total
+      (418 km) — a diferença é exatamente o <code>g(n)</code> que a gulosa ignora.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ADMISSIBILIDADE ============================ -->
+<section id="admissivel" data-toc="Admissível e consistente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-scale-balanced text-indigo-400 mr-2"></i>Quando o A* é garantido</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Admissível</span>
+      <h3 class="ah-h3 mb-2">Nunca superestima</h3>
+      <p class="text-sm text-slate-400 leading-relaxed mb-3">
+        Para todo nó: <code class="font-mono text-emerald-300">h(n) ≤ h*(n)</code>, onde <em>h*</em> é o custo real
+        restante. Uma heurística otimista nunca descarta o caminho bom cedo demais.
+      </p>
+      <p class="text-xs text-slate-500">→ Garante que o <strong>A* em árvore</strong> é ótimo.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Consistente (monotônica)</span>
+      <h3 class="ah-h3 mb-2">Respeita a desigualdade triangular</h3>
+      <p class="text-sm text-slate-400 leading-relaxed mb-3">
+        Para toda aresta <em>n → n'</em>: <code class="font-mono text-sky-300">h(n) ≤ c(n, n') + h(n')</code>.
+        Assim <em>f</em> nunca decresce ao longo de um caminho.
+      </p>
+      <p class="text-xs text-slate-500">→ Garante que o <strong>A* em grafo</strong> é ótimo. Consistente ⟹ admissível.</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Dominância: entre duas heurísticas admissíveis, prefira a maior</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    No quebra-cabeça de 8 peças: <strong>h₁</strong> = peças fora do lugar, <strong>h₂</strong> = soma das
+    distâncias de Manhattan. Como <code>h₂(n) ≥ h₁(n)</code> sempre, dizemos que h₂ <em>domina</em> h₁ —
+    e expande muito menos nós.
+  </p>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Profundidade da solução</th><th>Nós gerados — busca cega (IDS)</th><th>A* com h₁</th><th>A* com h₂</th></tr></thead>
+      <tbody>
+        <tr><td>d = 12</td><td class="font-mono text-rose-400">3.644.035</td><td class="font-mono text-amber-400">227</td><td class="font-mono text-emerald-400">73</td></tr>
+        <tr><td>d = 16</td><td class="font-mono text-rose-400">—</td><td class="font-mono text-amber-400">1.301</td><td class="font-mono text-emerald-400">211</td></tr>
+        <tr><td>d = 20</td><td class="font-mono text-rose-400">—</td><td class="font-mono text-amber-400">7.276</td><td class="font-mono text-emerald-400">676</td></tr>
+        <tr><td>d = 24</td><td class="font-mono text-rose-400">—</td><td class="font-mono text-amber-400">39.135</td><td class="font-mono text-emerald-400">1.641</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs text-slate-500 mt-3 italic">Valores médios sobre 100 instâncias aleatórias (Russell &amp; Norvig). Uma heurística melhor vale mais que um computador mais rápido.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-wand-magic-sparkles"></i>
+    <div>
+      <strong>De onde vem uma heurística?</strong> Quase sempre de um <em>problema relaxado</em>: remova uma
+      restrição e resolva o problema mais fácil. “Se a peça pudesse voar para qualquer lugar” → h₁.
+      “Se pudesse passar por cima de outra peça” → h₂. A solução ótima do problema relaxado é sempre um
+      limite inferior admissível para o problema real.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTES ============================ -->
+<section id="variantes" data-toc="Variantes e limites" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-diagram-project text-indigo-400 mr-2"></i>Quando o A* não cabe na memória</h2>
+  <p class="ah-lead text-sm mb-5">O A* é ótimo e completo — e guarda todos os nós gerados. Em problemas grandes, a memória acaba antes do tempo.</p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5"><h3 class="ah-h3 mb-2 text-sm">IDA*</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Aprofundamento iterativo usando <em>f</em> como limite em vez de profundidade. Memória linear; refaz trabalho a cada iteração.</p></div>
+    <div class="ah-card p-5"><h3 class="ah-h3 mb-2 text-sm">RBFS</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Busca recursiva pelo melhor: guarda só o caminho atual e o melhor <em>f</em> alternativo. Ótima, memória linear, mas regenera nós.</p></div>
+    <div class="ah-card p-5"><h3 class="ah-h3 mb-2 text-sm">SMA*</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Usa toda a memória disponível e descarta o pior nó quando enche, lembrando seu valor no pai.</p></div>
+    <div class="ah-card p-5"><h3 class="ah-h3 mb-2 text-sm">Subida de encosta</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Busca local: só o estado atual na memória. Rápida, mas trava em máximos locais, platôs e cristas.</p></div>
+    <div class="ah-card p-5"><h3 class="ah-h3 mb-2 text-sm">Têmpera simulada</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Aceita pioras com probabilidade decrescente para escapar de máximos locais. Inspirada na metalurgia.</p></div>
+    <div class="ah-card p-5"><h3 class="ah-h3 mb-2 text-sm">Feixe local (beam)</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Mantém <em>k</em> estados em paralelo em vez de um. Antecipa a ideia de população dos <a href="11-algoritmos-geneticos-automatos-celulares.html" class="text-indigo-400 hover:underline">algoritmos genéticos</a>.</p></div>
+  </div>
+</section>
+
+<!-- ============================ LABORATÓRIO ============================ -->
+<section id="lab" data-toc="Laboratório completo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-indigo-400 mr-2"></i>Laboratório: labirintos e f = g + h</h2>
+  <p class="ah-lead text-sm mb-4">Desenhe paredes, mova início e objetivo e veja os valores de g, h e f em cada célula expandida.</p>
+  <div class="ah-card overflow-hidden mb-3" style="height:640px">
+    <iframe src="../../../simuladores/busca-heuristica-visual.html" class="w-full h-full border-0" title="Simulador de busca heurística" loading="lazy"></iframe>
+  </div>
+  <a href="../../../simuladores/busca-heuristica-visual.html" target="_blank" rel="noopener" class="ah-btn ah-btn-primary">
+    <i class="fa-solid fa-up-right-from-square"></i> Abrir em tela cheia
+  </a>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Quatro perguntas sobre heurísticas.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Se usarmos <code>h(n) = 0</code> para todo nó, o A* vira:</p>
+      <button class="ah-quiz-opt">Busca gulosa</button>
+      <button class="ah-quiz-opt">Busca em profundidade</button>
+      <button class="ah-quiz-opt">Busca de custo uniforme</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Com h ≡ 0, <code>f(n) = g(n)</code> — exatamente o critério do custo uniforme. Ou seja: o custo uniforme
+        é o A* sem informação. E h ≡ 0 é trivialmente admissível (nunca superestima), o que confirma que o custo
+        uniforme é ótimo.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Uma heurística que <strong>superestima</strong> o custo restante pode:</p>
+      <button class="ah-quiz-opt">Fazer o A* devolver um caminho pior que o ótimo</button>
+      <button class="ah-quiz-opt">Fazer o A* entrar em laço infinito</button>
+      <button class="ah-quiz-opt">Não afeta nada, só a velocidade</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Ao superestimar, <em>f</em> do nó bom fica inflado e ele pode nunca sair da fronteira antes de um objetivo
+        pior ser aceito. Na prática, heurísticas inadmissíveis são usadas de propósito (A* ponderado) quando
+        velocidade importa mais que otimalidade — mas aí a garantia se perde.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Entre h₁ (peças fora do lugar) e h₂ (Manhattan), ambas admissíveis, por que preferir h₂?</p>
+      <button class="ah-quiz-opt">Porque é mais rápida de calcular</button>
+      <button class="ah-quiz-opt">Porque h₂ ≥ h₁ sempre: domina h₁ e expande menos nós</button>
+      <button class="ah-quiz-opt">Porque h₂ é inadmissível e por isso mais agressiva</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Entre heurísticas admissíveis, a maior é sempre melhor: ela chega mais perto do custo real e, portanto,
+        poda mais. O A* expande todos os nós com <code>f(n) &lt; C*</code>; quanto maior h, menos nós satisfazem isso.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. No mapa da Romênia, por que a busca gulosa erra?</p>
+      <button class="ah-quiz-opt">Porque a distância em linha reta não é admissível</button>
+      <button class="ah-quiz-opt">Porque ela ignora o custo já percorrido e só olha para a estimativa restante</button>
+      <button class="ah-quiz-opt">Porque não usa lista de explorados</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A linha reta é perfeitamente admissível. O problema é o critério: ao minimizar só <em>h</em>, a gulosa
+        escolhe Fagaras (h menor) e ignora que chegar lá já custou muito. O A* soma as duas parcelas e acerta.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Mapa da Romênia ===================== */
+const CID = {
+  Arad:        { x:  9, y: 33, h: 366 }, Zerind:  { x: 14, y: 17, h: 374 },
+  Oradea:      { x: 21, y:  9, h: 380 }, Sibiu:   { x: 34, y: 38, h: 253 },
+  Fagaras:     { x: 54, y: 36, h: 176 }, Timisoara:{ x: 9, y: 54, h: 329 },
+  Lugoj:       { x: 22, y: 61, h: 244 }, Mehadia: { x: 23, y: 72, h: 241 },
+  Drobeta:     { x: 20, y: 83, h: 242 }, Craiova: { x: 36, y: 86, h: 160 },
+  'R. Vilcea': { x: 33, y: 54, h: 193 }, Pitesti: { x: 48, y: 64, h: 100 },
+  Bucareste:   { x: 64, y: 74, h:   0 }, Giurgiu: { x: 61, y: 90, h:  77 },
+  Urziceni:    { x: 76, y: 67, h:  80 }, Hirsova: { x: 89, y: 64, h: 151 },
+  Eforie:      { x: 93, y: 80, h: 161 }, Vaslui:  { x: 88, y: 36, h: 199 },
+  Iasi:        { x: 79, y: 21, h: 226 }, Neamt:   { x: 68, y: 13, h: 234 }
+};
+const EST = [
+  ['Arad','Zerind',75], ['Arad','Sibiu',140], ['Arad','Timisoara',118],
+  ['Zerind','Oradea',71], ['Oradea','Sibiu',151], ['Timisoara','Lugoj',111],
+  ['Lugoj','Mehadia',70], ['Mehadia','Drobeta',75], ['Drobeta','Craiova',120],
+  ['Craiova','R. Vilcea',146], ['Craiova','Pitesti',138], ['R. Vilcea','Sibiu',80],
+  ['R. Vilcea','Pitesti',97], ['Sibiu','Fagaras',99], ['Fagaras','Bucareste',211],
+  ['Pitesti','Bucareste',101], ['Bucareste','Giurgiu',90], ['Bucareste','Urziceni',85],
+  ['Urziceni','Hirsova',98], ['Hirsova','Eforie',86], ['Urziceni','Vaslui',142],
+  ['Vaslui','Iasi',92], ['Iasi','Neamt',87]
+];
+const VIZ = {};
+Object.keys(CID).forEach(c => VIZ[c] = []);
+EST.forEach(([a, b, d]) => { VIZ[a].push([b, d]); VIZ[b].push([a, d]); });
+
+const INICIO = 'Arad', ALVO = 'Bucareste';
+let roAlgo = 'ASTAR', roTimer = null, R = null;
+
+function roNovo() {
+  return {
+    front: [{ c: INICIO, g: 0, pai: null }],
+    exp: new Set(), noFront: new Set([INICIO]),
+    atual: null, caminho: [], fim: false, custo: null, nExp: 0
+  };
+}
+
+function prio(n) {
+  if (roAlgo === 'UCS') return n.g;
+  if (roAlgo === 'GBFS') return CID[n.c].h;
+  return n.g + CID[n.c].h;
+}
+
+const roCv = AH.canvas('roCanvas', roDesenha);
+
+function roDesenha(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+  const P = c => ({ x: 26 + (CID[c].x / 100) * (w - 60), y: 26 + (CID[c].y / 100) * (h - 56) });
+  const mostraH = document.getElementById('ro-h').checked;
+
+  EST.forEach(([a, b, d]) => {
+    const pa = P(a), pb = P(b);
+    const na = R.caminho.indexOf(a), nb = R.caminho.indexOf(b);
+    const sol = na >= 0 && nb >= 0 && Math.abs(na - nb) === 1;
+    ctx.strokeStyle = sol ? '#34d399' : 'rgba(100,116,139,.3)';
+    ctx.lineWidth = sol ? 3.5 : 1.2;
+    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    ctx.fillStyle = sol ? 'rgba(52,211,153,.9)' : 'rgba(100,116,139,.6)';
+    ctx.font = '600 9px Fira Code, monospace'; ctx.textAlign = 'center';
+    ctx.fillText(d, (pa.x + pb.x) / 2, (pa.y + pb.y) / 2 - 3);
+  });
+
+  Object.keys(CID).forEach(c => {
+    const p = P(c);
+    let fill = '#1e293b', stroke = 'rgba(100,116,139,.45)', txt = '#94a3b8', r = 6;
+    if (R.exp.has(c)) { fill = '#475569'; stroke = '#64748b'; txt = '#e2e8f0'; }
+    if (R.noFront.has(c)) { fill = 'rgba(245,158,11,.3)'; stroke = '#f59e0b'; txt = '#fcd34d'; r = 7; }
+    if (R.caminho.includes(c)) { fill = 'rgba(52,211,153,.35)'; stroke = '#34d399'; txt = '#d1fae5'; r = 8; }
+    if (c === ALVO) { stroke = '#10b981'; r = 8; }
+    if (c === INICIO) { stroke = '#6366f1'; r = 8; }
+    if (R.atual === c) { ctx.save(); ctx.shadowColor = '#6366f1'; ctx.shadowBlur = 18; }
+
+    ctx.fillStyle = fill; ctx.strokeStyle = stroke; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.29); ctx.fill(); ctx.stroke();
+    if (R.atual === c) ctx.restore();
+
+    ctx.fillStyle = txt; ctx.font = '600 10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(c, p.x, p.y - r - 5);
+    if (mostraH) {
+      ctx.fillStyle = 'rgba(251,191,36,.75)'; ctx.font = '600 9px Fira Code, monospace';
+      ctx.fillText('h=' + CID[c].h, p.x, p.y + r + 11);
+    }
+  });
+  ctx.textAlign = 'left';
+}
+
+function roPasso() {
+  if (R.fim || !R.front.length) { R.fim = true; return roPinta(); }
+  let k = 0;
+  R.front.forEach((n, j) => { if (prio(n) < prio(R.front[k])) k = j; });
+  const n = R.front.splice(k, 1)[0];
+  R.noFront.delete(n.c);
+  R.atual = n.c;
+
+  if (n.c === ALVO) {
+    R.fim = true; R.custo = n.g;
+    let cur = n, cam = [];
+    while (cur) { cam.unshift(cur.c); cur = cur.pai; }
+    R.caminho = cam;
+    return roPinta();
+  }
+
+  R.exp.add(n.c); R.nExp++;
+  VIZ[n.c].forEach(([viz, d]) => {
+    if (R.exp.has(viz)) return;
+    const ex = R.front.find(x => x.c === viz);
+    if (ex) { if (n.g + d < ex.g) { ex.g = n.g + d; ex.pai = n; } return; }
+    R.front.push({ c: viz, g: n.g + d, pai: n });
+    R.noFront.add(viz);
+  });
+  roPinta();
+}
+
+function roPinta() {
+  const ordenada = [...R.front].sort((a, b) => prio(a) - prio(b));
+  document.getElementById('ro-front').innerHTML = ordenada.length ? ordenada.map((n, i) => `
+    <div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-[11px] font-mono
+                ${i === 0 ? 'bg-amber-500/15 border border-amber-500/30 text-amber-200' : 'bg-slate-950 border border-slate-800 text-slate-400'}">
+      <span class="font-sans font-semibold">${n.c}</span>
+      <span>${roAlgo === 'GBFS' ? '' : 'g=' + n.g + ' '}${roAlgo === 'UCS' ? '' : 'h=' + CID[n.c].h}
+        ${roAlgo === 'ASTAR' ? '<b class="text-indigo-300">f=' + (n.g + CID[n.c].h) + '</b>' : ''}</span>
+    </div>`).join('') : '<p class="text-slate-600 text-xs italic">vazia</p>';
+
+  document.getElementById('ro-exp').textContent = R.nExp;
+  document.getElementById('ro-custo').textContent = R.custo === null ? '—' : R.custo;
+  document.getElementById('ro-caminho').innerHTML = R.caminho.length
+    ? '<span class="text-emerald-400">' + R.caminho.join(' → ') + '</span>'
+    : (R.fim ? '<span class="text-rose-400">sem solução</span>' : '<span class="text-slate-600">executando…</span>');
+
+  roCv.draw(roCv.ctx, roCv.w, roCv.h);
+}
+
+function roReset() {
+  clearInterval(roTimer); roTimer = null;
+  document.getElementById('ro-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar';
+  R = roNovo(); roPinta();
+}
+
+document.getElementById('ro-algos').addEventListener('click', e => {
+  const b = e.target.closest('[data-algo]');
+  if (!b) return;
+  roAlgo = b.getAttribute('data-algo');
+  document.querySelectorAll('#ro-algos .ah-chip').forEach(c => c.classList.toggle('active', c === b));
+  roReset();
+});
+document.getElementById('ro-step').addEventListener('click', roPasso);
+document.getElementById('ro-reset').addEventListener('click', roReset);
+document.getElementById('ro-h').addEventListener('change', roPinta);
+document.getElementById('ro-play').addEventListener('click', function () {
+  if (roTimer) { clearInterval(roTimer); roTimer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Executar'; return; }
+  if (R.fim) roReset();
+  this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+  roTimer = setInterval(() => {
+    roPasso();
+    if (R.fim) { clearInterval(roTimer); roTimer = null; document.getElementById('ro-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar'; }
+  }, 700);
+});
+
+roReset();
+AH.initReveal();
+</script>
+</body>
+</html>

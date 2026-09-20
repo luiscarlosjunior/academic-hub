@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Otimização por Colônia de Formigas (ACO) · AcademicHub</title>
+<meta name="description" content="Feromônio, evaporação e estigmergia resolvendo o caixeiro-viajante sem nenhum controle central.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐜</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/13-otimizacao-colonia-formigas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Estigmergia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-indigo-400 mr-2"></i>Inteligência escrita no chão</h2>
+  <div class="ah-prose">
+    <p>
+      Formigas encontram o caminho mais curto entre o ninho e a comida sem que nenhuma delas conheça o mapa.
+      O truque não está na formiga: está no <strong>ambiente</strong>. Cada uma deposita feromônio ao andar,
+      e as demais tendem a seguir onde há mais cheiro. Caminhos curtos são percorridos mais vezes no mesmo
+      intervalo de tempo, acumulam mais feromônio e atraem mais formigas — um ciclo de reforço positivo.
+    </p>
+    <p>
+      Essa comunicação indireta, em que um agente modifica o ambiente e o ambiente influencia os outros
+      agentes, chama-se <strong>estigmergia</strong>. Não há mensagens, não há líder, não há plano.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+    <div class="ah-card p-5"><div class="text-2xl mb-2">🐜</div>
+      <h3 class="ah-h3 mb-1 text-sm">Reforço positivo</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Mais feromônio atrai mais formigas, que depositam mais feromônio. O bom caminho se autoalimenta.</p></div>
+    <div class="ah-card p-5"><div class="text-2xl mb-2">💨</div>
+      <h3 class="ah-h3 mb-1 text-sm">Evaporação</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">O feromônio some com o tempo. É o que impede a colônia de ficar presa à primeira rota encontrada — o “esquecimento” é essencial.</p></div>
+    <div class="ah-card p-5"><div class="text-2xl mb-2">🎲</div>
+      <h3 class="ah-h3 mb-1 text-sm">Escolha probabilística</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">A formiga <em>tende</em> a seguir o feromônio, mas às vezes desvia. Essa desobediência é o que descobre atalhos.</p></div>
+  </div>
+
+  <div class="ah-card p-5">
+    <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">A regra de transição</h3>
+    <div class="text-center font-mono text-sm py-3">
+      P(i → j) = <span class="text-amber-300">[τ<sub>ij</sub>]<sup>α</sup></span> ·
+      <span class="text-sky-300">[η<sub>ij</sub>]<sup>β</sup></span> &nbsp;/&nbsp;
+      Σ<sub>k ∈ permitidos</sub> <span class="text-slate-400">[τ<sub>ik</sub>]<sup>α</sup> · [η<sub>ik</sub>]<sup>β</sup></span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[11px] text-slate-400 mt-3">
+      <div><b class="text-amber-300">τ<sub>ij</sub></b> — feromônio na aresta (experiência da colônia)</div>
+      <div><b class="text-sky-300">η<sub>ij</sub></b> = 1/d<sub>ij</sub> — visibilidade (heurística gulosa local)</div>
+      <div><b class="text-white">α</b> — peso da experiência coletiva</div>
+      <div><b class="text-white">β</b> — peso da distância imediata</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SIMULADOR ============================ -->
+<section id="simulador" data-toc="Caixeiro-viajante (simulador)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-indigo-400 mr-2"></i>Resolvendo o caixeiro-viajante</h2>
+  <p class="ah-lead text-sm mb-5">
+    O problema: visitar todas as cidades uma vez e voltar ao início, com o menor percurso possível.
+    Com 20 cidades existem cerca de 6 × 10<sup>16</sup> rotas — força bruta está fora de questão.
+    A <span class="text-amber-300 font-semibold">espessura das linhas</span> é o feromônio;
+    a <span class="text-emerald-400 font-semibold">linha verde</span> é a melhor rota encontrada.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="acoCanvas" style="height:400px" class="cursor-crosshair"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="aco-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Soltar formigas</button>
+        <button id="aco-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> 1 ciclo</button>
+        <button id="aco-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Zerar feromônio</button>
+        <button id="aco-cidades" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-shuffle"></i> Novas cidades</button>
+        <span class="text-[11px] text-slate-500 ml-auto">Clique no mapa para acrescentar uma cidade</span>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4 space-y-4" id="aco-ctrl"></div>
+      <div class="ah-card p-4 grid grid-cols-2 gap-2 text-center">
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="aco-ciclo" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">ciclos</div></div>
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="aco-melhor" class="text-lg font-bold text-emerald-400">—</div><div class="text-[10px] text-slate-500">melhor rota</div></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Comparação</h3>
+        <div class="space-y-1.5 text-[11px]" id="aco-comp"></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Evolução da melhor rota</h3>
+        <div class="ah-stage"><canvas id="acoHist" style="height:100px"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-flask"></i>
+    <div>
+      <strong>Dois extremos para testar:</strong> ponha <em>α = 0</em> e a colônia vira um guloso puro — sempre
+      a cidade mais próxima, sem aprender nada entre os ciclos. Ponha <em>β = 0</em> e as formigas passam a andar
+      às cegas, guiadas só por feromônio: aprendem devagar e costumam travar numa rota medíocre. O bom resultado
+      mora no equilíbrio (α ≈ 1, β ≈ 3).
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ALGORITMO ============================ -->
+<section id="algoritmo" data-toc="O algoritmo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-code text-indigo-400 mr-2"></i>Ant System, o algoritmo original</h2>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <pre class="ah-code text-[11px]"><span class="kw">função</span> <span class="fn">AntSystem</span>(cidades, m, ciclos):
+    τ ← matriz de feromônio inicializada com τ₀
+
+    <span class="kw">para</span> c ← <span class="num">1</span> <span class="kw">até</span> ciclos:
+        <span class="cm">// 1. cada formiga constrói uma rota</span>
+        <span class="kw">para cada</span> formiga k <span class="kw">em</span> <span class="num">1</span>..m:
+            rota[k] ← [cidade aleatória]
+            <span class="kw">enquanto</span> faltarem cidades:
+                j ← <span class="fn">sortear</span>(P(i→j) ∝ τ<sup>α</sup> · η<sup>β</sup>)
+                rota[k].adicionar(j)
+            L[k] ← comprimento(rota[k])
+
+        <span class="cm">// 2. evaporação global</span>
+        τ ← (<span class="num">1</span> − ρ) · τ
+
+        <span class="cm">// 3. depósito proporcional à qualidade</span>
+        <span class="kw">para cada</span> formiga k:
+            <span class="kw">para cada</span> aresta (i,j) <span class="kw">em</span> rota[k]:
+                τ[i][j] += Q / L[k]
+
+    <span class="kw">retorne</span> melhor rota vista</pre>
+
+    <div class="space-y-4">
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-sm">Por que <code>Q / L</code>?</h3>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Rotas curtas recebem <strong>mais</strong> feromônio por aresta. É a tradução matemática do fato
+          biológico: no mesmo intervalo, o caminho curto é percorrido mais vezes. A qualidade da solução vira,
+          literalmente, intensidade de sinal.
+        </p>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-sm">Variantes importantes</h3>
+        <ul class="text-xs text-slate-400 space-y-2 leading-relaxed">
+          <li><strong class="text-white">Elitist AS:</strong> a melhor rota até agora deposita feromônio extra a cada ciclo.</li>
+          <li><strong class="text-white">MAX-MIN AS:</strong> limita τ entre τ<sub>min</sub> e τ<sub>max</sub>, evitando que uma aresta domine e mate a diversidade. É a variante mais usada.</li>
+          <li><strong class="text-white">Ant Colony System:</strong> acrescenta evaporação local durante a construção, incentivando formigas a divergirem umas das outras.</li>
+        </ul>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-sm">Onde o ACO é usado de verdade</h3>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Roteamento de veículos e entregas, sequenciamento de produção, roteamento adaptativo em redes de
+          telecomunicações, escalonamento de tarefas e projeto de circuitos — problemas combinatórios em grafos,
+          especialmente os que <em>mudam com o tempo</em>: quando o mapa muda, a evaporação reaprende sozinha.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre colônias de formigas.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual o papel da <strong>evaporação</strong> no ACO?</p>
+      <button class="ah-quiz-opt">Economizar memória da matriz de feromônio</button>
+      <button class="ah-quiz-opt">Permitir esquecer rotas ruins e escapar da convergência prematura</button>
+      <button class="ah-quiz-opt">Acelerar a construção das rotas</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Sem evaporação, o feromônio só cresce e a primeira rota razoável domina para sempre. Com ρ alto demais,
+        a colônia esquece rápido e nunca consolida nada. Mexa no controle e veja as duas falhas no simulador.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Com <code>α = 0</code>, o algoritmo se comporta como:</p>
+      <button class="ah-quiz-opt">Uma busca aleatória pura</button>
+      <button class="ah-quiz-opt">Um algoritmo genético</button>
+      <button class="ah-quiz-opt">Uma heurística gulosa estocástica do vizinho mais próximo, sem aprendizado</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Zerando α, o feromônio perde influência e só resta η = 1/d: cada formiga tende à cidade mais próxima.
+        Os ciclos deixam de acumular conhecimento — é sempre a primeira tentativa, repetida.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. “Estigmergia” significa:</p>
+      <button class="ah-quiz-opt">Coordenação indireta: o agente modifica o ambiente e o ambiente influencia os outros agentes</button>
+      <button class="ah-quiz-opt">Troca direta de mensagens entre agentes</button>
+      <button class="ah-quiz-opt">Um agente central que coordena a colônia</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O mesmo princípio aparece em cupinzeiros, em wikis e em sistemas de arquivos compartilhados: o estado
+        do meio é a mensagem. Veja também
+        <a href="10-sistemas-multiagentes.html" class="text-indigo-400 hover:underline">sistemas multiagentes</a>.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+(function aco() {
+  const P = { alfa: 1, beta: 3, rho: 0.5, formigas: 20, Q: 100 };
+  let cidades = [], tau = [], dist = [], melhor = null, ciclo = 0, timer = null, hist = [], guloso = null;
+  const cv = AH.canvas('acoCanvas', desenha);
+  const cvH = AH.canvas('acoHist', desenhaHist);
+
+  function novasCidades(n) {
+    cidades = Array.from({ length: n || 16 }, () => ({ x: AH.rand(0.07, 0.93), y: AH.rand(0.08, 0.92) }));
+    reset();
+  }
+
+  function reset() {
+    const n = cidades.length;
+    dist = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => Math.hypot(cidades[i].x - cidades[j].x, cidades[i].y - cidades[j].y)));
+    tau = Array.from({ length: n }, () => new Array(n).fill(1));
+    melhor = null; ciclo = 0; hist = [];
+    guloso = rotaGulosa();
+    pinta();
+  }
+
+  const comprimento = r => r.reduce((s, c, i) => s + dist[c][r[(i + 1) % r.length]], 0);
+
+  function rotaGulosa() {
+    const n = cidades.length;
+    if (n < 3) return null;
+    const visit = [0]; const usado = new Set([0]);
+    while (visit.length < n) {
+      const i = visit[visit.length - 1];
+      let melhorJ = -1, melhorD = Infinity;
+      for (let j = 0; j < n; j++) if (!usado.has(j) && dist[i][j] < melhorD) { melhorD = dist[i][j]; melhorJ = j; }
+      visit.push(melhorJ); usado.add(melhorJ);
+    }
+    return { rota: visit, comp: comprimento(visit) };
+  }
+
+  function constroiRota() {
+    const n = cidades.length;
+    const inicio = Math.floor(Math.random() * n);
+    const rota = [inicio]; const usado = new Set([inicio]);
+    while (rota.length < n) {
+      const i = rota[rota.length - 1];
+      const cand = [], pesos = [];
+      for (let j = 0; j < n; j++) {
+        if (usado.has(j)) continue;
+        const eta = 1 / Math.max(dist[i][j], 1e-6);
+        cand.push(j);
+        pesos.push(Math.pow(tau[i][j], P.alfa) * Math.pow(eta, P.beta));
+      }
+      const tot = pesos.reduce((a, b) => a + b, 0);
+      let r = Math.random() * tot, escolhido = cand[cand.length - 1];
+      for (let k = 0; k < cand.length; k++) { r -= pesos[k]; if (r <= 0) { escolhido = cand[k]; break; } }
+      rota.push(escolhido); usado.add(escolhido);
+    }
+    return rota;
+  }
+
+  function umCiclo() {
+    if (cidades.length < 4) return;
+    const rotas = [];
+    for (let k = 0; k < P.formigas; k++) {
+      const r = constroiRota();
+      const c = comprimento(r);
+      rotas.push({ r, c });
+      if (!melhor || c < melhor.c) melhor = { r: r.slice(), c };
+    }
+    const n = cidades.length;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) tau[i][j] *= (1 - P.rho);
+    rotas.forEach(({ r, c }) => {
+      const dep = P.Q / (c * 100);
+      for (let i = 0; i < r.length; i++) {
+        const a = r[i], b = r[(i + 1) % r.length];
+        tau[a][b] += dep; tau[b][a] += dep;
+      }
+    });
+    ciclo++;
+    hist.push(melhor.c);
+    if (hist.length > 160) hist.shift();
+    pinta();
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const X = c => c.x * w, Y = c => c.y * h;
+    const n = cidades.length;
+
+    let maxTau = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (tau[i][j] > maxTau) maxTau = tau[i][j];
+
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const t = tau[i][j] / (maxTau || 1);
+      if (t < 0.08) continue;
+      ctx.strokeStyle = `rgba(245,158,11,${Math.min(t * 0.75, 0.75)})`;
+      ctx.lineWidth = 0.4 + t * 5;
+      ctx.beginPath(); ctx.moveTo(X(cidades[i]), Y(cidades[i])); ctx.lineTo(X(cidades[j]), Y(cidades[j])); ctx.stroke();
+    }
+
+    if (melhor) {
+      ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      melhor.r.forEach((c, i) => i ? ctx.lineTo(X(cidades[c]), Y(cidades[c])) : ctx.moveTo(X(cidades[c]), Y(cidades[c])));
+      ctx.closePath(); ctx.stroke();
+    }
+
+    cidades.forEach((c, i) => {
+      ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(X(c), Y(c), 7, 0, 6.29); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#c7d2fe'; ctx.font = '700 9px Fira Code, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(i, X(c), Y(c));
+    });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function desenhaHist(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    if (hist.length < 2) return;
+    const min = Math.min(...hist), max = Math.max(...hist);
+    ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.beginPath();
+    hist.forEach((v, i) => {
+      const x = 6 + (i / (hist.length - 1)) * (w - 12);
+      const y = h - 8 - ((v - min) / (max - min || 1)) * (h - 20);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  function pinta() {
+    document.getElementById('aco-ciclo').textContent = ciclo;
+    document.getElementById('aco-melhor').textContent = melhor ? melhor.c.toFixed(3).replace('.', ',') : '—';
+
+    const linha = (nome, val, cor) => `
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-slate-400">${nome}</span>
+        <span class="font-mono" style="color:${cor}">${val}</span></div>`;
+    const ganho = melhor && guloso ? ((1 - melhor.c / guloso.comp) * 100) : 0;
+    document.getElementById('aco-comp').innerHTML =
+      linha('Vizinho mais próximo (guloso)', guloso ? guloso.comp.toFixed(3).replace('.', ',') : '—', '#94a3b8') +
+      linha('Colônia de formigas', melhor ? melhor.c.toFixed(3).replace('.', ',') : '—', '#10b981') +
+      linha('Ganho sobre o guloso', melhor ? ganho.toFixed(1).replace('.', ',') + '%' : '—', ganho > 0 ? '#34d399' : '#f87171') +
+      `<p class="text-[10px] text-slate-500 pt-1 leading-relaxed">O guloso é calculado uma vez e não melhora; a colônia refina a cada ciclo.</p>`;
+
+    cv.draw(cv.ctx, cv.w, cv.h);
+    cvH.draw(cvH.ctx, cvH.w, cvH.h);
+  }
+
+  const CTRL = [['alfa', 'α — peso do feromônio', 0, 50, 10], ['beta', 'β — peso da distância', 0, 80, 10],
+                ['rho', 'ρ — taxa de evaporação', 1, 95, 100], ['formigas', 'Número de formigas', 5, 60, 1]];
+  document.getElementById('aco-ctrl').innerHTML = CTRL.map(c => `
+    <div>
+      <label class="text-xs text-slate-300 flex justify-between mb-1">${c[1]}
+        <span id="av-${c[0]}" class="font-mono text-indigo-300">${c[4] === 1 ? P[c[0]] : P[c[0]].toFixed(2)}</span></label>
+      <input type="range" data-a="${c[0]}" data-esc="${c[4]}" min="${c[2]}" max="${c[3]}"
+             value="${P[c[0]] * c[4]}" class="w-full accent-indigo-500">
+    </div>`).join('');
+  document.getElementById('aco-ctrl').addEventListener('input', e => {
+    const k = e.target.getAttribute('data-a');
+    if (!k) return;
+    const esc = +e.target.getAttribute('data-esc');
+    P[k] = +e.target.value / esc;
+    document.getElementById('av-' + k).textContent = esc === 1 ? P[k] : P[k].toFixed(2);
+  });
+
+  cv.el.addEventListener('click', e => {
+    const r = cv.el.getBoundingClientRect();
+    cidades.push({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
+    reset();
+  });
+  document.getElementById('aco-step').addEventListener('click', umCiclo);
+  document.getElementById('aco-reset').addEventListener('click', reset);
+  document.getElementById('aco-cidades').addEventListener('click', () => novasCidades(16));
+  document.getElementById('aco-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Soltar formigas'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(umCiclo, 160);
+  });
+
+  novasCidades(16);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Classes Abstratas e Interfaces · AcademicHub</title>
+<meta name="description" content="Contratos versus esqueletos: quando herdar, quando implementar e o problema do diamante.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/05-classes-abstratas-interfaces">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Contrato × esqueleto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-plug text-emerald-400 mr-2"></i>Duas formas de dizer “toda classe daqui faz isto”</h2>
+  <div class="ah-prose">
+    <p>
+      Às vezes você quer garantir que um conjunto de classes ofereça certas operações, sem se importar
+      com <em>como</em> cada uma as implementa. Existem dois mecanismos para isso, e a diferença entre eles
+      é a pergunta mais frequente em prova.
+    </p>
+    <p>
+      A <strong>interface</strong> é um <em>contrato puro</em>: só diz o que precisa existir.
+      A <strong>classe abstrata</strong> é um <em>esqueleto parcialmente pronto</em>: traz implementação
+      compartilhada e deixa buracos para as subclasses preencherem.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 my-6">
+    <div class="ah-card p-5" style="border-top:3px solid #38bdf8">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="font-mono text-xs text-sky-300">«interface»</span>
+        <h3 class="ah-h3 text-sm">Interface</h3>
+      </div>
+      <pre class="ah-code text-[10px]"><span class="kw">public interface</span> <span class="ty">Pagavel</span> {
+    <span class="ty">double</span> <span class="fn">calcularValor</span>();   <span class="cm">// sem corpo</span>
+    <span class="kw">void</span> <span class="fn">registrarPagamento</span>();
+}
+
+<span class="kw">class</span> <span class="ty">Fatura</span> <span class="kw">implements</span> <span class="ty">Pagavel</span> { … }
+<span class="kw">class</span> <span class="ty">Salario</span> <span class="kw">implements</span> <span class="ty">Pagavel</span> { … }</pre>
+      <ul class="text-[11px] text-slate-400 space-y-1.5 mt-3 leading-relaxed">
+        <li>• Uma classe pode implementar <b>quantas quiser</b></li>
+        <li>• Não tem estado (só constantes)</li>
+        <li>• Define <b>capacidade</b>: “é capaz de ser pago”</li>
+        <li>• Classes sem parentesco algum podem compartilhá-la</li>
+      </ul>
+    </div>
+
+    <div class="ah-card p-5" style="border-top:3px solid #a855f7">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="font-mono text-xs text-purple-300 italic">ClasseAbstrata</span>
+        <h3 class="ah-h3 text-sm">Classe abstrata</h3>
+      </div>
+      <pre class="ah-code text-[10px]"><span class="kw">public abstract class</span> <span class="ty">Conta</span> {
+    <span class="kw">protected double</span> saldo;        <span class="cm">// tem estado</span>
+
+    <span class="kw">public void</span> <span class="fn">depositar</span>(<span class="ty">double</span> v) {  <span class="cm">// já pronto</span>
+        saldo += v;
+    }
+    <span class="kw">public abstract double</span> <span class="fn">taxaMensal</span>();  <span class="cm">// buraco</span>
+}
+
+<span class="kw">class</span> <span class="ty">Poupanca</span> <span class="kw">extends</span> <span class="ty">Conta</span> { … }</pre>
+      <ul class="text-[11px] text-slate-400 space-y-1.5 mt-3 leading-relaxed">
+        <li>• Uma classe estende <b>apenas uma</b></li>
+        <li>• Tem atributos, construtor e código pronto</li>
+        <li>• Define <b>identidade</b>: “é um tipo de conta”</li>
+        <li>• Não pode ser instanciada diretamente</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip">
+    <i class="fa-solid fa-compass"></i>
+    <div>
+      <strong>Regra de bolso:</strong> se as classes compartilham <em>estado e código</em> e pertencem à mesma
+      família conceitual, classe abstrata. Se compartilham apenas uma <em>habilidade</em> e podem vir de famílias
+      diferentes, interface. Na dúvida, comece pela interface: ela acopla menos.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMPARAÇÃO ============================ -->
+<section id="comparacao" data-toc="Tabela comparativa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>Lado a lado</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th class="text-sky-400">Interface</th><th class="text-purple-400">Classe abstrata</th></tr></thead>
+      <tbody>
+        <tr><td>Palavra-chave na subclasse</td><td class="font-mono">implements</td><td class="font-mono">extends</td></tr>
+        <tr><td>Quantas por classe</td><td class="text-emerald-400">Várias</td><td class="text-amber-400">Apenas uma</td></tr>
+        <tr><td>Atributos de instância</td><td class="text-rose-400">Não (só <code>static final</code>)</td><td class="text-emerald-400">Sim</td></tr>
+        <tr><td>Construtor</td><td class="text-rose-400">Não tem</td><td class="text-emerald-400">Tem (chamado via <code>super</code>)</td></tr>
+        <tr><td>Métodos com corpo</td><td>Apenas <code>default</code> e <code>static</code> (Java 8+)</td><td class="text-emerald-400">Sim, livremente</td></tr>
+        <tr><td>Visibilidade dos membros</td><td>Sempre <code>public</code> (implícito)</td><td>Qualquer uma</td></tr>
+        <tr><td>Relação semântica</td><td>“é capaz de”</td><td>“é um tipo de”</td></tr>
+        <tr><td>Notação UML</td><td>«interface» + linha <b>tracejada</b></td><td>Nome em <i>itálico</i> + linha <b>sólida</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ VERIFICADOR ============================ -->
+<section id="verificador" data-toc="O que compila?" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hammer text-emerald-400 mr-2"></i>Monte a declaração e veja se compila</h2>
+  <p class="ah-lead text-sm mb-5">
+    Java permite herança <strong>simples</strong> de classes e <strong>múltipla</strong> de interfaces.
+    Marque as opções e observe o veredito do “compilador”.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="space-y-3">
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Herdar de (extends)</h3>
+        <div id="ver-classes" class="space-y-1.5"></div>
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mt-4 mb-3">Implementar (implements)</h3>
+        <div id="ver-interfaces" class="space-y-1.5"></div>
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mt-4 mb-3">Métodos escritos na classe</h3>
+        <div id="ver-metodos" class="space-y-1.5"></div>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Declaração resultante</h3>
+        <pre class="ah-code text-[11px]" id="ver-codigo"></pre>
+      </div>
+      <div id="ver-resultado"></div>
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Contratos em aberto</h3>
+        <div id="ver-pendentes" class="space-y-1.5 text-[11px]"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ UML ============================ -->
+<section id="uml" data-toc="Notação UML" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Como isso aparece no diagrama</h2>
+  <p class="ah-lead text-sm mb-5">
+    Três notações que você precisa reconhecer de imediato: <b>realização</b> (tracejada, ponta vazada),
+    <b>generalização</b> (sólida, ponta vazada) e a forma compacta de “pirulito” (<i>lollipop</i>).
+  </p>
+  <div class="ah-stage p-4 overflow-x-auto">
+    <svg viewBox="0 0 780 360" class="w-full" style="min-width:640px" id="svg-uml-abs"></svg>
+  </div>
+</section>
+
+<!-- ============================ DIAMANTE ============================ -->
+<section id="diamante" data-toc="O problema do diamante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-gem text-emerald-400 mr-2"></i>Por que Java proíbe herança múltipla de classes</h2>
+  <div class="ah-prose">
+    <p>
+      Se <code>D</code> herdasse de <code>B</code> e <code>C</code>, e ambas tivessem implementações diferentes
+      de um mesmo método herdado de <code>A</code>, qual delas <code>D</code> usaria? Essa ambiguidade é o
+      <strong>problema do diamante</strong> — e a razão de Java permitir apenas uma superclasse.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+    <div class="ah-stage p-4">
+      <svg viewBox="0 0 360 260" class="w-full" style="height:240px">
+        <g font-family="Inter, sans-serif">
+          <rect x="130" y="10" width="100" height="34" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.8"/>
+          <text x="180" y="32" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">A</text>
+          <text x="190" y="62" font-size="9" fill="#94a3b8" font-family="Fira Code, monospace">falar()</text>
+
+          <rect x="20" y="100" width="100" height="34" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.8"/>
+          <text x="70" y="122" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">B</text>
+          <text x="20" y="152" font-size="9" fill="#fbbf24" font-family="Fira Code, monospace">falar() { "oi" }</text>
+
+          <rect x="240" y="100" width="100" height="34" rx="7" fill="#1e293b" stroke="#38bdf8" stroke-width="1.8"/>
+          <text x="290" y="122" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">C</text>
+          <text x="230" y="152" font-size="9" fill="#7dd3fc" font-family="Fira Code, monospace">falar() { "olá" }</text>
+
+          <rect x="130" y="196" width="100" height="34" rx="7" fill="#1e293b" stroke="#a855f7" stroke-width="1.8"/>
+          <text x="180" y="218" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">D</text>
+
+          <path d="M70,100 L70,72 L180,72 L180,50" fill="none" stroke="#64748b" stroke-width="1.5"/>
+          <path d="M290,100 L290,72 L180,72" fill="none" stroke="#64748b" stroke-width="1.5"/>
+          <polygon points="180,44 172,57 188,57" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+
+          <path d="M180,196 L180,170 L70,170 L70,140" fill="none" stroke="#64748b" stroke-width="1.5"/>
+          <path d="M180,170 L290,170 L290,140" fill="none" stroke="#64748b" stroke-width="1.5"/>
+          <polygon points="70,134 62,147 78,147" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+          <polygon points="290,134 282,147 298,147" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+
+          <text x="180" y="252" text-anchor="middle" font-size="11" fill="#f87171" font-weight="600">d.falar() → qual implementação?</text>
+        </g>
+      </svg>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-sm">A solução de Java</h3>
+        <ul class="text-xs text-slate-400 space-y-2 leading-relaxed">
+          <li><b class="text-white">Classes:</b> herança simples. Só existe uma cadeia de implementação, logo não há ambiguidade de estado nem de código.</li>
+          <li><b class="text-white">Interfaces:</b> herança múltipla permitida — como eram apenas assinaturas, não havia conflito de implementação.</li>
+          <li><b class="text-white">Desde o Java 8:</b> interfaces podem ter métodos <code>default</code> com corpo. O diamante voltou… e a linguagem passou a <em>exigir</em> que você resolva o conflito explicitamente.</li>
+        </ul>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Desempate explícito</h3>
+        <pre class="ah-code text-[10px]"><span class="kw">interface</span> <span class="ty">B</span> { <span class="kw">default</span> <span class="ty">String</span> <span class="fn">falar</span>() { <span class="kw">return</span> <span class="str">"oi"</span>; } }
+<span class="kw">interface</span> <span class="ty">C</span> { <span class="kw">default</span> <span class="ty">String</span> <span class="fn">falar</span>() { <span class="kw">return</span> <span class="str">"olá"</span>; } }
+
+<span class="kw">class</span> <span class="ty">D</span> <span class="kw">implements</span> <span class="ty">B</span>, <span class="ty">C</span> {
+    <span class="cm">@Override</span>
+    <span class="kw">public</span> <span class="ty">String</span> <span class="fn">falar</span>() {
+        <span class="kw">return</span> <span class="ty">B</span>.<span class="kw">super</span>.<span class="fn">falar</span>();  <span class="cm">// você escolhe</span>
+    }
+}</pre>
+        <p class="text-[11px] text-slate-500 mt-2">Sem esse override, o código não compila.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#11312a)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre contratos e esqueletos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Você precisa que <code>Documento</code>, <code>Pedido</code> e <code>Relatorio</code> — classes sem nenhum parentesco — possam ser exportadas para PDF. O melhor mecanismo é:</p>
+      <button class="ah-quiz-opt">Uma classe abstrata <code>Exportavel</code> que todas estendem</button>
+      <button class="ah-quiz-opt">Uma interface <code>Exportavel</code> que todas implementam</button>
+      <button class="ah-quiz-opt">Copiar o método de exportação nas três</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        As três já pertencem a hierarquias próprias e não têm nada em comum além dessa <em>capacidade</em>.
+        Forçar uma superclasse comum criaria uma família artificial e queimaria o único <code>extends</code>
+        disponível de cada uma.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Uma classe abstrata pode ter métodos concretos (com corpo)?</p>
+      <button class="ah-quiz-opt">Não, todos os métodos precisam ser abstratos</button>
+      <button class="ah-quiz-opt">Só se ela não tiver atributos</button>
+      <button class="ah-quiz-opt">Sim — é justamente para isso que ela existe: compartilhar implementação</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Uma classe abstrata com <em>todos</em> os métodos abstratos e sem atributos é, na prática, uma interface
+        mais restritiva — e nesse caso a interface é a escolha melhor. O valor da classe abstrata está no
+        código que ela já traz pronto.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Em UML, a linha <strong>tracejada</strong> com ponta triangular vazada representa:</p>
+      <button class="ah-quiz-opt">Realização — a classe implementa uma interface</button>
+      <button class="ah-quiz-opt">Generalização — herança entre classes</button>
+      <button class="ah-quiz-opt">Agregação</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Mesma ponta, traço diferente: <b>sólida</b> = generalização (<code>extends</code>);
+        <b>tracejada</b> = realização (<code>implements</code>). Tracejada com ponta de <em>seta aberta</em>
+        já é outra coisa: dependência.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Verificador de declaração ===================== */
+(function verificador() {
+  const CLASSES = [
+    { n: 'Pessoa', tipo: 'abstract class', metodos: ['getNome()'] },
+    { n: 'Veiculo', tipo: 'class', metodos: [] }
+  ];
+  const INTERFACES = [
+    { n: 'Pagavel', metodos: ['calcularValor()', 'registrarPagamento()'] },
+    { n: 'Comparable', metodos: ['compareTo(o)'] },
+    { n: 'Serializable', metodos: [] }
+  ];
+  const METODOS = ['getNome()', 'calcularValor()', 'registrarPagamento()', 'compareTo(o)'];
+
+  const estado = { classes: ['Pessoa'], interfaces: ['Pagavel'], metodos: ['getNome()', 'calcularValor()'] };
+
+  function pinta() {
+    const cb = (id, nome, marcado, extra) => `
+      <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700/30 text-xs">
+        <input type="checkbox" data-${id}="${nome}" ${marcado ? 'checked' : ''} class="accent-emerald-500">
+        <span class="${marcado ? 'text-white font-medium' : 'text-slate-400'} font-mono">${nome}</span>
+        ${extra ? `<span class="text-[10px] text-slate-600 ml-auto">${extra}</span>` : ''}
+      </label>`;
+
+    document.getElementById('ver-classes').innerHTML =
+      CLASSES.map(c => cb('cl', c.n, estado.classes.includes(c.n), c.tipo)).join('');
+    document.getElementById('ver-interfaces').innerHTML =
+      INTERFACES.map(i => cb('if', i.n, estado.interfaces.includes(i.n), 'interface')).join('');
+    document.getElementById('ver-metodos').innerHTML =
+      METODOS.map(m => cb('mt', m, estado.metodos.includes(m), '')).join('');
+
+    const ext = estado.classes.length ? ' <span class="kw">extends</span> ' + estado.classes.map(c => `<span class="ty">${c}</span>`).join(', ') : '';
+    const imp = estado.interfaces.length ? ' <span class="kw">implements</span> ' + estado.interfaces.map(i => `<span class="ty">${i}</span>`).join(', ') : '';
+    document.getElementById('ver-codigo').innerHTML =
+      `<span class="kw">public class</span> <span class="ty">Fatura</span>${ext}${imp} {\n` +
+      (estado.metodos.length
+        ? estado.metodos.map(m => `    <span class="kw">public</span> <span class="fn">${m}</span> { … }`).join('\n')
+        : '    <span class="cm">// nenhum método implementado</span>') +
+      `\n}`;
+
+    /* exigências em aberto */
+    const exigidos = new Set();
+    estado.classes.forEach(c => (CLASSES.find(x => x.n === c) || { metodos: [] }).metodos.forEach(m => exigidos.add(m)));
+    estado.interfaces.forEach(i => (INTERFACES.find(x => x.n === i) || { metodos: [] }).metodos.forEach(m => exigidos.add(m)));
+    const faltando = [...exigidos].filter(m => !estado.metodos.includes(m));
+
+    document.getElementById('ver-pendentes').innerHTML = exigidos.size
+      ? [...exigidos].map(m => {
+          const ok = estado.metodos.includes(m);
+          return `<div class="flex items-center gap-2">
+            <i class="fa-solid ${ok ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-rose-400'}"></i>
+            <span class="font-mono ${ok ? 'text-slate-300' : 'text-rose-300'}">${m}</span></div>`;
+        }).join('')
+      : '<span class="text-slate-600 italic">nenhum método abstrato exigido</span>';
+
+    /* veredito */
+    const box = document.getElementById('ver-resultado');
+    const erros = [];
+    if (estado.classes.length > 1)
+      erros.push('Java não permite <code>extends</code> de mais de uma classe — herança múltipla de classes é proibida.');
+    faltando.forEach(m => erros.push(`O método <code>${m}</code> é exigido por um contrato e não foi implementado.`));
+
+    if (erros.length) {
+      box.className = 'ah-callout ah-callout-warn text-xs';
+      box.innerHTML = `<i class="fa-solid fa-circle-xmark"></i>
+        <div><b class="text-rose-300">Não compila (${erros.length} erro${erros.length > 1 ? 's' : ''}):</b>
+        <ul class="mt-2 space-y-1">${erros.map(e => `<li>• ${e}</li>`).join('')}</ul></div>`;
+    } else {
+      box.className = 'ah-callout ah-callout-ok text-xs';
+      box.innerHTML = `<i class="fa-solid fa-circle-check"></i>
+        <div><b class="text-emerald-300">Compila.</b> Todos os contratos assumidos estão cumpridos e há no máximo
+        uma superclasse. Note que interfaces podem ser várias sem nenhum problema.</div>`;
+    }
+  }
+
+  document.getElementById('verificador').addEventListener('change', e => {
+    const t = e.target;
+    const troca = (lista, v) => {
+      const i = estado[lista].indexOf(v);
+      if (i >= 0) estado[lista].splice(i, 1); else estado[lista].push(v);
+    };
+    if (t.dataset.cl) troca('classes', t.dataset.cl);
+    else if (t.dataset.if) troca('interfaces', t.dataset.if);
+    else if (t.dataset.mt) troca('metodos', t.dataset.mt);
+    else return;
+    pinta();
+  });
+  pinta();
+})();
+
+/* ===================== Notação UML ===================== */
+(function umlAbs() {
+  const svg = document.getElementById('svg-uml-abs');
+  const caixa = (x, y, w, titulo, estereotipo, membros, cor, italico) => `
+    <g>
+      <rect x="${x}" y="${y}" width="${w}" height="${(estereotipo ? 40 : 28) + membros.length * 15 + 8}" rx="8"
+            fill="#1e293b" stroke="${cor}" stroke-width="1.8"/>
+      ${estereotipo ? `<text x="${x + w / 2}" y="${y + 17}" text-anchor="middle" font-size="10"
+            font-family="Fira Code, monospace" fill="${cor}">«${estereotipo}»</text>` : ''}
+      <text x="${x + w / 2}" y="${y + (estereotipo ? 33 : 19)}" text-anchor="middle" font-size="12.5"
+            font-weight="700" font-family="Inter, sans-serif" fill="#fff"
+            ${italico ? 'font-style="italic"' : ''}>${titulo}</text>
+      <line x1="${x}" y1="${y + (estereotipo ? 40 : 28)}" x2="${x + w}" y2="${y + (estereotipo ? 40 : 28)}"
+            stroke="${cor}88" stroke-width="1.2"/>
+      ${membros.map((m, i) => `<text x="${x + 10}" y="${y + (estereotipo ? 55 : 43) + i * 15}" font-size="10"
+            font-family="Fira Code, monospace" fill="#cbd5e1"
+            ${m.startsWith('*') ? 'font-style="italic"' : ''}>${m.replace('*', '')}</text>`).join('')}
+    </g>`;
+
+  let out = '';
+  /* interface + realizações */
+  out += caixa(290, 10, 190, 'Pagavel', 'interface', ['+ calcularValor()', '+ registrarPagamento()'], '#38bdf8');
+  out += caixa(60, 150, 190, 'Fatura', null, ['+ calcularValor()', '+ registrarPagamento()'], '#10b981');
+  out += caixa(520, 150, 190, 'Salario', null, ['+ calcularValor()', '+ registrarPagamento()'], '#10b981');
+
+  const realiza = (x1, y1, x2, y2) => `
+    <path d="M${x1},${y1} L${x1},${(y1 + y2) / 2 + 10} L${x2},${(y1 + y2) / 2 + 10} L${x2},${y2 + 13}"
+          fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="6 4"/>
+    <polygon points="${x2},${y2} ${x2 - 8},${y2 + 13} ${x2 + 8},${y2 + 13}" fill="#0f172a" stroke="#64748b" stroke-width="1.6"/>`;
+  out += realiza(155, 150, 350, 88) + realiza(615, 150, 420, 88);
+  out += `<text x="180" y="120" font-size="10" font-family="Inter, sans-serif" fill="#64748b">realização (tracejada)</text>`;
+
+  /* classe abstrata */
+  out += caixa(60, 255, 190, 'Conta', null, ['# saldo: double', '+ depositar(v)', '*+ taxaMensal()'], '#a855f7', true);
+  out += caixa(310, 255, 170, 'Poupanca', null, ['+ taxaMensal()'], '#10b981');
+  out += `<path d="M310,285 L280,285" fill="none" stroke="#64748b" stroke-width="1.6"/>
+          <polygon points="262,285 275,277 275,293" fill="#0f172a" stroke="#64748b" stroke-width="1.6"/>
+          <text x="262" y="310" font-size="10" font-family="Inter, sans-serif" fill="#64748b">generalização (sólida)</text>
+          <text x="66" y="345" font-size="9.5" font-family="Inter, sans-serif" fill="#94a3b8">
+            nome e método abstratos em itálico</text>`;
+
+  /* lollipop */
+  out += `<circle cx="690" cy="285" r="9" fill="none" stroke="#38bdf8" stroke-width="2"/>
+          <line x1="600" y1="285" x2="681" y2="285" stroke="#38bdf8" stroke-width="2"/>
+          <rect x="520" y="268" width="80" height="34" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.8"/>
+          <text x="560" y="290" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter, sans-serif" fill="#fff">Fatura</text>
+          <text x="656" y="320" font-size="10" font-family="Inter, sans-serif" fill="#64748b">forma “pirulito”</text>
+          <text x="628" y="334" font-size="9" font-family="Inter, sans-serif" fill="#475569">(interface fornecida)</text>`;
+
+  svg.innerHTML = out;
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

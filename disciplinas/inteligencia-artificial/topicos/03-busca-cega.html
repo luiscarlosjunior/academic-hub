@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Busca Cega (Largura e Profundidade) · AcademicHub</title>
+<meta name="description" content="Espaço de estados, fronteira, BFS, DFS, custo uniforme e aprofundamento iterativo — com simulador passo a passo.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔎</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/03-busca-cega">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ FORMULAÇÃO ============================ -->
+<section id="formulacao" data-toc="Formular o problema" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-clipboard-check text-indigo-400 mr-2"></i>Antes do algoritmo: formular o problema</h2>
+  <div class="ah-prose">
+    <p>
+      Busca é o que um agente faz quando <strong>sabe aonde quer chegar</strong> mas não sabe qual sequência de
+      ações leva até lá. Antes de escolher BFS ou DFS, todo problema de busca precisa de cinco componentes.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-3 my-6">
+    <div class="ah-card p-4"><i class="fa-solid fa-play text-indigo-400 mb-2"></i>
+      <h3 class="text-xs font-bold text-white mb-1">Estado inicial</h3>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Onde o agente começa. Ex.: <code>Em(Arad)</code></p></div>
+    <div class="ah-card p-4"><i class="fa-solid fa-list-check text-indigo-400 mb-2"></i>
+      <h3 class="text-xs font-bold text-white mb-1">Ações</h3>
+      <p class="text-[11px] text-slate-400 leading-relaxed">O que é possível fazer em cada estado.</p></div>
+    <div class="ah-card p-4"><i class="fa-solid fa-shuffle text-indigo-400 mb-2"></i>
+      <h3 class="text-xs font-bold text-white mb-1">Modelo de transição</h3>
+      <p class="text-[11px] text-slate-400 leading-relaxed">O que cada ação produz: <code>Result(s, a)</code></p></div>
+    <div class="ah-card p-4"><i class="fa-solid fa-flag-checkered text-indigo-400 mb-2"></i>
+      <h3 class="text-xs font-bold text-white mb-1">Teste de objetivo</h3>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Como saber que chegamos.</p></div>
+    <div class="ah-card p-4"><i class="fa-solid fa-coins text-indigo-400 mb-2"></i>
+      <h3 class="text-xs font-bold text-white mb-1">Custo do caminho</h3>
+      <p class="text-[11px] text-slate-400 leading-relaxed">Soma dos custos das ações — define o que é “melhor”.</p></div>
+  </div>
+
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Cego = não informado.</strong> Estes algoritmos só sabem distinguir o estado objetivo dos demais.
+      Não têm nenhuma pista de <em>quão perto</em> estão dele — essa pista é a heurística, assunto do
+      <a href="04-busca-heuristica.html" class="text-indigo-400 hover:underline">próximo tópico</a>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ÁRVORE VS GRAFO ============================ -->
+<section id="arvore" data-toc="Árvore de busca e fronteira" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-indigo-400 mr-2"></i>Espaço de estados × árvore de busca</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>espaço de estados</strong> é o mapa do mundo — normalmente um grafo, com ciclos.
+      A <strong>árvore de busca</strong> é o registro da exploração: cada nó é um <em>caminho</em> até um estado.
+      O mesmo estado pode aparecer várias vezes na árvore, por caminhos diferentes.
+    </p>
+    <p>
+      A <strong>fronteira</strong> é o conjunto de nós gerados mas ainda não expandidos. <em>Toda</em> a diferença
+      entre os algoritmos desta página está em uma única decisão: <strong>qual nó da fronteira expandir primeiro</strong>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-l-2" style="border-left-color:#3b82f6">
+      <h3 class="text-sm font-bold text-white mb-1">Fila (FIFO)</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Sai o mais <strong>antigo</strong> → explora nível por nível → <span class="text-blue-400 font-semibold">BFS</span></p></div>
+    <div class="ah-card p-4 border-l-2" style="border-left-color:#a855f7">
+      <h3 class="text-sm font-bold text-white mb-1">Pilha (LIFO)</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Sai o mais <strong>recente</strong> → mergulha num ramo → <span class="text-purple-400 font-semibold">DFS</span></p></div>
+    <div class="ah-card p-4 border-l-2" style="border-left-color:#10b981">
+      <h3 class="text-sm font-bold text-white mb-1">Fila de prioridade</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Sai o de <strong>menor g(n)</strong> → caminho mais barato → <span class="text-emerald-400 font-semibold">Custo Uniforme</span></p></div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-rotate"></i>
+    <div>
+      <strong>Estados repetidos matam a busca.</strong> Sem uma lista de explorados, uma malha 2D simples pode gerar
+      uma árvore exponencial em vez de quadrática. Busca em <em>grafo</em> = busca em árvore + conjunto de explorados.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SIMULADOR ============================ -->
+<section id="simulador" data-toc="Simulador de estratégias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-indigo-400 mr-2"></i>Quatro estratégias, a mesma árvore</h2>
+  <p class="ah-lead text-sm mb-5">
+    Todas procuram o nó <strong class="text-emerald-400">objetivo</strong> partindo da raiz <strong>A</strong>.
+    Observe a <em>ordem</em> de expansão e o tamanho máximo da fronteira — é aí que elas se separam.
+  </p>
+
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <div class="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-700" id="algo-btns">
+      <button class="ah-chip active" data-algo="BFS">BFS · Largura</button>
+      <button class="ah-chip" data-algo="DFS">DFS · Profundidade</button>
+      <button class="ah-chip" data-algo="UCS">Custo Uniforme</button>
+      <button class="ah-chip" data-algo="IDS">Aprofundamento Iterativo</button>
+    </div>
+    <div class="flex items-center gap-2 ml-auto">
+      <button id="bt-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Executar</button>
+      <button id="bt-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i></button>
+      <button id="bt-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i></button>
+      <label class="flex items-center gap-2 text-xs text-slate-400 ml-2">
+        <i class="fa-solid fa-gauge-high"></i>
+        <input id="vel" type="range" min="120" max="1200" step="60" value="600" class="w-20 accent-indigo-500">
+      </label>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:360px"><canvas id="treeCanvas" style="height:360px"></canvas></div>
+      <div class="ah-legend mt-3 px-1">
+        <span><span class="dot" style="background:#6366f1"></span>Raiz</span>
+        <span><span class="dot" style="background:#10b981"></span>Objetivo</span>
+        <span><span class="dot" style="background:#f59e0b"></span>Na fronteira</span>
+        <span><span class="dot" style="background:#475569"></span>Expandido</span>
+        <span><span class="dot" style="background:#34d399"></span>Caminho da solução</span>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2" id="ds-nome">Fronteira — Fila (FIFO)</h3>
+        <div id="fronteira" class="flex flex-wrap gap-1.5 min-h-[52px] bg-slate-950 rounded-lg p-2 border border-slate-800"></div>
+        <p id="ds-desc" class="text-[11px] text-slate-500 mt-2 leading-relaxed"></p>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Métricas</h3>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="m-exp" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">expandidos</div></div>
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="m-max" class="text-lg font-bold text-amber-400">0</div><div class="text-[10px] text-slate-500">fronteira máx.</div></div>
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="m-custo" class="text-lg font-bold text-emerald-400">—</div><div class="text-[10px] text-slate-500">custo</div></div>
+        </div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Log</h3>
+        <div id="log" class="font-mono text-[11px] text-slate-400 space-y-1 max-h-40 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ALGORITMOS ============================ -->
+<section id="algoritmos" data-toc="Os algoritmos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-code text-indigo-400 mr-2"></i>O mesmo esqueleto, fronteiras diferentes</h2>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3 text-blue-400">Busca genérica em grafo</h3>
+      <pre class="ah-code text-[11px]"><span class="kw">função</span> <span class="fn">BuscaEmGrafo</span>(problema, fronteira):
+    fronteira.inserir(nó(problema.inicial))
+    explorados ← conjunto vazio
+
+    <span class="kw">enquanto</span> fronteira não estiver vazia:
+        nó ← fronteira.<span class="fn">remover</span>()      <span class="cm">// ← a única diferença</span>
+        <span class="kw">se</span> problema.objetivo(nó.estado):
+            <span class="kw">retorne</span> caminho(nó)
+        explorados.adicionar(nó.estado)
+
+        <span class="kw">para cada</span> ação <span class="kw">em</span> problema.ações(nó.estado):
+            filho ← <span class="fn">filhoDe</span>(nó, ação)
+            <span class="kw">se</span> filho.estado ∉ explorados ∪ fronteira:
+                fronteira.inserir(filho)
+
+    <span class="kw">retorne</span> falha</pre>
+      <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+        Troque <code>fronteira</code> por uma fila e você tem BFS; por uma pilha, DFS; por uma fila de prioridade
+        ordenada por <code>g(n)</code>, custo uniforme.
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-purple-400">Busca em profundidade limitada</h3>
+        <pre class="ah-code text-[11px]"><span class="kw">função</span> <span class="fn">DFSLimitada</span>(nó, limite):
+    <span class="kw">se</span> objetivo(nó): <span class="kw">retorne</span> solução
+    <span class="kw">se</span> limite == <span class="num">0</span>: <span class="kw">retorne</span> corte
+    <span class="kw">para cada</span> filho <span class="kw">de</span> nó:
+        r ← <span class="fn">DFSLimitada</span>(filho, limite − <span class="num">1</span>)
+        <span class="kw">se</span> r ≠ corte: <span class="kw">retorne</span> r
+    <span class="kw">retorne</span> corte</pre>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="ah-h3 mb-2 text-emerald-400">Aprofundamento iterativo (IDS)</h3>
+        <pre class="ah-code text-[11px]"><span class="kw">função</span> <span class="fn">IDS</span>(problema):
+    <span class="kw">para</span> limite ← <span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>, …:
+        r ← <span class="fn">DFSLimitada</span>(raiz, limite)
+        <span class="kw">se</span> r ≠ corte: <span class="kw">retorne</span> r</pre>
+        <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+          Parece desperdício refazer tudo a cada limite — mas não é: o último nível domina o total.
+          Para <code>b = 10, d = 5</code>, o IDS gera ~123.450 nós contra ~111.110 da BFS: apenas <strong>11% a mais</strong>,
+          com memória <em>linear</em>. É o melhor algoritmo cego quando a profundidade da solução é desconhecida.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMPARAÇÃO ============================ -->
+<section id="comparacao" data-toc="Matriz comparativa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-table text-indigo-400 mr-2"></i>Matriz comparativa</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr>
+        <th>Critério</th><th class="text-blue-400">Largura</th><th class="text-emerald-400">Custo uniforme</th>
+        <th class="text-purple-400">Profundidade</th><th class="text-amber-400">Profund. limitada</th><th class="text-sky-400">Aprofund. iterativo</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Completo?</td>
+          <td class="text-emerald-400">Sim<span class="block text-[10px] text-slate-500">se b finito</span></td>
+          <td class="text-emerald-400">Sim<span class="block text-[10px] text-slate-500">se custo ≥ ε</span></td>
+          <td class="text-rose-400">Não</td><td class="text-rose-400">Não<span class="block text-[10px] text-slate-500">se ℓ &lt; d</span></td>
+          <td class="text-emerald-400">Sim</td></tr>
+        <tr><td>Ótimo?</td>
+          <td class="text-amber-400">Só com custos iguais</td><td class="text-emerald-400">Sim</td>
+          <td class="text-rose-400">Não</td><td class="text-rose-400">Não</td>
+          <td class="text-amber-400">Só com custos iguais</td></tr>
+        <tr><td>Tempo</td>
+          <td class="font-mono">O(b<sup>d</sup>)</td><td class="font-mono">O(b<sup>1+⌊C*/ε⌋</sup>)</td>
+          <td class="font-mono">O(b<sup>m</sup>)</td><td class="font-mono">O(b<sup>ℓ</sup>)</td><td class="font-mono">O(b<sup>d</sup>)</td></tr>
+        <tr><td>Espaço</td>
+          <td class="font-mono text-rose-400">O(b<sup>d</sup>)</td><td class="font-mono text-rose-400">O(b<sup>1+⌊C*/ε⌋</sup>)</td>
+          <td class="font-mono text-emerald-400">O(b·m)</td><td class="font-mono text-emerald-400">O(b·ℓ)</td><td class="font-mono text-emerald-400">O(b·d)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs text-slate-500 mt-3 italic">
+    <b>b</b> = fator de ramificação · <b>d</b> = profundidade da solução mais rasa · <b>m</b> = profundidade máxima ·
+    <b>ℓ</b> = limite imposto · <b>C*</b> = custo da solução ótima · <b>ε</b> = menor custo de ação.
+  </p>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-memory"></i>
+    <div>
+      <strong>O gargalo da BFS é memória, não tempo.</strong> Com b=10 e 1 milhão de nós/s a 1 KB por nó,
+      profundidade 10 exige ~3 horas e <strong>10 terabytes</strong> de RAM. O tempo você espera; a memória você não tem.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ LABORATÓRIO ============================ -->
+<section id="lab" data-toc="Laboratório completo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-indigo-400 mr-2"></i>Laboratório: BFS vs DFS lado a lado</h2>
+  <p class="ah-lead text-sm mb-4">
+    Simulador completo com inspeção da estrutura de dados, pseudocódigo destacado linha a linha e quatro
+    topologias de grafo (árvore balanceada, grafo com ciclos, árvore desbalanceada e labirinto 2D).
+  </p>
+  <div class="ah-card overflow-hidden mb-3" style="height:640px">
+    <iframe src="../../../simuladores/busca-cega-visual.html" class="w-full h-full border-0" title="Simulador de busca cega" loading="lazy"></iframe>
+  </div>
+  <a href="../../../simuladores/busca-cega-visual.html" target="_blank" rel="noopener" class="ah-btn ah-btn-primary">
+    <i class="fa-solid fa-up-right-from-square"></i> Abrir em tela cheia
+  </a>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Quatro perguntas sobre escolha de estratégia.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Você precisa do caminho com <strong>menos passos</strong> num grafo sem pesos. Qual estratégia garante isso?</p>
+      <button class="ah-quiz-opt">Busca em profundidade</button>
+      <button class="ah-quiz-opt">Busca em largura</button>
+      <button class="ah-quiz-opt">Busca em profundidade limitada com ℓ = 3</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A BFS expande em ordem crescente de profundidade, então o primeiro objetivo encontrado é o mais raso.
+        Com custos <em>iguais</em>, mais raso = mais barato. Se os custos forem diferentes, troque por custo uniforme.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que o custo uniforme faz o teste de objetivo ao <em>remover</em> o nó da fronteira, e não ao gerá-lo?</p>
+      <button class="ah-quiz-opt">Por eficiência: evita gerar filhos desnecessários</button>
+      <button class="ah-quiz-opt">Porque a fila de prioridade não permite testar na geração</button>
+      <button class="ah-quiz-opt">Porque um objetivo gerado cedo pode estar num caminho mais caro que outro ainda na fronteira</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Testar na geração quebraria a otimalidade. Só quando o nó sai da fila de prioridade temos a garantia
+        de que nenhum caminho mais barato até ele existe. Teste você mesmo no simulador: escolha
+        <em>Custo Uniforme</em> e observe o momento em que o objetivo é aceito.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. O aprofundamento iterativo repete trabalho. Por que ainda assim compensa?</p>
+      <button class="ah-quiz-opt">Porque o custo extra é pequeno (o último nível domina) e a memória cai para O(b·d)</button>
+      <button class="ah-quiz-opt">Porque ele encontra soluções melhores que a BFS</button>
+      <button class="ah-quiz-opt">Porque evita completamente estados repetidos</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Numa árvore, o nível <em>d</em> tem mais nós que todos os anteriores somados. Refazer os níveis rasos
+        custa pouco. O IDS junta a completude e a otimalidade (com custos iguais) da BFS com a memória linear da DFS.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. Numa malha 2D de 20×20, a DFS em <em>árvore</em> (sem lista de explorados) tende a:</p>
+      <button class="ah-quiz-opt">Terminar mais rápido, por usar menos memória</button>
+      <button class="ah-quiz-opt">Entrar em laço ou gerar um número exponencial de caminhos repetidos</button>
+      <button class="ah-quiz-opt">Comportar-se exatamente como a BFS</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Em grafos com ciclos, o mesmo estado é alcançado por incontáveis caminhos. Sem o conjunto de explorados,
+        a busca em árvore os trata como nós distintos — a economia de memória vira explosão de tempo.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Árvore de exemplo ===================== */
+/* 15 nós (binária completa até a profundidade 3) + custos nas arestas */
+const NOMES = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O'];
+const CUSTO = [0, 1, 4, 2, 5, 1, 3, 2, 4, 1, 6, 3, 2, 5, 1]; // custo da aresta pai→nó
+const OBJETIVO = 12; // M
+const filhos = i => [2 * i + 1, 2 * i + 2].filter(k => k < NOMES.length);
+const pai = i => (i - 1) >> 1;
+const prof = i => Math.floor(Math.log2(i + 1));
+
+let algo = 'BFS';
+let estado = null;
+let timer = null;
+
+function novoEstado() {
+  return {
+    fronteira: [{ i: 0, g: 0, pai: null, lim: 0 }],
+    explorados: new Set(),
+    naFronteira: new Set([0]),
+    expandidos: [],
+    maxFront: 1,
+    limite: 0,          // para IDS
+    atual: null,
+    caminho: [],
+    fim: false,
+    custo: null,
+    log: []
+  };
+}
+
+/* ---------- posição dos nós no canvas ---------- */
+function pos(i, w, h) {
+  const d = prof(i);
+  const nivel = Math.pow(2, d);
+  const idxNoNivel = i - (nivel - 1);
+  const margem = 34;
+  const x = margem + ((idxNoNivel + 0.5) / nivel) * (w - margem * 2);
+  const y = 42 + d * ((h - 90) / 3);
+  return { x, y };
+}
+
+const cv = AH.canvas('treeCanvas', desenha);
+
+function desenha(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+  const s = estado;
+
+  /* arestas */
+  for (let i = 1; i < NOMES.length; i++) {
+    const a = pos(pai(i), w, h), b = pos(i, w, h);
+    const noCaminho = s.caminho.includes(i) && s.caminho.includes(pai(i));
+    ctx.strokeStyle = noCaminho ? '#34d399' : 'rgba(100,116,139,.35)';
+    ctx.lineWidth = noCaminho ? 3 : 1.4;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+
+    if (algo === 'UCS') {
+      ctx.fillStyle = 'rgba(148,163,184,.75)';
+      ctx.font = '600 10px Fira Code, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(CUSTO[i], (a.x + b.x) / 2 + 8, (a.y + b.y) / 2);
+    }
+  }
+
+  /* nós */
+  for (let i = 0; i < NOMES.length; i++) {
+    const p = pos(i, w, h);
+    let fill = '#1e293b', stroke = 'rgba(100,116,139,.5)', texto = '#94a3b8';
+
+    if (s.explorados.has(i)) { fill = '#475569'; stroke = '#64748b'; texto = '#e2e8f0'; }
+    if (s.naFronteira.has(i)) { fill = 'rgba(245,158,11,.25)'; stroke = '#f59e0b'; texto = '#fcd34d'; }
+    if (s.caminho.includes(i)) { fill = 'rgba(52,211,153,.3)'; stroke = '#34d399'; texto = '#d1fae5'; }
+    if (i === OBJETIVO) { stroke = '#10b981'; if (!s.caminho.includes(i)) fill = 'rgba(16,185,129,.18)'; texto = '#6ee7b7'; }
+    if (i === 0 && !s.explorados.has(0)) { stroke = '#6366f1'; }
+    if (s.atual === i) { ctx.save(); ctx.shadowColor = '#6366f1'; ctx.shadowBlur = 20; }
+
+    ctx.fillStyle = fill; ctx.strokeStyle = stroke; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, 6.29); ctx.fill(); ctx.stroke();
+    if (s.atual === i) ctx.restore();
+
+    ctx.fillStyle = texto; ctx.font = '700 13px Inter, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(NOMES[i], p.x, p.y);
+
+    /* ordem de expansão */
+    const ord = s.expandidos.indexOf(i);
+    if (ord >= 0) {
+      ctx.fillStyle = '#818cf8'; ctx.font = '700 9px Fira Code, monospace';
+      ctx.fillText('#' + (ord + 1), p.x + 20, p.y - 15);
+    }
+    if (algo === 'UCS' && s.naFronteira.has(i)) {
+      const n = s.fronteira.find(x => x.i === i);
+      if (n) { ctx.fillStyle = '#fbbf24'; ctx.font = '600 9px Fira Code, monospace'; ctx.fillText('g=' + n.g, p.x, p.y + 27); }
+    }
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+/* ---------- um passo da busca ---------- */
+function passo() {
+  const s = estado;
+  if (s.fim) return;
+
+  if (s.fronteira.length === 0) {
+    if (algo === 'IDS') {                       // aprofunda e recomeça
+      s.limite++;
+      s.fronteira = [{ i: 0, g: 0, pai: null }];
+      s.naFronteira = new Set([0]);
+      s.explorados = new Set();
+      s.log.unshift(`↻ limite = ${s.limite}: reinicia da raiz`);
+      pinta(); return;
+    }
+    s.fim = true; s.log.unshift('✗ fronteira vazia — falha'); pinta(); return;
+  }
+
+  let no;
+  if (algo === 'BFS') no = s.fronteira.shift();
+  else if (algo === 'DFS' || algo === 'IDS') no = s.fronteira.pop();
+  else { // UCS: menor g
+    let k = 0;
+    s.fronteira.forEach((x, j) => { if (x.g < s.fronteira[k].g) k = j; });
+    no = s.fronteira.splice(k, 1)[0];
+  }
+  s.naFronteira.delete(no.i);
+  s.atual = no.i;
+
+  if (no.i === OBJETIVO) {
+    s.fim = true; s.custo = no.g;
+    let c = no, cam = [];
+    while (c) { cam.push(c.i); c = c.pai; }
+    s.caminho = cam;
+    s.log.unshift(`✓ objetivo ${NOMES[no.i]} encontrado — custo ${no.g}`);
+    pinta(); return;
+  }
+
+  s.explorados.add(no.i);
+  s.expandidos.push(no.i);
+
+  const podeExpandir = algo !== 'IDS' || prof(no.i) < s.limite;
+  const fs = podeExpandir ? filhos(no.i) : [];
+  fs.forEach(f => {
+    if (s.explorados.has(f) || s.naFronteira.has(f)) return;
+    s.fronteira.push({ i: f, g: no.g + CUSTO[f], pai: no });
+    s.naFronteira.add(f);
+  });
+
+  s.maxFront = Math.max(s.maxFront, s.fronteira.length);
+  s.log.unshift(`expande ${NOMES[no.i]}${fs.length ? ' → gera ' + fs.map(f => NOMES[f]).join(', ') : (algo === 'IDS' ? ' (corte no limite)' : ' (folha)')}`);
+  pinta();
+}
+
+/* ---------- interface ---------- */
+const DESC = {
+  BFS: ['Fronteira — Fila (FIFO)', 'Sai sempre o nó mais antigo: a busca varre um nível inteiro antes de descer.'],
+  DFS: ['Fronteira — Pilha (LIFO)', 'Sai sempre o nó mais recente: a busca mergulha no ramo mais à direita até o fim.'],
+  UCS: ['Fronteira — Fila de prioridade', 'Sai o nó de menor g(n). Repare que a ordem ignora a profundidade e segue o dinheiro.'],
+  IDS: ['Fronteira — Pilha com limite', 'DFS com profundidade máxima crescente. A cada rodada o limite aumenta e tudo recomeça.']
+};
+
+function pinta() {
+  const s = estado;
+  document.getElementById('fronteira').innerHTML = s.fronteira.length
+    ? s.fronteira.map(n => `<span class="px-2 py-1 rounded-md text-[11px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+        ${NOMES[n.i]}${algo === 'UCS' ? '<span class="opacity-60">:' + n.g + '</span>' : ''}</span>`).join('')
+    : '<span class="text-slate-600 text-xs italic m-auto">vazia</span>';
+
+  document.getElementById('m-exp').textContent = s.expandidos.length;
+  document.getElementById('m-max').textContent = s.maxFront;
+  document.getElementById('m-custo').textContent = s.custo === null ? '—' : s.custo;
+  document.getElementById('ds-nome').textContent = DESC[algo][0] + (algo === 'IDS' ? ` · limite ${s.limite}` : '');
+  document.getElementById('ds-desc').textContent = DESC[algo][1];
+  document.getElementById('log').innerHTML = s.log.slice(0, 12)
+    .map(l => `<div class="${l[0] === '✓' ? 'text-emerald-400' : l[0] === '↻' ? 'text-sky-400' : ''}">${l}</div>`).join('')
+    || '<div class="text-slate-600 italic">aguardando…</div>';
+
+  cv.draw(cv.ctx, cv.w, cv.h);
+}
+
+function reset() {
+  clearInterval(timer); timer = null;
+  document.getElementById('bt-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar';
+  estado = novoEstado();
+  if (algo === 'IDS') { estado.limite = 0; }
+  pinta();
+}
+
+document.getElementById('algo-btns').addEventListener('click', e => {
+  const b = e.target.closest('[data-algo]');
+  if (!b) return;
+  algo = b.getAttribute('data-algo');
+  document.querySelectorAll('#algo-btns .ah-chip').forEach(c => c.classList.toggle('active', c === b));
+  reset();
+});
+
+document.getElementById('bt-step').addEventListener('click', passo);
+document.getElementById('bt-reset').addEventListener('click', reset);
+document.getElementById('bt-play').addEventListener('click', function () {
+  if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Executar'; return; }
+  if (estado.fim) reset();
+  this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+  const vel = +document.getElementById('vel').value;
+  timer = setInterval(() => {
+    passo();
+    if (estado.fim) { clearInterval(timer); timer = null; document.getElementById('bt-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar'; }
+  }, 1320 - vel);
+});
+
+reset();
+AH.initReveal();
+</script>
+</body>
+</html>

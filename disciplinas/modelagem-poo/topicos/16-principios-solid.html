@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Princípios de Projeto (SOLID) · AcademicHub</title>
+<meta name="description" content="SRP, OCP, LSP, ISP e DIP: os cinco princípios que separam um bom modelo de um modelo frágil.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/16-principios-solid">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Por que princípios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Código que compila × código que sobrevive</h2>
+  <div class="ah-prose">
+    <p>
+      Saber a sintaxe de <code>extends</code> não faz ninguém projetar bem. Os cinco princípios
+      <strong>SOLID</strong>, sistematizados por Robert C. Martin, são heurísticas para que um sistema
+      orientado a objetos continue barato de mudar depois de anos de manutenção.
+    </p>
+    <p>
+      Eles atacam os quatro sintomas do projeto apodrecido: <strong>rigidez</strong> (toda mudança respinga
+      em cinco lugares), <strong>fragilidade</strong> (mexer aqui quebra ali), <strong>imobilidade</strong>
+      (não dá para reusar nada fora deste sistema) e <strong>viscosidade</strong> (fazer certo é mais difícil
+      que fazer a gambiarra).
+    </p>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>São princípios, não leis.</strong> Aplicados sem critério produzem o problema oposto: uma
+      explosão de interfaces e classes minúsculas para um sistema que ninguém vai mudar nunca. Use-os quando
+      houver <em>razão concreta</em> para esperar mudança naquele ponto.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ OS CINCO ============================ -->
+<section id="principios" data-toc="Os cinco princípios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-ol text-emerald-400 mr-2"></i>Antes e depois, um a um</h2>
+  <p class="ah-lead text-sm mb-5">Escolha um princípio e compare o código problemático com a versão corrigida.</p>
+
+  <div class="flex flex-wrap gap-2 mb-5" id="sol-btns"></div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="space-y-3">
+      <div class="ah-card p-5" id="sol-card"></div>
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Sinal de alerta</h3>
+        <p id="sol-cheiro" class="text-xs text-slate-400 leading-relaxed"></p>
+      </div>
+      <div class="ah-stage p-3">
+        <svg viewBox="0 0 320 180" class="w-full" style="height:180px" id="sol-svg"></svg>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="ah-card overflow-hidden" style="border-top:3px solid #ef4444">
+        <div class="px-4 py-2 border-b border-slate-700/60 flex items-center gap-2">
+          <i class="fa-solid fa-xmark text-rose-400 text-xs"></i>
+          <span class="text-xs font-bold text-rose-300">Viola o princípio</span>
+        </div>
+        <pre class="ah-code text-[10px] border-0 rounded-none max-h-[460px] overflow-y-auto" id="sol-ruim"></pre>
+      </div>
+      <div class="ah-card overflow-hidden" style="border-top:3px solid #10b981">
+        <div class="px-4 py-2 border-b border-slate-700/60 flex items-center gap-2">
+          <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+          <span class="text-xs font-bold text-emerald-300">Respeita o princípio</span>
+        </div>
+        <pre class="ah-code text-[10px] border-0 rounded-none max-h-[460px] overflow-y-auto" id="sol-bom"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RESUMO ============================ -->
+<section id="resumo" data-toc="Tabela-resumo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>Os cinco em uma tabela</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Sigla</th><th>Nome</th><th>Em uma frase</th><th>Ferramenta típica</th></tr></thead>
+      <tbody>
+        <tr><td class="font-mono text-emerald-300 text-lg">S</td><td>Responsabilidade Única</td><td>Uma classe, uma razão para mudar</td><td>Extrair classe</td></tr>
+        <tr><td class="font-mono text-emerald-300 text-lg">O</td><td>Aberto/Fechado</td><td>Aberto para extensão, fechado para modificação</td><td>Polimorfismo</td></tr>
+        <tr><td class="font-mono text-emerald-300 text-lg">L</td><td>Substituição de Liskov</td><td>Subtipo tem que poder substituir o tipo base</td><td>Repensar a herança</td></tr>
+        <tr><td class="font-mono text-emerald-300 text-lg">I</td><td>Segregação de Interfaces</td><td>Melhor várias interfaces pequenas que uma enorme</td><td>Dividir interface</td></tr>
+        <tr><td class="font-mono text-emerald-300 text-lg">D</td><td>Inversão de Dependência</td><td>Dependa de abstrações, não de implementações</td><td>Injeção de dependência</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-link"></i>
+    <div>
+      Repare que quatro dos cinco se apoiam em <strong>polimorfismo</strong> e
+      <strong><a href="05-classes-abstratas-interfaces.html" class="text-emerald-400 hover:underline">interfaces</a></strong>.
+      SOLID não acrescenta recurso nenhum à linguagem — apenas ensina onde usar os que você já conhece.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#11312a)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Cinco perguntas — uma por princípio.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Uma classe <code>Relatorio</code> que calcula os dados <em>e</em> gera o PDF <em>e</em> envia por e-mail viola:</p>
+      <button class="ah-quiz-opt">Aberto/Fechado</button>
+      <button class="ah-quiz-opt">Responsabilidade Única (SRP)</button>
+      <button class="ah-quiz-opt">Inversão de Dependência</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Três motivos independentes para a classe mudar: regra de cálculo, layout do PDF e servidor de e-mail.
+        Cada um pertence a um “ator” diferente da organização — e é esse o critério do SRP.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Adicionar uma forma de pagamento exige alterar um <code>switch</code> existente. Isso viola:</p>
+      <button class="ah-quiz-opt">Segregação de Interfaces</button>
+      <button class="ah-quiz-opt">Substituição de Liskov</button>
+      <button class="ah-quiz-opt">Aberto/Fechado (OCP)</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Estender o comportamento deveria significar <em>acrescentar</em> uma classe, não <em>editar</em>
+        código já testado. A solução é polimorfismo: uma interface e uma implementação por forma de pagamento.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. <code>Quadrado extends Retangulo</code> quebra código que esperava alterar largura e altura de forma independente. Isso viola:</p>
+      <button class="ah-quiz-opt">Substituição de Liskov (LSP)</button>
+      <button class="ah-quiz-opt">Responsabilidade Única</button>
+      <button class="ah-quiz-opt">Inversão de Dependência</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O exemplo clássico: em matemática, quadrado é um retângulo; em código, ele <em>não</em> se comporta
+        como um. LSP lembra que herança é sobre <b>comportamento substituível</b>, não sobre semelhança
+        conceitual.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. Uma interface <code>Funcionario</code> com 12 métodos obriga <code>Estagiario</code> a implementar <code>aprovarFerias()</code> lançando exceção. Isso viola:</p>
+      <button class="ah-quiz-opt">Aberto/Fechado</button>
+      <button class="ah-quiz-opt">Segregação de Interfaces (ISP)</button>
+      <button class="ah-quiz-opt">Responsabilidade Única</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Métodos implementados como <code>throw new UnsupportedOperationException()</code> são o sintoma
+        clássico: a interface é grande demais e deveria ser quebrada em contratos menores e coesos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">5. Um serviço que faz <code>new MySQLRepositorio()</code> dentro de si mesmo viola:</p>
+      <button class="ah-quiz-opt">Substituição de Liskov</button>
+      <button class="ah-quiz-opt">Segregação de Interfaces</button>
+      <button class="ah-quiz-opt">Inversão de Dependência (DIP)</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A regra de negócio passa a depender de um detalhe de infraestrutura — e vira impossível testá-la sem
+        um banco de verdade. A correção é receber a abstração <code>Repositorio</code> pelo construtor.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+(function solid() {
+  const P = [
+    {
+      s: 'S', n: 'Responsabilidade Única', en: 'Single Responsibility Principle',
+      def: 'Uma classe deve ter <b>uma única razão para mudar</b> — ou seja, responder a um único ator da organização.',
+      cheiro: 'A classe tem <code>e</code> no nome ou na descrição ("calcula <b>e</b> imprime"); muitos <code>import</code> de áreas diferentes; um teste precisa de banco, rede e sistema de arquivos ao mesmo tempo.',
+      svg: `<rect x="20" y="20" width="120" height="50" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.8"/>
+        <text x="80" y="42" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter, sans-serif" fill="#fff">Relatorio</text>
+        <text x="80" y="58" text-anchor="middle" font-size="8" font-family="Fira Code, monospace" fill="#f87171">calcula+pdf+email</text>
+        <text x="160" y="50" font-size="16" fill="#64748b">→</text>
+        <rect x="185" y="8" width="120" height="30" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.6"/>
+        <text x="245" y="27" text-anchor="middle" font-size="10" font-weight="700" font-family="Inter, sans-serif" fill="#fff">CalculadoraVendas</text>
+        <rect x="185" y="48" width="120" height="30" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.6"/>
+        <text x="245" y="67" text-anchor="middle" font-size="10" font-weight="700" font-family="Inter, sans-serif" fill="#fff">GeradorPdf</text>
+        <rect x="185" y="88" width="120" height="30" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.6"/>
+        <text x="245" y="107" text-anchor="middle" font-size="10" font-weight="700" font-family="Inter, sans-serif" fill="#fff">EnviadorEmail</text>
+        <text x="160" y="150" text-anchor="middle" font-size="9" font-family="Inter, sans-serif" fill="#64748b">uma classe → três responsabilidades separadas</text>`,
+      ruim: `<span class="kw">public class</span> <span class="ty">RelatorioVendas</span> {
+
+    <span class="cm">// razão 1: muda se a regra de negócio mudar</span>
+    <span class="kw">public double</span> <span class="fn">calcularTotal</span>(<span class="ty">List</span>&lt;<span class="ty">Venda</span>&gt; vendas) {
+        <span class="kw">return</span> vendas.<span class="fn">stream</span>()
+            .<span class="fn">mapToDouble</span>(<span class="ty">Venda</span>::valor).<span class="fn">sum</span>();
+    }
+
+    <span class="cm">// razão 2: muda se o layout do PDF mudar</span>
+    <span class="kw">public byte</span>[] <span class="fn">gerarPdf</span>() {
+        <span class="ty">PdfWriter</span> w = <span class="kw">new</span> <span class="ty">PdfWriter</span>();
+        w.<span class="fn">titulo</span>(<span class="str">"Relatório de Vendas"</span>);
+        w.<span class="fn">tabela</span>(dados);
+        <span class="kw">return</span> w.<span class="fn">bytes</span>();
+    }
+
+    <span class="cm">// razão 3: muda se o servidor SMTP mudar</span>
+    <span class="kw">public void</span> <span class="fn">enviarPorEmail</span>(<span class="ty">String</span> destino) {
+        <span class="ty">Session</span> s = <span class="ty">Session</span>.<span class="fn">getInstance</span>(props);
+        <span class="ty">Transport</span>.<span class="fn">send</span>(<span class="fn">montarMensagem</span>(s, destino));
+    }
+}
+
+<span class="cm">// Três times diferentes mexem no mesmo arquivo.
+// Conflito de merge garantido, e um teste dessa
+// classe precisa de PDF e servidor de e-mail.</span>`,
+      bom: `<span class="cm">// cada classe responde a um ator diferente</span>
+
+<span class="kw">public class</span> <span class="ty">CalculadoraVendas</span> {
+    <span class="kw">public double</span> <span class="fn">calcularTotal</span>(<span class="ty">List</span>&lt;<span class="ty">Venda</span>&gt; vendas) {
+        <span class="kw">return</span> vendas.<span class="fn">stream</span>()
+            .<span class="fn">mapToDouble</span>(<span class="ty">Venda</span>::valor).<span class="fn">sum</span>();
+    }
+}
+
+<span class="kw">public class</span> <span class="ty">GeradorPdfRelatorio</span> {
+    <span class="kw">public byte</span>[] <span class="fn">gerar</span>(<span class="ty">DadosRelatorio</span> dados) { … }
+}
+
+<span class="kw">public class</span> <span class="ty">EnviadorEmail</span> {
+    <span class="kw">public void</span> <span class="fn">enviar</span>(<span class="ty">String</span> destino, <span class="ty">byte</span>[] anexo) { … }
+}
+
+<span class="cm">// orquestração fica em um só lugar</span>
+<span class="kw">public class</span> <span class="ty">EnvioRelatorioService</span> {
+    <span class="kw">public void</span> <span class="fn">executar</span>(<span class="ty">String</span> destino) {
+        <span class="kw">var</span> dados = calculadora.<span class="fn">calcular</span>(vendas);
+        <span class="kw">var</span> pdf = gerador.<span class="fn">gerar</span>(dados);
+        enviador.<span class="fn">enviar</span>(destino, pdf);
+    }
+}
+
+<span class="cm">// Agora a regra de cálculo se testa sem PDF nenhum.</span>`
+    },
+    {
+      s: 'O', n: 'Aberto/Fechado', en: 'Open/Closed Principle',
+      def: 'Entidades devem estar <b>abertas para extensão</b> e <b>fechadas para modificação</b>: acrescentar comportamento não deveria exigir editar código já testado.',
+      cheiro: 'Um <code>switch</code> ou cadeia de <code>if/else if</code> sobre um "tipo"; toda funcionalidade nova obriga a abrir o mesmo arquivo.',
+      svg: `<rect x="100" y="12" width="130" height="32" rx="7" fill="#1e293b" stroke="#38bdf8" stroke-width="1.7"/>
+        <text x="165" y="26" text-anchor="middle" font-size="8.5" font-family="Fira Code, monospace" fill="#38bdf8">«interface»</text>
+        <text x="165" y="38" text-anchor="middle" font-size="10.5" font-weight="700" font-family="Inter, sans-serif" fill="#fff">Desconto</text>
+        ${['Nenhum', 'Black Friday', 'Cupom'].map((n, i) => `
+          <rect x="${15 + i * 105}" y="100" width="95" height="30" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="${62 + i * 105}" y="119" text-anchor="middle" font-size="9.5" font-weight="600" font-family="Inter, sans-serif" fill="#fff">${n}</text>
+          <path d="M${62 + i * 105},100 L${62 + i * 105},72 L165,72 L165,52" fill="none" stroke="#38bdf8" stroke-width="1.3" stroke-dasharray="5 3"/>`).join('')}
+        <polygon points="165,44 158,56 172,56" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+        <text x="165" y="152" text-anchor="middle" font-size="9" font-family="Inter, sans-serif" fill="#64748b">uma classe nova não altera nenhuma existente</text>`,
+      ruim: `<span class="kw">public class</span> <span class="ty">CalculadoraDesconto</span> {
+
+    <span class="kw">public double</span> <span class="fn">calcular</span>(<span class="ty">Pedido</span> p, <span class="ty">String</span> tipo) {
+        <span class="kw">switch</span> (tipo) {
+            <span class="kw">case</span> <span class="str">"NENHUM"</span>:
+                <span class="kw">return</span> <span class="num">0</span>;
+            <span class="kw">case</span> <span class="str">"BLACK_FRIDAY"</span>:
+                <span class="kw">return</span> p.<span class="fn">getTotal</span>() * <span class="num">0.30</span>;
+            <span class="kw">case</span> <span class="str">"CUPOM"</span>:
+                <span class="kw">return</span> p.<span class="fn">getTotal</span>() * <span class="num">0.10</span>;
+            <span class="cm">// ↓ e aqui você volta TODA semana</span>
+            <span class="kw">default</span>:
+                <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(tipo);
+        }
+    }
+}
+
+<span class="cm">// Cada campanha nova:
+//  · edita uma classe já testada
+//  · exige reteste de tudo
+//  · arrisca quebrar o que funcionava</span>`,
+      bom: `<span class="kw">public interface</span> <span class="ty">PoliticaDesconto</span> {
+    <span class="ty">double</span> <span class="fn">calcular</span>(<span class="ty">Pedido</span> p);
+}
+
+<span class="kw">public class</span> <span class="ty">SemDesconto</span> <span class="kw">implements</span> <span class="ty">PoliticaDesconto</span> {
+    <span class="kw">public double</span> <span class="fn">calcular</span>(<span class="ty">Pedido</span> p) { <span class="kw">return</span> <span class="num">0</span>; }
+}
+
+<span class="kw">public class</span> <span class="ty">DescontoBlackFriday</span> <span class="kw">implements</span> <span class="ty">PoliticaDesconto</span> {
+    <span class="kw">public double</span> <span class="fn">calcular</span>(<span class="ty">Pedido</span> p) {
+        <span class="kw">return</span> p.<span class="fn">getTotal</span>() * <span class="num">0.30</span>;
+    }
+}
+
+<span class="cm">// campanha nova = arquivo novo, nada é editado</span>
+<span class="kw">public class</span> <span class="ty">DescontoAniversario</span> <span class="kw">implements</span> <span class="ty">PoliticaDesconto</span> {
+    <span class="kw">public double</span> <span class="fn">calcular</span>(<span class="ty">Pedido</span> p) {
+        <span class="kw">return</span> p.<span class="fn">getCliente</span>().<span class="fn">fazAniversario</span>()
+             ? p.<span class="fn">getTotal</span>() * <span class="num">0.15</span> : <span class="num">0</span>;
+    }
+}
+
+<span class="kw">public class</span> <span class="ty">Checkout</span> {
+    <span class="kw">private final</span> <span class="ty">PoliticaDesconto</span> politica;   <span class="cm">// injetada</span>
+
+    <span class="kw">public double</span> <span class="fn">total</span>(<span class="ty">Pedido</span> p) {
+        <span class="kw">return</span> p.<span class="fn">getTotal</span>() - politica.<span class="fn">calcular</span>(p);
+    }
+}`
+    },
+    {
+      s: 'L', n: 'Substituição de Liskov', en: 'Liskov Substitution Principle',
+      def: 'Onde se espera um objeto do tipo base, <b>qualquer subtipo</b> deve funcionar sem surpresas para quem chama.',
+      cheiro: 'Métodos herdados que lançam <code>UnsupportedOperationException</code>; código cliente fazendo <code>if (obj instanceof Subtipo)</code>; sobrescritas que enfraquecem garantias do pai.',
+      svg: `<rect x="90" y="14" width="140" height="34" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.7"/>
+        <text x="160" y="36" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter, sans-serif" fill="#fff">Retangulo</text>
+        <rect x="90" y="96" width="140" height="34" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.7"/>
+        <text x="160" y="118" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter, sans-serif" fill="#fff">Quadrado</text>
+        <line x1="160" y1="96" x2="160" y2="66" stroke="#ef4444" stroke-width="1.7"/>
+        <polygon points="160,48 151,66 169,66" fill="#0f172a" stroke="#ef4444" stroke-width="1.7"/>
+        <text x="175" y="80" font-size="16" fill="#ef4444">✗</text>
+        <text x="160" y="155" text-anchor="middle" font-size="9" font-family="Inter, sans-serif" fill="#64748b">“é um” em matemática ≠ “é substituível” em código</text>`,
+      ruim: `<span class="kw">public class</span> <span class="ty">Retangulo</span> {
+    <span class="kw">protected int</span> largura, altura;
+
+    <span class="kw">public void</span> <span class="fn">setLargura</span>(<span class="ty">int</span> l) { largura = l; }
+    <span class="kw">public void</span> <span class="fn">setAltura</span>(<span class="ty">int</span> a)  { altura = a; }
+    <span class="kw">public int</span> <span class="fn">area</span>() { <span class="kw">return</span> largura * altura; }
+}
+
+<span class="kw">public class</span> <span class="ty">Quadrado</span> <span class="kw">extends</span> <span class="ty">Retangulo</span> {
+    <span class="cm">@Override</span>
+    <span class="kw">public void</span> <span class="fn">setLargura</span>(<span class="ty">int</span> l) { largura = altura = l; }
+    <span class="cm">@Override</span>
+    <span class="kw">public void</span> <span class="fn">setAltura</span>(<span class="ty">int</span> a)  { largura = altura = a; }
+}
+
+<span class="cm">// o cliente confia no contrato do Retangulo:</span>
+<span class="kw">void</span> <span class="fn">testar</span>(<span class="ty">Retangulo</span> r) {
+    r.<span class="fn">setLargura</span>(<span class="num">5</span>);
+    r.<span class="fn">setAltura</span>(<span class="num">4</span>);
+    <span class="fn">assertEquals</span>(<span class="num">20</span>, r.<span class="fn">area</span>());  <span class="cm">// ✗ com Quadrado dá 16</span>
+}`,
+      bom: `<span class="cm">// Solução 1: não herdar. Modelar o que realmente são.</span>
+
+<span class="kw">public interface</span> <span class="ty">Forma</span> {
+    <span class="ty">int</span> <span class="fn">area</span>();
+}
+
+<span class="kw">public final class</span> <span class="ty">Retangulo</span> <span class="kw">implements</span> <span class="ty">Forma</span> {
+    <span class="kw">private final int</span> largura, altura;   <span class="cm">// imutável</span>
+
+    <span class="kw">public</span> <span class="fn">Retangulo</span>(<span class="ty">int</span> l, <span class="ty">int</span> a) {
+        largura = l; altura = a;
+    }
+    <span class="kw">public int</span> <span class="fn">area</span>() { <span class="kw">return</span> largura * altura; }
+}
+
+<span class="kw">public final class</span> <span class="ty">Quadrado</span> <span class="kw">implements</span> <span class="ty">Forma</span> {
+    <span class="kw">private final int</span> lado;
+
+    <span class="kw">public</span> <span class="fn">Quadrado</span>(<span class="ty">int</span> lado) { <span class="kw">this</span>.lado = lado; }
+    <span class="kw">public int</span> <span class="fn">area</span>() { <span class="kw">return</span> lado * lado; }
+}
+
+<span class="cm">// Sem setters, não há contrato a violar.
+// Objetos imutáveis satisfazem LSP de graça.</span>`
+    },
+    {
+      s: 'I', n: 'Segregação de Interfaces', en: 'Interface Segregation Principle',
+      def: 'Nenhum cliente deve ser forçado a depender de métodos que <b>não usa</b>. Prefira várias interfaces pequenas e coesas a uma interface “faz-tudo”.',
+      cheiro: 'Implementações com métodos vazios ou lançando exceção; interfaces com mais de 5 ou 6 métodos; classes que implementam uma interface e usam metade dela.',
+      svg: `<rect x="95" y="10" width="130" height="30" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.6"/>
+        <text x="160" y="30" text-anchor="middle" font-size="10" font-weight="700" font-family="Inter, sans-serif" fill="#fff">Funcionario (12 métodos)</text>
+        <text x="160" y="58" text-anchor="middle" font-size="14" fill="#64748b">↓ dividir ↓</text>
+        ${['Trabalhavel', 'Gerenciavel', 'Remuneravel'].map((n, i) => `
+          <rect x="${10 + i * 105}" y="78" width="95" height="28" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="${57 + i * 105}" y="96" text-anchor="middle" font-size="9" font-weight="600" font-family="Inter, sans-serif" fill="#fff">${n}</text>`).join('')}
+        <text x="160" y="135" text-anchor="middle" font-size="9" font-family="Inter, sans-serif" fill="#64748b">cada classe implementa só o que de fato faz</text>`,
+      ruim: `<span class="kw">public interface</span> <span class="ty">Funcionario</span> {
+    <span class="kw">void</span> <span class="fn">trabalhar</span>();
+    <span class="kw">void</span> <span class="fn">registrarPonto</span>();
+    <span class="ty">double</span> <span class="fn">calcularSalario</span>();
+    <span class="kw">void</span> <span class="fn">aprovarFerias</span>(<span class="ty">Funcionario</span> f);
+    <span class="kw">void</span> <span class="fn">definirMetas</span>(<span class="ty">Equipe</span> e);
+    <span class="kw">void</span> <span class="fn">avaliarDesempenho</span>(<span class="ty">Funcionario</span> f);
+}
+
+<span class="kw">public class</span> <span class="ty">Estagiario</span> <span class="kw">implements</span> <span class="ty">Funcionario</span> {
+    <span class="kw">public void</span> <span class="fn">trabalhar</span>() { … }
+    <span class="kw">public void</span> <span class="fn">registrarPonto</span>() { … }
+    <span class="kw">public double</span> <span class="fn">calcularSalario</span>() { … }
+
+    <span class="cm">// e agora o constrangimento:</span>
+    <span class="kw">public void</span> <span class="fn">aprovarFerias</span>(<span class="ty">Funcionario</span> f) {
+        <span class="kw">throw new</span> <span class="ty">UnsupportedOperationException</span>();
+    }
+    <span class="kw">public void</span> <span class="fn">definirMetas</span>(<span class="ty">Equipe</span> e) {
+        <span class="kw">throw new</span> <span class="ty">UnsupportedOperationException</span>();
+    }
+    <span class="kw">public void</span> <span class="fn">avaliarDesempenho</span>(<span class="ty">Funcionario</span> f) { }  <span class="cm">// vazio</span>
+}`,
+      bom: `<span class="kw">public interface</span> <span class="ty">Trabalhavel</span> {
+    <span class="kw">void</span> <span class="fn">trabalhar</span>();
+    <span class="kw">void</span> <span class="fn">registrarPonto</span>();
+}
+
+<span class="kw">public interface</span> <span class="ty">Remuneravel</span> {
+    <span class="ty">double</span> <span class="fn">calcularSalario</span>();
+}
+
+<span class="kw">public interface</span> <span class="ty">Gestor</span> {
+    <span class="kw">void</span> <span class="fn">aprovarFerias</span>(<span class="ty">Funcionario</span> f);
+    <span class="kw">void</span> <span class="fn">definirMetas</span>(<span class="ty">Equipe</span> e);
+    <span class="kw">void</span> <span class="fn">avaliarDesempenho</span>(<span class="ty">Funcionario</span> f);
+}
+
+<span class="cm">// implementa exatamente o que faz</span>
+<span class="kw">public class</span> <span class="ty">Estagiario</span>
+        <span class="kw">implements</span> <span class="ty">Trabalhavel</span>, <span class="ty">Remuneravel</span> { … }
+
+<span class="kw">public class</span> <span class="ty">Gerente</span>
+        <span class="kw">implements</span> <span class="ty">Trabalhavel</span>, <span class="ty">Remuneravel</span>, <span class="ty">Gestor</span> { … }
+
+<span class="cm">// e o cliente pede só o que precisa:</span>
+<span class="kw">void</span> <span class="fn">processarFolha</span>(<span class="ty">List</span>&lt;<span class="ty">Remuneravel</span>&gt; pessoas) { … }`
+    },
+    {
+      s: 'D', n: 'Inversão de Dependência', en: 'Dependency Inversion Principle',
+      def: 'Módulos de alto nível não devem depender de módulos de baixo nível: <b>ambos dependem de abstrações</b>. E a abstração pertence a quem a <em>usa</em>, não a quem a implementa.',
+      cheiro: '<code>new</code> de classes de infraestrutura dentro da regra de negócio; testes que exigem banco, rede ou disco; o pacote de domínio importando driver de banco.',
+      svg: `<rect x="95" y="10" width="130" height="30" rx="7" fill="#1e293b" stroke="#a855f7" stroke-width="1.7"/>
+        <text x="160" y="30" text-anchor="middle" font-size="10.5" font-weight="700" font-family="Inter, sans-serif" fill="#fff">PedidoService</text>
+        <rect x="95" y="66" width="130" height="30" rx="7" fill="#1e293b" stroke="#38bdf8" stroke-width="1.7"/>
+        <text x="160" y="86" text-anchor="middle" font-size="10" font-weight="700" font-family="Inter, sans-serif" fill="#fff">«interface» Repositorio</text>
+        <line x1="160" y1="40" x2="160" y2="58" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <polyline points="154,52 160,58 166,52" fill="none" stroke="#a855f7" stroke-width="1.5"/>
+        ${['MySQLRepo', 'MemoriaRepo'].map((n, i) => `
+          <rect x="${25 + i * 150}" y="122" width="120" height="28" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="${85 + i * 150}" y="140" text-anchor="middle" font-size="9.5" font-weight="600" font-family="Inter, sans-serif" fill="#fff">${n}</text>
+          <path d="M${85 + i * 150},122 L${85 + i * 150},108 L160,108 L160,100" fill="none" stroke="#10b981" stroke-width="1.3" stroke-dasharray="5 3"/>`).join('')}
+        <polygon points="160,96 153,108 167,108" fill="#0f172a" stroke="#10b981" stroke-width="1.4"/>`,
+      ruim: `<span class="kw">public class</span> <span class="ty">PedidoService</span> {
+
+    <span class="cm">// acopla a regra de negócio ao MySQL</span>
+    <span class="kw">private final</span> <span class="ty">MySQLPedidoRepositorio</span> repo =
+        <span class="kw">new</span> <span class="ty">MySQLPedidoRepositorio</span>();
+
+    <span class="kw">private final</span> <span class="ty">SmtpEmailSender</span> email =
+        <span class="kw">new</span> <span class="ty">SmtpEmailSender</span>(<span class="str">"smtp.empresa.com"</span>);
+
+    <span class="kw">public void</span> <span class="fn">finalizar</span>(<span class="ty">Pedido</span> p) {
+        p.<span class="fn">fechar</span>();
+        repo.<span class="fn">salvar</span>(p);
+        email.<span class="fn">enviar</span>(p.<span class="fn">getCliente</span>().<span class="fn">getEmail</span>(), <span class="str">"Pedido ok"</span>);
+    }
+}
+
+<span class="cm">// Consequências:
+//  · impossível testar sem MySQL e SMTP no ar
+//  · trocar de banco exige editar a regra de negócio
+//  · o pacote de domínio importa driver JDBC</span>`,
+      bom: `<span class="cm">// as abstrações vivem no pacote de DOMÍNIO,
+// junto de quem as usa</span>
+
+<span class="kw">public interface</span> <span class="ty">PedidoRepositorio</span> {
+    <span class="kw">void</span> <span class="fn">salvar</span>(<span class="ty">Pedido</span> p);
+}
+
+<span class="kw">public interface</span> <span class="ty">Notificador</span> {
+    <span class="kw">void</span> <span class="fn">notificar</span>(<span class="ty">String</span> destino, <span class="ty">String</span> msg);
+}
+
+<span class="kw">public class</span> <span class="ty">PedidoService</span> {
+    <span class="kw">private final</span> <span class="ty">PedidoRepositorio</span> repo;
+    <span class="kw">private final</span> <span class="ty">Notificador</span> notificador;
+
+    <span class="cm">// recebe as implementações de fora</span>
+    <span class="kw">public</span> <span class="fn">PedidoService</span>(<span class="ty">PedidoRepositorio</span> repo,
+                          <span class="ty">Notificador</span> notificador) {
+        <span class="kw">this</span>.repo = repo;
+        <span class="kw">this</span>.notificador = notificador;
+    }
+
+    <span class="kw">public void</span> <span class="fn">finalizar</span>(<span class="ty">Pedido</span> p) {
+        p.<span class="fn">fechar</span>();
+        repo.<span class="fn">salvar</span>(p);
+        notificador.<span class="fn">notificar</span>(p.<span class="fn">getCliente</span>().<span class="fn">getEmail</span>(), <span class="str">"Pedido ok"</span>);
+    }
+}
+
+<span class="cm">// em produção</span>
+<span class="kw">new</span> <span class="ty">PedidoService</span>(<span class="kw">new</span> <span class="ty">MySQLPedidoRepositorio</span>(), <span class="kw">new</span> <span class="ty">SmtpSender</span>());
+
+<span class="cm">// no teste — sem banco, sem rede, em milissegundos</span>
+<span class="kw">new</span> <span class="ty">PedidoService</span>(<span class="kw">new</span> <span class="ty">RepositorioEmMemoria</span>(), <span class="kw">new</span> <span class="ty">NotificadorFake</span>());`
+    }
+  ];
+
+  let sel = 0;
+  const btns = document.getElementById('sol-btns');
+  btns.innerHTML = P.map((p, i) =>
+    `<button class="ah-chip ${i === 0 ? 'active' : ''}" data-p="${i}">
+      <span class="font-mono font-bold mr-1.5 text-base">${p.s}</span>${p.n}</button>`).join('');
+
+  function pinta() {
+    const p = P[sel];
+    document.getElementById('sol-card').innerHTML = `
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center
+                    text-xl font-bold font-mono">${p.s}</div>
+        <div>
+          <h3 class="ah-h3 text-sm">${p.n}</h3>
+          <p class="text-[10px] text-slate-500 font-mono">${p.en}</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed">${p.def}</p>`;
+    document.getElementById('sol-cheiro').innerHTML = p.cheiro;
+    document.getElementById('sol-svg').innerHTML = p.svg;
+    document.getElementById('sol-ruim').innerHTML = p.ruim;
+    document.getElementById('sol-bom').innerHTML = p.bom;
+  }
+
+  btns.addEventListener('click', e => {
+    const b = e.target.closest('[data-p]');
+    if (!b) return;
+    sel = +b.getAttribute('data-p');
+    btns.querySelectorAll('.ah-chip').forEach(c => c.classList.toggle('active', c === b));
+    pinta();
+  });
+  pinta();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

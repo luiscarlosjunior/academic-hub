@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introdução à Inteligência Artificial · AcademicHub</title>
+<meta name="description" content="O que é IA, a história do campo, agentes racionais, o teste de Turing e o mapa das subáreas.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/01-introducao-ia">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA CENTRAL ============================ -->
+<section id="ideia" data-toc="A ideia central" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-indigo-400 mr-2"></i>O que é Inteligência Artificial?</h2>
+  <div class="ah-prose">
+    <p>
+      Não existe uma definição única de IA — existem <strong>quatro</strong>, e elas discordam entre si em dois eixos:
+      a IA deve <strong>pensar</strong> ou apenas <strong>agir</strong>? E deve imitar o <strong>ser humano</strong>
+      ou buscar o comportamento <strong>racional</strong> (fazer a coisa certa)?
+    </p>
+    <p>
+      Russell &amp; Norvig organizam o campo nesses quatro quadrantes. Clique em cada um para ver o que ele implica
+      na prática — e por que a IA moderna mora quase toda no canto de baixo à direita.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6" id="quadrantes"></div>
+
+  <div id="quad-detalhe" class="mt-4 ah-callout ah-callout-info">
+    <i class="fa-solid fa-hand-pointer"></i>
+    <div>Selecione um dos quatro quadrantes acima para ver a definição, o critério de sucesso e um exemplo concreto.</div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-4">
+    <i class="fa-solid fa-key"></i>
+    <div>
+      <strong>Definição operacional da disciplina:</strong> IA é o estudo de <em>agentes</em> que percebem um ambiente
+      e agem sobre ele para maximizar a chance de atingir um objetivo. Tudo o que veremos — busca, lógica,
+      aprendizado, otimização bioinspirada — é uma forma diferente de decidir <em>qual ação tomar</em>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ AGENTE RACIONAL =========================== -->
+<section id="agente" data-toc="Agente racional (simulador)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-robot text-indigo-400 mr-2"></i>O agente racional em ação</h2>
+  <p class="ah-lead text-sm mb-5">
+    O <strong class="text-white">mundo do aspirador</strong> é o exemplo mais simples de agente que existe —
+    e já contém tudo: percepção, estado, função de ação e medida de desempenho.
+    O ambiente tem dois cômodos (A e B), cada um limpo ou sujo. O agente percebe <em>apenas</em>
+    onde está e se o local atual está sujo.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:280px">
+        <canvas id="vacCanvas" style="height:280px"></canvas>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="vac-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Iniciar</button>
+        <button id="vac-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> 1 passo</button>
+        <button id="vac-dirt" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-broom"></i> Sujar tudo</button>
+        <button id="vac-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+        <span class="text-xs text-slate-500 ml-auto">Dica: clique em um cômodo para sujar/limpar</span>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Percepção atual</h3>
+        <div class="font-mono text-sm bg-slate-950 rounded-lg p-3 border border-slate-800">
+          <div>local  = <span id="vac-loc" class="text-indigo-300">A</span></div>
+          <div>estado = <span id="vac-est" class="text-amber-300">Sujo</span></div>
+        </div>
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mt-4 mb-2">Regra disparada</h3>
+        <div id="vac-regra" class="text-xs font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg p-2.5 leading-relaxed">
+          se Sujo → Aspirar
+        </div>
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mt-4 mb-2">Desempenho</h3>
+        <div class="grid grid-cols-2 gap-2 text-center">
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="vac-limpos" class="text-lg font-bold text-emerald-400">0</div>
+            <div class="text-[10px] text-slate-500">quadrados limpos</div>
+          </div>
+          <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+            <div id="vac-passos" class="text-lg font-bold text-white">0</div>
+            <div class="text-[10px] text-slate-500">passos</div>
+          </div>
+        </div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Função do agente</h3>
+        <pre class="ah-code text-[11px]"><span class="kw">se</span> estado == <span class="str">Sujo</span>:
+    <span class="kw">retorne</span> Aspirar
+<span class="kw">senão se</span> local == <span class="str">A</span>:
+    <span class="kw">retorne</span> Direita
+<span class="kw">senão</span>:
+    <span class="kw">retorne</span> Esquerda</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Este agente é racional?</strong> Depende da medida de desempenho. Se contarmos só “quadrados limpos por
+      passo”, sim. Mas se <em>movimentar-se custa energia</em>, ele é irracional: continua andando de um lado para
+      o outro mesmo com tudo limpo, porque não tem memória do que já viu. Trocar a medida de desempenho muda
+      qual comportamento é o correto — por isso ela faz parte da definição do problema, não do agente.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PEAS ============================ -->
+<section id="peas" data-toc="Descrevendo o ambiente (PEAS)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clipboard-list text-indigo-400 mr-2"></i>PEAS: como especificar um problema de IA</h2>
+  <p class="ah-lead text-sm mb-5">
+    Antes de escolher o algoritmo, descreva o <strong class="text-white">PEAS</strong>:
+    <em>Performance</em> (medida de desempenho), <em>Environment</em> (ambiente),
+    <em>Actuators</em> (atuadores) e <em>Sensors</em> (sensores). Sem isso, qualquer algoritmo é um chute.
+  </p>
+
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Agente</th><th>Desempenho</th><th>Ambiente</th><th>Atuadores</th><th>Sensores</th></tr></thead>
+      <tbody>
+        <tr><td>Táxi autônomo</td><td>Segurança, tempo, conforto, custo</td><td>Ruas, trânsito, pedestres, clima</td><td>Volante, acelerador, freio, seta</td><td>Câmeras, LIDAR, GPS, odômetro</td></tr>
+        <tr><td>Diagnóstico médico</td><td>Acerto do diagnóstico, custo de exames</td><td>Paciente, hospital, prontuário</td><td>Perguntas, pedidos de exame, laudo</td><td>Sintomas, respostas, exames</td></tr>
+        <tr><td>Filtro de spam</td><td>% de spam bloqueado × falsos positivos</td><td>Caixa de entrada, remetentes</td><td>Mover para lixeira, marcar</td><td>Texto, cabeçalhos, histórico</td></tr>
+        <tr><td>Jogador de xadrez</td><td>Vitórias, empates</td><td>Tabuleiro, adversário, relógio</td><td>Mover peça</td><td>Posição das peças, tempo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-7 mb-3">Propriedades do ambiente</h3>
+  <p class="text-sm text-slate-400 mb-4">Cada eixo abaixo muda radicalmente a dificuldade do problema. Passe o mouse para ver exemplos.</p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" id="props-ambiente"></div>
+</section>
+
+<!-- ============================ TIPOS DE AGENTE ============================ -->
+<section id="tipos" data-toc="Os 5 tipos de agente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-indigo-400 mr-2"></i>Cinco arquiteturas de agente</h2>
+  <p class="ah-lead text-sm mb-6">Da mais simples à mais poderosa. Cada nível adiciona uma capacidade que o anterior não tinha.</p>
+
+  <div class="space-y-3" id="tipos-agente"></div>
+</section>
+
+<!-- ============================ HISTÓRIA ============================ -->
+<section id="historia" data-toc="Linha do tempo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-6"><i class="fa-solid fa-clock-rotate-left text-indigo-400 mr-2"></i>Setenta anos em uma linha</h2>
+  <div class="ah-timeline" id="timeline"></div>
+</section>
+
+<!-- ============================ TURING ============================ -->
+<section id="turing" data-toc="Teste de Turing" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-comments text-indigo-400 mr-2"></i>O Teste de Turing e o Quarto Chinês</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#6366f1">
+      <h3 class="ah-h3 mb-2">Teste de Turing (1950)</h3>
+      <div class="ah-prose text-sm">
+        <p>Um juiz humano conversa por texto com dois interlocutores ocultos: uma pessoa e uma máquina.
+        Se ele não conseguir distinguir quem é quem de forma consistente, a máquina <em>passou</em>.</p>
+        <p>Turing propôs trocar a pergunta metafísica “máquinas podem pensar?” por uma pergunta
+        <strong>operacional</strong>: “máquinas podem se comportar de modo indistinguível de quem pensa?”.</p>
+        <ul>
+          <li>Exige PLN, representação de conhecimento, raciocínio e aprendizado.</li>
+          <li>A versão <em>total</em> acrescenta visão computacional e robótica.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#a855f7">
+      <h3 class="ah-h3 mb-2">Quarto Chinês (Searle, 1980)</h3>
+      <div class="ah-prose text-sm">
+        <p>Uma pessoa trancada em uma sala recebe bilhetes em chinês e responde consultando um manual de regras,
+        sem entender uma palavra. De fora, parece fluente em chinês.</p>
+        <p>A crítica: manipular símbolos corretamente (<strong>sintaxe</strong>) não é o mesmo que compreender
+        (<strong>semântica</strong>). É o argumento central contra a <em>IA forte</em>.</p>
+        <ul>
+          <li><strong>IA fraca:</strong> a máquina <em>simula</em> inteligência — é o que fazemos hoje.</li>
+          <li><strong>IA forte:</strong> a máquina teria mente e consciência — hipótese em aberto.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MAPA DA DISCIPLINA ============================ -->
+<section id="mapa" data-toc="Mapa da disciplina" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-map text-indigo-400 mr-2"></i>Para onde vamos a partir daqui</h2>
+  <p class="ah-lead text-sm mb-6">Cada caixa abaixo é um tópico desta disciplina. As setas mostram o que depende do quê.</p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="mapa-grid"></div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas rápidas. A explicação aparece assim que você responde.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. A medida de desempenho de um agente deve ser definida por quem?</p>
+      <button class="ah-quiz-opt">Pelo próprio agente, que aprende o que é bom para si</button>
+      <button class="ah-quiz-opt">Pelo algoritmo de busca escolhido</button>
+      <button class="ah-quiz-opt">Pelo projetista, com base no efeito desejado <strong>no ambiente</strong></button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A medida de desempenho avalia a <strong>sequência de estados do ambiente</strong>, não o estado interno do agente.
+        Se deixarmos o agente definir o próprio critério, ele pode “trapacear” — o aspirador poderia jogar sujeira no chão
+        só para limpá-la de novo e somar pontos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Um agente de <em>reflexo simples</em> falha justamente por quê?</p>
+      <button class="ah-quiz-opt">Porque não consegue executar ações no ambiente</button>
+      <button class="ah-quiz-opt">Porque decide só com a percepção atual, sem memória do passado</button>
+      <button class="ah-quiz-opt">Porque precisa de um modelo probabilístico do mundo</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Em ambientes <strong>parcialmente observáveis</strong>, a percepção atual é insuficiente. Sem estado interno,
+        o agente fica preso em laços infinitos — exatamente o que acontece com o aspirador quando tudo já está limpo.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. O argumento do Quarto Chinês ataca qual tese?</p>
+      <button class="ah-quiz-opt">A de que executar o programa certo <strong>é suficiente</strong> para ter mente (IA forte)</button>
+      <button class="ah-quiz-opt">A de que computadores podem processar linguagem natural</button>
+      <button class="ah-quiz-opt">A de que o teste de Turing é fácil de aplicar</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Searle não nega que a máquina <em>se comporte</em> de forma inteligente; ele nega que esse comportamento
+        implique <strong>compreensão</strong>. É um ataque à IA forte, não à IA fraca — que é a que praticamos.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Quadrantes da definição de IA ===================== */
+const QUADS = [
+  { t: 'Sistemas que pensam como humanos', s: 'Abordagem cognitiva', i: 'fa-brain', c: '#38bdf8',
+    d: 'Busca reproduzir o <strong>processo mental</strong> humano. O critério de sucesso é a semelhança com dados de psicologia cognitiva e neurociência — não apenas com o resultado final.',
+    ex: 'Modelos cognitivos como o GPS (General Problem Solver) de Newell &amp; Simon, que comparava seus passos com o raciocínio verbalizado por pessoas.' },
+  { t: 'Sistemas que pensam racionalmente', s: 'Leis do pensamento', i: 'fa-square-root-variable', c: '#a855f7',
+    d: 'Raciocínio correto segundo a <strong>lógica</strong>: dos silogismos de Aristóteles aos provadores automáticos de teoremas. O critério é a validade da inferência.',
+    ex: 'Prolog, provadores de teoremas e sistemas baseados em lógica de primeira ordem. Esbarra em dois problemas: nem todo conhecimento é formalizável, e resolver logicamente pode ser inviável computacionalmente.' },
+  { t: 'Sistemas que agem como humanos', s: 'Teste de Turing', i: 'fa-masks-theater', c: '#f59e0b',
+    d: 'O foco sai do processo e vai para o <strong>comportamento externo</strong>: se é indistinguível de um humano, conta como inteligente.',
+    ex: 'Chatbots e assistentes conversacionais. Curiosamente, imitar humanos inclui imitar nossos <em>erros</em> — o que raramente é desejável em engenharia.' },
+  { t: 'Sistemas que agem racionalmente', s: 'Agente racional — a abordagem desta disciplina', i: 'fa-robot', c: '#10b981',
+    d: 'O agente escolhe a ação que <strong>maximiza o desempenho esperado</strong>, dada a informação disponível. É mais geral que a lógica (funciona sob incerteza) e mais científico que imitar humanos (o critério é matemático).',
+    ex: 'Praticamente toda a IA moderna: busca A*, aprendizado por reforço, redes neurais, sistemas de recomendação. É o fio condutor de todos os próximos tópicos.' }
+];
+
+const qg = document.getElementById('quadrantes');
+qg.innerHTML = QUADS.map((q, i) => `
+  <button data-q="${i}" class="ah-card ah-card-hover p-4 text-left transition"
+          style="border-top:3px solid ${q.c}">
+    <div class="flex items-center gap-3">
+      <i class="fa-solid ${q.i} text-lg" style="color:${q.c}"></i>
+      <div>
+        <div class="text-sm font-bold text-white leading-snug">${q.t}</div>
+        <div class="text-[11px] text-slate-400">${q.s}</div>
+      </div>
+    </div>
+  </button>`).join('');
+
+qg.addEventListener('click', e => {
+  const b = e.target.closest('[data-q]');
+  if (!b) return;
+  const q = QUADS[+b.getAttribute('data-q')];
+  qg.querySelectorAll('[data-q]').forEach(x => x.style.background = '');
+  b.style.background = 'rgba(99,102,241,.12)';
+  const box = document.getElementById('quad-detalhe');
+  box.className = 'mt-4 ah-callout ah-callout-tip';
+  box.innerHTML = `<i class="fa-solid ${q.i}" style="color:${q.c}"></i>
+    <div><div class="font-semibold text-white mb-1">${q.t}</div>
+    <p class="mb-2">${q.d}</p>
+    <p class="text-slate-400 text-xs"><strong class="text-slate-300">Exemplo:</strong> ${q.ex}</p></div>`;
+});
+
+/* ===================== Mundo do aspirador ===================== */
+(function vacuum() {
+  const cv = AH.canvas('vacCanvas', draw);
+  let dirt = [true, true];      // A, B
+  let pos = 0;                  // 0 = A, 1 = B
+  let anim = 0;                 // posição interpolada
+  let alvo = 0;
+  let passos = 0, limpos = 0;
+  let acao = 'Aspirar';
+  let playing = false, acc = 0;
+
+  function roomRect(i, w, h) {
+    const pad = 24, gap = 16;
+    const rw = (w - pad * 2 - gap) / 2;
+    return { x: pad + i * (rw + gap), y: 42, w: rw, h: h - 90 };
+  }
+
+  function draw(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+
+    ['A', 'B'].forEach((nome, i) => {
+      const r = roomRect(i, w, h);
+      ctx.fillStyle = dirt[i] ? 'rgba(245,158,11,.10)' : 'rgba(16,185,129,.08)';
+      AH.roundRect(ctx, r.x, r.y, r.w, r.h, 14); ctx.fill();
+      ctx.strokeStyle = dirt[i] ? 'rgba(245,158,11,.45)' : 'rgba(16,185,129,.4)';
+      ctx.lineWidth = 1.5; ctx.stroke();
+
+      ctx.fillStyle = '#64748b'; ctx.font = '600 12px Inter, sans-serif';
+      ctx.fillText('Cômodo ' + nome, r.x + 12, r.y - 12);
+
+      ctx.fillStyle = dirt[i] ? '#fbbf24' : '#34d399';
+      ctx.font = '700 11px Fira Code, monospace';
+      ctx.fillText(dirt[i] ? 'SUJO' : 'LIMPO', r.x + r.w - 46, r.y - 12);
+
+      if (dirt[i]) {
+        for (let k = 0; k < 9; k++) {
+          const a = (k * 2.4) % 6.28;
+          const px = r.x + r.w / 2 + Math.cos(a) * (r.w / 3.4);
+          const py = r.y + r.h / 2 + Math.sin(a * 1.7) * (r.h / 3.6);
+          ctx.fillStyle = 'rgba(217,119,6,.55)';
+          ctx.beginPath(); ctx.arc(px, py, 3.2, 0, 6.29); ctx.fill();
+        }
+      }
+    });
+
+    /* agente */
+    const r0 = roomRect(0, w, h), r1 = roomRect(1, w, h);
+    const cx = AH.lerp(r0.x + r0.w / 2, r1.x + r1.w / 2, anim);
+    const cy = r0.y + r0.h / 2;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(99,102,241,.8)'; ctx.shadowBlur = 22;
+    ctx.fillStyle = '#6366f1';
+    ctx.beginPath(); ctx.arc(cx, cy, 24, 0, 6.29); ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#c7d2fe';
+    ctx.beginPath(); ctx.arc(cx - 8, cy - 5, 4, 0, 6.29); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 8, cy - 5, 4, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = '#c7d2fe'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy + 4, 8, 0.15, Math.PI - 0.15); ctx.stroke();
+
+    ctx.fillStyle = '#818cf8'; ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(acao, cx, cy + 46);
+    ctx.textAlign = 'left';
+  }
+
+  function painel() {
+    document.getElementById('vac-loc').textContent = pos === 0 ? 'A' : 'B';
+    document.getElementById('vac-est').textContent = dirt[pos] ? 'Sujo' : 'Limpo';
+    document.getElementById('vac-est').className = dirt[pos] ? 'text-amber-300' : 'text-emerald-300';
+    document.getElementById('vac-passos').textContent = passos;
+    document.getElementById('vac-limpos').textContent = limpos;
+    const regra = dirt[pos] ? 'se Sujo → Aspirar'
+      : (pos === 0 ? 'se local==A e Limpo → Direita' : 'se local==B e Limpo → Esquerda');
+    document.getElementById('vac-regra').textContent = regra;
+  }
+
+  function passo() {
+    passos++;
+    if (dirt[pos]) { dirt[pos] = false; limpos++; acao = 'Aspirar'; }
+    else if (pos === 0) { alvo = 1; acao = 'Direita'; }
+    else { alvo = 0; acao = 'Esquerda'; }
+    painel();
+  }
+
+  const loop = AH.loop(cv.el, dt => {
+    anim += (alvo - anim) * Math.min(dt * 6, 1);
+    if (Math.abs(alvo - anim) < 0.01) { anim = alvo; pos = alvo; }
+    if (playing) {
+      acc += dt;
+      if (acc > 0.9 && anim === alvo) { acc = 0; passo(); }
+    }
+    cv.draw(cv.ctx, cv.w, cv.h);
+  });
+  loop.start();
+
+  document.getElementById('vac-play').addEventListener('click', function () {
+    playing = !playing;
+    this.innerHTML = playing ? '<i class="fa-solid fa-pause"></i> Pausar' : '<i class="fa-solid fa-play"></i> Iniciar';
+    this.className = playing ? 'ah-btn' : 'ah-btn ah-btn-primary';
+  });
+  document.getElementById('vac-step').addEventListener('click', () => { if (anim === alvo) passo(); });
+  document.getElementById('vac-dirt').addEventListener('click', () => { dirt = [true, true]; painel(); });
+  document.getElementById('vac-reset').addEventListener('click', () => {
+    dirt = [true, true]; pos = 0; alvo = 0; anim = 0; passos = 0; limpos = 0; acao = 'Aspirar'; painel();
+  });
+  cv.el.addEventListener('click', e => {
+    const r = cv.el.getBoundingClientRect();
+    const i = (e.clientX - r.left) < r.width / 2 ? 0 : 1;
+    dirt[i] = !dirt[i]; painel();
+  });
+  painel();
+})();
+
+/* ===================== Propriedades do ambiente ===================== */
+const PROPS = [
+  ['Observável × Parcialmente observável', 'Os sensores dão acesso ao estado completo? Xadrez é observável; pôquer não.', 'fa-eye'],
+  ['Determinístico × Estocástico', 'A próxima situação é decidida pelo estado e pela ação, ou há acaso? Dirigir é estocástico.', 'fa-dice'],
+  ['Episódico × Sequencial', 'Cada decisão é independente (classificar uma foto) ou afeta o futuro (uma partida)?', 'fa-link'],
+  ['Estático × Dinâmico', 'O mundo muda enquanto o agente pensa? Um táxi sim; palavras-cruzadas não.', 'fa-hourglass-half'],
+  ['Discreto × Contínuo', 'Estados e ações são enumeráveis (xadrez) ou contínuos (ângulo do volante)?', 'fa-wave-square'],
+  ['Agente único × Multiagente', 'Há outros agentes cujos objetivos dependem dos seus? Competitivo ou cooperativo?', 'fa-users']
+];
+document.getElementById('props-ambiente').innerHTML = PROPS.map(p => `
+  <div class="ah-card ah-card-hover p-4">
+    <div class="flex items-center gap-2 mb-2">
+      <i class="fa-solid ${p[2]} text-indigo-400 text-sm"></i>
+      <h4 class="text-xs font-bold text-white">${p[0]}</h4>
+    </div>
+    <p class="text-xs text-slate-400 leading-relaxed">${p[1]}</p>
+  </div>`).join('');
+
+/* ===================== Tipos de agente ===================== */
+const TIPOS = [
+  ['Reflexo simples', 'Regras condição-ação sobre a percepção atual. Rápido e burro: sem memória, entra em laço em ambientes parcialmente observáveis.', 'fa-bolt', '#38bdf8', 'se sujo → aspirar'],
+  ['Reflexo baseado em modelo', 'Mantém um <em>estado interno</em> e um modelo de como o mundo evolui. Consegue agir mesmo sem enxergar tudo.', 'fa-database', '#6366f1', 'estado ← atualiza(estado, ação, percepção)'],
+  ['Baseado em objetivos', 'Além do estado, sabe <em>onde quer chegar</em>. Aqui entram busca e planejamento — os próximos dois tópicos.', 'fa-flag-checkered', '#a855f7', 'buscar caminho até o objetivo'],
+  ['Baseado em utilidade', 'Nem todo objetivo alcançado vale o mesmo. Uma função de utilidade compara estados e lida com trade-offs e incerteza.', 'fa-scale-balanced', '#f59e0b', 'maximizar U(estado) esperada'],
+  ['Com aprendizagem', 'Um crítico avalia o desempenho e um elemento de aprendizado ajusta os outros componentes. É a ponte para Machine Learning.', 'fa-brain', '#10b981', 'melhorar a política com experiência']
+];
+document.getElementById('tipos-agente').innerHTML = TIPOS.map((t, i) => `
+  <div class="ah-card p-4 flex items-start gap-4 ah-card-hover" style="border-left:3px solid ${t[3]}">
+    <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-sm"
+         style="background:${t[3]}22;color:${t[3]}"><i class="fa-solid ${t[2]}"></i></div>
+    <div class="flex-1">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-mono text-[10px] text-slate-500">nível ${i + 1}</span>
+        <h4 class="text-sm font-bold text-white">${t[0]}</h4>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed mt-1">${t[1]}</p>
+      <code class="text-[11px] text-emerald-300 mt-2 inline-block">${t[4]}</code>
+    </div>
+  </div>`).join('');
+
+/* ===================== Linha do tempo ===================== */
+const HIST = [
+  ['1943', 'McCulloch &amp; Pitts publicam o primeiro modelo matemático de neurônio artificial.'],
+  ['1950', 'Turing escreve <em>Computing Machinery and Intelligence</em> e propõe o jogo da imitação.'],
+  ['1956', 'Conferência de Dartmouth: John McCarthy cunha o termo “Inteligência Artificial”.'],
+  ['1957–69', 'Otimismo inicial: Perceptron, GPS, LISP. Minsky &amp; Papert mostram o limite do perceptron (XOR).'],
+  ['1974–80', '<strong>Primeiro inverno da IA</strong>: promessas não cumpridas, corte de financiamento.'],
+  ['1980–87', 'Era dos <strong>sistemas especialistas</strong> (MYCIN, XCON). A IA vira indústria.'],
+  ['1987–93', '<strong>Segundo inverno</strong>: o hardware dedicado a LISP colapsa; sistemas de regras são caros de manter.'],
+  ['1997', 'Deep Blue vence Kasparov no xadrez — busca + heurística + poder computacional.'],
+  ['2006–12', 'Renascimento das redes neurais profundas; em 2012 a AlexNet domina o ImageNet com GPUs.'],
+  ['2016', 'AlphaGo vence Lee Sedol combinando busca em árvore (MCTS) com aprendizado profundo.'],
+  ['2017→', 'Arquitetura <em>Transformer</em> e modelos de linguagem em larga escala reorganizam o campo.']
+];
+document.getElementById('timeline').innerHTML = HIST.map(h => `
+  <div class="ah-timeline-item ah-reveal">
+    <span class="ah-badge mb-1">${h[0]}</span>
+    <p class="text-sm text-slate-300 leading-relaxed">${h[1]}</p>
+  </div>`).join('');
+
+/* ===================== Mapa da disciplina ===================== */
+const D = AH.disciplina('ia');
+document.getElementById('mapa-grid').innerHTML = D.topicos.slice(1).map((t, i) => `
+  <a href="${t.id}.html" class="ah-card ah-card-hover p-4 flex items-center gap-3">
+    <span class="font-mono text-[10px] text-slate-500">${String(i + 2).padStart(2, '0')}</span>
+    <i class="fa-solid ${t.icone} text-indigo-400"></i>
+    <span class="text-xs text-slate-200 font-medium leading-snug">${t.titulo}</span>
+  </a>`).join('');
+
+AH.initReveal();
+</script>
+</body>
+</html>

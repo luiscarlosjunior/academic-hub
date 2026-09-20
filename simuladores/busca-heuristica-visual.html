@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Interativo de Algoritmos de Busca Heurística</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- MathJax for rendering math equations -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;600&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .code-font {
+      font-family: 'Fira Code', monospace;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      touch-action: none;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .pulse-start {
+      animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+      50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden bg-slate-950">
+
+  <!-- Header Bar -->
+  <header class="glass-panel border-b border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4 z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+        <i class="fa-solid fa-route text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          Laboratório Didático de Busca em Grafos
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">IA & Algoritmos</span>
+        </h1>
+        <p class="text-xs text-slate-400">Dijkstra, Busca Gulosa e A* com Inspeção de Células $f(n) = g(n) + h(n)$</p>
+      </div>
+    </div>
+
+    <!-- Quick Preset Buttons -->
+    <div class="flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-800">
+      <span class="text-xs font-medium text-slate-400 px-2 flex items-center gap-1">
+        <i class="fa-solid fa-flask text-indigo-400"></i> Cenários de Aula:
+      </span>
+      <button onclick="loadPreset('open')" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+        Campo Aberto
+      </button>
+      <button onclick="loadPreset('trap')" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-800 hover:bg-amber-500/20 hover:text-amber-300 text-slate-200 border border-transparent hover:border-amber-500/40 transition">
+        Armadilha em U
+      </button>
+      <button onclick="loadPreset('maze')" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+        Labirinto
+      </button>
+      <button onclick="loadPreset('terrain')" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-200 border border-transparent hover:border-emerald-500/40 transition">
+        Terreno (Lama)
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Sidebar Controls -->
+    <aside class="w-80 glass-panel border-r border-slate-800 flex flex-col p-4 gap-4 overflow-y-auto shrink-0 z-10">
+      
+      <!-- Select Algorithm -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+          <span>1. Algoritmo de Busca</span>
+          <i class="fa-solid fa-brain text-indigo-400"></i>
+        </label>
+        <select id="algoSelect" onchange="onAlgoChange()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-medium focus:outline-none focus:border-indigo-500 transition cursor-pointer">
+          <option value="dijkstra">Dijkstra / Custo Uniforme (f = g)</option>
+          <option value="greedy">Busca Gulosa (f = h)</option>
+          <option value="astar" selected>Busca A* (f = g + h)</option>
+        </select>
+      </div>
+
+      <!-- Heuristic Function -->
+      <div id="heuristicContainer" class="space-y-1.5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+          <span>2. Função Heurística h(n)</span>
+          <i class="fa-solid fa-compass text-indigo-400"></i>
+        </label>
+        <select id="heuristicSelect" onchange="resetSearchOnly()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-medium focus:outline-none focus:border-indigo-500 transition cursor-pointer">
+          <option value="manhattan">Manhattan (Grid 4-direções)</option>
+          <option value="euclidean" selected>Euclidiana (Distância em linha reta)</option>
+          <option value="chebyshev">Chebyshev / Octile (Grid 8-direções)</option>
+        </select>
+      </div>
+
+      <!-- Movement Rules -->
+      <div class="space-y-2 pt-2 border-t border-slate-800">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Regras de Movimentação</label>
+        <div class="flex items-center justify-between bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-xs text-slate-300 font-medium">Permitir Diagonais</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="allowDiagonals" onchange="resetSearchOnly()" class="sr-only peer">
+            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Editor Tools -->
+      <div class="space-y-2 pt-2 border-t border-slate-800">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Ferramenta de Edição</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="tool-wall" onclick="setTool('wall')" class="tool-btn flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-indigo-600 text-white shadow-lg transition">
+            <i class="fa-solid fa-block-brick"></i> Obstáculo
+          </button>
+          <button id="tool-weight" onclick="setTool('weight')" class="tool-btn flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+            <i class="fa-solid fa-water text-amber-500"></i> Lama (Custo 5)
+          </button>
+          <button id="tool-start" onclick="setTool('start')" class="tool-btn flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+            <i class="fa-solid fa-play text-emerald-400"></i> Mover Inicio
+          </button>
+          <button id="tool-goal" onclick="setTool('goal')" class="tool-btn flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+            <i class="fa-solid fa-flag-checkered text-rose-400"></i> Mover Fim
+          </button>
+          <button id="tool-erase" onclick="setTool('erase')" class="tool-btn col-span-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+            <i class="fa-solid fa-eraser text-slate-400"></i> Borracha (Limpar Célula)
+          </button>
+        </div>
+      </div>
+
+      <!-- Execution Controls -->
+      <div class="space-y-3 pt-2 border-t border-slate-800">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+          <span>Controle da Animação</span>
+          <span id="speedLabel" class="text-indigo-400 font-mono text-xs">Média</span>
+        </label>
+        
+        <!-- Speed Slider -->
+        <input type="range" id="speedSlider" min="1" max="100" value="70" oninput="updateSpeedLabel()" class="w-full accent-indigo-500 cursor-pointer">
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-2">
+          <button id="playBtn" onclick="togglePlay()" class="col-span-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/25 active:scale-95 transition">
+            <i class="fa-solid fa-play" id="playIcon"></i> <span id="playText">Iniciar Animação</span>
+          </button>
+          <button onclick="stepForward()" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+            <i class="fa-solid fa-step-forward text-indigo-400"></i> Passo
+          </button>
+          <button onclick="resetSearchOnly()" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+            <i class="fa-solid fa-arrow-rotate-left text-amber-400"></i> Reiniciar
+          </button>
+        </div>
+
+        <button onclick="clearGridAll()" class="w-full py-2 px-3 rounded-lg text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition">
+          <i class="fa-solid fa-trash-can mr-1"></i> Limpar Todo o Tabuleiro
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- Center Grid Viewport -->
+    <main class="flex-1 flex flex-col bg-slate-950 relative overflow-hidden">
+      
+      <!-- Top Legend Bar -->
+      <div class="bg-slate-900/90 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between text-xs gap-3">
+        <div class="flex items-center gap-4 flex-wrap">
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-emerald-500 inline-block shadow-sm"></span> Origem (S)
+          </span>
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-rose-500 inline-block shadow-sm"></span> Objetivo (G)
+          </span>
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-slate-800 border border-slate-600 inline-block"></span> Obstáculo
+          </span>
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-amber-700/80 inline-block"></span> Lama (Peso)
+          </span>
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-indigo-500/40 border border-indigo-400 inline-block"></span> Borda (Frontier)
+          </span>
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-purple-600/50 inline-block"></span> Visitado (Closed)
+          </span>
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <span class="w-3.5 h-3.5 rounded bg-amber-400 inline-block shadow-sm"></span> Caminho Ótimo
+          </span>
+        </div>
+
+        <div id="statusBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+          Aguardando início...
+        </div>
+      </div>
+
+      <!-- Interactive Canvas Container -->
+      <div class="flex-1 relative flex items-center justify-center p-4 overflow-hidden" id="canvasParent">
+        <canvas id="gridCanvas" class="rounded-xl shadow-2xl border border-slate-800 cursor-crosshair bg-slate-900"></canvas>
+
+        <!-- Cell Hover Tooltip / Inspector -->
+        <div id="inspectorTooltip" class="absolute pointer-events-none hidden glass-panel p-3 rounded-xl border border-indigo-500/30 shadow-2xl z-30 min-w-[180px] text-xs space-y-1">
+          <div class="font-bold text-indigo-300 border-b border-slate-700 pb-1 flex justify-between">
+            <span id="inspPos">Nó (X, Y)</span>
+            <span id="inspType" class="text-slate-400 font-normal">Livre</span>
+          </div>
+          <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-300 code-font pt-1">
+            <span class="text-slate-400">g(n) [Custo]:</span>
+            <span id="inspG" class="text-emerald-400 font-semibold">-</span>
+            <span class="text-slate-400">h(n) [Est.]:</span>
+            <span id="inspH" class="text-sky-400 font-semibold">-</span>
+            <span class="text-slate-400 font-bold">f(n) [Total]:</span>
+            <span id="inspF" class="text-amber-400 font-bold">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Realtime Search Stats Bar -->
+      <div class="bg-slate-900 border-t border-slate-800 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nó Expandidos</div>
+          <div id="statExplored" class="text-lg font-bold text-purple-400 code-font">0</div>
+        </div>
+        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tamanho da Borda</div>
+          <div id="statFrontier" class="text-lg font-bold text-indigo-400 code-font">0</div>
+        </div>
+        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Custo do Caminho</div>
+          <div id="statCost" class="text-lg font-bold text-amber-400 code-font">0.0</div>
+        </div>
+        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Passos da Busca</div>
+          <div id="statSteps" class="text-lg font-bold text-emerald-400 code-font">0</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Didactic & Citation Panel -->
+    <aside class="w-96 glass-panel border-l border-slate-800 flex flex-col p-5 gap-4 overflow-y-auto shrink-0 z-10">
+      
+      <div class="flex items-center gap-2 text-indigo-400 border-b border-slate-800 pb-3">
+        <i class="fa-solid fa-graduation-cap text-lg"></i>
+        <h2 class="text-sm font-bold tracking-tight text-white uppercase">Guia Didático do Professor</h2>
+      </div>
+
+      <!-- Active Algorithm Math Equation -->
+      <div class="bg-slate-900/90 p-4 rounded-xl border border-indigo-500/20 space-y-2">
+        <div class="text-xs font-bold text-indigo-300 uppercase tracking-wider flex justify-between">
+          <span>Função de Avaliação</span>
+          <span id="algoMathTag" class="text-indigo-400 font-mono">f(n) = g(n) + h(n)</span>
+        </div>
+        <div id="mathEquationDisplay" class="text-center text-lg text-white font-serif py-1 bg-slate-950/50 rounded-lg border border-slate-800">
+          $$f(n) = g(n) + h(n)$$
+        </div>
+        <p id="mathExplanation" class="text-xs text-slate-300 leading-relaxed">
+          O <strong>A*</strong> equilibra o custo real acumulado $g(n)$ desde a origem com a estimativa heurística $h(n)$ até o objetivo.
+        </p>
+      </div>
+
+      <!-- Visual Behavior Highlights -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-eye text-amber-400"></i> O que observar na Animação:
+        </h3>
+        <div id="behaviorBox" class="text-xs text-slate-300 bg-slate-900/60 p-3 rounded-xl border border-slate-800 leading-relaxed space-y-2">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+
+      <!-- Author Quote Box -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-quote-left text-indigo-400"></i> Citação Acadêmica de Referência:
+        </h3>
+        <blockquote id="quoteBox" class="italic text-xs text-slate-300 bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-500/20 leading-relaxed relative">
+          <!-- Filled dynamically -->
+        </blockquote>
+        <div id="quoteAuthor" class="text-right text-[11px] font-semibold text-indigo-300"></div>
+      </div>
+
+      <!-- Algorithm Comparison Quick Reference Table -->
+      <div class="space-y-2 pt-2 border-t border-slate-800">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Resumo Comparativo</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px] text-left text-slate-300 border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-1 px-1 font-semibold">Algoritmo</th>
+                <th class="py-1 px-1 font-semibold">Fórmula</th>
+                <th class="py-1 px-1 font-semibold">Garante Ótimo?</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50">
+              <tr id="row-dijkstra">
+                <td class="py-1.5 px-1 font-medium">Dijkstra</td>
+                <td class="py-1.5 px-1 font-mono text-emerald-400">g(n)</td>
+                <td class="py-1.5 px-1 text-emerald-400 font-bold">Sim</td>
+              </tr>
+              <tr id="row-greedy">
+                <td class="py-1.5 px-1 font-medium">Gulosa</td>
+                <td class="py-1.5 px-1 font-mono text-sky-400">h(n)</td>
+                <td class="py-1.5 px-1 text-rose-400 font-bold">Não</td>
+              </tr>
+              <tr id="row-astar">
+                <td class="py-1.5 px-1 font-medium">A*</td>
+                <td class="py-1.5 px-1 font-mono text-amber-400">g(n) + h(n)</td>
+                <td class="py-1.5 px-1 text-emerald-400 font-bold">Sim (Admissível)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <script>
+    // Grid Constants
+    const COLS = 32;
+    const ROWS = 20;
+    
+    // Cell Types
+    const EMPTY = 0;
+    const WALL = 1;
+    const WEIGHT = 2; // Mud / High cost
+
+    // Data Structure for Nodes
+    class Node {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.type = EMPTY;
+        this.g = Infinity;
+        this.h = 0;
+        this.f = Infinity;
+        this.parent = null;
+        this.visited = false;
+        this.inFrontier = false;
+        this.isPath = false;
+      }
+
+      resetSearch() {
+        this.g = Infinity;
+        this.h = 0;
+        this.f = Infinity;
+        this.parent = null;
+        this.visited = false;
+        this.inFrontier = false;
+        this.isPath = false;
+      }
+    }
+
+    // Min Priority Queue implementation for pathfinding
+    class PriorityQueue {
+      constructor() {
+        this.elements = [];
+      }
+
+      enqueue(node, priority) {
+        this.elements.push({ node, priority });
+        this.elements.sort((a, b) => a.priority - b.priority);
+      }
+
+      dequeue() {
+        return this.elements.shift()?.node;
+      }
+
+      isEmpty() {
+        return this.elements.length === 0;
+      }
+
+      size() {
+        return this.elements.length;
+      }
+
+      contains(node) {
+        return this.elements.some(e => e.node === node);
+      }
+    }
+
+    // Global State
+    let grid = [];
+    let startPos = { x: 4, y: 10 };
+    let goalPos = { x: 27, y: 10 };
+    let currentTool = 'wall';
+    let isMouseDown = false;
+    let isPlaying = false;
+    let searchGenerator = null;
+    let animationTimer = null;
+    let exploredCount = 0;
+    let stepCount = 0;
+    let activeCurrentNode = null;
+
+    // Canvas setup
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d');
+    let cellSize = 28;
+
+    function initGrid() {
+      grid = [];
+      for (let x = 0; x < COLS; x++) {
+        grid[x] = [];
+        for (let y = 0; y < ROWS; y++) {
+          grid[x][y] = new Node(x, y);
+        }
+      }
+      resizeCanvas();
+    }
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvasParent');
+      const maxW = container.clientWidth - 32;
+      const maxH = container.clientHeight - 32;
+
+      const sizeW = Math.floor(maxW / COLS);
+      const sizeH = Math.floor(maxH / ROWS);
+      cellSize = Math.max(16, Math.min(sizeW, sizeH));
+
+      canvas.width = COLS * cellSize;
+      canvas.height = ROWS * cellSize;
+      drawGrid();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+          const node = grid[x][y];
+          const px = x * cellSize;
+          const py = y * cellSize;
+
+          // Base cell background
+          if (node.type === WALL) {
+            ctx.fillStyle = '#1e293b'; // Slate 800
+          } else if (node.type === WEIGHT) {
+            ctx.fillStyle = '#78350f'; // Amber 900
+          } else if (node.isPath) {
+            ctx.fillStyle = '#f59e0b'; // Amber 500
+          } else if (node === activeCurrentNode) {
+            ctx.fillStyle = '#facc15'; // Bright Yellow
+          } else if (node.visited) {
+            ctx.fillStyle = '#4c1d95'; // Purple 900 / Visited
+          } else if (node.inFrontier) {
+            ctx.fillStyle = '#312e81'; // Indigo 900 / Frontier
+          } else {
+            ctx.fillStyle = '#0f172a'; // Slate 900
+          }
+
+          ctx.fillRect(px, py, cellSize, cellSize);
+
+          // Grid line border
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px, py, cellSize, cellSize);
+
+          // Weight/Mud Icon Indicator
+          if (node.type === WEIGHT) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = `${cellSize * 0.45}px FontAwesome`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('\uf773', px + cellSize / 2, py + cellSize / 2); // Water icon
+          }
+
+          // Start Node Icon
+          if (x === startPos.x && y === startPos.y) {
+            ctx.fillStyle = '#10b981'; // Emerald 500
+            ctx.beginPath();
+            ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.38, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${cellSize * 0.4}px Inter`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('S', px + cellSize / 2, py + cellSize / 2);
+          }
+
+          // Goal Node Icon
+          if (x === goalPos.x && y === goalPos.y) {
+            ctx.fillStyle = '#ef4444'; // Red 500
+            ctx.beginPath();
+            ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.38, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${cellSize * 0.4}px Inter`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('G', px + cellSize / 2, py + cellSize / 2);
+          }
+        }
+      }
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-300');
+      });
+      const activeBtn = document.getElementById(`tool-${tool}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
+        activeBtn.classList.add('bg-indigo-600', 'text-white');
+      }
+    }
+
+    function getGridPosFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / cellSize);
+      const y = Math.floor((e.clientY - rect.top) / cellSize);
+      return { x: Math.max(0, Math.min(COLS - 1, x)), y: Math.max(0, Math.min(ROWS - 1, y)) };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      isMouseDown = true;
+      handleGridInteraction(e);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      updateInspectorTooltip(e);
+      if (isMouseDown) {
+        handleGridInteraction(e);
+      }
+    });
+
+    window.addEventListener('mouseup', () => isMouseDown = false);
+    canvas.addEventListener('mouseleave', () => {
+      document.getElementById('inspectorTooltip').classList.add('hidden');
+    });
+
+    function handleGridInteraction(e) {
+      if (isPlaying) return; // Prevent editing while running
+      const { x, y } = getGridPosFromEvent(e);
+      const node = grid[x][y];
+
+      if (currentTool === 'start') {
+        if (node.type !== WALL && (x !== goalPos.x || y !== goalPos.y)) {
+          startPos = { x, y };
+          resetSearchOnly();
+        }
+      } else if (currentTool === 'goal') {
+        if (node.type !== WALL && (x !== startPos.x || y !== startPos.y)) {
+          goalPos = { x, y };
+          resetSearchOnly();
+        }
+      } else if (currentTool === 'wall') {
+        if ((x !== startPos.x || y !== startPos.y) && (x !== goalPos.x || y !== goalPos.y)) {
+          node.type = WALL;
+          resetSearchOnly();
+        }
+      } else if (currentTool === 'weight') {
+        if ((x !== startPos.x || y !== startPos.y) && (x !== goalPos.x || y !== goalPos.y)) {
+          node.type = WEIGHT;
+          resetSearchOnly();
+        }
+      } else if (currentTool === 'erase') {
+        node.type = EMPTY;
+        resetSearchOnly();
+      }
+      drawGrid();
+    }
+
+    function updateInspectorTooltip(e) {
+      const tooltip = document.getElementById('inspectorTooltip');
+      const rect = canvas.getBoundingClientRect();
+      const { x, y } = getGridPosFromEvent(e);
+
+      if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
+        tooltip.classList.add('hidden');
+        return;
+      }
+
+      const node = grid[x][y];
+      const parentRect = document.getElementById('canvasParent').getBoundingClientRect();
+      
+      // Position tooltip near cursor
+      tooltip.style.left = `${e.clientX - parentRect.left + 15}px`;
+      tooltip.style.top = `${e.clientY - parentRect.top + 15}px`;
+      tooltip.classList.remove('hidden');
+
+      document.getElementById('inspPos').innerText = `Nó (${x}, ${y})`;
+      
+      let typeText = "Livre";
+      if (x === startPos.x && y === startPos.y) typeText = "Origem (S)";
+      else if (x === goalPos.x && y === goalPos.y) typeText = "Objetivo (G)";
+      else if (node.type === WALL) typeText = "Obstáculo";
+      else if (node.type === WEIGHT) typeText = "Terreno Lama";
+      document.getElementById('inspType').innerText = typeText;
+
+      document.getElementById('inspG').innerText = node.g === Infinity ? '∞' : node.g.toFixed(1);
+      document.getElementById('inspH').innerText = node.h ? node.h.toFixed(1) : '0.0';
+      document.getElementById('inspF').innerText = node.f === Infinity ? '∞' : node.f.toFixed(1);
+    }
+
+    function calculateHeuristic(nodeA, nodeB) {
+      const type = document.getElementById('heuristicSelect').value;
+      const dx = Math.abs(nodeA.x - nodeB.x);
+      const dy = Math.abs(nodeA.y - nodeB.y);
+
+      if (type === 'manhattan') {
+        return dx + dy;
+      } else if (type === 'euclidean') {
+        return Math.sqrt(dx * dx + dy * dy);
+      } else if (type === 'chebyshev') {
+        return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
+      }
+      return 0;
+    }
+
+    function* searchStepGenerator() {
+      const algo = document.getElementById('algoSelect').value;
+      const allowDiagonals = document.getElementById('allowDiagonals').checked;
+
+      // Reset grid costs
+      for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+          grid[x][y].resetSearch();
+        }
+      }
+
+      const startNode = grid[startPos.x][startPos.y];
+      const goalNode = grid[goalPos.x][goalPos.y];
+
+      startNode.g = 0;
+      startNode.h = calculateHeuristic(startNode, goalNode);
+      startNode.f = (algo === 'greedy') ? startNode.h : (algo === 'dijkstra' ? 0 : startNode.g + startNode.h);
+
+      const pq = new PriorityQueue();
+      pq.enqueue(startNode, startNode.f);
+      startNode.inFrontier = true;
+
+      exploredCount = 0;
+      stepCount = 0;
+
+      while (!pq.isEmpty()) {
+        const current = pq.dequeue();
+        current.inFrontier = false;
+
+        if (current.visited) continue;
+        current.visited = true;
+        exploredCount++;
+        stepCount++;
+        activeCurrentNode = current;
+
+        // Check if goal reached
+        if (current.x === goalPos.x && current.y === goalPos.y) {
+          reconstructPath(current);
+          updateStats(pq.size(), current.g);
+          yield { done: true, found: true };
+          return;
+        }
+
+        // Get Neighbors
+        const neighbors = getNeighbors(current, allowDiagonals);
+        for (const { node: neighbor, cost } of neighbors) {
+          if (neighbor.visited || neighbor.type === WALL) continue;
+
+          // Terrain weight adjustment
+          const terrainCost = neighbor.type === WEIGHT ? 5 : 1;
+          const tentativeG = current.g + cost * terrainCost;
+
+          if (tentativeG < neighbor.g) {
+            neighbor.parent = current;
+            neighbor.g = tentativeG;
+            neighbor.h = calculateHeuristic(neighbor, goalNode);
+
+            if (algo === 'dijkstra') {
+              neighbor.f = neighbor.g;
+            } else if (algo === 'greedy') {
+              neighbor.f = neighbor.h;
+            } else { // A*
+              neighbor.f = neighbor.g + neighbor.h;
+            }
+
+            if (!neighbor.inFrontier) {
+              neighbor.inFrontier = true;
+              pq.enqueue(neighbor, neighbor.f);
+            }
+          }
+        }
+
+        updateStats(pq.size(), current.g);
+        yield { done: false, found: false };
+      }
+
+      yield { done: true, found: false };
+    }
+
+    function getNeighbors(node, allowDiagonals) {
+      const neighbors = [];
+      const dirs = [
+        { x: 0, y: -1, cost: 1 },  // North
+        { x: 1, y: 0, cost: 1 },   // East
+        { x: 0, y: 1, cost: 1 },   // South
+        { x: -1, y: 0, cost: 1 }   // West
+      ];
+
+      if (allowDiagonals) {
+        dirs.push(
+          { x: 1, y: -1, cost: Math.SQRT2 }, // NE
+          { x: 1, y: 1, cost: Math.SQRT2 },  // SE
+          { x: -1, y: 1, cost: Math.SQRT2 }, // SW
+          { x: -1, y: -1, cost: Math.SQRT2 } // NW
+        );
+      }
+
+      for (const d of dirs) {
+        const nx = node.x + d.x;
+        const ny = node.y + d.y;
+
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+          neighbors.push({ node: grid[nx][ny], cost: d.cost });
+        }
+      }
+      return neighbors;
+    }
+
+    function reconstructPath(goalNode) {
+      let temp = goalNode;
+      let pathCost = goalNode.g;
+      while (temp) {
+        temp.isPath = true;
+        temp = temp.parent;
+      }
+      document.getElementById('statCost').innerText = pathCost.toFixed(1);
+    }
+
+    function updateStats(frontierSize, currentCost) {
+      document.getElementById('statExplored').innerText = exploredCount;
+      document.getElementById('statFrontier').innerText = frontierSize;
+      document.getElementById('statSteps').innerText = stepCount;
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        pauseSearch();
+      } else {
+        startSearch();
+      }
+    }
+
+    function startSearch() {
+      if (!searchGenerator) {
+        searchGenerator = searchStepGenerator();
+      }
+      isPlaying = true;
+      document.getElementById('playIcon').className = 'fa-solid fa-pause';
+      document.getElementById('playText').innerText = 'Pausar Animação';
+      document.getElementById('statusBadge').innerText = 'Executando busca...';
+      document.getElementById('statusBadge').className = 'text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium animate-pulse';
+
+      runAnimationLoop();
+    }
+
+    function pauseSearch() {
+      isPlaying = false;
+      clearTimeout(animationTimer);
+      document.getElementById('playIcon').className = 'fa-solid fa-play';
+      document.getElementById('playText').innerText = 'Continuar Animação';
+      document.getElementById('statusBadge').innerText = 'Pausado';
+      document.getElementById('statusBadge').className = 'text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium';
+    }
+
+    function stepForward() {
+      if (isPlaying) pauseSearch();
+      if (!searchGenerator) {
+        searchGenerator = searchStepGenerator();
+      }
+      const result = searchGenerator.next();
+      drawGrid();
+
+      if (result.value && result.value.done) {
+        finishSearch(result.value.found);
+      }
+    }
+
+    function runAnimationLoop() {
+      if (!isPlaying) return;
+
+      const result = searchGenerator.next();
+      drawGrid();
+
+      if (result.value && result.value.done) {
+        finishSearch(result.value.found);
+      } else {
+        const speed = 101 - parseInt(document.getElementById('speedSlider').value);
+        animationTimer = setTimeout(runAnimationLoop, speed * 3);
+      }
+    }
+
+    function finishSearch(found) {
+      isPlaying = false;
+      searchGenerator = null;
+      activeCurrentNode = null;
+      document.getElementById('playIcon').className = 'fa-solid fa-play';
+      document.getElementById('playText').innerText = 'Iniciar Animação';
+
+      const badge = document.getElementById('statusBadge');
+      if (found) {
+        badge.innerText = 'Caminho Encontrado!';
+        badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold';
+      } else {
+        badge.innerText = 'Sem Caminho Possível!';
+        badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold';
+      }
+      drawGrid();
+    }
+
+    function resetSearchOnly() {
+      pauseSearch();
+      searchGenerator = null;
+      activeCurrentNode = null;
+      for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+          grid[x][y].resetSearch();
+        }
+      }
+      document.getElementById('statExplored').innerText = '0';
+      document.getElementById('statFrontier').innerText = '0';
+      document.getElementById('statCost').innerText = '0.0';
+      document.getElementById('statSteps').innerText = '0';
+      document.getElementById('statusBadge').innerText = 'Pronto para iniciar';
+      document.getElementById('statusBadge').className = 'text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-medium';
+      drawGrid();
+    }
+
+    function clearGridAll() {
+      resetSearchOnly();
+      for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+          grid[x][y].type = EMPTY;
+        }
+      }
+      drawGrid();
+    }
+
+    function updateSpeedLabel() {
+      const val = parseInt(document.getElementById('speedSlider').value);
+      let label = 'Média';
+      if (val < 35) label = 'Lenta (Passo Didático)';
+      else if (val > 75) label = 'Ultra Rápida';
+      document.getElementById('speedLabel').innerText = label;
+    }
+
+    function onAlgoChange() {
+      resetSearchOnly();
+      const algo = document.getElementById('algoSelect').value;
+      const heuristicContainer = document.getElementById('heuristicContainer');
+      const mathTag = document.getElementById('algoMathTag');
+      const mathDisplay = document.getElementById('mathEquationDisplay');
+      const mathExp = document.getElementById('mathExplanation');
+      const behaviorBox = document.getElementById('behaviorBox');
+      const quoteBox = document.getElementById('quoteBox');
+      const quoteAuthor = document.getElementById('quoteAuthor');
+
+      // Highlight active table row
+      document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('bg-indigo-500/10'));
+
+      if (algo === 'dijkstra') {
+        heuristicContainer.classList.add('opacity-40', 'pointer-events-none');
+        mathTag.innerText = 'f(n) = g(n)';
+        mathDisplay.innerHTML = '$$f(n) = g(n) \\quad [h(n) = 0]$$';
+        mathExp.innerText = 'O algoritmo de Dijkstra expande nós unicamente pela ordem crescente de custo acumulado g(n), sendo totalmente cego em relação ao destino.';
+        
+        behaviorBox.innerHTML = `
+          <p>• <strong>Expansão Radial Circunferencial:</strong> A busca expande em ondas circulares concêntricas uniformes em 360°.</p>
+          <p>• <strong>Ponto Crítico para Alunos:</strong> Note como ele gasta energia explorando a direção oposta ao objetivo antes de alcançá-lo.</p>
+        `;
+
+        quoteBox.innerText = '"Consideramos o problema do caminho de menor comprimento entre dois nós em um grafo... O algoritmo constrói uma árvore de caminhos mínimos a partir do nó de origem."';
+        quoteAuthor.innerText = '— Edsger W. Dijkstra (1959)';
+        document.getElementById('row-dijkstra').classList.add('bg-indigo-500/10');
+
+      } else if (algo === 'greedy') {
+        heuristicContainer.classList.remove('opacity-40', 'pointer-events-none');
+        mathTag.innerText = 'f(n) = h(n)';
+        mathDisplay.innerHTML = '$$f(n) = h(n) \\quad [g(n) = 0]$$';
+        mathExp.innerText = 'A Busca Gulosa ignora completamente o custo já percorrido g(n) e avança gananciosamente em direção ao nó com menor estimativa h(n).';
+
+        behaviorBox.innerHTML = `
+          <p>• <strong>Padrão de Feixe/Laser:</strong> O caminho avança diretamente em linha reta em direção ao objetivo.</p>
+          <p>• <strong>Ponto Crítico para Alunos:</strong> Teste no cenário "Armadilha em U"! A busca entra no fundo do obstáculo e preenche tudo antes de perceber que precisa contornar.</p>
+        `;
+
+        quoteBox.innerText = '"A busca gulosa expande primeiro o nó que parece estar mais próximo do objetivo... Ela reduz drasticamente o tempo, mas pode ser enganada por barreiras ou heurísticas imprecisas."';
+        quoteAuthor.innerText = '— Russell & Norvig (Artificial Intelligence, 2020)';
+        document.getElementById('row-greedy').classList.add('bg-indigo-500/10');
+
+      } else { // A*
+        heuristicContainer.classList.remove('opacity-40', 'pointer-events-none');
+        mathTag.innerText = 'f(n) = g(n) + h(n)';
+        mathDisplay.innerHTML = '$$f(n) = g(n) + h(n)$$';
+        mathExp.innerText = 'O A* combina o custo real g(n) com a estimativa heurística admissível h(n) para garantir otimalidade com eficiência visual.';
+
+        behaviorBox.innerHTML = `
+          <p>• <strong>Frente de Busca em Elipse/Gota:</strong> A busca expande de forma direcionada, contornando obstáculos sem desperdiçar nós para trás.</p>
+          <p>• <strong>Ponto Crítico para Alunos:</strong> Compare a quantidade de nós visitados do A* contra o Dijkstra. O A* garante o mesmo caminho perfeito com muito menos processamento.</p>
+        `;
+
+        quoteBox.innerText = '"O algoritmo A* combina o custo acumulado até o momento e o custo estimado restante para encontrar o caminho ótimo de forma provadamente eficiente."';
+        quoteAuthor.innerText = '— Hart, Nilsson & Raphael (1968)';
+        document.getElementById('row-astar').classList.add('bg-indigo-500/10');
+      }
+
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    }
+
+    function loadPreset(preset) {
+      clearGridAll();
+      startPos = { x: 4, y: 10 };
+      goalPos = { x: 27, y: 10 };
+
+      if (preset === 'trap') {
+        // U-Trap Obstacle in middle
+        const wallX = 16;
+        for (let y = 5; y <= 15; y++) {
+          grid[wallX][y].type = WALL;
+        }
+        for (let x = 10; x <= wallX; x++) {
+          grid[x][5].type = WALL;
+          grid[x][15].type = WALL;
+        }
+      } else if (preset === 'maze') {
+        // Simple Maze
+        for (let y = 0; y < 16; y++) grid[8][y].type = WALL;
+        for (let y = 4; y < ROWS; y++) grid[16][y].type = WALL;
+        for (let y = 0; y < 16; y++) grid[24][y].type = WALL;
+      } else if (preset === 'terrain') {
+        // Mud patch in center
+        for (let x = 12; x <= 20; x++) {
+          for (let y = 4; y <= 16; y++) {
+            grid[x][y].type = WEIGHT;
+          }
+        }
+      }
+
+      drawGrid();
+    }
+
+    // Window Init
+    window.onload = function() {
+      initGrid();
+      onAlgoChange();
+      loadPreset('open');
+    };
+  </script>
+</body>
+</html>

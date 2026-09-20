@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Busca Cega: BFS vs DFS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        bfs: { light: '#3b82f6', DEFAULT: '#2563eb', dark: '#1d4ed8' },
+                        dfs: { light: '#a855f7', DEFAULT: '#9333ea', dark: '#7e22ce' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.03); }
+        }
+        .node-active { animation: pulse-subtle 1.2s infinite; }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-diagram-project text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
+                        Busca Cega Interativa 
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">IA & Algoritmos</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Entenda Busca em Largura (BFS) e Busca em Profundidade (DFS)</p>
+                </div>
+            </div>
+
+            <nav class="flex items-center space-x-1 sm:space-x-3 text-sm">
+                <button onclick="scrollToSection('visualizer')" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-play text-indigo-400 mr-1.5"></i>Simulador
+                </button>
+                <button onclick="scrollToSection('compare')" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-code-compare text-indigo-400 mr-1.5"></i>Comparação
+                </button>
+                <button onclick="scrollToSection('theory')" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-book-open text-indigo-400 mr-1.5"></i>Teoria
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-1 space-y-8 pb-12">
+        <!-- Main Simulator Section -->
+        <section id="visualizer" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+            
+            <!-- Controls Bar -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-xl mb-6 flex flex-wrap gap-4 items-center justify-between">
+                
+                <!-- Algorithm Selection -->
+                <div class="flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/60">
+                    <button id="btn-algo-bfs" onclick="setAlgorithm('BFS')" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-blue-600 text-white shadow-lg shadow-blue-600/30">
+                        <i class="fa-solid fa-layer-group"></i> BFS (Largura)
+                    </button>
+                    <button id="btn-algo-dfs" onclick="setAlgorithm('DFS')" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                        <i class="fa-solid fa-bars-staggered"></i> DFS (Profundidade)
+                    </button>
+                    <button id="btn-algo-compare" onclick="toggleCompareMode()" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border-l border-slate-700/80 ml-1">
+                        <i class="fa-solid fa-columns"></i> Lado a Lado
+                    </button>
+                </div>
+
+                <!-- Presets & Structure Mode -->
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-400 font-medium">Estrutura:</label>
+                        <select id="select-preset" onchange="loadPreset(this.value)" class="bg-slate-900 text-slate-200 border border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="tree">Árvore Binária Balanceada</option>
+                            <option value="graph-cycles">Grafo com Ciclos e Atalhos</option>
+                            <option value="unbalanced">Árvore Desbalanceada</option>
+                            <option value="grid">Grade / Labirinto (2D)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Playback Action Buttons -->
+                <div class="flex items-center gap-2">
+                    <button id="btn-start" onclick="togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-emerald-600/20">
+                        <i id="icon-play" class="fa-solid fa-play"></i> <span id="text-play">Iniciar</span>
+                    </button>
+                    <button onclick="stepForward()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg text-sm font-medium transition" title="Avançar 1 Passo">
+                        <i class="fa-solid fa-forward-step"></i>
+                    </button>
+                    <button onclick="resetSimulation()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg text-sm font-medium transition" title="Reiniciar">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                    
+                    <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+                    <!-- Speed Control -->
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-xs text-slate-400"></i>
+                        <input id="speed-range" type="range" min="100" max="1500" step="100" value="700" onchange="updateSpeed(this.value)" class="w-20 accent-indigo-500 bg-slate-700 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workspace Layout (Canvas + Data Structure + Code) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Main Visual Canvas (8 cols in standard mode) -->
+                <div id="visual-container" class="lg:col-span-8 bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-xl flex flex-col relative min-h-[480px]">
+                    <div class="flex items-center justify-between mb-3 border-b border-slate-700/60 pb-2">
+                        <div class="flex items-center gap-2">
+                            <span id="algo-badge" class="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                BFS (Busca em Largura)
+                            </span>
+                            <span id="status-text" class="text-xs text-slate-400 font-mono">
+                                Pronto para iniciar. Nó Inicial: <b class="text-slate-200">A</b> | Alvo: <b class="text-emerald-400">G</b>
+                            </span>
+                        </div>
+                        
+                        <!-- Legend -->
+                        <div class="flex items-center gap-3 text-xs">
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span> Inicial</div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Objetivo</div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Na Fronteira</div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-600 inline-block"></span> Visitado</div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-300 inline-block"></span> Caminho</div>
+                        </div>
+                    </div>
+
+                    <!-- Single View Canvas Container -->
+                    <div id="canvas-wrapper" class="flex-1 relative bg-slate-900/90 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                        <canvas id="graphCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+                        
+                        <!-- Side-by-Side Comparison Container (Hidden by default) -->
+                        <div id="compare-canvas-wrapper" class="hidden absolute inset-0 grid grid-cols-2 gap-2 p-2 bg-slate-950">
+                            <div class="relative bg-slate-900 rounded-lg border border-slate-800 flex flex-col">
+                                <div class="bg-blue-900/40 px-3 py-1.5 text-xs font-bold text-blue-300 border-b border-blue-800/40 flex justify-between">
+                                    <span>BUSCA EM LARGURA (BFS)</span>
+                                    <span id="bfs-step-count" class="font-mono text-slate-400">Passos: 0</span>
+                                </div>
+                                <canvas id="canvasBFS" class="w-full h-full block flex-1"></canvas>
+                            </div>
+                            <div class="relative bg-slate-900 rounded-lg border border-slate-800 flex flex-col">
+                                <div class="bg-purple-900/40 px-3 py-1.5 text-xs font-bold text-purple-300 border-b border-purple-800/40 flex justify-between">
+                                    <span>BUSCA EM PROFUNDIDADE (DFS)</span>
+                                    <span id="dfs-step-count" class="font-mono text-slate-400">Passos: 0</span>
+                                </div>
+                                <canvas id="canvasDFS" class="w-full h-full block flex-1"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Log / Footnotes -->
+                    <div class="mt-3 bg-slate-900/60 rounded-lg p-2.5 border border-slate-800 flex items-center justify-between text-xs font-mono">
+                        <div class="flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
+                            <i class="fa-solid fa-terminal text-slate-500"></i>
+                            <span id="log-output" class="text-slate-300">Aguardando execução... Clique em Iniciar ou Avançar.</span>
+                        </div>
+                        <div id="step-counter" class="text-slate-400 font-semibold px-2 py-0.5 bg-slate-800 rounded">
+                            Passo: 0
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar: Frontier Structure (Queue/Stack) & Pseudocode -->
+                <div id="sidebar-container" class="lg:col-span-4 space-y-6 flex flex-col">
+                    
+                    <!-- Data Structure Inspector (Queue / Stack) -->
+                    <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-xl">
+                        <div class="flex items-center justify-between mb-3 border-b border-slate-700/60 pb-2">
+                            <h2 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i id="ds-icon" class="fa-solid fa-layer-group text-blue-400"></i>
+                                Estrutura da Fronteira: <span id="ds-title" class="text-blue-400 font-mono">Fila (FIFO)</span>
+                            </h2>
+                            <span id="ds-behavior" class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
+                                Primeiro a Entrar, Primeiro a Sair
+                            </span>
+                        </div>
+
+                        <!-- Frontier Elements Container -->
+                        <div class="min-h-[90px] bg-slate-900/80 rounded-xl p-3 border border-slate-700/50 flex flex-col justify-center">
+                            <div class="text-[11px] text-slate-400 mb-1 flex justify-between">
+                                <span id="ds-pointer-left"><i class="fa-solid fa-arrow-right text-emerald-400 mr-1"></i>Saída (PRÓXIMO)</span>
+                                <span id="ds-pointer-right">Entrada (NOVOS)<i class="fa-solid fa-arrow-left text-amber-400 ml-1"></i></span>
+                            </div>
+                            
+                            <!-- Visual Queue/Stack Items -->
+                            <div id="frontier-list" class="flex items-center gap-2 overflow-x-auto custom-scrollbar py-2 min-h-[48px]">
+                                <span class="text-slate-500 text-xs italic mx-auto">Fronteira vazia</span>
+                            </div>
+                        </div>
+
+                        <!-- Explanatory note -->
+                        <p id="ds-description" class="text-xs text-slate-400 mt-2 leading-relaxed">
+                            A <strong class="text-blue-300">Fila</strong> garante a exploração em camadas (nível por nível). O nó mais antigo retido na fronteira é sempre processado primeiro.
+                        </p>
+                    </div>
+
+                    <!-- Pseudocode & Execution Line Highlight -->
+                    <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
+                        <div class="flex items-center justify-between mb-2 border-b border-slate-700/60 pb-2">
+                            <h2 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-code text-indigo-400"></i>
+                                Pseudocódigo Algorítmico
+                            </h2>
+                        </div>
+
+                        <div id="code-box" class="font-mono text-xs bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-300 space-y-1.5 overflow-x-auto flex-1">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Theory & Detailed Comparison Section -->
+        <section id="theory" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <h2 class="text-2xl font-bold text-white mb-2">Fundamentos da Busca Cega (Não Informada)</h2>
+                <p class="text-slate-400 text-sm">
+                    Algoritmos de busca cega exploram a árvore ou grafo sem nenhum conhecimento específico sobre a localização do objetivo, além da estrutura das conexões.
+                </p>
+            </div>
+
+            <!-- Side by Side Concepts Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                
+                <!-- BFS Card -->
+                <div class="bg-slate-800 border-t-4 border-t-blue-500 border border-slate-700/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl font-bold">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-white">Busca em Largura (BFS)</h3>
+                                <span class="text-xs text-blue-400 font-mono">Breadth-First Search</span>
+                            </div>
+                        </div>
+                        <span class="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/30 font-semibold">
+                            Estratégia: Nível por Nível
+                        </span>
+                    </div>
+
+                    <p class="text-slate-300 text-sm leading-relaxed mb-4">
+                        A BFS expande a raiz primeiro, depois todos os sucessores da raiz, depois os sucessores desses, e assim por diante. Ela explora todos os nós na profundidade $d$ antes de ir para os nós na profundidade $d+1$.
+                    </p>
+
+                    <ul class="space-y-2.5 text-xs text-slate-300 border-t border-slate-700/60 pt-4">
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>Estrutura de Dados:</strong> Fila (FIFO - <i>First-In, First-Out</i>).</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>Completo?</strong> Sim (se o fator de ramificação $b$ for finito).</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>Ótimo?</strong> Sim (se todos os custos de ação forem iguais a 1).</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
+                            <span><strong>Gargalo Principal:</strong> Memória! Armazena todos os nós gerados na memória ($O(b^d)$).</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- DFS Card -->
+                <div class="bg-slate-800 border-t-4 border-t-purple-500 border border-slate-700/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl font-bold">
+                                <i class="fa-solid fa-bars-staggered"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-white">Busca em Profundidade (DFS)</h3>
+                                <span class="text-xs text-purple-400 font-mono">Depth-First Search</span>
+                            </div>
+                        </div>
+                        <span class="text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 font-semibold">
+                            Estratégia: Ramo mais profundo
+                        </span>
+                    </div>
+
+                    <p class="text-slate-300 text-sm leading-relaxed mb-4">
+                        A DFS explora sempre o nó mais profundo na fronteira atual do grafo. A busca avança até atingir o nível máximo do ramo antes de fazer o retrocesso (<i>backtracking</i>).
+                    </p>
+
+                    <ul class="space-y-2.5 text-xs text-slate-300 border-t border-slate-700/60 pt-4">
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>Estrutura de Dados:</strong> Pilha (LIFO - <i>Last-In, First-Out</i>).</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-circle-xmark text-red-400 mt-0.5"></i>
+                            <span><strong>Completo?</strong> Não em espaços infinitos ou grafos com ciclos (se não houver verificação de repetidos).</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-circle-xmark text-red-400 mt-0.5"></i>
+                            <span><strong>Ótimo?</strong> Não. Pode encontrar uma solução longa em um ramo antes da mais curta.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-thumbs-up text-blue-400 mt-0.5"></i>
+                            <span><strong>Vantagem Principal:</strong> Consumo de memória muito menor! Requer apenas $O(b \cdot m)$ nós.</span>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <!-- Comparison Table -->
+            <div id="compare" class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl mb-12">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-table text-indigo-400"></i>
+                    Matriz Comparativa de Complexidade
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs sm:text-sm text-slate-300">
+                        <thead class="bg-slate-900/80 text-slate-400 uppercase text-[11px] font-semibold border-b border-slate-700">
+                            <tr>
+                                <th class="py-3 px-4">Critério de Avaliação</th>
+                                <th class="py-3 px-4 text-blue-400">Busca em Largura (BFS)</th>
+                                <th class="py-3 px-4 text-purple-400">Busca em Profundidade (DFS)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/60">
+                            <tr class="hover:bg-slate-700/30">
+                                <td class="py-3 px-4 font-semibold text-white">Estrutura Suporte</td>
+                                <td class="py-3 px-4">Fila (FIFO)</td>
+                                <td class="py-3 px-4">Pilha (LIFO) ou Recursão</td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30">
+                                <td class="py-3 px-4 font-semibold text-white">Completo?</td>
+                                <td class="py-3 px-4 text-emerald-400 font-semibold"><i class="fa-solid fa-check mr-1"></i> Sim (se $b$ for finito)</td>
+                                <td class="py-3 px-4 text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Não em grafos infinitos/com ciclos</td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30">
+                                <td class="py-3 px-4 font-semibold text-white">Ótimo?</td>
+                                <td class="py-3 px-4 text-emerald-400 font-semibold"><i class="fa-solid fa-check mr-1"></i> Sim (custos iguais)</td>
+                                <td class="py-3 px-4 text-red-400"><i class="fa-solid fa-xmark mr-1"></i> Não</td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30">
+                                <td class="py-3 px-4 font-semibold text-white">Complexidade de Tempo</td>
+                                <td class="py-3 px-4 font-mono text-blue-300">O(b<sup>d</sup>)</td>
+                                <td class="py-3 px-4 font-mono text-purple-300">O(b<sup>m</sup>)</td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30">
+                                <td class="py-3 px-4 font-semibold text-white">Complexidade de Espaço</td>
+                                <td class="py-3 px-4 font-mono text-amber-400">O(b<sup>d</sup>) <span class="text-xs text-slate-400 font-sans block">(Exponencial)</span></td>
+                                <td class="py-3 px-4 font-mono text-emerald-400">O(b · m) <span class="text-xs text-slate-400 font-sans block">(Linear)</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-xs text-slate-400 italic">
+                    Onde: <b>b</b> = fator de ramificação (branching factor); <b>d</b> = profundidade da solução mais rasa; <b>m</b> = profundidade máxima do espaço de busca.
+                </div>
+            </div>
+
+            <!-- Student Check Quiz -->
+            <div class="bg-gradient-to-r from-slate-800 to-indigo-950 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap text-indigo-400"></i>
+                    Teste seus Conhecimentos (Desafio do Estudante)
+                </h3>
+                <p class="text-xs text-slate-300 mb-4">Responda para fixar a diferença entre as duas estratégias cegas:</p>
+
+                <div class="space-y-4 text-sm" id="quiz-container">
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700/60">
+                        <p class="font-medium text-slate-200 mb-3">1. Se você precisa encontrar o caminho mais curto (com menor número de passos) em um grafo sem pesos, qual algoritmo garante essa resposta?</p>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="checkQuiz(1, 'BFS', true)" class="quiz-btn-1 border border-slate-700 hover:border-blue-500 bg-slate-800 px-4 py-2 rounded-lg text-xs font-semibold text-slate-200 transition">
+                                Busca em Largura (BFS)
+                            </button>
+                            <button onclick="checkQuiz(1, 'DFS', false)" class="quiz-btn-1 border border-slate-700 hover:border-purple-500 bg-slate-800 px-4 py-2 rounded-lg text-xs font-semibold text-slate-200 transition">
+                                Busca em Profundidade (DFS)
+                            </button>
+                        </div>
+                        <p id="quiz-feedback-1" class="text-xs mt-2 font-medium hidden"></p>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700/60">
+                        <p class="font-medium text-slate-200 mb-3">2. Qual é a principal limitação prática da Busca em Largura em problemas com um fator de ramificação alto?</p>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="checkQuiz(2, 'time', false)" class="quiz-btn-2 border border-slate-700 hover:border-slate-500 bg-slate-800 px-4 py-2 rounded-lg text-xs font-semibold text-slate-200 transition">
+                                Impossibilidade de fazer backtracking
+                            </button>
+                            <button onclick="checkQuiz(2, 'memory', true)" class="quiz-btn-2 border border-slate-700 hover:border-slate-500 bg-slate-800 px-4 py-2 rounded-lg text-xs font-semibold text-slate-200 transition">
+                                Consumo excessivo de memória RAM
+                            </button>
+                        </div>
+                        <p id="quiz-feedback-2" class="text-xs mt-2 font-medium hidden"></p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <footer class="bg-slate-950 border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+        <p>Desenvolvido para ensino e aprendizado de Inteligência Artificial e Teoria dos Grafos.</p>
+    </footer>
+
+    <script>
+        // --- PRESET DATA STRUCTURES ---
+        const PRESETS = {
+            'tree': {
+                type: 'graph',
+                start: 'A',
+                target: 'G',
+                nodes: {
+                    'A': { x: 0.5,  y: 0.15, label: 'A' },
+                    'B': { x: 0.3,  y: 0.38, label: 'B' },
+                    'C': { x: 0.7,  y: 0.38, label: 'C' },
+                    'D': { x: 0.18, y: 0.65, label: 'D' },
+                    'E': { x: 0.42, y: 0.65, label: 'E' },
+                    'F': { x: 0.58, y: 0.65, label: 'F' },
+                    'G': { x: 0.82, y: 0.65, label: 'G' },
+                    'H': { x: 0.10, y: 0.88, label: 'H' },
+                    'I': { x: 0.26, y: 0.88, label: 'I' }
+                },
+                adj: {
+                    'A': ['B', 'C'],
+                    'B': ['D', 'E'],
+                    'C': ['F', 'G'],
+                    'D': ['H', 'I'],
+                    'E': [], 'F': [], 'G': [], 'H': [], 'I': []
+                }
+            },
+            'graph-cycles': {
+                type: 'graph',
+                start: 'A',
+                target: 'G',
+                nodes: {
+                    'A': { x: 0.15, y: 0.5,  label: 'A' },
+                    'B': { x: 0.38, y: 0.2,  label: 'B' },
+                    'C': { x: 0.38, y: 0.8,  label: 'C' },
+                    'D': { x: 0.62, y: 0.2,  label: 'D' },
+                    'E': { x: 0.62, y: 0.8,  label: 'E' },
+                    'F': { x: 0.50, y: 0.5,  label: 'F' },
+                    'G': { x: 0.85, y: 0.5,  label: 'G' }
+                },
+                adj: {
+                    'A': ['B', 'C'],
+                    'B': ['D', 'F'],
+                    'C': ['E', 'F'],
+                    'D': ['G'],
+                    'E': ['G'],
+                    'F': ['G', 'E']
+                }
+            },
+            'unbalanced': {
+                type: 'graph',
+                start: 'A',
+                target: 'G',
+                nodes: {
+                    'A': { x: 0.5,  y: 0.12, label: 'A' },
+                    'B': { x: 0.3,  y: 0.32, label: 'B' },
+                    'C': { x: 0.75, y: 0.32, label: 'C' },
+                    'D': { x: 0.2,  y: 0.52, label: 'D' },
+                    'E': { x: 0.15, y: 0.72, label: 'E' },
+                    'F': { x: 0.1,  y: 0.90, label: 'F' },
+                    'G': { x: 0.75, y: 0.60, label: 'G' }
+                },
+                adj: {
+                    'A': ['B', 'C'],
+                    'B': ['D'],
+                    'C': ['G'],
+                    'D': ['E'],
+                    'E': ['F'],
+                    'F': [], 'G': []
+                }
+            },
+            'grid': {
+                type: 'grid',
+                rows: 6,
+                cols: 8,
+                start: {r: 0, c: 0},
+                target: {r: 5, c: 7},
+                walls: [
+                    {r: 1, c: 1}, {r: 2, c: 1}, {r: 3, c: 1},
+                    {r: 2, c: 3}, {r: 3, c: 3}, {r: 4, c: 3},
+                    {r: 0, c: 5}, {r: 1, c: 5}, {r: 2, c: 5}, {r: 3, c: 5}
+                ]
+            }
+        };
+
+        const CODE_SNIPPETS = {
+            BFS: [
+                { id: 1, text: "função BFS(inicio, objetivo):" },
+                { id: 2, text: "  fila = nova Fila(FIFO)" },
+                { id: 3, text: "  fila.enfileirar(inicio)" },
+                { id: 4, text: "  visitados = conjuntoVazio()" },
+                { id: 5, text: "  enquanto fila não estiver vazia:" },
+                { id: 6, text: "    atual = fila.desenfileirar()" },
+                { id: 7, text: "    se atual == objetivo: retorne SUCESSO" },
+                { id: 8, text: "    para cada vizinho de atual:" },
+                { id: 9, text: "      se vizinho não em visitados:" },
+                { id: 10, text: "        visitados.adicionar(vizinho)" },
+                { id: 11, text: "        fila.enfileirar(vizinho)" }
+            ],
+            DFS: [
+                { id: 1, text: "função DFS(inicio, objetivo):" },
+                { id: 2, text: "  pilha = nova Pilha(LIFO)" },
+                { id: 3, text: "  pilha.empilhar(inicio)" },
+                { id: 4, text: "  visitados = conjuntoVazio()" },
+                { id: 5, text: "  enquanto pilha não estiver vazia:" },
+                { id: 6, text: "    atual = pilha.desempilhar()" },
+                { id: 7, text: "    se atual == objetivo: retorne SUCESSO" },
+                { id: 8, text: "    para cada vizinho de atual:" },
+                { id: 9, text: "      se vizinho não em visitados:" },
+                { id: 10, text: "        visitados.adicionar(vizinho)" },
+                { id: 11, text: "        pilha.empilhar(vizinho)" }
+            ]
+        };
+
+        // --- GLOBAL STATE ---
+        let currentAlgo = 'BFS'; // 'BFS' or 'DFS'
+        let currentPresetKey = 'tree';
+        let currentPreset = PRESETS['tree'];
+        let compareMode = false;
+
+        let isRunning = false;
+        let timer = null;
+        let speed = 700;
+
+        // Simulation State
+        let simState = {
+            frontier: [],       // Items in Queue/Stack
+            visited: new Set(), // Visited Node IDs
+            parentMap: {},      // For path reconstruction
+            currentNode: null,
+            targetFound: false,
+            path: [],
+            steps: 0,
+            activeLine: 1,
+            finished: false,
+            logMsg: "Pronto para iniciar."
+        };
+
+        // Compare Mode States (Runs two algorithms side by side)
+        let simBFS = null;
+        let simDFS = null;
+
+        // --- STREAMING_CHUNK:Implementing Canvas rendering engine... ---
+        // Setup Canvas Elements
+        const mainCanvas = document.getElementById('graphCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const canvasBFS = document.getElementById('canvasBFS');
+        const ctxBFS = canvasBFS.getContext('2d');
+        const canvasDFS = document.getElementById('canvasDFS');
+        const ctxDFS = canvasDFS.getContext('2d');
+
+        function resizeCanvases() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            if(!wrapper) return;
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight || 420;
+
+            mainCanvas.width = w;
+            mainCanvas.height = h;
+
+            if (compareMode) {
+                const cWrapper = document.getElementById('compare-canvas-wrapper');
+                const halfW = (cWrapper.clientWidth / 2) - 12;
+                const fullH = cWrapper.clientHeight - 30;
+
+                canvasBFS.width = halfW;
+                canvasBFS.height = fullH;
+                canvasDFS.width = halfW;
+                canvasDFS.height = fullH;
+            }
+
+            drawCurrent();
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+
+        // Render Graph/Tree Node Layout
+        function drawGraphOnContext(ctx, canvas, stateObj, algoType) {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (currentPreset.type === 'grid') {
+                drawGridOnContext(ctx, canvas, stateObj);
+                return;
+            }
+
+            const nodes = currentPreset.nodes;
+            const adj = currentPreset.adj;
+
+            // Draw Edges
+            ctx.lineWidth = 3;
+            for (let u in adj) {
+                const uPos = { x: nodes[u].x * w, y: nodes[u].y * h };
+                adj[u].forEach(v => {
+                    const vPos = { x: nodes[v].x * w, y: nodes[v].y * h };
+                    
+                    // Check if edge is in final path
+                    let isPathEdge = false;
+                    if (stateObj.path && stateObj.path.length > 1) {
+                        for (let i = 0; i < stateObj.path.length - 1; i++) {
+                            if ((stateObj.path[i] === u && stateObj.path[i+1] === v) ||
+                                (stateObj.path[i] === v && stateObj.path[i+1] === u)) {
+                                isPathEdge = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    ctx.strokeStyle = isPathEdge ? '#34d399' : '#334155';
+                    ctx.lineWidth = isPathEdge ? 4 : 2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(uPos.x, uPos.y);
+                    ctx.lineTo(vPos.x, vPos.y);
+                    ctx.stroke();
+
+                    // Optional arrow tip
+                    drawArrowhead(ctx, uPos, vPos, 18);
+                });
+            }
+
+            // Draw Nodes
+            const nodeRadius = Math.min(w, h) * 0.055 + 10;
+
+            for (let id in nodes) {
+                const pos = { x: nodes[id].x * w, y: nodes[id].y * h };
+                const isStart = id === currentPreset.start;
+                const isTarget = id === currentPreset.target;
+                const isCurrent = stateObj.currentNode === id;
+                const inFrontier = stateObj.frontier.includes(id);
+                const isVisited = stateObj.visited.has(id);
+                const inPath = stateObj.path.includes(id);
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, nodeRadius, 0, 2 * Math.PI);
+
+                // Default Node Styling
+                let fillColor = '#1e293b';
+                let strokeColor = '#475569';
+                let textColor = '#f8fafc';
+                let strokeWidth = 2;
+
+                if (isVisited) {
+                    fillColor = '#334155';
+                    strokeColor = '#64748b';
+                }
+
+                if (inFrontier) {
+                    fillColor = '#78350f';
+                    strokeColor = '#f59e0b';
+                    textColor = '#fef3c7';
+                    strokeWidth = 3;
+                }
+
+                if (isCurrent) {
+                    fillColor = algoType === 'BFS' ? '#1d4ed8' : '#7e22ce';
+                    strokeColor = algoType === 'BFS' ? '#60a5fa' : '#c084fc';
+                    strokeWidth = 4;
+                }
+
+                if (inPath) {
+                    fillColor = '#065f46';
+                    strokeColor = '#34d399';
+                    textColor = '#ecfdf5';
+                    strokeWidth = 4;
+                }
+
+                if (isStart && !inPath) {
+                    strokeColor = '#6366f1';
+                    strokeWidth = 3;
+                }
+                if (isTarget && !inPath) {
+                    strokeColor = '#10b981';
+                    strokeWidth = 3;
+                }
+
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+                ctx.lineWidth = strokeWidth;
+                ctx.strokeStyle = strokeColor;
+                ctx.stroke();
+
+                // Draw Badges / Labels
+                ctx.fillStyle = textColor;
+                ctx.font = `bold ${Math.max(12, nodeRadius * 0.8)}px Inter, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(nodes[id].label, pos.x, pos.y);
+
+                // Role indicators above nodes
+                if (isStart || isTarget) {
+                    ctx.font = '10px Inter, sans-serif';
+                    ctx.fillStyle = isStart ? '#818cf8' : '#34d399';
+                    ctx.fillText(isStart ? 'INÍCIO' : 'ALVO', pos.x, pos.y - nodeRadius - 8);
+                }
+            }
+        }
+
+        function drawArrowhead(ctx, from, to, radius) {
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const angle = Math.atan2(dy, dx);
+            const offsetToX = to.x - radius * Math.cos(angle);
+            const offsetToY = to.y - radius * Math.sin(angle);
+
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(offsetToX, offsetToY);
+            ctx.lineTo(offsetToX - 8 * Math.cos(angle - Math.PI / 6), offsetToY - 8 * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(offsetToX - 8 * Math.cos(angle + Math.PI / 6), offsetToY - 8 * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Draw Grid Mode
+        function drawGridOnContext(ctx, canvas, stateObj) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const rows = currentPreset.rows;
+            const cols = currentPreset.cols;
+
+            const cellW = w / cols;
+            const cellH = h / rows;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const id = `${r},${c}`;
+                    const x = c * cellW;
+                    const y = r * cellH;
+
+                    const isStart = currentPreset.start.r === r && currentPreset.start.c === c;
+                    const isTarget = currentPreset.target.r === r && currentPreset.target.c === c;
+                    const isWall = currentPreset.walls.some(w => w.r === r && w.c === c);
+                    const isVisited = stateObj.visited.has(id);
+                    const inFrontier = stateObj.frontier.includes(id);
+                    const isCurrent = stateObj.currentNode === id;
+                    const inPath = stateObj.path.includes(id);
+
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 1;
+
+                    if (isWall) {
+                        ctx.fillStyle = '#0f172a';
+                    } else if (inPath) {
+                        ctx.fillStyle = '#059669';
+                    } else if (isCurrent) {
+                        ctx.fillStyle = '#2563eb';
+                    } else if (inFrontier) {
+                        ctx.fillStyle = '#d97706';
+                    } else if (isVisited) {
+                        ctx.fillStyle = '#334155';
+                    } else {
+                        ctx.fillStyle = '#1e293b';
+                    }
+
+                    ctx.fillRect(x + 2, y + 2, cellW - 4, cellH - 4);
+                    ctx.strokeRect(x + 2, y + 2, cellW - 4, cellH - 4);
+
+                    if (isStart || isTarget) {
+                        ctx.fillStyle = isStart ? '#6366f1' : '#10b981';
+                        ctx.font = 'bold 12px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(isStart ? 'S' : 'G', x + cellW/2, y + cellH/2);
+                    }
+                }
+            }
+        }
+
+        function drawCurrent() {
+            if (compareMode) {
+                drawGraphOnContext(ctxBFS, canvasBFS, simBFS, 'BFS');
+                drawGraphOnContext(ctxDFS, canvasDFS, simDFS, 'DFS');
+            } else {
+                drawGraphOnContext(mainCtx, mainCanvas, simState, currentAlgo);
+            }
+            updateUI();
+        }
+
+        // --- STREAMING_CHUNK:Implementing BFS and DFS step-by-step execution logic... ---
+        // Helper to reset simulation object
+        function createInitialState() {
+            let startId = currentPreset.type === 'grid' ? `${currentPreset.start.r},${currentPreset.start.c}` : currentPreset.start;
+            return {
+                frontier: [startId],
+                visited: new Set(),
+                parentMap: {},
+                currentNode: null,
+                targetFound: false,
+                path: [],
+                steps: 0,
+                activeLine: 1,
+                finished: false,
+                logMsg: "Iniciado. Nó de origem inserido na fronteira."
+            };
+        }
+
+        function getNeighbors(nodeId) {
+            if (currentPreset.type === 'graph') {
+                return currentPreset.adj[nodeId] || [];
+            } else {
+                // Grid neighbors (Up, Right, Down, Left)
+                const [r, c] = nodeId.split(',').map(Number);
+                const dirs = [[-1,0], [0,1], [1,0], [0,-1]];
+                const neighbors = [];
+
+                dirs.forEach(([dr, dc]) => {
+                    const nr = r + dr;
+                    const nc = c + dc;
+                    if (nr >= 0 && nr < currentPreset.rows && nc >= 0 && nc < currentPreset.cols) {
+                        if (!currentPreset.walls.some(w => w.r === nr && w.c === nc)) {
+                            neighbors.push(`${nr},${nc}`);
+                        }
+                    }
+                });
+                return neighbors;
+            }
+        }
+
+        // Advance algorithm state by 1 step
+        function stepAlgorithm(state, algoType) {
+            if (state.finished) return;
+
+            const targetId = currentPreset.type === 'grid' 
+                ? `${currentPreset.target.r},${currentPreset.target.c}` 
+                : currentPreset.target;
+
+            state.steps++;
+
+            // Step 1: Check if frontier is empty
+            if (state.frontier.length === 0) {
+                state.finished = true;
+                state.currentNode = null;
+                state.logMsg = "Fronteira vazia! Nenhum caminho encontrado para o alvo.";
+                state.activeLine = 5;
+                return;
+            }
+
+            // Step 2: Pop node according to strategy (Queue vs Stack)
+            if (algoType === 'BFS') {
+                // FIFO: Pop first
+                state.currentNode = state.frontier.shift();
+            } else {
+                // LIFO: Pop last
+                state.currentNode = state.frontier.pop();
+            }
+
+            state.visited.add(state.currentNode);
+            state.activeLine = 6;
+
+            // Step 3: Check if target reached
+            if (state.currentNode === targetId) {
+                state.targetFound = true;
+                state.finished = true;
+                state.activeLine = 7;
+                state.logMsg = `🎯 ALVO ENCONTRADO em ${state.steps} passos! Reconstruindo caminho...`;
+                
+                // Reconstruct Path
+                let curr = targetId;
+                state.path = [];
+                while (curr) {
+                    state.path.unshift(curr);
+                    curr = state.parentMap[curr];
+                }
+                return;
+            }
+
+            // Step 4: Expand Neighbors
+            const neighbors = getNeighbors(state.currentNode);
+            let addedCount = 0;
+
+            state.activeLine = 8;
+            neighbors.forEach(neighbor => {
+                if (!state.visited.has(neighbor) && !state.frontier.includes(neighbor)) {
+                    state.parentMap[neighbor] = state.currentNode;
+                    state.frontier.push(neighbor);
+                    addedCount++;
+                }
+            });
+
+            state.activeLine = 11;
+            state.logMsg = `Expandindo nó ${state.currentNode}. ${addedCount} novos vizinhos adicionados à fronteira.`;
+        }
+
+        // Global Step Executer
+        function stepForward() {
+            if (compareMode) {
+                if (!simBFS.finished) stepAlgorithm(simBFS, 'BFS');
+                if (!simDFS.finished) stepAlgorithm(simDFS, 'DFS');
+            } else {
+                if (!simState.finished) stepAlgorithm(simState, currentAlgo);
+            }
+            drawCurrent();
+        }
+
+        // --- STREAMING_CHUNK:Configuring UI controls and code highlights... ---
+        function setAlgorithm(algo) {
+            if (compareMode) toggleCompareMode();
+            currentAlgo = algo;
+
+            const btnBFS = document.getElementById('btn-algo-bfs');
+            const btnDFS = document.getElementById('btn-algo-dfs');
+            const badge = document.getElementById('algo-badge');
+
+            if (algo === 'BFS') {
+                btnBFS.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-blue-600 text-white shadow-lg shadow-blue-600/30";
+                btnDFS.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800";
+                badge.className = "px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30";
+                badge.textContent = "BFS (Busca em Largura)";
+            } else {
+                btnDFS.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-purple-600 text-white shadow-lg shadow-purple-600/30";
+                btnBFS.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800";
+                badge.className = "px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/30";
+                badge.textContent = "DFS (Busca em Profundidade)";
+            }
+
+            resetSimulation();
+        }
+
+        function toggleCompareMode() {
+            compareMode = !compareMode;
+            const singleCanvas = document.getElementById('graphCanvas');
+            const compareWrapper = document.getElementById('compare-canvas-wrapper');
+            const sidebar = document.getElementById('sidebar-container');
+            const visualCol = document.getElementById('visual-container');
+            const btnCompare = document.getElementById('btn-algo-compare');
+
+            if (compareMode) {
+                singleCanvas.classList.add('hidden');
+                compareWrapper.classList.remove('hidden');
+                sidebar.classList.add('hidden');
+                visualCol.className = "lg:col-span-12 bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-xl flex flex-col relative min-h-[520px]";
+                btnCompare.className = "px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-indigo-600 text-white ml-1 shadow-lg shadow-indigo-600/30";
+            } else {
+                singleCanvas.classList.remove('hidden');
+                compareWrapper.classList.add('hidden');
+                sidebar.classList.remove('hidden');
+                visualCol.className = "lg:col-span-8 bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-xl flex flex-col relative min-h-[480px]";
+                btnCompare.className = "px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border-l border-slate-700/80 ml-1";
+            }
+
+            resetSimulation();
+            setTimeout(resizeCanvases, 50);
+        }
+
+        function loadPreset(key) {
+            currentPresetKey = key;
+            currentPreset = PRESETS[key];
+            resetSimulation();
+        }
+
+        function resetSimulation() {
+            pauseSimulation();
+            simState = createInitialState();
+            simBFS = createInitialState();
+            simDFS = createInitialState();
+            drawCurrent();
+        }
+
+        function togglePlay() {
+            if (isRunning) {
+                pauseSimulation();
+            } else {
+                startSimulation();
+            }
+        }
+
+        function startSimulation() {
+            if (isRunning) return;
+            isRunning = true;
+            document.getElementById('icon-play').className = "fa-solid fa-pause";
+            document.getElementById('text-play').textContent = "Pausar";
+
+            timer = setInterval(() => {
+                if ((!compareMode && simState.finished) || (compareMode && simBFS.finished && simDFS.finished)) {
+                    pauseSimulation();
+                    return;
+                }
+                stepForward();
+            }, speed);
+        }
+
+        function pauseSimulation() {
+            isRunning = false;
+            if (timer) clearInterval(timer);
+            document.getElementById('icon-play').className = "fa-solid fa-play";
+            document.getElementById('text-play').textContent = "Iniciar";
+        }
+
+        function updateSpeed(val) {
+            speed = 1600 - val; // Reverse so slider right = faster
+            if (isRunning) {
+                pauseSimulation();
+                startSimulation();
+            }
+        }
+
+        // --- UI Updates (Frontier Inspector & Pseudocode Render) ---
+        function updateUI() {
+            if (!compareMode) {
+                // Update Step Counter & Log
+                document.getElementById('step-counter').textContent = `Passos: ${simState.steps}`;
+                document.getElementById('log-output').textContent = simState.logMsg;
+
+                // Update Data Structure Panel
+                const dsIcon = document.getElementById('ds-icon');
+                const dsTitle = document.getElementById('ds-title');
+                const dsBehavior = document.getElementById('ds-behavior');
+                const dsDescription = document.getElementById('ds-description');
+                const frontierList = document.getElementById('frontier-list');
+
+                if (currentAlgo === 'BFS') {
+                    dsIcon.className = "fa-solid fa-layer-group text-blue-400";
+                    dsTitle.className = "text-blue-400 font-mono";
+                    dsTitle.textContent = "Fila (FIFO)";
+                    dsBehavior.className = "text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300";
+                    dsBehavior.textContent = "Primeiro a Entrar, Primeiro a Sair";
+                    dsDescription.innerHTML = "A <strong class='text-blue-300'>Fila</strong> explora a árvore nível por nível. O nó inserido há mais tempo na fronteira é retornado primeiro.";
+                } else {
+                    dsIcon.className = "fa-solid fa-bars-staggered text-purple-400";
+                    dsTitle.className = "text-purple-400 font-mono";
+                    dsTitle.textContent = "Pilha (LIFO)";
+                    dsBehavior.className = "text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300";
+                    dsBehavior.textContent = "Último a Entrar, Primeiro a Sair";
+                    dsDescription.innerHTML = "A <strong class='text-purple-300'>Pilha</strong> força o algoritmo a ir até a máxima profundidade possível antes de retroceder (<i>backtracking</i>).";
+                }
+
+                // Render Frontier Nodes
+                if (simState.frontier.length === 0) {
+                    frontierList.innerHTML = `<span class="text-slate-500 text-xs italic mx-auto">Fronteira vazia</span>`;
+                } else {
+                    frontierList.innerHTML = simState.frontier.map((item, idx) => {
+                        const isNext = (currentAlgo === 'BFS' && idx === 0) || (currentAlgo === 'DFS' && idx === simState.frontier.length - 1);
+                        return `
+                            <div class="flex-shrink-0 px-3 py-1.5 rounded-lg font-mono text-xs font-bold border transition ${
+                                isNext 
+                                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-2 ring-amber-500/30' 
+                                    : 'bg-slate-800 border-slate-700 text-slate-300'
+                            }">
+                                ${item} ${isNext ? '<span class="text-[9px] block text-amber-400 font-sans">PRÓXIMO</span>' : ''}
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // Render Pseudocode lines
+                renderPseudocode(simState.activeLine);
+            } else {
+                // Compare Mode UI Updates
+                document.getElementById('bfs-step-count').textContent = `Passos: ${simBFS.steps}`;
+                document.getElementById('dfs-step-count').textContent = `Passos: ${simDFS.steps}`;
+                document.getElementById('log-output').textContent = `[Comparação] BFS: ${simBFS.targetFound ? 'Concluído' : 'Em Execução'} | DFS: ${simDFS.targetFound ? 'Concluído' : 'Em Execução'}`;
+            }
+        }
+
+        function renderPseudocode(activeLine) {
+            const container = document.getElementById('code-box');
+            if (!container) return;
+
+            const snippet = CODE_SNIPPETS[currentAlgo];
+            container.innerHTML = snippet.map(line => {
+                const isActive = line.id === activeLine;
+                return `
+                    <div class="px-2 py-0.5 rounded transition ${
+                        isActive 
+                            ? (currentAlgo === 'BFS' ? 'bg-blue-600/30 text-blue-200 font-bold border-l-2 border-blue-400' : 'bg-purple-600/30 text-purple-200 font-bold border-l-2 border-purple-400') 
+                            : 'text-slate-400 hover:text-slate-200'
+                    }">
+                        <span class="inline-block w-6 text-slate-600 text-right mr-2 select-none">${line.id}</span>${escapeHtml(line.text)}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Quiz Handling
+        function checkQuiz(qNum, choice, isCorrect) {
+            const feedback = document.getElementById(`quiz-feedback-${qNum}`);
+            feedback.classList.remove('hidden');
+
+            if (isCorrect) {
+                feedback.className = "text-xs mt-2 font-medium text-emerald-400 flex items-center gap-1";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check"></i> Correto! Exatamente esse o comportamento esperado.`;
+            } else {
+                feedback.className = "text-xs mt-2 font-medium text-red-400 flex items-center gap-1";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Incorreto. Tente refletir sobre a estrutura de dados utilizada.`;
+            }
+        }
+
+        // Initialization on Load
+        window.onload = function() {
+            resizeCanvases();
+            resetSimulation();
+        };
+    </script>
+</body>
+</html>

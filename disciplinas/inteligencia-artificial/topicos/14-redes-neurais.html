@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redes Neurais Artificiais · AcademicHub</title>
+<meta name="description" content="Do perceptron ao MLP: pesos, funções de ativação, retropropagação e gradiente descendente.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/14-redes-neurais">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ NEURÔNIO ============================ -->
+<section id="neuronio" data-toc="O neurônio artificial" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-circle-nodes text-indigo-400 mr-2"></i>Um neurônio é uma conta só</h2>
+  <div class="ah-prose">
+    <p>
+      Toda a rede neural — inclusive as que geram texto e imagem — é feita da repetição de uma operação
+      trivial: <strong>somar entradas multiplicadas por pesos</strong> e passar o resultado por uma função
+      não linear. O que muda de um modelo para outro é quantas vezes isso é repetido e como as peças se conectam.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 my-6">
+    <div class="lg:col-span-2">
+      <div class="ah-stage p-4"><canvas id="neuCanvas" style="height:250px"></canvas></div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4 space-y-3" id="neu-ctrl"></div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Cálculo</h3>
+        <div id="neu-conta" class="font-mono text-[11px] text-slate-300 leading-relaxed"></div>
+      </div>
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-300 block mb-1">Função de ativação</label>
+        <select id="neu-ativ" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-300 focus:outline-none">
+          <option value="sigmoid">Sigmoide — saída em (0,1)</option>
+          <option value="tanh">Tangente hiperbólica — saída em (−1,1)</option>
+          <option value="relu">ReLU — max(0, z)</option>
+          <option value="degrau">Degrau — 0 ou 1 (perceptron original)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">As funções de ativação</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    Sem função não linear, empilhar camadas seria inútil: a composição de funções lineares continua linear.
+    A não linearidade é o que permite à rede dobrar o espaço.
+  </p>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="ativacoes"></div>
+</section>
+
+<!-- ============================ PERCEPTRON ============================ -->
+<section id="perceptron" data-toc="Perceptron e o XOR" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-slash text-indigo-400 mr-2"></i>O perceptron traça uma reta — e só</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um neurônio isolado só consegue separar o que uma <strong>reta</strong> separa. Para AND e OR isso basta.
+    Para o <strong>XOR</strong>, não existe reta possível — e foi essa constatação, em 1969, que congelou a
+    pesquisa em redes neurais por quase vinte anos.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="percCanvas" style="height:320px"></canvas></div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-300 block mb-2">Função lógica a aprender</label>
+        <div class="flex gap-1.5" id="perc-fn">
+          <button class="ah-chip active" data-fn="AND">AND</button>
+          <button class="ah-chip" data-fn="OR">OR</button>
+          <button class="ah-chip" data-fn="XOR">XOR</button>
+        </div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Pesos aprendidos</h3>
+        <div id="perc-pesos" class="font-mono text-[11px] text-slate-300 space-y-1"></div>
+      </div>
+      <div class="ah-card p-4 grid grid-cols-2 gap-2 text-center">
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="perc-ep" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">épocas</div></div>
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="perc-acc" class="text-lg font-bold text-emerald-400">—</div><div class="text-[10px] text-slate-500">acertos</div></div>
+      </div>
+      <button id="perc-play" class="ah-btn ah-btn-primary w-full"><i class="fa-solid fa-play"></i> Treinar</button>
+      <button id="perc-reset" class="ah-btn ah-btn-ghost w-full"><i class="fa-solid fa-rotate-left"></i> Reiniciar pesos</button>
+      <div id="perc-nota" class="ah-callout ah-callout-info text-[11px]"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MLP ============================ -->
+<section id="mlp" data-toc="Rede multicamada (laboratório)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-indigo-400 mr-2"></i>Camadas escondidas resolvem o problema</h2>
+  <p class="ah-lead text-sm mb-5">
+    Acrescente uma camada intermediária e a rede deixa de traçar uma reta: ela compõe várias fronteiras
+    e passa a desenhar regiões arbitrárias. Treine e observe a <strong>fronteira de decisão</strong> se moldar
+    aos dados — e a <strong>curva de erro</strong> descendo.
+  </p>
+
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <div class="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-700" id="mlp-dados">
+      <button class="ah-chip active" data-d="circulo">Círculo</button>
+      <button class="ah-chip" data-d="xor">XOR</button>
+      <button class="ah-chip" data-d="espiral">Espiral</button>
+      <button class="ah-chip" data-d="faixas">Faixas</button>
+    </div>
+    <div class="flex items-center gap-2 ml-auto">
+      <button id="mlp-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Treinar</button>
+      <button id="mlp-step" class="ah-btn"><i class="fa-solid fa-forward-step"></i> 50 épocas</button>
+      <button id="mlp-reset" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="mlpCanvas" style="height:380px"></canvas></div>
+      <div class="ah-legend mt-3 px-1">
+        <span><span class="dot" style="background:#f97316"></span>Classe A</span>
+        <span><span class="dot" style="background:#38bdf8"></span>Classe B</span>
+        <span>Fundo = previsão da rede (mais forte = mais confiante)</span>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4 space-y-4">
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Neurônios na 1ª camada oculta <span id="mlp-h1-v" class="font-mono text-indigo-300">6</span></label>
+          <input id="mlp-h1" type="range" min="1" max="12" value="6" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Neurônios na 2ª camada oculta <span id="mlp-h2-v" class="font-mono text-indigo-300">4</span></label>
+          <input id="mlp-h2" type="range" min="0" max="12" value="4" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Taxa de aprendizado <span id="mlp-lr-v" class="font-mono text-indigo-300">0,10</span></label>
+          <input id="mlp-lr" type="range" min="1" max="100" value="10" class="w-full accent-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 flex justify-between mb-1">Ruído nos dados <span id="mlp-ruido-v" class="font-mono text-indigo-300">10%</span></label>
+          <input id="mlp-ruido" type="range" min="0" max="50" value="10" class="w-full accent-indigo-500">
+        </div>
+      </div>
+      <div class="ah-card p-4 grid grid-cols-2 gap-2 text-center">
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="mlp-ep" class="text-lg font-bold text-white">0</div><div class="text-[10px] text-slate-500">épocas</div></div>
+        <div class="bg-slate-950 rounded-lg p-2 border border-slate-800">
+          <div id="mlp-acc" class="text-lg font-bold text-emerald-400">—</div><div class="text-[10px] text-slate-500">acurácia</div></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Erro (entropia cruzada)</h3>
+        <div class="ah-stage"><canvas id="mlpLoss" style="height:90px"></canvas></div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Arquitetura</h3>
+        <div class="ah-stage p-2"><canvas id="mlpArq" style="height:130px"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-flask"></i>
+    <div>
+      <strong>Experimente:</strong> coloque <em>1 neurônio</em> na primeira camada e zere a segunda — a rede
+      vira um perceptron e falha no círculo e no XOR. Depois escolha <em>Espiral</em>: mesmo com muitos
+      neurônios, a convergência é lenta e sensível à taxa de aprendizado. É a diferença entre um problema
+      quase linear e um problema genuinamente difícil.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ BACKPROP ============================ -->
+<section id="backprop" data-toc="Como a rede aprende" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-arrows-left-right-to-line text-indigo-400 mr-2"></i>Retropropagação em quatro passos</h2>
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6" id="bp-passos"></div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3 text-sm">O que a regra da cadeia faz aqui</h3>
+      <div class="ah-prose text-sm">
+        <p>
+          O erro é medido só na saída. Para corrigir um peso lá no início da rede, precisamos saber
+          <em>quanto aquele peso contribuiu</em> para o erro final. A regra da cadeia do cálculo responde isso:
+          o gradiente de cada camada é o gradiente da camada seguinte multiplicado pela derivada local.
+        </p>
+        <p class="mb-0">
+          Daí o nome: o erro é <strong>propagado de trás para frente</strong>, e cada peso é ajustado na direção
+          que mais reduz o erro — é <a href="06-machine-learning.html" class="text-indigo-400 hover:underline">gradiente
+          descendente</a> aplicado camada a camada.
+        </p>
+      </div>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3 text-sm">Problemas clássicos do treinamento</h3>
+      <ul class="text-xs text-slate-400 space-y-2 leading-relaxed">
+        <li><strong class="text-white">Gradiente que desaparece:</strong> em redes profundas com sigmoide, o gradiente encolhe a cada camada e as primeiras param de aprender. ReLU e conexões residuais atacam isso.</li>
+        <li><strong class="text-white">Gradiente que explode:</strong> o oposto — atualizações gigantes que desestabilizam o treino. Trata-se com <em>gradient clipping</em>.</li>
+        <li><strong class="text-white">Mínimos locais e platôs:</strong> em alta dimensão, o vilão real são os pontos de sela, não os mínimos locais.</li>
+        <li><strong class="text-white">Overfitting:</strong> rede grande decora o treino. Trate com dropout, regularização L2 e parada antecipada.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ARQUITETURAS ============================ -->
+<section id="arquiteturas" data-toc="Famílias de redes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-diagram-project text-indigo-400 mr-2"></i>Das MLPs aos Transformers</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Arquitetura</th><th>Ideia central</th><th>Boa para</th></tr></thead>
+      <tbody>
+        <tr><td>MLP / Feedforward</td><td>Camadas densas totalmente conectadas</td><td>Dados tabulares, baseline</td></tr>
+        <tr><td>CNN (convolucional)</td><td>Filtros que deslizam e compartilham pesos; invariância a translação</td><td>Imagens, sinais, áudio</td></tr>
+        <tr><td>RNN / LSTM / GRU</td><td>Estado que persiste entre passos da sequência</td><td>Séries temporais, texto (antes dos Transformers)</td></tr>
+        <tr><td>Autoencoder</td><td>Comprime para um gargalo e reconstrói</td><td>Redução de dimensão, detecção de anomalia</td></tr>
+        <tr><td>GAN</td><td>Gerador e discriminador competindo</td><td>Geração de imagens, dados sintéticos</td></tr>
+        <tr><td>Transformer</td><td>Atenção: cada elemento olha todos os outros, em paralelo</td><td>Texto, visão, multimodal — o padrão atual</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      Apesar do tamanho, todas continuam sendo a mesma coisa: <strong>somas ponderadas seguidas de não
+      linearidades</strong>, treinadas por retropropagação. O que mudou foi a escala, a arquitetura
+      das conexões e a quantidade de dados.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Quatro perguntas sobre redes neurais.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Por que o perceptron não aprende o XOR?</p>
+      <button class="ah-quiz-opt">Porque o XOR tem quatro entradas</button>
+      <button class="ah-quiz-opt">Porque o XOR não é linearmente separável e um neurônio só traça uma reta</button>
+      <button class="ah-quiz-opt">Porque a taxa de aprendizado é sempre alta demais</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Não existe reta que separe {(0,0),(1,1)} de {(0,1),(1,0)}. A solução é a camada oculta: ela cria um
+        novo espaço de representação onde o problema <em>vira</em> linearmente separável. Rode o perceptron
+        com XOR acima e veja a reta oscilando sem nunca acertar os quatro pontos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. O que aconteceria numa rede de 5 camadas sem nenhuma função de ativação não linear?</p>
+      <button class="ah-quiz-opt">Aprenderia mais rápido</button>
+      <button class="ah-quiz-opt">Não conseguiria treinar</button>
+      <button class="ah-quiz-opt">Seria matematicamente equivalente a uma única camada linear</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A composição de transformações lineares é uma transformação linear. As cinco camadas colapsariam em
+        uma matriz só — toda a profundidade seria desperdiçada. A não linearidade é o que dá poder expressivo
+        à profundidade.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Retropropagação é, essencialmente:</p>
+      <button class="ah-quiz-opt">A regra da cadeia aplicada para distribuir o erro da saída a cada peso</button>
+      <button class="ah-quiz-opt">Um método de inicialização de pesos</button>
+      <button class="ah-quiz-opt">Uma técnica para remover neurônios inúteis</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Ela calcula <code>∂erro/∂peso</code> para todos os pesos de uma vez, reaproveitando os cálculos da
+        camada seguinte. Sem esse reaproveitamento, treinar redes grandes seria computacionalmente inviável.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. Acurácia de 99% no treino e 71% no teste indica:</p>
+      <button class="ah-quiz-opt">Underfitting — precisa de mais camadas</button>
+      <button class="ah-quiz-opt">Overfitting — use dropout, regularização, mais dados ou uma rede menor</button>
+      <button class="ah-quiz-opt">Que a taxa de aprendizado está baixa demais</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Aumente o ruído no laboratório acima e use muitos neurônios: a fronteira fica retorcida, criando
+        ilhas ao redor de pontos isolados. É overfitting visível a olho nu.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Funções de ativação ===================== */
+const ATIV = {
+  sigmoid: { f: z => 1 / (1 + Math.exp(-z)), d: a => a * (1 - a), nome: 'Sigmoide', faixa: [0, 1] },
+  tanh:    { f: z => Math.tanh(z),            d: a => 1 - a * a,   nome: 'Tanh',     faixa: [-1, 1] },
+  relu:    { f: z => Math.max(0, z),          d: a => a > 0 ? 1 : 0, nome: 'ReLU',   faixa: [0, 3] },
+  degrau:  { f: z => z >= 0 ? 1 : 0,          d: () => 1,          nome: 'Degrau',   faixa: [0, 1] }
+};
+
+/* ===================== Neurônio interativo ===================== */
+(function neuronio() {
+  const E = { x1: 0.7, x2: 0.4, w1: 0.8, w2: -0.5, b: 0.1 };
+  const cv = AH.canvas('neuCanvas', desenha);
+
+  function saida() {
+    const z = E.x1 * E.w1 + E.x2 * E.w2 + E.b;
+    const a = ATIV[document.getElementById('neu-ativ').value].f(z);
+    return { z, a };
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const { z, a } = saida();
+    const cx = w * 0.58, cy = h / 2;
+
+    const entradas = [['x₁', E.x1, E.w1, h * 0.28], ['x₂', E.x2, E.w2, h * 0.58], ['1', 1, E.b, h * 0.86]];
+    entradas.forEach(([nome, val, peso, y]) => {
+      const x0 = w * 0.1;
+      ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x0, y, 17, 0, 6.29); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#7dd3fc'; ctx.font = '600 11px Inter, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(nome, x0, y - 4);
+      ctx.font = '9px Fira Code, monospace'; ctx.fillStyle = '#94a3b8';
+      ctx.fillText(val.toFixed(2), x0, y + 7);
+
+      const forca = Math.min(Math.abs(peso) / 2, 1);
+      ctx.strokeStyle = peso >= 0 ? `rgba(16,185,129,${0.25 + forca * 0.7})` : `rgba(239,68,68,${0.25 + forca * 0.7})`;
+      ctx.lineWidth = 1 + forca * 5;
+      ctx.beginPath(); ctx.moveTo(x0 + 18, y); ctx.lineTo(cx - 30, cy); ctx.stroke();
+
+      ctx.fillStyle = peso >= 0 ? '#34d399' : '#f87171';
+      ctx.font = '600 10px Fira Code, monospace';
+      ctx.fillText((peso >= 0 ? '+' : '') + peso.toFixed(2), (x0 + cx) / 2 - 6, (y + cy) / 2 - 8);
+    });
+
+    ctx.fillStyle = 'rgba(99,102,241,.2)'; ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 30, 0, 6.29); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c7d2fe'; ctx.font = '700 13px Inter, sans-serif';
+    ctx.fillText('Σ ƒ', cx, cy);
+
+    AH.arrow(ctx, cx + 32, cy, w * 0.86, cy, '#a855f7', 9);
+    ctx.fillStyle = 'rgba(168,85,247,.2)'; ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(w * 0.92, cy, 22, 0, 6.29); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e9d5ff'; ctx.font = '700 12px Fira Code, monospace';
+    ctx.fillText(a.toFixed(2), w * 0.92, cy);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px Inter, sans-serif';
+    ctx.fillText('saída', w * 0.92, cy + 36);
+    ctx.fillText('z = ' + z.toFixed(2), cx, cy + 48);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function pinta() {
+    const { z, a } = saida();
+    document.getElementById('neu-conta').innerHTML = `
+      z = x₁·w₁ + x₂·w₂ + b<br>
+      z = ${E.x1.toFixed(2)}·${E.w1.toFixed(2)} + ${E.x2.toFixed(2)}·${E.w2.toFixed(2)} + ${E.b.toFixed(2)}<br>
+      z = <b class="text-indigo-300">${z.toFixed(3)}</b><br>
+      a = ƒ(z) = <b class="text-purple-300">${a.toFixed(3)}</b>`;
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  const CTRL = [['x1', 'Entrada x₁', 0, 100], ['x2', 'Entrada x₂', 0, 100],
+                ['w1', 'Peso w₁', -200, 200], ['w2', 'Peso w₂', -200, 200], ['b', 'Viés b', -200, 200]];
+  document.getElementById('neu-ctrl').innerHTML = CTRL.map(c => `
+    <div>
+      <label class="text-xs text-slate-300 flex justify-between mb-1">${c[1]}
+        <span id="nv-${c[0]}" class="font-mono text-indigo-300">${E[c[0]].toFixed(2)}</span></label>
+      <input type="range" data-n="${c[0]}" min="${c[2]}" max="${c[3]}" value="${E[c[0]] * 100}" class="w-full accent-indigo-500">
+    </div>`).join('');
+  document.getElementById('neu-ctrl').addEventListener('input', e => {
+    const k = e.target.getAttribute('data-n');
+    if (!k) return;
+    E[k] = +e.target.value / 100;
+    document.getElementById('nv-' + k).textContent = E[k].toFixed(2);
+    pinta();
+  });
+  document.getElementById('neu-ativ').addEventListener('change', pinta);
+  pinta();
+})();
+
+/* ===================== Gráficos das ativações ===================== */
+document.getElementById('ativacoes').innerHTML = Object.entries(ATIV).map(([k, v]) => {
+  const pts = [];
+  for (let i = 0; i <= 60; i++) {
+    const z = -4 + (i / 60) * 8;
+    const a = v.f(z);
+    const y = 46 - ((a - v.faixa[0]) / (v.faixa[1] - v.faixa[0])) * 40;
+    pts.push(`${4 + (i / 60) * 92},${Math.max(2, Math.min(50, y))}`);
+  }
+  const DESC = { sigmoid: 'Suave, mas satura e some com o gradiente.', tanh: 'Centrada em zero — converge melhor que a sigmoide.',
+                 relu: 'Padrão em redes profundas: barata e sem saturar no positivo.', degrau: 'Não é derivável — por isso o perceptron não usa gradiente.' };
+  return `<div class="ah-card p-3">
+    <h4 class="text-xs font-bold text-white mb-1">${v.nome}</h4>
+    <svg viewBox="0 0 100 52" class="w-full mb-2">
+      <line x1="4" y1="26" x2="96" y2="26" stroke="rgba(148,163,184,.25)" stroke-width="1"/>
+      <line x1="50" y1="2" x2="50" y2="50" stroke="rgba(148,163,184,.25)" stroke-width="1"/>
+      <polyline points="${pts.join(' ')}" fill="none" stroke="#818cf8" stroke-width="2"/>
+    </svg>
+    <p class="text-[10px] text-slate-400 leading-snug">${DESC[k]}</p>
+  </div>`;
+}).join('');
+
+/* ===================== Perceptron ===================== */
+(function perceptron() {
+  const DADOS = {
+    AND: [[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 1]],
+    OR:  [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]],
+    XOR: [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
+  };
+  let fn = 'AND', w = [0, 0], b = 0, ep = 0, timer = null;
+  const cv = AH.canvas('percCanvas', desenha);
+
+  const prev = (x1, x2) => (w[0] * x1 + w[1] * x2 + b) >= 0 ? 1 : 0;
+
+  function reset() {
+    w = [AH.rand(-1, 1), AH.rand(-1, 1)]; b = AH.rand(-0.5, 0.5); ep = 0;
+    clearInterval(timer); timer = null;
+    document.getElementById('perc-play').innerHTML = '<i class="fa-solid fa-play"></i> Treinar';
+    pinta();
+  }
+
+  function epoca() {
+    const lr = 0.08;
+    DADOS[fn].forEach(([x1, x2, y]) => {
+      const erro = y - prev(x1, x2);
+      w[0] += lr * erro * x1; w[1] += lr * erro * x2; b += lr * erro;
+    });
+    ep++;
+    pinta();
+  }
+
+  function desenha(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, W, H);
+    const m = 52;
+    const X = v => m + v * (W - 2 * m), Y = v => H - m - v * (H - 2 * m);
+
+    /* regiões */
+    const passo = 7;
+    for (let px = m; px < W - m; px += passo) for (let py = m; py < H - m; py += passo) {
+      const x1 = (px - m) / (W - 2 * m), x2 = (H - m - py) / (H - 2 * m);
+      ctx.fillStyle = prev(x1, x2) ? 'rgba(56,189,248,.12)' : 'rgba(249,115,22,.10)';
+      ctx.fillRect(px, py, passo, passo);
+    }
+
+    ctx.strokeStyle = 'rgba(148,163,184,.35)'; ctx.lineWidth = 1;
+    ctx.strokeRect(m, m, W - 2 * m, H - 2 * m);
+
+    /* reta de decisão: w0*x1 + w1*x2 + b = 0 */
+    if (Math.abs(w[1]) > 1e-6) {
+      const y0 = -(w[0] * 0 + b) / w[1], y1 = -(w[0] * 1 + b) / w[1];
+      ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(X(0), Y(y0)); ctx.lineTo(X(1), Y(y1)); ctx.stroke();
+    }
+
+    DADOS[fn].forEach(([x1, x2, y]) => {
+      const acertou = prev(x1, x2) === y;
+      ctx.fillStyle = y ? '#38bdf8' : '#f97316';
+      ctx.beginPath(); ctx.arc(X(x1), Y(x2), 11, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = acertou ? '#34d399' : '#ef4444'; ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = '#020617'; ctx.font = '700 10px Fira Code, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(y, X(x1), Y(x2));
+    });
+
+    ctx.fillStyle = 'rgba(148,163,184,.7)'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('x₁', W / 2, H - m + 22);
+    ctx.save(); ctx.translate(m - 26, H / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('x₂', 0, 0); ctx.restore();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function pinta() {
+    const acertos = DADOS[fn].filter(([a, b2, y]) => prev(a, b2) === y).length;
+    document.getElementById('perc-ep').textContent = ep;
+    document.getElementById('perc-acc').textContent = acertos + '/4';
+    document.getElementById('perc-pesos').innerHTML =
+      `w₁ = <b class="text-indigo-300">${w[0].toFixed(3)}</b><br>
+       w₂ = <b class="text-indigo-300">${w[1].toFixed(3)}</b><br>
+       b &nbsp;= <b class="text-purple-300">${b.toFixed(3)}</b>`;
+
+    const nota = document.getElementById('perc-nota');
+    if (fn === 'XOR') {
+      nota.className = 'ah-callout ah-callout-warn text-[11px]';
+      nota.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><div>O XOR <b>não tem solução</b> aqui: a reta nunca vai acertar os quatro pontos. Deixe treinando — ela só oscila. A saída é a camada oculta, no laboratório abaixo.</div>';
+    } else if (acertos === 4) {
+      nota.className = 'ah-callout ah-callout-ok text-[11px]';
+      nota.innerHTML = '<i class="fa-solid fa-circle-check"></i><div>Convergiu: existe uma reta que separa as classes, e o perceptron a encontrou.</div>';
+    } else {
+      nota.className = 'ah-callout ah-callout-info text-[11px]';
+      nota.innerHTML = '<i class="fa-solid fa-hourglass-half"></i><div>Treinando… O teorema da convergência garante que, sendo linearmente separável, o perceptron chega lá em tempo finito.</div>';
+    }
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  document.getElementById('perc-fn').addEventListener('click', e => {
+    const b2 = e.target.closest('[data-fn]');
+    if (!b2) return;
+    fn = b2.getAttribute('data-fn');
+    document.querySelectorAll('#perc-fn .ah-chip').forEach(c => c.classList.toggle('active', c === b2));
+    reset();
+  });
+  document.getElementById('perc-reset').addEventListener('click', reset);
+  document.getElementById('perc-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Treinar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(epoca, 60);
+  });
+  reset();
+})();
+
+/* ===================== MLP com retropropagação ===================== */
+(function mlp() {
+  let rede = null, dados = [], ep = 0, timer = null, perdas = [], tipo = 'circulo';
+  const cv = AH.canvas('mlpCanvas', desenha);
+  const cvL = AH.canvas('mlpLoss', desenhaLoss);
+  const cvA = AH.canvas('mlpArq', desenhaArq);
+  const V = id => +document.getElementById(id).value;
+
+  /* ---------- dados ---------- */
+  function geraDados() {
+    const ruido = V('mlp-ruido') / 100;
+    const n = 180;
+    dados = [];
+    for (let i = 0; i < n; i++) {
+      let x = AH.rand(-1, 1), y = AH.rand(-1, 1), c;
+      if (tipo === 'circulo') c = (x * x + y * y) < 0.33 ? 1 : 0;
+      else if (tipo === 'xor') c = (x * y) > 0 ? 1 : 0;
+      else if (tipo === 'faixas') c = Math.sin(3.2 * x) > y ? 1 : 0;
+      else {
+        const lado = i % 2;
+        const t = (i / n) * 5.2 + lado * Math.PI;
+        const r = (i / n) * 0.95;
+        x = r * Math.cos(t) + AH.rand(-0.04, 0.04);
+        y = r * Math.sin(t) + AH.rand(-0.04, 0.04);
+        c = lado;
+      }
+      if (Math.random() < ruido) c = 1 - c;
+      dados.push({ x, y, c });
+    }
+  }
+
+  /* ---------- rede ---------- */
+  function novaRede() {
+    const camadas = [2, V('mlp-h1')];
+    if (V('mlp-h2') > 0) camadas.push(V('mlp-h2'));
+    camadas.push(1);
+    rede = { camadas, W: [], B: [] };
+    for (let l = 1; l < camadas.length; l++) {
+      const lim = Math.sqrt(6 / (camadas[l - 1] + camadas[l]));
+      rede.W.push(Array.from({ length: camadas[l] }, () =>
+        Array.from({ length: camadas[l - 1] }, () => AH.rand(-lim, lim))));
+      rede.B.push(new Array(camadas[l]).fill(0));
+    }
+    ep = 0; perdas = [];
+  }
+
+  function forward(entrada) {
+    const ativ = [entrada];
+    for (let l = 0; l < rede.W.length; l++) {
+      const ultima = l === rede.W.length - 1;
+      const prev = ativ[l];
+      const cur = rede.W[l].map((linha, j) => {
+        const z = linha.reduce((s, w, k) => s + w * prev[k], rede.B[l][j]);
+        return ultima ? 1 / (1 + Math.exp(-z)) : Math.tanh(z);
+      });
+      ativ.push(cur);
+    }
+    return ativ;
+  }
+
+  function treina(epocas) {
+    const lr = V('mlp-lr') / 100;
+    for (let e = 0; e < epocas; e++) {
+      let perda = 0;
+      dados.forEach(p => {
+        const ativ = forward([p.x, p.y]);
+        const saida = ativ[ativ.length - 1][0];
+        perda += -(p.c * Math.log(saida + 1e-9) + (1 - p.c) * Math.log(1 - saida + 1e-9));
+
+        /* deltas de trás para frente */
+        let delta = [saida - p.c];                          // sigmoide + entropia cruzada
+        for (let l = rede.W.length - 1; l >= 0; l--) {
+          const prev = ativ[l];
+          const novoDelta = new Array(prev.length).fill(0);
+          for (let j = 0; j < rede.W[l].length; j++) {
+            for (let k = 0; k < prev.length; k++) {
+              novoDelta[k] += delta[j] * rede.W[l][j][k];
+              rede.W[l][j][k] -= lr * delta[j] * prev[k];
+            }
+            rede.B[l][j] -= lr * delta[j];
+          }
+          if (l > 0) delta = novoDelta.map((d, k) => d * (1 - ativ[l][k] * ativ[l][k]));  // derivada do tanh
+        }
+      });
+      ep++;
+      perdas.push(perda / dados.length);
+      if (perdas.length > 260) perdas.shift();
+    }
+    pinta();
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    const passo = 8;
+    for (let px = 0; px < w; px += passo) for (let py = 0; py < h; py += passo) {
+      const x = (px / w) * 2 - 1, y = 1 - (py / h) * 2;
+      const s = forward([x, y]);
+      const v = s[s.length - 1][0];
+      const t = Math.abs(v - 0.5) * 2;
+      ctx.fillStyle = v > 0.5 ? `rgba(56,189,248,${0.08 + t * 0.30})` : `rgba(249,115,22,${0.08 + t * 0.26})`;
+      ctx.fillRect(px, py, passo, passo);
+    }
+    dados.forEach(p => {
+      const px = ((p.x + 1) / 2) * w, py = ((1 - p.y) / 2) * h;
+      ctx.fillStyle = p.c ? '#38bdf8' : '#f97316';
+      ctx.strokeStyle = 'rgba(2,6,23,.85)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(px, py, 4.4, 0, 6.29); ctx.fill(); ctx.stroke();
+    });
+  }
+
+  function desenhaLoss(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    if (perdas.length < 2) return;
+    const max = Math.max(...perdas);
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.beginPath();
+    perdas.forEach((v, i) => {
+      const x = 5 + (i / (perdas.length - 1)) * (w - 10);
+      const y = h - 6 - (v / (max || 1)) * (h - 14);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  function desenhaArq(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    if (!rede) return;
+    const L = rede.camadas.length;
+    const px = l => 20 + (l / (L - 1)) * (w - 40);
+    const py = (i, n) => (h / (n + 1)) * (i + 1);
+
+    for (let l = 0; l < L - 1; l++) {
+      for (let i = 0; i < rede.camadas[l]; i++) for (let j = 0; j < rede.camadas[l + 1]; j++) {
+        const peso = rede.W[l][j][i];
+        const f = Math.min(Math.abs(peso), 2) / 2;
+        ctx.strokeStyle = peso >= 0 ? `rgba(16,185,129,${0.08 + f * 0.6})` : `rgba(239,68,68,${0.08 + f * 0.6})`;
+        ctx.lineWidth = 0.4 + f * 2;
+        ctx.beginPath();
+        ctx.moveTo(px(l), py(i, rede.camadas[l]));
+        ctx.lineTo(px(l + 1), py(j, rede.camadas[l + 1]));
+        ctx.stroke();
+      }
+    }
+    for (let l = 0; l < L; l++) for (let i = 0; i < rede.camadas[l]; i++) {
+      ctx.fillStyle = l === 0 ? '#38bdf8' : l === L - 1 ? '#a855f7' : '#6366f1';
+      ctx.beginPath(); ctx.arc(px(l), py(i, rede.camadas[l]), 4.5, 0, 6.29); ctx.fill();
+    }
+  }
+
+  function pinta() {
+    const acertos = dados.filter(p => {
+      const s = forward([p.x, p.y]);
+      return (s[s.length - 1][0] > 0.5 ? 1 : 0) === p.c;
+    }).length;
+    document.getElementById('mlp-ep').textContent = ep;
+    document.getElementById('mlp-acc').textContent = Math.round((acertos / dados.length) * 100) + '%';
+    cv.draw(cv.ctx, cv.w, cv.h);
+    cvL.draw(cvL.ctx, cvL.w, cvL.h);
+    cvA.draw(cvA.ctx, cvA.w, cvA.h);
+  }
+
+  function reset() {
+    clearInterval(timer); timer = null;
+    document.getElementById('mlp-play').innerHTML = '<i class="fa-solid fa-play"></i> Treinar';
+    geraDados(); novaRede(); pinta();
+  }
+
+  ['mlp-h1', 'mlp-h2', 'mlp-lr', 'mlp-ruido'].forEach(id =>
+    document.getElementById(id).addEventListener('input', e => {
+      const v = +e.target.value;
+      document.getElementById(id + '-v').textContent =
+        id === 'mlp-lr' ? (v / 100).toFixed(2).replace('.', ',') : id === 'mlp-ruido' ? v + '%' : v;
+      if (id !== 'mlp-lr') reset();
+    }));
+  document.getElementById('mlp-dados').addEventListener('click', e => {
+    const b = e.target.closest('[data-d]');
+    if (!b) return;
+    tipo = b.getAttribute('data-d');
+    document.querySelectorAll('#mlp-dados .ah-chip').forEach(c => c.classList.toggle('active', c === b));
+    reset();
+  });
+  document.getElementById('mlp-step').addEventListener('click', () => treina(50));
+  document.getElementById('mlp-reset').addEventListener('click', reset);
+  document.getElementById('mlp-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Treinar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(() => treina(6), 40);
+  });
+  reset();
+})();
+
+/* ===================== Passos da retropropagação ===================== */
+const BP = [
+  ['1. Propagação direta', 'fa-arrow-right', '#38bdf8', 'A entrada atravessa a rede camada a camada até produzir uma saída.'],
+  ['2. Cálculo do erro', 'fa-ruler', '#f59e0b', 'Compara-se a saída com o rótulo esperado usando uma função de perda.'],
+  ['3. Retropropagação', 'fa-arrow-left', '#ec4899', 'O erro volta pela rede; a regra da cadeia dá o gradiente de cada peso.'],
+  ['4. Atualização', 'fa-sliders', '#10b981', 'Cada peso anda um passo α contra o gradiente. Repete-se por milhares de épocas.']
+];
+document.getElementById('bp-passos').innerHTML = BP.map(b => `
+  <div class="ah-card p-4" style="border-top:3px solid ${b[2]}">
+    <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background:${b[2]}22;color:${b[2]}">
+      <i class="fa-solid ${b[1]}"></i></div>
+    <h4 class="text-xs font-bold text-white mb-1">${b[0]}</h4>
+    <p class="text-[11px] text-slate-400 leading-relaxed">${b[3]}</p>
+  </div>`).join('');
+
+AH.initReveal();
+</script>
+</body>
+</html>

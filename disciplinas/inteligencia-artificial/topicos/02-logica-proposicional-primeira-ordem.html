@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lógica Proposicional e de Primeira Ordem · AcademicHub</title>
+<meta name="description" content="Sintaxe, semântica, tabelas-verdade, inferência, resolução e o salto para quantificadores e predicados.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/02-logica-proposicional-primeira-ordem">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Por que lógica?" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-indigo-400 mr-2"></i>Por que um agente precisa de lógica?</h2>
+  <div class="ah-prose">
+    <p>
+      Um agente de busca sabe <em>onde está</em>. Um agente <strong>lógico</strong> sabe <em>coisas</em> —
+      e consegue deduzir fatos novos que ninguém lhe contou. Essa é a diferença entre tropeçar no mundo
+      e raciocinar sobre ele.
+    </p>
+    <p>
+      A arquitetura é sempre a mesma: uma <strong>base de conhecimento</strong> (KB) com sentenças que
+      acreditamos verdadeiras, e um <strong>mecanismo de inferência</strong> que responde à pergunta
+      “a KB <em>implica</em> α?”. Escrevemos <code>KB ⊨ α</code>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+    <div class="ah-card p-4"><div class="text-indigo-400 text-lg mb-2"><i class="fa-solid fa-spell-check"></i></div>
+      <h3 class="text-sm font-bold text-white mb-1">Sintaxe</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Quais cadeias de símbolos são sentenças válidas. <code>P ∧ Q</code> é; <code>P ∧ ∧ Q</code> não é.</p></div>
+    <div class="ah-card p-4"><div class="text-purple-400 text-lg mb-2"><i class="fa-solid fa-earth-americas"></i></div>
+      <h3 class="text-sm font-bold text-white mb-1">Semântica</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">O que cada sentença significa em cada <em>mundo possível</em> (modelo). É ela que define verdadeiro e falso.</p></div>
+    <div class="ah-card p-4"><div class="text-emerald-400 text-lg mb-2"><i class="fa-solid fa-arrow-right-long"></i></div>
+      <h3 class="text-sm font-bold text-white mb-1">Consequência lógica</h3>
+      <p class="text-xs text-slate-400 leading-relaxed"><code>KB ⊨ α</code>: em <strong>todo</strong> modelo onde a KB é verdadeira, α também é.</p></div>
+  </div>
+</section>
+
+<!-- ============================ CONECTIVOS + TABELA ============================ -->
+<section id="tabela" data-toc="Tabela-verdade interativa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-indigo-400 mr-2"></i>Conectivos e tabela-verdade</h2>
+  <p class="ah-lead text-sm mb-5">
+    Escreva uma fórmula usando <code class="text-indigo-300">P Q R</code> e os conectivos abaixo.
+    A tabela é calculada na hora, e cada linha é um <strong>mundo possível</strong>.
+  </p>
+
+  <div class="flex flex-wrap gap-2 mb-4" id="conectivos"></div>
+
+  <div class="flex flex-col sm:flex-row gap-3 mb-2">
+    <input id="formula" value="(P -> Q) & (Q -> R)"
+           class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 font-mono text-sm text-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    <button id="btn-limpar" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-eraser"></i> Limpar</button>
+  </div>
+  <div class="flex flex-wrap gap-2 mb-5 text-xs">
+    <span class="text-slate-500 self-center mr-1">Exemplos:</span>
+    <button class="ah-chip ex-btn" data-f="P & ~P">contradição</button>
+    <button class="ah-chip ex-btn" data-f="P | ~P">tautologia</button>
+    <button class="ah-chip ex-btn" data-f="(P -> Q) & (Q -> R)">transitividade</button>
+    <button class="ah-chip ex-btn" data-f="~(P & Q) <-> (~P | ~Q)">De Morgan</button>
+    <button class="ah-chip ex-btn" data-f="(P -> Q) <-> (~Q -> ~P)">contrapositiva</button>
+  </div>
+
+  <div id="tabela-saida"></div>
+</section>
+
+<!-- ============================ EQUIVALÊNCIAS ============================ -->
+<section id="equivalencias" data-toc="Equivalências e regras" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-equals text-indigo-400 mr-2"></i>Equivalências que você vai usar sempre</h2>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card overflow-x-auto">
+      <table class="ah-table">
+        <thead><tr><th>Nome</th><th>Equivalência</th></tr></thead>
+        <tbody>
+          <tr><td>Eliminação da implicação</td><td class="font-mono text-indigo-300">(α → β) ≡ (¬α ∨ β)</td></tr>
+          <tr><td>Eliminação do bicondicional</td><td class="font-mono text-indigo-300">(α ↔ β) ≡ (α→β) ∧ (β→α)</td></tr>
+          <tr><td>De Morgan</td><td class="font-mono text-indigo-300">¬(α ∧ β) ≡ (¬α ∨ ¬β)</td></tr>
+          <tr><td>De Morgan</td><td class="font-mono text-indigo-300">¬(α ∨ β) ≡ (¬α ∧ ¬β)</td></tr>
+          <tr><td>Contrapositiva</td><td class="font-mono text-indigo-300">(α → β) ≡ (¬β → ¬α)</td></tr>
+          <tr><td>Dupla negação</td><td class="font-mono text-indigo-300">¬¬α ≡ α</td></tr>
+          <tr><td>Distributiva</td><td class="font-mono text-indigo-300">α ∧ (β ∨ γ) ≡ (α∧β) ∨ (α∧γ)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ah-card overflow-x-auto">
+      <table class="ah-table">
+        <thead><tr><th>Regra de inferência</th><th>Forma</th></tr></thead>
+        <tbody>
+          <tr><td>Modus Ponens</td><td class="font-mono text-emerald-300">α→β , α ⊢ β</td></tr>
+          <tr><td>Modus Tollens</td><td class="font-mono text-emerald-300">α→β , ¬β ⊢ ¬α</td></tr>
+          <tr><td>Silogismo hipotético</td><td class="font-mono text-emerald-300">α→β , β→γ ⊢ α→γ</td></tr>
+          <tr><td>Silogismo disjuntivo</td><td class="font-mono text-emerald-300">α∨β , ¬α ⊢ β</td></tr>
+          <tr><td>Eliminação do ∧</td><td class="font-mono text-emerald-300">α∧β ⊢ α</td></tr>
+          <tr><td>Resolução</td><td class="font-mono text-emerald-300">α∨β , ¬β∨γ ⊢ α∨γ</td></tr>
+        </tbody>
+      </table>
+      <div class="p-4 border-t border-slate-700/60">
+        <p class="text-xs text-slate-400 leading-relaxed">
+          <strong class="text-white">Cuidado com as falácias:</strong> de <code>α→β</code> e <code>β</code>
+          <em>não</em> se conclui <code>α</code> (afirmação do consequente). Teste na tabela-verdade acima:
+          <code>((P-&gt;Q) &amp; Q) -&gt; P</code> não é tautologia.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RESOLUÇÃO ============================ -->
+<section id="resolucao" data-toc="Resolução por refutação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-successor text-indigo-400 mr-2"></i>Resolução: provar por absurdo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Tabelas-verdade explodem: <em>n</em> símbolos geram 2<sup>n</sup> linhas. A <strong>resolução</strong> é o
+    algoritmo que os provadores automáticos realmente usam. A ideia: para mostrar que <code>KB ⊨ α</code>,
+    adicione <code>¬α</code> à base e derive uma <strong>contradição</strong> (cláusula vazia □).
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+    <div class="lg:col-span-2 space-y-3">
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Problema</h3>
+        <div class="ah-prose text-xs">
+          <ul>
+            <li>Se <strong>chove</strong>, a rua fica <strong>molhada</strong>. <code>C → M</code></li>
+            <li>Se a rua está <strong>molhada</strong>, há <strong>trânsito</strong>. <code>M → T</code></li>
+            <li>Está <strong>chovendo</strong>. <code>C</code></li>
+          </ul>
+          <p class="mb-0"><strong>Provar:</strong> há trânsito (<code>T</code>).</p>
+        </div>
+      </div>
+      <div class="ah-card p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Passo 1 — converter para FNC</h3>
+        <pre class="ah-code text-[11px]"><span class="cm">// C → M vira ¬C ∨ M</span>
+(1) ¬C ∨ M
+(2) ¬M ∨ T
+(3) C
+<span class="cm">// negamos a conclusão</span>
+(4) ¬T</pre>
+      </div>
+      <button id="res-play" class="ah-btn ah-btn-primary w-full"><i class="fa-solid fa-play"></i> Executar resolução</button>
+      <button id="res-reset" class="ah-btn ah-btn-ghost w-full"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+    </div>
+
+    <div class="lg:col-span-3">
+      <div class="ah-card p-4 h-full">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Derivação</h3>
+        <div id="res-passos" class="space-y-2 font-mono text-xs"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-ok mt-5">
+    <i class="fa-solid fa-circle-check"></i>
+    <div>A resolução é <strong>completa por refutação</strong>: se <code>KB ⊨ α</code>, o algoritmo sempre acha a
+    cláusula vazia. É o motor do Prolog e dos provadores de teoremas.</div>
+  </div>
+</section>
+
+<!-- ============================ PRIMEIRA ORDEM ============================ -->
+<section id="fol" data-toc="Lógica de primeira ordem" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-infinity text-indigo-400 mr-2"></i>O salto para a Lógica de Primeira Ordem</h2>
+  <div class="ah-prose">
+    <p>
+      Na lógica proposicional, “Sócrates é mortal” é um símbolo atômico opaco: <code>S</code>.
+      Não há como dizer “<em>todo</em> homem é mortal” sem escrever uma sentença para cada homem do universo.
+      A <strong>lógica de primeira ordem</strong> (LPO) resolve isso ao quebrar o átomo em
+      <strong>objetos</strong>, <strong>predicados</strong> e <strong>funções</strong>, e ao acrescentar
+      <strong>quantificadores</strong>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+    <div class="ah-card p-4">
+      <span class="ah-badge ah-badge-amber mb-2">Proposicional</span>
+      <pre class="ah-code text-[11px]">HomemSocrates → MortalSocrates
+HomemPlatao   → MortalPlatao
+<span class="cm">… uma regra por indivíduo (não escala)</span></pre>
+    </div>
+    <div class="ah-card p-4">
+      <span class="ah-badge ah-badge-emerald mb-2">Primeira ordem</span>
+      <pre class="ah-code text-[11px]">∀x (Homem(x) → Mortal(x))
+Homem(Socrates)
+<span class="cm">⊢ Mortal(Socrates)</span></pre>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Avalie quantificadores em um mundo</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    Clique nas figuras para mudar suas propriedades e veja quais sentenças passam a ser verdadeiras.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div>
+      <div class="ah-stage p-5" style="min-height:200px">
+        <div id="mundo" class="grid grid-cols-4 gap-4"></div>
+        <p class="text-[11px] text-slate-500 mt-4 text-center">
+          Clique: alterna a <strong>cor</strong> · Clique com Shift: alterna a <strong>forma</strong>
+        </p>
+      </div>
+    </div>
+    <div class="space-y-2" id="sentencas"></div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Erro clássico:</strong> o ∀ anda com <code>→</code> e o ∃ anda com <code>∧</code>.
+      Escrever <code>∀x (Quadrado(x) ∧ Azul(x))</code> afirma que <em>tudo</em> no universo é um quadrado azul;
+      o que se quer dizer é <code>∀x (Quadrado(x) → Azul(x))</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PRÁTICA ============================ -->
+<section id="pratica" data-toc="Traduzindo para LPO" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-language text-indigo-400 mr-2"></i>Do português para a lógica</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Português</th><th>Lógica de Primeira Ordem</th></tr></thead>
+      <tbody>
+        <tr><td>Todo aluno estuda.</td><td class="font-mono text-indigo-300">∀x (Aluno(x) → Estuda(x))</td></tr>
+        <tr><td>Algum aluno estuda.</td><td class="font-mono text-indigo-300">∃x (Aluno(x) ∧ Estuda(x))</td></tr>
+        <tr><td>Nenhum aluno estuda.</td><td class="font-mono text-indigo-300">¬∃x (Aluno(x) ∧ Estuda(x)) ≡ ∀x (Aluno(x) → ¬Estuda(x))</td></tr>
+        <tr><td>Todo aluno tem um orientador.</td><td class="font-mono text-indigo-300">∀x (Aluno(x) → ∃y Orienta(y, x))</td></tr>
+        <tr><td>Existe um orientador de todos os alunos.</td><td class="font-mono text-indigo-300">∃y ∀x (Aluno(x) → Orienta(y, x))</td></tr>
+        <tr><td>Ninguém é seu próprio orientador.</td><td class="font-mono text-indigo-300">∀x ¬Orienta(x, x)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-4">
+    <i class="fa-solid fa-arrows-left-right"></i>
+    <div>Compare as duas últimas linhas: <strong>trocar a ordem dos quantificadores muda o significado</strong>.
+    <code>∀x∃y</code> permite um orientador diferente para cada aluno; <code>∃y∀x</code> exige um único orientador para todos.</div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Confirme se os conceitos ficaram no lugar.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Uma fórmula cuja tabela-verdade só tem <code>V</code> na última coluna é:</p>
+      <button class="ah-quiz-opt">Satisfatível, mas não necessariamente verdadeira</button>
+      <button class="ah-quiz-opt">Uma <strong>tautologia</strong> (válida em todos os modelos)</button>
+      <button class="ah-quiz-opt">Uma contradição</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Válida/tautologia = verdadeira em <em>todo</em> modelo. Satisfatível = verdadeira em <em>algum</em> modelo.
+        Insatisfatível/contradição = falsa em todos. Note que <code>KB ⊨ α</code> ⟺ <code>KB ∧ ¬α</code> é insatisfatível —
+        é exatamente esse fato que a resolução por refutação explora.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que a resolução começa negando a conclusão?</p>
+      <button class="ah-quiz-opt">Porque é mais rápido do que provar diretamente</button>
+      <button class="ah-quiz-opt">Porque a negação transforma a fórmula em FNC automaticamente</button>
+      <button class="ah-quiz-opt">Porque provar <code>KB ⊨ α</code> equivale a mostrar que <code>KB ∧ ¬α</code> é insatisfatível</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É o teorema da dedução em ação. Derivar a cláusula vazia □ significa que a base com a conclusão negada
+        se contradiz — logo, a conclusão original é consequência lógica da KB.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. “Todo pássaro voa” em LPO é:</p>
+      <button class="ah-quiz-opt"><code>∀x (Passaro(x) → Voa(x))</code></button>
+      <button class="ah-quiz-opt"><code>∀x (Passaro(x) ∧ Voa(x))</code></button>
+      <button class="ah-quiz-opt"><code>∃x (Passaro(x) → Voa(x))</code></button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A segunda opção diz que <em>tudo</em> no universo é um pássaro que voa — inclusive pedras.
+        A terceira é quase sempre trivialmente verdadeira: basta existir um objeto que não seja pássaro
+        para a implicação ser satisfeita.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ============ Parser + avaliador de fórmulas proposicionais ============ */
+function tokenize(s) {
+  const out = [];
+  s = s.replace(/¬/g, '~').replace(/∧/g, '&').replace(/∨/g, '|')
+       .replace(/→/g, '->').replace(/↔/g, '<->');
+  for (let i = 0; i < s.length;) {
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (s.startsWith('<->', i)) { out.push('<->'); i += 3; continue; }
+    if (s.startsWith('->', i)) { out.push('->'); i += 2; continue; }
+    if ('()~&|'.includes(c)) { out.push(c); i++; continue; }
+    if (/[A-Za-z]/.test(c)) { out.push(c.toUpperCase()); i++; continue; }
+    throw new Error('Símbolo inválido: ' + c);
+  }
+  return out;
+}
+
+/* Precedência: ~  >  &  >  |  >  ->  >  <-> */
+function parse(tokens) {
+  let i = 0;
+  const peek = () => tokens[i];
+  const eat = t => { if (tokens[i] !== t) throw new Error('Esperado ' + t); i++; };
+
+  function atom() {
+    const t = peek();
+    if (t === '(') { eat('('); const e = bicond(); eat(')'); return e; }
+    if (t === '~') { eat('~'); const e = atom(); return { op: '~', a: e }; }
+    if (/^[A-Z]$/.test(t || '')) { i++; return { op: 'var', name: t }; }
+    throw new Error('Fórmula incompleta');
+  }
+  function bin(next, ops) {
+    return function () {
+      let l = next();
+      while (ops.includes(peek())) { const op = peek(); i++; l = { op: op, a: l, b: next() }; }
+      return l;
+    };
+  }
+  const and = bin(atom, ['&']);
+  const or = bin(and, ['|']);
+  const imp = bin(or, ['->']);
+  const bicond = bin(imp, ['<->']);
+
+  const ast = bicond();
+  if (i < tokens.length) throw new Error('Sobrou “' + tokens.slice(i).join(' ') + '”');
+  return ast;
+}
+
+function vars(ast, set) {
+  set = set || new Set();
+  if (ast.op === 'var') set.add(ast.name);
+  if (ast.a) vars(ast.a, set);
+  if (ast.b) vars(ast.b, set);
+  return set;
+}
+
+function evalAst(ast, m) {
+  switch (ast.op) {
+    case 'var': return m[ast.name];
+    case '~': return !evalAst(ast.a, m);
+    case '&': return evalAst(ast.a, m) && evalAst(ast.b, m);
+    case '|': return evalAst(ast.a, m) || evalAst(ast.b, m);
+    case '->': return !evalAst(ast.a, m) || evalAst(ast.b, m);
+    case '<->': return evalAst(ast.a, m) === evalAst(ast.b, m);
+  }
+}
+
+function pretty(s) {
+  return s.replace(/<->/g, ' ↔ ').replace(/->/g, ' → ')
+          .replace(/&/g, ' ∧ ').replace(/\|/g, ' ∨ ').replace(/~/g, '¬')
+          .replace(/\s+/g, ' ').trim();
+}
+
+/* Subfórmulas para colunas intermediárias */
+function subs(ast, acc) {
+  acc = acc || [];
+  if (ast.op === 'var') return acc;
+  if (ast.a) subs(ast.a, acc);
+  if (ast.b) subs(ast.b, acc);
+  acc.push(ast);
+  return acc;
+}
+function toStr(ast) {
+  if (ast.op === 'var') return ast.name;
+  if (ast.op === '~') return '¬' + toStr(ast.a);
+  const m = { '&': ' ∧ ', '|': ' ∨ ', '->': ' → ', '<->': ' ↔ ' };
+  return '(' + toStr(ast.a) + m[ast.op] + toStr(ast.b) + ')';
+}
+
+const input = document.getElementById('formula');
+const saida = document.getElementById('tabela-saida');
+
+function render() {
+  let ast;
+  try { ast = parse(tokenize(input.value)); }
+  catch (e) {
+    saida.innerHTML = `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-circle-exclamation"></i>
+      <div><strong>Fórmula inválida.</strong> ${e.message}. Use <code>P Q R</code>, <code>~ &amp; | -&gt; &lt;-&gt;</code> e parênteses.</div></div>`;
+    return;
+  }
+  const vs = [...vars(ast)].sort();
+  if (vs.length === 0 || vs.length > 4) {
+    saida.innerHTML = `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-circle-exclamation"></i>
+      <div>Use de 1 a 4 símbolos proposicionais (${vs.length} encontrado(s)).</div></div>`;
+    return;
+  }
+
+  const cols = subs(ast).filter((s, i, arr) => arr.findIndex(x => toStr(x) === toStr(s)) === i);
+  const n = 1 << vs.length;
+  let rows = '', trues = 0;
+
+  for (let k = 0; k < n; k++) {
+    const m = {};
+    vs.forEach((v, j) => m[v] = !((k >> (vs.length - 1 - j)) & 1));
+    const final = evalAst(ast, m);
+    if (final) trues++;
+    rows += `<tr class="${final ? 'bg-emerald-500/5' : ''}">` +
+      vs.map(v => `<td class="text-center font-mono ${m[v] ? 'text-emerald-400' : 'text-rose-400'}">${m[v] ? 'V' : 'F'}</td>`).join('') +
+      cols.map((c, ci) => {
+        const val = evalAst(c, m);
+        const last = ci === cols.length - 1;
+        return `<td class="text-center font-mono ${val ? 'text-emerald-400' : 'text-rose-400'} ${last ? 'font-bold bg-slate-800/60' : ''}">${val ? 'V' : 'F'}</td>`;
+      }).join('') + '</tr>';
+  }
+
+  let veredito, cls, ico;
+  if (trues === n) { veredito = 'Tautologia — verdadeira em todos os ' + n + ' modelos'; cls = 'ah-callout-ok'; ico = 'fa-circle-check'; }
+  else if (trues === 0) { veredito = 'Contradição — falsa em todos os ' + n + ' modelos'; cls = 'ah-callout-warn'; ico = 'fa-circle-xmark'; }
+  else { veredito = `Satisfatível (contingente) — verdadeira em ${trues} de ${n} modelos`; cls = 'ah-callout-info'; ico = 'fa-circle-half-stroke'; }
+
+  saida.innerHTML = `
+    <div class="ah-card overflow-x-auto mb-4">
+      <table class="ah-table">
+        <thead><tr>
+          ${vs.map(v => `<th class="text-center">${v}</th>`).join('')}
+          ${cols.map((c, ci) => `<th class="text-center ${ci === cols.length - 1 ? 'text-indigo-300' : ''}">${toStr(c)}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="ah-callout ${cls}"><i class="fa-solid ${ico}"></i><div>${veredito}</div></div>`;
+}
+
+input.addEventListener('input', render);
+document.getElementById('btn-limpar').addEventListener('click', () => { input.value = ''; input.focus(); render(); });
+document.querySelectorAll('.ex-btn').forEach(b =>
+  b.addEventListener('click', () => { input.value = b.getAttribute('data-f'); render(); }));
+
+/* Botões de conectivo */
+const CONS = [['~', '¬', 'negação'], ['&', '∧', 'conjunção'], ['|', '∨', 'disjunção'],
+              ['->', '→', 'implicação'], ['<->', '↔', 'bicondicional'], ['(', '(', 'abre'], [')', ')', 'fecha']];
+document.getElementById('conectivos').innerHTML = CONS.map(c =>
+  `<button class="ah-chip" data-ins="${c[0]}" title="${c[2]}"><span class="font-mono text-base mr-1">${c[1]}</span>
+   <span class="text-[10px] text-slate-500">${c[2]}</span></button>`).join('');
+document.getElementById('conectivos').addEventListener('click', e => {
+  const b = e.target.closest('[data-ins]');
+  if (!b) return;
+  const pos = input.selectionStart || input.value.length;
+  input.value = input.value.slice(0, pos) + b.getAttribute('data-ins') + input.value.slice(pos);
+  input.focus(); render();
+});
+render();
+
+/* ===================== Resolução animada ===================== */
+(function resolucao() {
+  const PASSOS = [
+    { c: '(1) ¬C ∨ M', t: 'KB — “se chove, a rua molha”', k: 'base' },
+    { c: '(2) ¬M ∨ T', t: 'KB — “se molha, há trânsito”', k: 'base' },
+    { c: '(3) C', t: 'KB — fato observado', k: 'base' },
+    { c: '(4) ¬T', t: 'negação da conclusão que queremos provar', k: 'neg' },
+    { c: '(5) M', t: 'resolvendo (1) com (3): C e ¬C se cancelam', k: 'der' },
+    { c: '(6) T', t: 'resolvendo (2) com (5): M e ¬M se cancelam', k: 'der' },
+    { c: '(7) □', t: 'resolvendo (4) com (6): T e ¬T se cancelam → cláusula vazia', k: 'fim' }
+  ];
+  const box = document.getElementById('res-passos');
+  let i = 0, timer = null;
+
+  const CORES = { base: 'border-slate-700 text-slate-300', neg: 'border-amber-500/50 text-amber-300 bg-amber-500/5',
+                  der: 'border-indigo-500/50 text-indigo-300 bg-indigo-500/5', fim: 'border-emerald-500/60 text-emerald-300 bg-emerald-500/10' };
+
+  function pinta() {
+    box.innerHTML = PASSOS.slice(0, i).map(p => `
+      <div class="ah-reveal visible border rounded-lg px-3 py-2 ${CORES[p.k]}">
+        <div class="font-bold">${p.c}</div>
+        <div class="text-[11px] opacity-70 font-sans mt-0.5">${p.t}</div>
+      </div>`).join('') +
+      (i === PASSOS.length ? `<div class="mt-3 text-emerald-400 font-sans text-xs font-semibold">
+         <i class="fa-solid fa-flag-checkered mr-1"></i> Contradição encontrada → KB ⊨ T. Há trânsito.</div>` : '') +
+      (i === 0 ? '<p class="text-slate-500 font-sans text-xs">Clique em “Executar resolução”.</p>' : '');
+  }
+
+  document.getElementById('res-play').addEventListener('click', () => {
+    clearInterval(timer);
+    i = 0; pinta();
+    timer = setInterval(() => { i++; pinta(); if (i >= PASSOS.length) clearInterval(timer); }, 800);
+  });
+  document.getElementById('res-reset').addEventListener('click', () => { clearInterval(timer); i = 0; pinta(); });
+  pinta();
+})();
+
+/* ===================== Mundo de primeira ordem ===================== */
+(function mundoFOL() {
+  const objs = [
+    { forma: 'quadrado', cor: 'azul' },
+    { forma: 'circulo', cor: 'azul' },
+    { forma: 'quadrado', cor: 'vermelho' },
+    { forma: 'triangulo', cor: 'azul' }
+  ];
+  const CORES = { azul: '#3b82f6', vermelho: '#ef4444' };
+  const mundo = document.getElementById('mundo');
+  const painel = document.getElementById('sentencas');
+
+  const SENTS = [
+    { s: '∀x Azul(x)', d: 'Tudo é azul', f: o => o.every(x => x.cor === 'azul') },
+    { s: '∃x Azul(x)', d: 'Existe algo azul', f: o => o.some(x => x.cor === 'azul') },
+    { s: '∀x (Quadrado(x) → Azul(x))', d: 'Todo quadrado é azul', f: o => o.every(x => x.forma !== 'quadrado' || x.cor === 'azul') },
+    { s: '∃x (Quadrado(x) ∧ Azul(x))', d: 'Existe um quadrado azul', f: o => o.some(x => x.forma === 'quadrado' && x.cor === 'azul') },
+    { s: '¬∃x Vermelho(x)', d: 'Nada é vermelho', f: o => !o.some(x => x.cor === 'vermelho') },
+    { s: '∀x (Circulo(x) → Vermelho(x))', d: 'Todo círculo é vermelho', f: o => o.every(x => x.forma !== 'circulo' || x.cor === 'vermelho') }
+  ];
+
+  function svg(o) {
+    const c = CORES[o.cor];
+    if (o.forma === 'circulo') return `<circle cx="28" cy="28" r="22" fill="${c}" opacity=".85"/>`;
+    if (o.forma === 'triangulo') return `<polygon points="28,6 52,50 4,50" fill="${c}" opacity=".85"/>`;
+    return `<rect x="7" y="7" width="42" height="42" rx="6" fill="${c}" opacity=".85"/>`;
+  }
+
+  function pinta() {
+    mundo.innerHTML = objs.map((o, i) => `
+      <button data-i="${i}" class="ah-card ah-card-hover p-2 flex flex-col items-center gap-1">
+        <svg viewBox="0 0 56 56" class="w-12 h-12">${svg(o)}</svg>
+        <span class="text-[9px] text-slate-500 font-mono">obj${i + 1}</span>
+      </button>`).join('');
+
+    painel.innerHTML = SENTS.map(s => {
+      const v = s.f(objs);
+      return `<div class="ah-card p-3 flex items-center justify-between gap-3 border-l-2"
+                   style="border-left-color:${v ? '#10b981' : '#ef4444'}">
+        <div>
+          <div class="font-mono text-xs ${v ? 'text-emerald-300' : 'text-rose-300'}">${s.s}</div>
+          <div class="text-[11px] text-slate-500">${s.d}</div>
+        </div>
+        <span class="ah-badge ${v ? 'ah-badge-emerald' : 'ah-badge-rose'} shrink-0">${v ? 'VERDADEIRO' : 'FALSO'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  mundo.addEventListener('click', e => {
+    const b = e.target.closest('[data-i]');
+    if (!b) return;
+    const o = objs[+b.getAttribute('data-i')];
+    if (e.shiftKey) {
+      const fs = ['quadrado', 'circulo', 'triangulo'];
+      o.forma = fs[(fs.indexOf(o.forma) + 1) % 3];
+    } else {
+      o.cor = o.cor === 'azul' ? 'vermelho' : 'azul';
+    }
+    pinta();
+  });
+  pinta();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

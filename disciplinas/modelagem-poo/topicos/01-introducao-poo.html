@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introdução à POO e à Modelagem · AcademicHub</title>
+<meta name="description" content="Por que modelar? Do paradigma estruturado ao orientado a objetos: classe, objeto, atributo e método.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧱</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/01-introducao-poo">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Por que orientar a objetos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-cube text-emerald-400 mr-2"></i>Programar organizando o mundo</h2>
+  <div class="ah-prose">
+    <p>
+      No paradigma estruturado, <strong>dados</strong> e <strong>funções</strong> vivem separados: você tem
+      variáveis de um lado e procedimentos que as manipulam do outro. Funciona — até o programa crescer.
+      Aí qualquer função pode alterar qualquer dado, e descobrir “quem mexeu no saldo” vira uma caçada.
+    </p>
+    <p>
+      A orientação a objetos junta as duas coisas: um <strong>objeto</strong> guarda seus próprios dados e é o
+      único responsável por alterá-los. O sistema deixa de ser uma lista de rotinas e passa a ser uma
+      <em>sociedade de objetos que trocam mensagens</em>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 my-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#64748b">
+      <span class="ah-badge ah-badge-slate mb-3">Estruturado</span>
+      <pre class="ah-code text-[11px]"><span class="cm">// dados soltos</span>
+<span class="ty">double</span> saldoJoao = <span class="num">1000</span>;
+<span class="ty">double</span> saldoMaria = <span class="num">500</span>;
+
+<span class="cm">// qualquer função mexe em qualquer dado</span>
+<span class="kw">void</span> <span class="fn">sacar</span>(<span class="ty">double</span>* saldo, <span class="ty">double</span> v) {
+    *saldo -= v;   <span class="cm">// sem nenhuma validação</span>
+}
+
+saldoJoao = -<span class="num">99999</span>;  <span class="cm">// ninguém impede</span></pre>
+      <p class="text-xs text-slate-400 mt-3 leading-relaxed">O dado está exposto. A regra de negócio “saldo não fica negativo” precisa ser lembrada em <em>todo</em> lugar que toca o saldo.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#10b981">
+      <span class="ah-badge ah-badge-emerald mb-3">Orientado a objetos</span>
+      <pre class="ah-code text-[11px]"><span class="kw">public class</span> <span class="ty">Conta</span> {
+    <span class="kw">private</span> <span class="ty">double</span> saldo;   <span class="cm">// ninguém alcança</span>
+
+    <span class="kw">public void</span> <span class="fn">sacar</span>(<span class="ty">double</span> v) {
+        <span class="kw">if</span> (v &gt; saldo)
+            <span class="kw">throw new</span> <span class="ty">SaldoInsuficiente</span>();
+        saldo -= v;
+    }
+}
+
+conta.saldo = -<span class="num">99999</span>;  <span class="cm">// erro de compilação</span></pre>
+      <p class="text-xs text-slate-400 mt-3 leading-relaxed">A regra mora <strong>junto</strong> do dado. É impossível violá-la por fora — o compilador garante.</p>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Modelar é decidir o que ignorar.</strong> Um objeto <code>Aluno</code> num sistema acadêmico tem
+      matrícula e notas; num sistema de saúde, tem tipo sanguíneo e alergias. A mesma pessoa, dois modelos —
+      porque modelo não é retrato da realidade, é recorte útil para um propósito.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CLASSE E OBJETO ============================ -->
+<section id="instancias" data-toc="Classe × objeto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stamp text-emerald-400 mr-2"></i>A classe é a forma; o objeto é o bolo</h2>
+  <p class="ah-lead text-sm mb-5">
+    A <strong>classe</strong> define quais atributos e métodos existem. O <strong>objeto</strong> é uma
+    instância concreta, com seus próprios valores. Clique em <em>“new Carro(...)”</em> e veja objetos nascerem
+    da mesma classe, cada um com identidade própria.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div>
+      <div class="ah-card overflow-hidden">
+        <div class="bg-emerald-500/15 border-b border-emerald-500/30 px-4 py-2 text-center">
+          <span class="text-[10px] uppercase tracking-wide text-emerald-400 font-bold">classe (molde)</span>
+          <div class="text-sm font-bold text-white">Carro</div>
+        </div>
+        <div class="px-4 py-3 border-b border-slate-700/60 font-mono text-[11px] text-slate-300 space-y-1">
+          <div>− modelo: String</div>
+          <div>− cor: String</div>
+          <div>− velocidade: int</div>
+        </div>
+        <div class="px-4 py-3 font-mono text-[11px] text-slate-300 space-y-1">
+          <div>+ acelerar(): void</div>
+          <div>+ frear(): void</div>
+        </div>
+      </div>
+      <div class="mt-3 space-y-2">
+        <button id="novo-carro" class="ah-btn ah-btn-ok w-full"><i class="fa-solid fa-plus"></i> new Carro(…)</button>
+        <button id="limpar-carros" class="ah-btn ah-btn-ghost w-full"><i class="fa-solid fa-trash"></i> Destruir objetos</button>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-3 leading-relaxed">
+        A classe existe <strong>uma vez</strong>, em tempo de compilação. Os objetos existem <strong>n vezes</strong>,
+        em tempo de execução, cada um em seu endereço de memória.
+      </p>
+    </div>
+
+    <div class="lg:col-span-2">
+      <div class="ah-stage p-4 min-h-[260px]">
+        <div id="carros" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        <p id="carros-vazio" class="text-center text-slate-600 text-sm italic py-16">Nenhum objeto instanciado ainda.</p>
+      </div>
+      <div class="ah-card p-4 mt-3">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Memória</h3>
+        <div id="carros-mem" class="font-mono text-[11px] text-slate-400 space-y-1"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VOCABULÁRIO ============================ -->
+<section id="vocabulario" data-toc="Vocabulário essencial" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Os termos que você vai usar o semestre inteiro</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="vocab"></div>
+</section>
+
+<!-- ============================ PILARES ============================ -->
+<section id="pilares" data-toc="Os quatro pilares" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-columns text-emerald-400 mr-2"></i>Os quatro pilares</h2>
+  <p class="ah-lead text-sm mb-6">Cada um tem um tópico próprio nesta disciplina. Aqui vai a visão de conjunto.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="pilares-cards"></div>
+</section>
+
+<!-- ============================ PROCESSO ============================ -->
+<section id="processo" data-toc="Do requisito ao código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-diagram-next text-emerald-400 mr-2"></i>Onde a UML entra</h2>
+  <div class="ah-prose">
+    <p>
+      Modelar não é desenhar bonito: é <strong>pensar antes de codificar</strong> e ter uma linguagem comum
+      entre analista, programador e cliente. Um diagrama de classes cabe numa folha; o código equivalente,
+      em vinte arquivos.
+    </p>
+  </div>
+  <div class="ah-timeline mt-6" id="processo-timeline"></div>
+
+  <div class="ah-callout ah-callout-warn mt-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Modele o suficiente, não tudo.</strong> Diagramar cada classe de um sistema grande produz
+      documentação que envelhece em uma semana. Modele o que é difícil de entender lendo o código:
+      arquitetura, fluxos críticos, regras de negócio complexas.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#11312a)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual a diferença entre classe e objeto?</p>
+      <button class="ah-quiz-opt">Classe é o objeto depois de compilado</button>
+      <button class="ah-quiz-opt">Classe é a definição (molde); objeto é uma instância com valores e identidade próprios</button>
+      <button class="ah-quiz-opt">São sinônimos em Java</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Dois objetos da mesma classe têm os <em>mesmos atributos</em> (nomes e tipos), mas <em>valores</em>
+        diferentes — e são distintos mesmo que todos os valores coincidam, porque cada um tem sua identidade.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. A principal vantagem de juntar dados e comportamento no mesmo objeto é:</p>
+      <button class="ah-quiz-opt">Reduzir o uso de memória</button>
+      <button class="ah-quiz-opt">Deixar o programa mais rápido</button>
+      <button class="ah-quiz-opt">Concentrar a responsabilidade: as regras que protegem um dado ficam ao lado dele</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Na prática, OO costuma consumir um pouco mais de memória e de tempo. O ganho é de
+        <strong>manutenção</strong>: quando a regra do saldo muda, há um único lugar para alterar.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Modelar em UML antes de codificar serve principalmente para:</p>
+      <button class="ah-quiz-opt">Comunicar e validar decisões de projeto antes que custem caro</button>
+      <button class="ah-quiz-opt">Gerar automaticamente todo o código do sistema</button>
+      <button class="ah-quiz-opt">Cumprir uma exigência formal da linguagem Java</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Mudar uma seta num diagrama custa segundos; mudar a mesma decisão depois de 5.000 linhas escritas
+        custa semanas. A UML é uma ferramenta de <em>conversa</em> — inclusive com você mesmo daqui a seis meses.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Instanciação de objetos ===================== */
+(function instancias() {
+  const MODELOS = [['Fusca', '#f59e0b'], ['Civic', '#38bdf8'], ['Gol', '#ef4444'],
+                   ['Uno', '#10b981'], ['Corolla', '#a855f7'], ['Palio', '#ec4899']];
+  const CORES = ['vermelho', 'azul', 'preto', 'branco', 'prata'];
+  let objetos = [], contador = 0;
+
+  function pinta() {
+    document.getElementById('carros-vazio').style.display = objetos.length ? 'none' : '';
+    document.getElementById('carros').innerHTML = objetos.map(o => `
+      <div class="ah-card p-3 ah-reveal visible" style="border-left:3px solid ${o.cor}">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-white">${o.ref}</span>
+          <span class="font-mono text-[9px] text-slate-500">${o.hash}</span>
+        </div>
+        <div class="font-mono text-[11px] space-y-0.5 text-slate-400">
+          <div>modelo = <span class="text-emerald-300">"${o.modelo}"</span></div>
+          <div>cor = <span class="text-emerald-300">"${o.corNome}"</span></div>
+          <div>velocidade = <span class="text-amber-300">${o.velocidade}</span></div>
+        </div>
+        <div class="flex gap-1.5 mt-2">
+          <button data-ac="${o.ref}" class="ah-btn text-[10px] py-1 px-2 flex-1">acelerar()</button>
+          <button data-fr="${o.ref}" class="ah-btn ah-btn-ghost text-[10px] py-1 px-2 flex-1">frear()</button>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('carros-mem').innerHTML = objetos.length
+      ? objetos.map(o => `<div><span class="text-emerald-300">${o.ref}</span>
+          <span class="text-slate-600">→</span> <span class="text-slate-500">${o.hash}</span>
+          <span class="text-slate-600">(Carro)</span></div>`).join('')
+      : '<span class="text-slate-600 italic">heap vazia</span>';
+  }
+
+  document.getElementById('novo-carro').addEventListener('click', () => {
+    if (objetos.length >= 6) return;
+    const [modelo, cor] = MODELOS[contador % MODELOS.length];
+    contador++;
+    objetos.push({
+      ref: 'carro' + contador, modelo, cor,
+      corNome: CORES[Math.floor(Math.random() * CORES.length)],
+      velocidade: 0,
+      hash: '@' + Math.random().toString(16).slice(2, 8)
+    });
+    pinta();
+  });
+
+  document.getElementById('limpar-carros').addEventListener('click', () => { objetos = []; contador = 0; pinta(); });
+
+  document.getElementById('carros').addEventListener('click', e => {
+    const ac = e.target.closest('[data-ac]'), fr = e.target.closest('[data-fr]');
+    const ref = ac ? ac.getAttribute('data-ac') : fr ? fr.getAttribute('data-fr') : null;
+    if (!ref) return;
+    const o = objetos.find(x => x.ref === ref);
+    o.velocidade = Math.max(0, o.velocidade + (ac ? 20 : -20));
+    pinta();
+  });
+
+  pinta();
+})();
+
+/* ===================== Vocabulário ===================== */
+const VOCAB = [
+  ['Classe', 'fa-file-code', 'Definição de um tipo: quais atributos e métodos seus objetos terão.'],
+  ['Objeto / instância', 'fa-cube', 'Exemplar concreto de uma classe, com valores próprios e identidade única.'],
+  ['Atributo', 'fa-tag', 'Dado que descreve o estado do objeto. Também chamado de campo ou propriedade.'],
+  ['Método', 'fa-gear', 'Comportamento que o objeto sabe executar. É a “mensagem” que ele aceita receber.'],
+  ['Construtor', 'fa-hammer', 'Método especial que inicializa o objeto no momento da criação.'],
+  ['Estado', 'fa-database', 'O conjunto dos valores atuais dos atributos de um objeto.'],
+  ['Identidade', 'fa-fingerprint', 'O que distingue dois objetos mesmo com estados idênticos — a referência.'],
+  ['Mensagem', 'fa-paper-plane', 'A chamada de um método: um objeto pedindo algo a outro.'],
+  ['Responsabilidade', 'fa-user-shield', 'O que aquela classe deve saber e fazer. Guia central do bom projeto OO.']
+];
+document.getElementById('vocab').innerHTML = VOCAB.map(v => `
+  <div class="ah-card ah-card-hover p-4">
+    <div class="flex items-center gap-2 mb-1.5">
+      <i class="fa-solid ${v[1]} text-emerald-400 text-sm"></i>
+      <h4 class="text-xs font-bold text-white">${v[0]}</h4>
+    </div>
+    <p class="text-[11px] text-slate-400 leading-relaxed">${v[2]}</p>
+  </div>`).join('');
+
+/* ===================== Pilares ===================== */
+const PILARES = [
+  ['Abstração', 'fa-eye-slash', '#38bdf8', 'Representar só o que importa para o problema, ignorando o resto.',
+   '03-abstracao-encapsulamento.html'],
+  ['Encapsulamento', 'fa-lock', '#10b981', 'Esconder o funcionamento interno e expor apenas uma interface segura.',
+   '03-abstracao-encapsulamento.html'],
+  ['Herança', 'fa-code-branch', '#a855f7', 'Especializar uma classe existente, reaproveitando estrutura e comportamento.',
+   '04-heranca-polimorfismo.html'],
+  ['Polimorfismo', 'fa-masks-theater', '#f59e0b', 'A mesma chamada produzir comportamentos diferentes conforme o objeto real.',
+   '04-heranca-polimorfismo.html']
+];
+document.getElementById('pilares-cards').innerHTML = PILARES.map(p => `
+  <a href="${p[4]}" class="ah-card ah-card-hover p-5 flex items-start gap-4" style="border-left:3px solid ${p[2]}">
+    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg"
+         style="background:${p[2]}22;color:${p[2]}"><i class="fa-solid ${p[1]}"></i></div>
+    <div>
+      <h4 class="ah-h3 text-sm mb-1">${p[0]}</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">${p[3]}</p>
+      <span class="text-[11px] text-emerald-400 font-semibold mt-2 inline-block">Ver tópico <i class="fa-solid fa-arrow-right ml-1"></i></span>
+    </div>
+  </a>`).join('');
+
+/* ===================== Processo ===================== */
+const PROC = [
+  ['Requisitos', 'O que o sistema precisa fazer, na linguagem do cliente. Vira o <a href="07-diagrama-casos-de-uso.html" class="text-emerald-400 hover:underline">diagrama de casos de uso</a>.'],
+  ['Análise', 'Quais conceitos do domínio existem e como se relacionam. Primeiro esboço do <a href="08-diagrama-classes.html" class="text-emerald-400 hover:underline">diagrama de classes</a>.'],
+  ['Projeto', 'Como o sistema vai atender aos requisitos: responsabilidades, interações (<a href="11-diagrama-sequencia.html" class="text-emerald-400 hover:underline">sequência</a>), estados e arquitetura.'],
+  ['Implementação', 'Tradução do modelo para código. Cada símbolo tem um equivalente — veja <a href="15-do-diagrama-ao-codigo.html" class="text-emerald-400 hover:underline">Do diagrama ao código</a>.'],
+  ['Evolução', 'O modelo e o código andam juntos. Diagrama desatualizado é pior que diagrama nenhum, porque mente.']
+];
+document.getElementById('processo-timeline').innerHTML = PROC.map(p => `
+  <div class="ah-timeline-item ah-reveal">
+    <div class="text-sm font-bold text-white mb-1">${p[0]}</div>
+    <p class="text-xs text-slate-400 leading-relaxed">${p[1]}</p>
+  </div>`).join('');
+
+AH.initReveal();
+</script>
+</body>
+</html>

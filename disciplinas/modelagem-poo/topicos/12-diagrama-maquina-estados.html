@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagrama de Máquina de Estados · AcademicHub</title>
+<meta name="description" content="Estados, transições, eventos, guardas e ações modelando o ciclo de vida de um objeto.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔁</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/12-diagrama-maquina-estados">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Estado e transição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-toggle-on text-emerald-400 mr-2"></i>A vida de um objeto, do nascimento ao fim</h2>
+  <div class="ah-prose">
+    <p>
+      Alguns objetos têm comportamento que <strong>depende do que aconteceu antes</strong>. Um pedido
+      “pago” reage ao cancelamento de forma diferente de um pedido “entregue”. O diagrama de máquina de
+      estados torna explícitas essas situações e as regras de passagem entre elas.
+    </p>
+    <p>
+      Modele-o para objetos com <em>ciclo de vida relevante</em>: pedido, contrato, chamado, reserva,
+      documento em aprovação. Para um objeto que é só um saco de dados, ele não acrescenta nada.
+    </p>
+  </div>
+
+  <div class="ah-card p-5 my-6">
+    <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Sintaxe de uma transição</h3>
+    <div class="text-center font-mono text-sm py-3">
+      <span class="text-amber-300">evento</span>
+      <span class="text-slate-500">(</span><span class="text-slate-400">parâmetros</span><span class="text-slate-500">)</span>
+      <span class="text-sky-300">[guarda]</span>
+      <span class="text-slate-500">/</span>
+      <span class="text-emerald-300">ação</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] mt-2">
+      <div><b class="text-amber-300">evento</b> — o que dispara a transição (obrigatório na maioria dos casos)</div>
+      <div><b class="text-sky-300">[guarda]</b> — condição booleana que precisa valer para a transição ocorrer</div>
+      <div><b class="text-emerald-300">/ação</b> — o que é executado durante a transição</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SIMULADOR ============================ -->
+<section id="simulador" data-toc="Máquina interativa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gamepad text-emerald-400 mr-2"></i>Dispare eventos e veja o objeto reagir</h2>
+  <p class="ah-lead text-sm mb-4">
+    Ciclo de vida de um <strong>Pedido</strong>. Os botões de evento habilitados mudam conforme o estado
+    atual — e é exatamente isso que o diagrama comunica: <em>nem todo evento é válido em qualquer momento</em>.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage p-3 overflow-x-auto">
+        <svg viewBox="0 0 660 430" class="w-full" style="min-width:560px;height:430px" id="me-svg"></svg>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="ah-card p-5">
+        <div class="text-[10px] uppercase tracking-wide text-slate-500 font-bold mb-1">Estado atual</div>
+        <div id="me-estado" class="text-xl font-bold text-emerald-400 mb-2">—</div>
+        <p id="me-estado-desc" class="text-[11px] text-slate-400 leading-relaxed"></p>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Eventos</h3>
+        <div id="me-eventos" class="space-y-1.5"></div>
+        <div class="mt-4 pt-3 border-t border-slate-700/60">
+          <label class="flex items-center gap-2 text-[11px] text-slate-400 cursor-pointer">
+            <input type="checkbox" id="me-guarda" class="accent-emerald-500">
+            <span>cliente é VIP <span class="text-slate-600">(altera a guarda de “cancelar”)</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="ah-card p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Histórico</h3>
+        <div id="me-hist" class="space-y-1 text-[10px] max-h-40 overflow-y-auto font-mono"></div>
+        <button id="me-reset" class="ah-btn ah-btn-ghost w-full mt-3 text-xs"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      <strong>Marque “cliente é VIP” e tente cancelar um pedido já enviado.</strong> A transição existe no
+      diagrama, mas só é percorrida se a guarda for satisfeita. Guardas são regras de negócio declaradas
+      visualmente — e devem virar validações no código.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ELEMENTOS ============================ -->
+<section id="elementos" data-toc="Elementos da notação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-shapes text-emerald-400 mr-2"></i>O que mais existe na notação</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="me-elementos"></div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Da máquina para o código:</strong> a forma ingênua é um <code>enum</code> de estados mais um
+      <code>switch</code> gigante. A forma orientada a objetos é o padrão <em>State</em>: uma classe por
+      estado, cada uma sabendo responder aos eventos que lhe cabem — e o <code>switch</code> desaparece.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ESTADOS COMPOSTOS ============================ -->
+<section id="compostos" data-toc="Estados compostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Estados compostos e regiões concorrentes</h2>
+  <p class="ah-lead text-sm mb-5">
+    Quando a máquina cresce, agrupa-se um conjunto de estados dentro de um <strong>estado composto</strong>.
+    Uma transição que sai da borda do composto vale para <em>todos</em> os subestados — o que elimina dezenas
+    de setas repetidas.
+  </p>
+  <div class="ah-stage p-4">
+    <svg viewBox="0 0 620 260" class="w-full" style="height:260px" id="me-composto"></svg>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#11312a)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre ciclo de vida.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Em <code>pagar() [valor >= total] / emitirNota()</code>, o trecho entre colchetes é:</p>
+      <button class="ah-quiz-opt">A ação executada na transição</button>
+      <button class="ah-quiz-opt">A guarda: condição que precisa ser verdadeira para a transição ocorrer</button>
+      <button class="ah-quiz-opt">O nome do estado de destino</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Se o evento acontece mas a guarda é falsa, <b>nada muda</b>: o objeto permanece no estado atual.
+        A ação vem depois da barra e executa durante a transição.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Qual objeto <em>não</em> justifica um diagrama de máquina de estados?</p>
+      <button class="ah-quiz-opt">Pedido (aberto → pago → enviado → entregue)</button>
+      <button class="ah-quiz-opt">Chamado de suporte (aberto → em análise → resolvido)</button>
+      <button class="ah-quiz-opt">Endereço (rua, número, cidade, CEP)</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Endereço é um agregado de valores: não tem eventos, nem transições, nem comportamento que mude com o
+        tempo. Modelar estados aí só produz ruído.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. <code>entry / reservarEstoque</code> dentro de um estado significa:</p>
+      <button class="ah-quiz-opt">Ação executada toda vez que o objeto <strong>entra</strong> nesse estado, venha de onde vier</button>
+      <button class="ah-quiz-opt">Ação executada ao sair do estado</button>
+      <button class="ah-quiz-opt">O evento que leva a esse estado</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        As três formas internas são <code>entry</code> (ao entrar), <code>exit</code> (ao sair) e
+        <code>do</code> (enquanto permanece). Usar <code>entry</code> evita repetir a mesma ação em todas as
+        transições que chegam ali.
+      </p>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Máquina de estados do Pedido ===================== */
+(function maquina() {
+  const ESTADOS = {
+    novo:      { n: 'Novo', x: 100, y: 60, entry: 'gerarNumero()',
+                 d: 'O pedido foi criado e está sendo montado. Ainda não há compromisso de compra.' },
+    aguardando:{ n: 'Aguardando\npagamento', x: 330, y: 60, entry: 'reservarEstoque()',
+                 d: 'O cliente fechou o pedido. O estoque fica reservado até o pagamento ou a expiração do prazo.' },
+    pago:      { n: 'Pago', x: 560, y: 60, entry: 'emitirNotaFiscal()',
+                 d: 'Pagamento confirmado pela operadora. A partir daqui o cancelamento tem regras mais duras.' },
+    separacao: { n: 'Em separação', x: 560, y: 190, doAct: 'separarItens()',
+                 d: 'O centro de distribuição está separando os itens fisicamente.' },
+    enviado:   { n: 'Enviado', x: 330, y: 190, entry: 'notificarCliente()',
+                 d: 'O pedido saiu para entrega. Cancelar agora exige logística reversa.' },
+    entregue:  { n: 'Entregue', x: 100, y: 190, final: true,
+                 d: 'Estado final feliz. O ciclo de vida do pedido se encerra.' },
+    cancelado: { n: 'Cancelado', x: 330, y: 330, final: true, entry: 'liberarEstoque()',
+                 d: 'Estado final alternativo. O estoque reservado é devolvido.' }
+  };
+
+  const TRANSICOES = [
+    { de: 'novo', para: 'aguardando', ev: 'fechar()', acao: 'calcularTotal()' },
+    { de: 'aguardando', para: 'pago', ev: 'confirmarPagamento()', guarda: 'valor ≥ total' },
+    { de: 'pago', para: 'separacao', ev: 'iniciarSeparacao()' },
+    { de: 'separacao', para: 'enviado', ev: 'despachar()', acao: 'gerarRastreio()' },
+    { de: 'enviado', para: 'entregue', ev: 'confirmarEntrega()' },
+    { de: 'novo', para: 'cancelado', ev: 'cancelar()' },
+    { de: 'aguardando', para: 'cancelado', ev: 'cancelar()' },
+    { de: 'aguardando', para: 'cancelado', ev: 'expirarPrazo()', acao: 'estornar()' },
+    { de: 'pago', para: 'cancelado', ev: 'cancelar()', acao: 'estornar()' },
+    { de: 'enviado', para: 'cancelado', ev: 'cancelar()', guarda: 'cliente VIP', acao: 'logisticaReversa()' }
+  ];
+
+  let atual = 'novo';
+  const hist = [{ t: 'estado inicial', e: 'novo', ok: true }];
+  const svg = document.getElementById('me-svg');
+  const vip = () => document.getElementById('me-guarda').checked;
+  const guardaOk = g => !g || (g === 'cliente VIP' ? vip() : true);
+
+  function desenha() {
+    let out = '';
+
+    /* pseudo-estado inicial */
+    out += `<circle cx="40" cy="60" r="8" fill="#e2e8f0"/>
+            <line x1="48" y1="60" x2="${ESTADOS.novo.x - 62}" y2="60" stroke="#64748b" stroke-width="1.6"/>
+            <polygon points="${ESTADOS.novo.x - 60},60 ${ESTADOS.novo.x - 70},55 ${ESTADOS.novo.x - 70},65" fill="#64748b"/>`;
+
+    /* transições */
+    TRANSICOES.forEach((t, i) => {
+      const A = ESTADOS[t.de], B = ESTADOS[t.para];
+      const disponivel = t.de === atual;
+      const bloqueada = disponivel && !guardaOk(t.guarda);
+      const cor = bloqueada ? '#ef4444' : disponivel ? '#fbbf24' : 'rgba(100,116,139,.45)';
+      const larg = disponivel ? 2.2 : 1.3;
+
+      const dx = B.x - A.x, dy = B.y - A.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const ux = dx / dist, uy = dy / dist;
+      const x1 = A.x + ux * 66, y1 = A.y + uy * 32;
+      const x2 = B.x - ux * 66, y2 = B.y - uy * 32;
+      const curva = (t.para === 'cancelado' && t.de !== 'aguardando') ? 28 * (i % 2 ? 1 : -1) : 0;
+      const mx = (x1 + x2) / 2 + curva, my = (y1 + y2) / 2 + (curva ? 0 : 0);
+
+      out += `<path d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none" stroke="${cor}" stroke-width="${larg}"/>
+              <polygon points="${x2},${y2} ${x2 - ux * 10 - uy * 5},${y2 - uy * 10 + ux * 5}
+                        ${x2 - ux * 10 + uy * 5},${y2 - uy * 10 - ux * 5}" fill="${cor}"/>`;
+
+      if (disponivel) {
+        const rot = `${t.ev}${t.guarda ? ' [' + t.guarda + ']' : ''}${t.acao ? ' / ' + t.acao : ''}`;
+        out += `<text x="${mx}" y="${my - 6}" text-anchor="middle" font-size="9"
+                  font-family="Fira Code, monospace" fill="${cor}">${rot}</text>`;
+      }
+    });
+
+    /* estados */
+    Object.entries(ESTADOS).forEach(([id, s]) => {
+      const ativo = id === atual;
+      const cor = ativo ? '#10b981' : s.final ? '#64748b' : 'rgba(100,116,139,.6)';
+      const linhas = s.n.split('\n');
+      const h = 44 + (s.entry || s.doAct ? 16 : 0);
+
+      if (s.final) {
+        out += `<rect x="${s.x - 62}" y="${s.y - h / 2}" width="124" height="${h}" rx="12"
+                  fill="${ativo ? 'rgba(16,185,129,.2)' : '#1e293b'}" stroke="${cor}" stroke-width="${ativo ? 2.6 : 1.8}"/>
+                <circle cx="${s.x + 50}" cy="${s.y - h / 2 + 10}" r="6" fill="none" stroke="${cor}" stroke-width="1.5"/>
+                <circle cx="${s.x + 50}" cy="${s.y - h / 2 + 10}" r="3" fill="${cor}"/>`;
+      } else {
+        out += `<rect x="${s.x - 62}" y="${s.y - h / 2}" width="124" height="${h}" rx="12"
+                  fill="${ativo ? 'rgba(16,185,129,.2)' : '#1e293b'}" stroke="${cor}" stroke-width="${ativo ? 2.6 : 1.8}"/>`;
+      }
+
+      linhas.forEach((l, i) => {
+        out += `<text x="${s.x}" y="${s.y - (s.entry || s.doAct ? 6 : 0) - (linhas.length - 1) * 6 + i * 13 + 4}"
+                  text-anchor="middle" font-size="11.5" font-weight="700" font-family="Inter, sans-serif"
+                  fill="${ativo ? '#6ee7b7' : '#cbd5e1'}">${l}</text>`;
+      });
+      if (s.entry) out += `<text x="${s.x}" y="${s.y + 16}" text-anchor="middle" font-size="8.5"
+        font-family="Fira Code, monospace" fill="#94a3b8">entry / ${s.entry}</text>`;
+      if (s.doAct) out += `<text x="${s.x}" y="${s.y + 16}" text-anchor="middle" font-size="8.5"
+        font-family="Fira Code, monospace" fill="#94a3b8">do / ${s.doAct}</text>`;
+
+      if (ativo) out += `<circle cx="${s.x}" cy="${s.y}" r="${h / 2 + 8}" fill="none" stroke="#10b981"
+        stroke-width="1" opacity=".4"><animate attributeName="r" values="${h / 2 + 5};${h / 2 + 14};${h / 2 + 5}"
+        dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0;.5" dur="1.8s" repeatCount="indefinite"/></circle>`;
+    });
+
+    svg.innerHTML = out;
+
+    /* painéis */
+    const s = ESTADOS[atual];
+    document.getElementById('me-estado').textContent = s.n.replace('\n', ' ');
+    document.getElementById('me-estado-desc').innerHTML = s.d +
+      (s.entry ? `<br><span class="text-emerald-400 font-mono text-[10px]">entry / ${s.entry}</span>` : '') +
+      (s.doAct ? `<br><span class="text-emerald-400 font-mono text-[10px]">do / ${s.doAct}</span>` : '');
+
+    const saindo = TRANSICOES.filter(t => t.de === atual);
+    document.getElementById('me-eventos').innerHTML = saindo.length ? saindo.map((t, i) => {
+      const ok = guardaOk(t.guarda);
+      const idx = TRANSICOES.indexOf(t);
+      return `<button data-t="${idx}" ${ok ? '' : 'disabled'}
+        class="w-full text-left px-3 py-2 rounded-lg border text-[11px] transition
+        ${ok ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
+             : 'border-rose-500/30 bg-rose-500/5 text-rose-300/60 cursor-not-allowed'}">
+        <span class="font-mono font-bold">${t.ev}</span>
+        ${t.guarda ? `<span class="block text-[9.5px] opacity-80 mt-0.5">[${t.guarda}] ${ok ? '✓ satisfeita' : '✗ não satisfeita'}</span>` : ''}
+        <span class="block text-[9.5px] opacity-60">→ ${ESTADOS[t.para].n.replace('\n', ' ')}</span>
+      </button>`;
+    }).join('') : '<p class="text-[11px] text-slate-600 italic">estado final: não há eventos possíveis</p>';
+
+    document.getElementById('me-hist').innerHTML = hist.map(h => `
+      <div class="${h.ok ? 'text-slate-400' : 'text-rose-400'}">
+        <span class="text-slate-600">›</span> ${h.t} <span class="text-emerald-400">${h.e}</span></div>`).join('');
+  }
+
+  document.getElementById('me-eventos').addEventListener('click', e => {
+    const b = e.target.closest('[data-t]');
+    if (!b || b.disabled) return;
+    const t = TRANSICOES[+b.getAttribute('data-t')];
+    hist.push({ t: t.ev + (t.acao ? ' / ' + t.acao : '') + ' →', e: ESTADOS[t.para].n.replace('\n', ' '), ok: true });
+    atual = t.para;
+    desenha();
+  });
+  document.getElementById('me-guarda').addEventListener('change', desenha);
+  document.getElementById('me-reset').addEventListener('click', () => {
+    atual = 'novo'; hist.length = 0; hist.push({ t: 'estado inicial', e: 'novo', ok: true });
+    desenha();
+  });
+
+  desenha();
+})();
+
+/* ===================== Elementos da notação ===================== */
+const MEEL = [
+  ['Estado inicial', 'Círculo preenchido. Pseudo-estado: o objeto não “fica” nele.', 'fa-circle'],
+  ['Estado final', 'Círculo com anel. Encerra a máquina.', 'fa-circle-dot'],
+  ['entry / ação', 'Executa toda vez que o objeto <b>entra</b> no estado, qualquer que seja a transição.', 'fa-arrow-right-to-bracket'],
+  ['exit / ação', 'Executa toda vez que o objeto <b>sai</b> do estado.', 'fa-arrow-right-from-bracket'],
+  ['do / atividade', 'Executa <b>enquanto</b> o objeto permanece no estado; pode ser interrompida por um evento.', 'fa-spinner'],
+  ['Auto-transição', 'Sai e volta ao mesmo estado — dispara <code>exit</code> e <code>entry</code> novamente.', 'fa-rotate'],
+  ['Transição automática', 'Sem evento: ocorre assim que as atividades internas terminam.', 'fa-forward'],
+  ['Estado composto', 'Agrupa subestados; uma transição na borda vale para todos eles.', 'fa-layer-group'],
+  ['Histórico (H)', 'Ao voltar ao composto, retoma o subestado em que estava.', 'fa-clock-rotate-left']
+];
+document.getElementById('me-elementos').innerHTML = MEEL.map(m => `
+  <div class="ah-card p-4">
+    <div class="flex items-center gap-2 mb-1.5">
+      <i class="fa-solid ${m[2]} text-emerald-400 text-xs"></i>
+      <h4 class="text-xs font-bold text-white">${m[0]}</h4>
+    </div>
+    <p class="text-[11px] text-slate-400 leading-relaxed">${m[1]}</p>
+  </div>`).join('');
+
+/* ===================== Estado composto ===================== */
+(function composto() {
+  const txt = (x, y, t, s, cor, peso) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="${s}"
+    font-family="${peso === 'mono' ? 'Fira Code, monospace' : 'Inter, sans-serif'}"
+    font-weight="${peso === 'mono' ? 400 : 700}" fill="${cor}">${t}</text>`;
+
+  let out = `
+    <rect x="70" y="40" width="360" height="160" rx="14" fill="rgba(16,185,129,.05)"
+          stroke="#10b981" stroke-width="1.8"/>
+    <line x1="70" y1="70" x2="430" y2="70" stroke="#10b981" stroke-width="1.4"/>
+    ${txt(250, 61, 'Em processamento', 12, '#6ee7b7')}
+
+    <rect x="100" y="105" width="120" height="44" rx="11" fill="#1e293b" stroke="#64748b" stroke-width="1.6"/>
+    ${txt(160, 132, 'Separando', 11, '#cbd5e1')}
+    <rect x="280" y="105" width="120" height="44" rx="11" fill="#1e293b" stroke="#64748b" stroke-width="1.6"/>
+    ${txt(340, 132, 'Embalando', 11, '#cbd5e1')}
+
+    <circle cx="86" cy="127" r="6" fill="#e2e8f0"/>
+    <line x1="92" y1="127" x2="96" y2="127" stroke="#64748b" stroke-width="1.5"/>
+    <polygon points="100,127 90,122 90,132" fill="#64748b"/>
+
+    <line x1="220" y1="127" x2="272" y2="127" stroke="#64748b" stroke-width="1.6"/>
+    <polygon points="278,127 268,122 268,132" fill="#64748b"/>
+    ${txt(246, 118, 'pronto()', 8.5, '#94a3b8', 'mono')}
+
+    <rect x="500" y="105" width="110" height="44" rx="11" fill="#1e293b" stroke="#64748b" stroke-width="1.6"/>
+    ${txt(555, 132, 'Enviado', 11, '#cbd5e1')}
+    <line x1="400" y1="127" x2="492" y2="127" stroke="#64748b" stroke-width="1.6"/>
+    <polygon points="498,127 488,122 488,132" fill="#64748b"/>
+    ${txt(446, 118, 'despachar()', 8.5, '#94a3b8', 'mono')}
+
+    <rect x="180" y="215" width="140" height="40" rx="11" fill="#1e293b" stroke="#ef4444" stroke-width="1.8"/>
+    ${txt(250, 240, 'Cancelado', 11, '#fca5a5')}
+    <path d="M70,150 L40,150 L40,235 L172,235" fill="none" stroke="#ef4444" stroke-width="1.8"/>
+    <polygon points="178,235 168,230 168,240" fill="#ef4444"/>
+    ${txt(96, 228, 'cancelar()', 9, '#f87171', 'mono')}
+    ${txt(310, 202, 'a seta parte da BORDA do composto: vale para Separando e Embalando', 9, '#64748b')}`;
+
+  document.getElementById('me-composto').innerHTML = out;
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>
