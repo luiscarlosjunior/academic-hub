@@ -321,6 +321,171 @@ classDiagram
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-final" data-toc="Aprofundamento: final e imutabilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>final: o atributo que não muda após a construção</h2>
+  <div class="ah-prose">
+    <p>
+      Um atributo <code>final</code> recebe valor uma única vez, normalmente no construtor. Na modelagem, ele corresponde a
+      um atributo <strong>somente leitura</strong> (<code>{readOnly}</code> na UML, ou <code>{frozen}</code> em algumas
+      ferramentas). Mudanças de estado ficam restritas a operações explicitamente projetadas.
+    </p>
+    <p>
+      Cuidado: <code>final</code> protege a <em>referência</em>, não o objeto. Um <code>final List</code> continua aceitando
+      <code>add</code>. Para proteger o conteúdo, é preciso uma lista imutável ou uma cópia defensiva.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private final</span> String nome;                 <span class="cm">// nunca muda após a criação</span>
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; musicas = <span class="kw">new</span> ArrayList&lt;&gt;();  <span class="cm">// referência fixa, conteúdo muda</span>
+
+    <span class="kw">public</span> <span class="fn">Playlist</span>(String nome) { <span class="kw">this</span>.nome = nome; }
+
+    <span class="kw">public</span> List&lt;<span class="ty">Musica</span>&gt; <span class="fn">getMusicas</span>() {
+        <span class="kw">return new</span> ArrayList&lt;&gt;(musicas);        <span class="cm">// cópia defensiva: o chamador não altera a playlist</span>
+    }
+}</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Objeto de valor:</strong> quando um conceito é definido só pelos seus valores (um dinheiro, um intervalo de datas,
+      uma duração), faça-o imutável. Ele pode ser compartilhado sem risco, e é o caso natural do <code>record</code> do Java.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-static" data-toc="Membros estáticos e fábricas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-sky-400 mr-2"></i>static: da constante à fábrica</h2>
+  <div class="ah-prose">
+    <p>
+      Um membro <code>static</code> pertence à classe. Dois usos são comuns. O primeiro é a <strong>constante</strong> (<code>static final</code>),
+      como a taxa de royalty. O segundo é o <strong>método de fábrica</strong>, que cria objetos com um nome que expressa a intenção,
+      em vez de um construtor genérico.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Plano</span> {
+    <span class="kw">public static final</span> <span class="ty">Plano</span> FREE    = <span class="kw">new</span> <span class="ty">Plano</span>(<span class="str">"Free"</span>, <span class="num">0</span>, <span class="kw">true</span>);
+    <span class="kw">public static final</span> <span class="ty">Plano</span> PREMIUM = <span class="kw">new</span> <span class="ty">Plano</span>(<span class="str">"Premium"</span>, <span class="num">19.90</span>, <span class="kw">false</span>);
+
+    <span class="kw">private final</span> String nome;
+    <span class="kw">private final double</span> precoMensal;
+    <span class="kw">private final boolean</span> comAnuncios;
+
+    <span class="kw">private</span> <span class="fn">Plano</span>(String nome, <span class="kw">double</span> preco, <span class="kw">boolean</span> anuncios) {
+        <span class="kw">this</span>.nome = nome; <span class="kw">this</span>.precoMensal = preco; <span class="kw">this</span>.comAnuncios = anuncios;
+    }
+
+    <span class="cm">// fábrica: o nome expressa a intenção</span>
+    <span class="kw">public static</span> <span class="ty">Plano</span> <span class="fn">familia</span>(<span class="kw">int</span> membros) {
+        <span class="kw">if</span> (membros &lt; <span class="num">2</span> || membros &gt; <span class="num">6</span>) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"família: 2 a 6 contas"</span>);
+        <span class="kw">return new</span> <span class="ty">Plano</span>(<span class="str">"Família"</span>, <span class="num">29.90</span>, <span class="kw">false</span>);
+    }
+}</code></pre>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Por que construtor privado:</strong> impede que alguém crie um plano “Premium” com preço errado. Os planos
+      válidos existem como constantes ou fábricas, e o modelo declara isso como um enum ou uma classe com instâncias fixas.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-derivado" data-toc="Derivado: calcular ou guardar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-sky-400 mr-2"></i>Atributo derivado: quando calcular e quando guardar</h2>
+  <div class="ah-prose">
+    <p>
+      O atributo derivado (<code>/</code> na UML) é calculado a partir de outros. A regra geral é calcular, para evitar
+      inconsistência. Há uma exceção legítima: quando o cálculo é caro e o dado de origem muda raramente. Nesse caso, guarda-se
+      o valor em cache e <strong>invalida-se</strong> o cache em cada operação que altera a origem. A invalidação é o que
+      torna o dado derivado seguro.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Album</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; faixas = <span class="kw">new</span> ArrayList&lt;&gt;();
+    <span class="kw">private</span> Integer duracaoCache;              <span class="cm">// derivado guardado: pode ser nulo</span>
+
+    <span class="kw">public</span> <span class="ty">Musica</span> <span class="fn">adicionarFaixa</span>(String titulo, <span class="kw">int</span> d) {
+        duracaoCache = <span class="kw">null</span>;                       <span class="cm">// invalida o cache a cada mudança</span>
+        <span class="ty">Musica</span> m = <span class="kw">new</span> <span class="ty">Musica</span>(titulo, artista, d);
+        faixas.add(m);
+        <span class="kw">return</span> m;
+    }
+
+    <span class="kw">public int</span> <span class="fn">duracaoTotal</span>() {
+        <span class="kw">if</span> (duracaoCache == <span class="kw">null</span>)
+            duracaoCache = faixas.stream().mapToInt(<span class="ty">Musica</span>::getDuracaoSegundos).sum();
+        <span class="kw">return</span> duracaoCache;
+    }
+}</code></pre>
+</section>
+
+<section id="aprof-tell" data-toc="Tell, don't ask" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-comments text-sky-400 mr-2"></i>Diga ao objeto o que fazer, não pergunte e decida por ele</h2>
+  <div class="ah-prose">
+    <p>
+      O princípio <em>Tell, Don't Ask</em> (Hunt e Thomas, <em>O Programador Pragmático</em>) recomenda que o cliente mande o
+      objeto agir, em vez de buscar os dados dele para decidir por ele. A decisão fica perto do dado que ela usa.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// ❌ Ask: o cliente lê o saldo e decide. A regra fica espalhada.</span>
+<span class="kw">if</span> (conta.getSaldo() &gt;= valor) {
+    conta.setSaldo(conta.getSaldo() - valor);
+}
+
+<span class="cm">// ✅ Tell: a conta decide e protege seu próprio invariante</span>
+conta.sacar(valor);</code></pre>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>O cheiro do modelo anêmico:</strong> quando todo método é apenas “leia e decida fora”, a classe virou um saco de
+      dados com getters e setters. A regra existe, mas está no lugar errado.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-classificacao" data-toc="Classificação das operações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tags text-sky-400 mr-2"></i>Tipos de operação: uma taxonomia prática</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Tipo</th><th>Efeito</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Construtora</td><td>Cria o objeto em estado válido</td><td><code>new Assinatura(plano, conta)</code></td></tr>
+        <tr><td>Fábrica</td><td>Cria via método nomeado</td><td><code>Plano.familia(4)</code></td></tr>
+        <tr><td>Comando</td><td>Muda estado, sem retorno de dado</td><td><code>void suspender()</code></td></tr>
+        <tr><td>Consulta</td><td>Lê estado, sem efeito colateral</td><td><code>boolean estaAtiva()</code></td></tr>
+        <tr><td>Transformação</td><td>Retorna um novo objeto, sem mudar o original</td><td><code>Dinheiro somar(Dinheiro outro)</code></td></tr>
+        <tr><td>Predicado</td><td>Consulta que responde sim ou não</td><td><code>boolean podeReproduzir()</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Um atributo <code>final List&lt;Musica&gt;</code> é suficiente para proteger a playlist de alterações externas?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> não. O <code>final</code> impede trocar a lista, mas qualquer código que obtenha a referência pode chamar <code>add</code>. É preciso retornar uma cópia (cópia defensiva) ou uma visão imutável.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Reescreva o trecho “Ask” do exemplo como uma operação “Tell” em <code>Assinatura</code>, que cobra de uma conta.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> <code>assinatura.cobrar(conta)</code>, com <code>cobrar</code> verificando o status da assinatura e chamando <code>conta.sacar(valor)</code>. A regra de cobrança fica na assinatura, e a conta protege o saldo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Por que o construtor de <code>Plano</code> é privado no exemplo?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> para que apenas os planos válidos existam (as constantes e as fábricas). Um construtor público permitiria criar um plano com preço ou regra inventados, contornando o modelo.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>HUNT, Andrew; THOMAS, David. <em>O Programador Pragmático</em>. Bookman. Tell, Don't Ask e a discussão sobre acoplamento.</li>
+    <li>BLOCH, Joshua. <em>Effective Java</em>, 3ª edição. Itens sobre métodos de fábrica estáticos e construtores privados.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
