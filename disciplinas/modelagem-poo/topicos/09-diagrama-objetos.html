@@ -126,6 +126,125 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-notacao" data-toc="Aprofundamento: notação de instâncias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-emerald-400 mr-2"></i>Notação: instância, slot e link</h2>
+  <div class="ah-prose">
+    <p>
+      Um diagrama de objetos mostra <strong>instâncias</strong> de classes em um instante, e não o molde. A notação segue
+      três regras. O nome do objeto e a classe aparecem como <code>nome : Classe</code>, com o nome <strong>sublinhado</strong>.
+      Os <strong>slots</strong> são os atributos com valores concretos. Os <strong>links</strong> são as instâncias de uma
+      associação: a ligação entre dois objetos concretos.
+    </p>
+    <p>
+      Repare que a notação é a mesma de classes, só que sublinhada e com valores. Por isso, o diagrama de objetos é o teste
+      natural para o diagrama de classes: se uma instância não consegue ser desenhada de acordo com as multiplicidades, o modelo
+      de classes está errado.
+    </p>
+  </div>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+flowchart LR
+    ana["ana : Ouvinte&lt;br/&gt;nome = Ana Souza"]
+    premium["premium : Plano&lt;br/&gt;nome = Premium"]
+    assin["assinatura1 : Assinatura&lt;br/&gt;status = ATIVA"]
+    conta["conta1 : ContaBancaria&lt;br/&gt;saldo = 30.10"]
+    ana -- "possui" --> assin
+    assin -- "é do plano" --> premium
+    assin -- "cobrada de" --> conta
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Um instantâneo do sistema: a Ana tem uma assinatura ativa, do plano Premium, cobrada da conta dela. Cada caixa é um objeto distinto, com valores próprios.</p>
+</section>
+
+<section id="aprof-validacao" data-toc="Validar o modelo com instâncias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i>Usar o diagrama de objetos para testar o modelo</h2>
+  <div class="ah-prose">
+    <p>
+      Uma técnica de revisão muito útil: escolha um cenário, crie as instâncias que ele exige e verifique se elas cabem no
+      modelo de classes. Se o cenário não cabe, algo está errado com as classes, com as multiplicidades ou com o cenário.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Cenário</th><th>O que o instantâneo revela</th></tr></thead>
+      <tbody>
+        <tr><td>Um ouvinte com duas assinaturas ativas</td><td>A multiplicidade <code>1</code> entre Ouvinte e Assinatura está errada, ou a regra de “uma ativa” está faltando</td></tr>
+        <tr><td>Uma playlist sem ouvinte dono</td><td>Se a associação é <code>1</code> do lado do ouvinte, a playlist órfã não pode existir</td></tr>
+        <tr><td>Uma música em duas playlists</td><td>Confirma a agregação: o mesmo objeto aparece em dois todos</td></tr>
+        <tr><td>Uma faixa aparecendo em dois álbuns como dona</td><td>Viola a composição: a parte tem dois donos. Revise o modelo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-cenarios" data-toc="Cenários de teste" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Do instantâneo ao teste</h2>
+  <p class="ah-lead text-sm mb-5">
+    O mesmo instantâneo vira um teste de código. Cada objeto do diagrama é uma linha de preparação, e cada link é uma chamada.
+  </p>
+<pre class="ah-code"><code><span class="cm">// Instantâneo: Ana tem assinatura ATIVA do Premium, cobrada de uma conta com saldo 30.10</span>
+<span class="ty">ContaBancaria</span> conta1 = <span class="kw">new</span> <span class="ty">ContaBancaria</span>(<span class="str">"0001-1"</span>, <span class="num">30.10</span>);
+<span class="ty">Plano</span> premium = <span class="ty">Plano</span>.PREMIUM;
+<span class="ty">Assinatura</span> assinatura1 = <span class="kw">new</span> <span class="ty">Assinatura</span>(premium, conta1);
+<span class="ty">Ouvinte</span> ana = <span class="kw">new</span> <span class="ty">Ouvinte</span>(<span class="str">"Ana Souza"</span>, assinatura1);
+
+<span class="cm">// Cenário do diagrama: a cobrança de R$ 19,90 é possível</span>
+assertTrue(assinatura1.cobrar(conta1));
+assertEquals(<span class="num">10.20</span>, conta1.getSaldo(), <span class="num">0.001</span>);</code></pre>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Dica:</strong> quando o seu instantâneo não consegue ser montado no código, o diagrama de classes está com
+      uma relação mal definida. A dificuldade é a informação.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-quando" data-toc="Quando usar (e quando não)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Quando usar e quando evitar</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Use quando</div><ul class="text-xs text-slate-300 space-y-2 leading-relaxed"><li>Quer validar multiplicidades com um caso concreto.</li><li>Precisa explicar a um cliente um estado do sistema.</li><li>Vai escrever um teste de integração ou de aceitação.</li></ul></div>
+    <div class="ah-card p-5 border-t-4 border-rose-400"><div class="text-xs font-bold text-rose-300 mb-2">Evite quando</div><ul class="text-xs text-slate-300 space-y-2 leading-relaxed"><li>Quer descrever o sistema em geral: use o diagrama de classes.</li><li>Quer mostrar a ordem das ações: use sequência.</li><li>Tenta documentar todos os objetos de um sistema grande, que vira um retrato sem sentido.</li></ul></div>
+  </div>
+</section>
+
+<section id="aprof-erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros comuns</h2>
+  <ul class="ah-prose">
+    <li><strong>Desenhar a classe onde deveria haver objeto:</strong> “Ouvinte” sem nome sublinhado é classe, não instância.</li>
+    <li><strong>Esquecer o link:</strong> dois objetos com a mesma informação não estão conectados. Se a associação existe, o link deve existir.</li>
+    <li><strong>Valores incoerentes com a regra:</strong> um saldo negativo no instantâneo prova que a regra R1 foi quebrada. O diagrama de objetos é um excelente detector desse tipo de erro.</li>
+  </ul>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Desenhe um instantâneo com dois ouvintes, um artista e três músicas, em que uma música aparece em duas playlists.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> objetos <code>ouvinte1 : Ouvinte</code>, <code>ouvinte2 : Ouvinte</code>, <code>artista : Artista</code>, <code>m1, m2, m3 : Musica</code>, <code>p1, p2 : Playlist</code>. Links: <code>p1–m1</code>, <code>p1–m2</code>, <code>p2–m1</code>. O objeto <code>m1</code> aparece em duas playlists, o que confirma a agregação.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Um instantâneo mostra <code>conta1 : ContaBancaria</code> com <code>saldo = -15</code>. O que isso prova?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> que o invariante R1 (saldo não negativo) não está sendo mantido: ou o construtor permite, ou alguma operação deixa o saldo negativo. O instantâneo é um sinal de defeito, e a correção está no código da classe.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Por que o diagrama de objetos é considerado estrutural pela UML, se mostra instâncias e não tipos?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> porque o foco é a <em>estrutura</em> de conexões entre partes do sistema em um instante. Diferente do diagrama de sequência, ele não mostra o tempo nem as mensagens; mostra a configuração de objetos e links.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>OMG. UML 2.5.1, capítulo sobre <em>Instance Specification</em> e <em>Object Diagrams</em>.</li>
+    <li>ROSENBERG, Doug; STEPHENS, Matt. <em>Use Case Driven Object Modeling with UML</em>. Addison-Wesley. Abordagem de modelagem com cenários e instâncias.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -174,6 +293,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
