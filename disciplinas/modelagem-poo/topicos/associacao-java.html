@@ -268,6 +268,111 @@ flowchart TD
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-consistencia" data-toc="Aprofundamento: bidirecional consistente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right-to-line text-rose-400 mr-2"></i>Associação bidirecional: manter os dois lados iguais</h2>
+  <div class="ah-prose">
+    <p>
+      Quando a associação é navegável nos dois sentidos, o estado vive em dois lugares. A consistência não é automática: se
+      <code>ouvinte</code> guarda a playlist e <code>playlist</code> guarda o ouvinte, cada operação precisa atualizar os dois.
+      A solução padrão é centralizar a atualização em um único método, que é o único autorizado a alterar o vínculo.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Ouvinte</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Playlist</span>&gt; playlists = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="cm">// único ponto que altera os dois lados do vínculo</span>
+    <span class="kw">public void</span> <span class="fn">adicionarPlaylist</span>(<span class="ty">Playlist</span> p) {
+        <span class="kw">if</span> (playlists.contains(p)) <span class="kw">return</span>;
+        playlists.add(p);
+        p.definirDono(<span class="kw">this</span>);                 <span class="cm">// mantém o outro lado sincronizado</span>
+    }
+}
+
+<span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private</span> <span class="ty">Ouvinte</span> dono;
+    <span class="cm">// visibilidade de pacote: só Ouvinte deve chamar este método</span>
+    <span class="kw">void</span> <span class="fn">definirDono</span>(<span class="ty">Ouvinte</span> o) { <span class="kw">this</span>.dono = o; }
+}</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Visibilidade de pacote resolve a sincronia:</strong> o método <code>definirDono</code> é package-private (sem
+      modificador), para que só as classes do mesmo pacote o chamem. Assim, nenhum código externo consegue alterar um lado
+      sem o outro, e a notação <code>~</code> do diagrama de classes se torna uma garantia.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-ciclo-parte" data-toc="Ciclo de vida da parte" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hourglass-half text-rose-400 mr-2"></i>Quem é responsável pela vida da parte</h2>
+  <div class="ah-prose">
+    <p>
+      Em uma composição, a parte não deve ser criada nem removida por fora do todo. Se o cliente pudesse fazer
+      <code>new Musica(...)</code> e adicionar a um álbum existente, a posse deixaria de ser exclusiva. Por isso, o álbum
+      oferece um método de criação, e a lista de faixas não é exposta para modificação.
+    </p>
+    <p>
+      Na agregação, o movimento é o oposto: o todo recebe a parte, e nunca a cria. Quem cria a música é o catálogo. A
+      playlist recebe a referência e não a remove do catálogo quando é apagada.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Pergunta</th><th>Composição (Album)</th><th>Agregação (Playlist)</th></tr></thead>
+      <tbody>
+        <tr><td>Quem cria a parte?</td><td>O todo, por dentro</td><td>Outro componente, fora do todo</td></tr>
+        <tr><td>A lista é exposta para alteração?</td><td>Não; só leitura</td><td>Sim, com operações do próprio todo</td></tr>
+        <tr><td>O que acontece ao apagar o todo?</td><td>As partes ficam inacessíveis</td><td>As partes continuam existindo</td></tr>
+        <tr><td>Multiplicidade do lado do todo</td><td>Geralmente <code>1</code></td><td>Pode ser <code>0..*</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-orm" data-toc="Associações em persistência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-database text-rose-400 mr-2"></i>Quando a associação vira banco de dados</h2>
+  <div class="ah-prose">
+    <p>
+      Em frameworks de persistência como JPA/Hibernate, cada associação do diagrama vira um mapeamento. Uma associação
+      <code>1 --&gt; 0..*</code> normalmente vira uma chave estrangeira na tabela da parte. A composição costuma ser mapeada com
+      <code>cascade</code> e <code>orphanRemoval</code>, para que a remoção do todo leve as partes. A agregação não usa cascade
+      de remoção, porque a parte sobrevive.
+    </p>
+    <p>
+      Um detalhe que surpreende iniciantes é o <strong>carregamento preguiçoso</strong> (<em>lazy loading</em>): a coleção só é
+      buscada no banco quando é acessada. Em uma associação bidirecional mal configurada, isso gera consultas em cascata, e o
+      problema é de modelagem, não de banco: o diagrama mostrou uma navegação que o negócio não precisava.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-rose-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Por que <code>definirDono</code> deve ser package-private, e não <code>public</code>?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> se for público, qualquer classe poderia mudar o dono da playlist sem atualizar o ouvinte, e os dois lados ficariam em desacordo. O modificador restringe a alteração ao pacote, onde a regra de sincronia é garantida.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Ao remover um álbum do catálogo, suas faixas devem ser removidas do banco? E as playlists que as contêm?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> as faixas, por composição, são removidas junto com o álbum (cascade). As playlists que as referenciam, por agregação, não podem perder as músicas em silêncio: é preciso decidir (impedir a remoção, ou removê-las das playlists explicitamente). A decisão é de negócio e deve estar no modelo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Você modela <code>Ouvinte "1" -- "0..*" Playlist</code> como bidirecional. Quais operações precisam ser centralizadas?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> adicionar, remover e trocar o dono. Cada uma deve atualizar os dois lados no mesmo método. Se alguma delas for feita diretamente em um lado, a associação deixa de ser consistente.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-rose-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>BLOCH, Joshua. <em>Effective Java</em>, 3ª edição. Itens sobre composição e herança.</li>
+    <li>BAUER, Christian; KING, Gavin. <em>Java Persistence com Hibernate</em>. Capítulos sobre associações, cascade e carregamento preguiçoso.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-rose-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
