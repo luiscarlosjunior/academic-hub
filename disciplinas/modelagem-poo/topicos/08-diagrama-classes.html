@@ -201,6 +201,135 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-anatomia" data-toc="Aprofundamento: anatomia de uma classe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells-large text-emerald-400 mr-2"></i>Anatomia completa de uma classe</h2>
+  <div class="ah-prose">
+    <p>
+      Uma classe na UML é um retângulo com até três compartimentos: <strong>nome</strong>, <strong>atributos</strong> e
+      <strong>operações</strong>. Os dois últimos podem ser omitidos quando o foco é outro, o que é um recurso de
+      abstração, e não um defeito. Um diagrama que mostra todos os atributos de todas as classes raramente é lido.
+    </p>
+  </div>
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Assinatura {
+        &lt;&lt;entity&gt;&gt;
+        -String id
+        -StatusAssinatura status
+        -LocalDate inicio
+        -double valorMensal
+        +dataFim() LocalDate
+        +suspender() void
+        +cancelar() void
+        +cobrar(conta ContaBancaria) boolean
+    }
+    </pre>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Elemento</th><th>Notação</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>Estereótipo</td><td><code>«entity»</code> acima do nome</td><td>Classifica a classe (aqui, entidade persistente)</td></tr>
+        <tr><td>Atributo derivado</td><td><code>/nome</code></td><td>Calculado, não armazenado</td></tr>
+        <tr><td>Atributo estático</td><td>nome <em>sublinhado</em></td><td>Pertence à classe, não às instâncias</td></tr>
+        <tr><td>Operação abstrata</td><td>nome em <em>itálico</em></td><td>Declarada sem implementação</td></tr>
+        <tr><td>Valor padrão</td><td><code>= valor</code></td><td>Valor inicial do atributo</td></tr>
+        <tr><td>Propriedade</td><td><code>{readOnly}</code>, <code>{ordered}</code></td><td>Restrição sobre o elemento</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-ocl" data-toc="Restrições e OCL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Restrições: o que o diagrama não consegue dizer sozinho</h2>
+  <div class="ah-prose">
+    <p>
+      Muitas regras de negócio não cabem na notação gráfica: “o saldo nunca é negativo”, “uma assinatura cancelada não volta”.
+      A UML permite anotá-las como <strong>restrições</strong> entre chaves, em linguagem natural ou formal. A forma formal
+      padronizada é a <strong>OCL</strong> (<em>Object Constraint Language</em>), que escreve a regra como expressão sobre o modelo.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">-- OCL: para toda ContaBancaria c, o saldo é não negativo (invariante, regra R1)</span>
+context ContaBancaria
+inv saldoNaoNegativo: self.saldo &gt;= 0
+
+<span class="cm">-- OCL: pré-condição de sacar</span>
+context ContaBancaria::sacar(valor : Real)
+pre: valor &gt; 0 and valor &lt;= self.saldo
+post: self.saldo = self.saldo@pre - valor</code></pre>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Por que isso importa:</strong> a restrição é o elo entre o diagrama e os testes. Cada <code>inv</code>, <code>pre</code>
+      e <code>post</code> vira um teste unitário ou uma asserção no código. Quem escreve o modelo já escreve a especificação de teste.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-leitura" data-toc="Como ler um diagrama de classes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-emerald-400 mr-2"></i>Roteiro de leitura de um diagrama</h2>
+  <ol class="ah-prose space-y-2 list-decimal pl-5 text-sm">
+    <li><strong>Identifique o núcleo:</strong> as classes com mais conexões costumam ser o coração do domínio.</li>
+    <li><strong>Leia as associações:</strong> para cada uma, diga a frase em voz alta usando multiplicidade e nome. “Um ouvinte possui uma assinatura.”</li>
+    <li><strong>Procure os papéis de herança:</strong> superclasses abstratas costumam indicar a intenção de polimorfismo.</li>
+    <li><strong>Veja onde estão as regras:</strong> restrições e métodos com nome de domínio mostram onde a lógica mora.</li>
+    <li><strong>Desconfie de classes isoladas:</strong> uma classe sem relação pode estar faltando, ou ser irrelevante.</li>
+  </ol>
+</section>
+
+<section id="aprof-boas-praticas" data-toc="Boas práticas de legibilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-broom text-emerald-400 mr-2"></i>Boas práticas de legibilidade</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Nomes no singular</div><p class="text-xs text-slate-400 leading-relaxed">Classe é um conceito: <code>Musica</code>, não <code>Musicas</code>. A coleção é o papel da associação.</p></div>
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Uma responsabilidade por classe</div><p class="text-xs text-slate-400 leading-relaxed">Se o nome precisa de “e” (“GerenciaContaEEnviaEmail”), são duas classes.</p></div>
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Esconda o que não ajuda</div><p class="text-xs text-slate-400 leading-relaxed">Em diagramas de visão geral, omita atributos triviais (id, datas de auditoria). Mostre-os em um diagrama de detalhe.</p></div>
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Um diagrama, uma pergunta</div><p class="text-xs text-slate-400 leading-relaxed">Antes de desenhar, escreva a pergunta que o diagrama responde. Se não houver pergunta, não há diagrama.</p></div>
+  </div>
+</section>
+
+<section id="aprof-erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros frequentes em diagramas de classes</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Erro</th><th>Por que é erro</th><th>Correção</th></tr></thead>
+      <tbody>
+        <tr><td>Atributo que é outra classe, desenhado como texto (<code>endereco: String</code>, quando há regras de CEP)</td><td>Perde o comportamento e as regras do conceito</td><td>Crie a classe <code>Endereco</code> e associe</td></tr>
+        <tr><td>Associação sem nome e sem multiplicidade</td><td>A seta não diz nada além de “existe algo”</td><td>Nomeie e informe a multiplicidade dos dois lados</td></tr>
+        <tr><td>Setas bidirecionais por padrão</td><td>Aumenta o acoplamento e exige sincronia</td><td>Use navegabilidade simples, salvo exigência do negócio</td></tr>
+        <tr><td>Classe “Gerenciador” ou “Controller” no modelo de domínio</td><td>Mistura comportamento técnico com conceito de negócio</td><td>Atribua a operação à classe do conceito que ela manipula</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Transforme o atributo <code>endereco : String</code> de um <code>Ouvinte</code> em um modelo melhor, sabendo que o sistema calcula frete por região a partir do CEP.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> crie <code>Endereco</code> com atributos <code>cep</code>, <code>logradouro</code>, <code>cidade</code> e a operação <code>regiaoDeEntrega()</code>, e associe <code>Ouvinte "1" -- "0..*" Endereco</code>. A regra do CEP pertence à classe Endereco, não ao ouvinte.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Escreva em OCL a regra: “uma assinatura cancelada não pode ser cobrada”.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> <code>context Assinatura::cobrar(conta : ContaBancaria) pre: self.status &lt;&gt; StatusAssinatura::CANCELADA</code>. É a regra R4 do projeto-base, escrita como pré-condição.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Um colega quer colocar <code>salvarNoBanco()</code> na classe <code>Musica</code>. Você aceita?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> não, pelo menos no modelo de domínio. Persistência é responsabilidade técnica, normalmente de um repositório. Colocar isso em <code>Musica</code> mistura o conceito de negócio com infraestrutura e torna a classe difícil de testar sem banco.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>WARMER, Jos; KLEPPE, Anneke. <em>The Object Constraint Language</em>. Addison-Wesley. Referência da OCL.</li>
+    <li>OMG. <em>Object Constraint Language (OCL)</em>, versão 2.4. Especificação normativa.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -249,6 +378,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
