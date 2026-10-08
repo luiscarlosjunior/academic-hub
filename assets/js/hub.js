@@ -107,6 +107,10 @@
     if (i < 0) return;
     const t = d.topicos[i];
     const root = AH.root();
+    /* Trilha do tópico: a numeração e a navegação anterior/próximo ficam dentro dela */
+    const trilha = (d.trilhas || []).find(x => x.id === t.trilha) || null;
+    const serie = d.topicos.filter(x => !t.trilha || x.trilha === t.trilha);
+    const j = serie.findIndex(x => x.id === t.id);
     const key = d.id + '/' + t.id;
 
     document.title = t.titulo + ' · ' + d.nome + ' · AcademicHub';
@@ -120,7 +124,7 @@
           <i class="fa-solid fa-chevron-right text-[9px] text-slate-600"></i>
           <a href="${root}disciplinas/${d.slug}/index.html" class="hover:text-indigo-400 transition">${d.nome}</a>
           <i class="fa-solid fa-chevron-right text-[9px] text-slate-600"></i>
-          <span class="text-slate-300">Tópico ${String(i + 1).padStart(2, '0')}</span>
+          <span class="text-slate-300">${trilha ? trilha.nome + ' · ' : ''}Tópico ${String(j + 1).padStart(2, '0')}</span>
         </nav>
         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
           <div class="flex items-start gap-4">
@@ -133,6 +137,7 @@
               <div class="flex flex-wrap items-center gap-2 mt-3">
                 <span class="ah-badge"><i class="fa-solid fa-signal"></i>${t.nivel}</span>
                 <span class="ah-badge ah-badge-slate"><i class="fa-regular fa-clock"></i>${t.minutos} min de leitura</span>
+                ${trilha ? `<span class="ah-badge ah-badge-emerald">${trilha.nome}</span>` : ''}
                 ${t.tags.map(tag => `<span class="ah-badge ah-badge-sky">${tag}</span>`).join('')}
               </div>
             </div>
@@ -183,8 +188,8 @@
     /* --- Navegação anterior / próximo -------------------------------- */
     const nav = document.getElementById('ah-topic-nav');
     if (nav) {
-      const prev = i > 0 ? d.topicos[i - 1] : null;
-      const next = i < d.topicos.length - 1 ? d.topicos[i + 1] : null;
+      const prev = j > 0 ? serie[j - 1] : null;
+      const next = j < serie.length - 1 ? serie[j + 1] : null;
       const card = (tp, dir) => tp ? `
         <a href="${AH.topicUrl(d, tp)}" class="ah-card ah-card-hover p-4 flex items-center gap-3 ${dir === 'next' ? 'sm:flex-row-reverse sm:text-right' : ''}">
           <i class="fa-solid fa-${dir === 'next' ? 'arrow-right' : 'arrow-left'} text-indigo-400"></i>
@@ -200,8 +205,8 @@
           ${card(next, 'next')}
         </div>
         <div class="mt-4 text-center">
-          <a href="${root}disciplinas/${d.slug}/index.html" class="ah-btn ah-btn-ghost">
-            <i class="fa-solid fa-list"></i> Todos os ${d.topicos.length} tópicos de ${d.curto}
+          <a href="${root}disciplinas/${d.slug}/index.html${trilha ? '?trilha=' + trilha.id : ''}" class="ah-btn ah-btn-ghost">
+            <i class="fa-solid fa-list"></i> Todos os ${serie.length} tópicos${trilha ? ' de ' + trilha.nome : ' de ' + d.curto}
           </a>
         </div>`;
     }
