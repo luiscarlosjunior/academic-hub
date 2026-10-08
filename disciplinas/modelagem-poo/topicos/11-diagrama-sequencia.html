@@ -134,6 +134,158 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-elementos" data-toc="Aprofundamento: linhas de vida e mensagens" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-emerald-400 mr-2"></i>Linhas de vida, ativação e tipos de mensagem</h2>
+  <div class="ah-prose">
+    <p>
+      O diagrama de sequência mostra <strong>interações</strong>: como objetos trocam mensagens ao longo do tempo. O eixo
+      vertical é o tempo, que cresce para baixo. Cada participante tem uma <strong>linha de vida</strong> (linha tracejada) e,
+      quando está executando uma operação, uma <strong>barra de ativação</strong> (retângulo estreito sobre a linha).
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Mensagem</th><th>Notação</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>Síncrona</td><td>seta cheia</td><td>O emissor espera até a resposta; corresponde a uma chamada de operação</td></tr>
+        <tr><td>Assíncrona</td><td>seta de ponta aberta</td><td>O emissor segue sem esperar (envio de evento ou fila)</td></tr>
+        <tr><td>Retorno</td><td>seta tracejada de volta</td><td>Valor devolvido pela chamada anterior</td></tr>
+        <tr><td>Criação</td><td>seta apontando para o retângulo do objeto</td><td>O objeto nasce naquele momento</td></tr>
+        <tr><td>Destruição</td><td>um X ao fim da linha</td><td>O objeto deixa de existir</td></tr>
+        <tr><td>Auto-mensagem</td><td>seta que sai e volta ao mesmo objeto</td><td>Chamada interna de outra operação</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Pilha de chamadas:</strong> as barras de ativação aninhadas representam a pilha de execução. Uma barra dentro
+      de outra é uma chamada feita durante a execução da primeira. É a forma visual de mostrar recursão e de explicar
+      quem está esperando quem.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-exemplo" data-toc="Exemplo: cobrança com falha" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-credit-card text-emerald-400 mr-2"></i>Exemplo: a renovação mensal da assinatura</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um sistema de cobrança recorrente, com um caminho feliz e um caminho de falha. Os fragmentos combinados ajudam a mostrar
+    as duas situações no mesmo diagrama.
+  </p>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+sequenceDiagram
+    participant Agenda as Agendador
+    participant Pl as PlataformaStreaming
+    participant As as Assinatura
+    participant Cb as ContaBancaria
+    participant Ou as Ouvinte
+    Agenda-&gt;&gt;Pl: renovarTodas()
+    loop para cada assinatura ativa
+        Pl-&gt;&gt;As: cobrar(conta)
+        As-&gt;&gt;Cb: debitar(19.90)
+        alt saldo suficiente
+            Cb--&gt;&gt;As: sucesso
+            As--&gt;&gt;Pl: true
+            Pl-&gt;&gt;Ou: recibo enviado
+        else saldo insuficiente
+            Cb--&gt;&gt;As: falha
+            As--&gt;&gt;Pl: false
+            Pl-&gt;&gt;As: suspender()
+        end
+    end
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">O <code>loop</code> repete a cobrança para cada assinatura; o <code>alt</code> separa o caminho feliz da suspensão, que implementa a regra R3.</p>
+</section>
+
+<section id="aprof-fragmentos" data-toc="Fragmentos combinados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-object-group text-emerald-400 mr-2"></i>Fragmentos combinados: controle dentro da sequência</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um <strong class="text-white">fragmento combinado</strong> é uma moldura com um operador que controla as mensagens dentro dela. Os principais são:
+  </p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Operador</th><th>Significado</th><th>Quando usar</th></tr></thead>
+      <tbody>
+        <tr><td><code>alt</code></td><td>Alternativas: executa uma das áreas, conforme a guarda</td><td>Se/senão, caminhos de sucesso e falha</td></tr>
+        <tr><td><code>opt</code></td><td>Opcional: executa só se a guarda for verdadeira</td><td>Um passo que pode não acontecer</td></tr>
+        <tr><td><code>loop</code></td><td>Repetição, com limites opcionais</td><td>Cobrança para cada assinatura</td></tr>
+        <tr><td><code>par</code></td><td>Paralelo: as áreas podem intercalar suas mensagens</td><td>Enviar recibo e atualizar histórico</td></tr>
+        <tr><td><code>break</code></td><td>Interrompe o fluxo quando a guarda vale</td><td>Tratamento de erro que encerra a interação</td></tr>
+        <tr><td><code>ref</code></td><td>Referencia outra interação já modelada</td><td>Reaproveitar um cenário, como a autenticação</td></tr>
+        <tr><td><code>neg</code></td><td>Interação inválida: não deve acontecer</td><td>Mostrar uma sequência proibida, como cobrar cancelada</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Cuidado com <code>opt</code> e <code>alt</code>:</strong> se o passo é obrigatório, não use <code>opt</code>. Um diagrama
+      que tem um <code>opt</code> para tudo esconde regras: o leitor não sabe o que é essencial.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-sincrono" data-toc="Síncrono × assíncrono" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-emerald-400 mr-2"></i>Quando a mensagem é assíncrona</h2>
+  <div class="ah-prose">
+    <p>
+      Em uma chamada síncrona, o emissor fica bloqueado até a resposta. Em uma assíncrona, ele envia e segue. Essa diferença
+      muda a arquitetura: se a cobrança for assíncrona, a plataforma não sabe, naquele instante, se o débito funcionou. A
+      sequência precisa então de um passo posterior de confirmação, como um evento “pagamento confirmado”.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-codigo" data-toc="Do diagrama ao código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Cada mensagem é uma operação</h2>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">PlataformaStreaming</span> {
+    <span class="kw">public void</span> <span class="fn">renovarTodas</span>() {
+        <span class="kw">for</span> (<span class="ty">Assinatura</span> a : assinaturasAtivas()) {       <span class="cm">// loop</span>
+            <span class="kw">if</span> (a.cobrar(a.getConta())) {                   <span class="cm">// alt: saldo suficiente</span>
+                enviarRecibo(a.getOuvinte());
+            } <span class="kw">else</span> {                                          <span class="cm">// alt: saldo insuficiente</span>
+                a.suspender();                                       <span class="cm">// R3: suspende, não cancela</span>
+            }
+        }
+    }
+}</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Esse é o ponto da sequência: cada seta vira uma chamada, cada fragmento vira um <code>if</code>, <code>for</code> ou
+      <code>while</code>. A sequência é um roteiro do método que está prestes a ser escrito.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Um ouvinte pede para ver suas playlists. Antes, o sistema precisa autenticá-lo, que é o mesmo cenário em outras telas. Como modelar sem repetir a sequência?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> criar uma interação “Autenticar” e referenciá-la com um fragmento <code>ref</code> na sequência de “Ver playlists”. Assim o cenário de autenticação existe em um lugar só.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Na sequência do exemplo, o que aconteceria se o <code>loop</code> fosse substituído por um <code>opt</code>?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> a cobrança rodaria no máximo uma vez, e só se a guarda fosse verdadeira. Para renovar todas as assinaturas, é preciso repetir: o <code>loop</code> expressa isso, e o <code>opt</code> não.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Por que uma auto-mensagem em <code>Assinatura</code> pode ser útil no diagrama?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> ela mostra uma chamada interna de uma operação para outra, por exemplo <code>cobrar()</code> chamando <code>validarStatus()</code>. Revela a lógica privada que não aparece na interface pública, o que ajuda a explicar a regra.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>OMG. UML 2.5.1, capítulo <em>Interactions</em>: fragmentos combinados e semântica de mensagens.</li>
+    <li>LARMAN, Craig. <em>Utilizando UML e padrões</em>. Bookman. Uso de diagramas de sequência do sistema para derivar contratos de operação.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -194,6 +346,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
