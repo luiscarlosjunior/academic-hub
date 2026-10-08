@@ -204,6 +204,129 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-notacao" data-toc="Aprofundamento: notação formal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ruler-horizontal text-cyan-400 mr-2"></i>Notação: linhas de estado, eventos e restrições</h2>
+  <div class="ah-prose">
+    <p>
+      No diagrama de temporização, cada linha de vida é um <strong>objeto ou atributo</strong> com um conjunto de estados
+      possíveis, organizados verticalmente. O eixo horizontal é o <strong>tempo</strong>, com marcas de escala. Uma mudança de
+      estado é um degrau na linha. Eventos aparecem como setas ou marcas nos instantes em que ocorrem.
+    </p>
+    <p>
+      As <strong>restrições de tempo</strong> são anotações com chaves que limitam as durações e os instantes. Elas são o
+      coração do diagrama, porque transformam o diagrama em uma especificação verificável.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Restrição</th><th>Forma</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>Duração de um estado</td><td><code>{duração &lt;= 3s}</code></td><td>O objeto permanece no estado por no máximo 3 segundos</td></tr>
+        <tr><td>Intervalo entre eventos</td><td><code>{t2 - t1 &gt;= 30s}</code></td><td>Dois eventos devem estar separados por no mínimo 30 s</td></tr>
+        <tr><td>Instante absoluto</td><td><code>@t = 12s</code></td><td>O evento ocorre exatamente no instante marcado</td></tr>
+        <tr><td>Deadline</td><td><code>{resposta antes de 2s}</code></td><td>Uma resposta deve chegar até o prazo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-tempo-real" data-toc="Tempo real: rígido e flexível" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-cyan-400 mr-2"></i>Por que o tempo importa: tempo real</h2>
+  <div class="ah-prose">
+    <p>
+      Um sistema de <strong>tempo real</strong> é aquele em que o resultado correto depende também do instante em que é produzido.
+      A distinção clássica separa dois tipos:
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+    <div class="ah-card p-5 border-t-4 border-rose-400">
+      <div class="text-xs font-bold text-rose-300 mb-2">Tempo real rígido (hard)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Perder um prazo é falha do sistema. Ex.: airbag, controle de freio, marcapasso. O diagrama de temporização é obrigatório.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-2">Tempo real flexível (soft)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Perder um prazo degrada a qualidade, mas não é falha grave. Ex.: buffer de vídeo, streaming. O diagrama ajuda a definir o limite aceitável.</p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Relação com o streaming:</strong> o buffer da Melodia é tempo real flexível. Um início de reprodução em 5 s não
+      derruba o sistema, mas irrita o ouvinte. Por isso o requisito tem um limite (3 s), e não uma garantia absoluta.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-calculo" data-toc="Calculando a partir do diagrama" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-cyan-400 mr-2"></i>Lendo o diagrama com números</h2>
+  <div class="ah-prose">
+    <p>
+      Uma aplicação prática: a partir das restrições, calcule se o cenário é possível. Suponha que o buffer inicial leve
+      entre 1 e 2 s para encher, e que a conexão de rede adicione até 1,5 s de latência por requisição. O pior caso do
+      início de reprodução é a soma dos piores casos:
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// Pior caso: encher o buffer (2 s) + latência máxima da rede (1,5 s)</span>
+<span class="kw">double</span> piorCaso = <span class="num">2.0</span> + <span class="num">1.5</span>;   <span class="cm">// 3.5 s</span>
+<span class="kw">double</span> limite  = <span class="num">3.0</span>;                    <span class="cm">// restrição {início &lt;= 3s}</span>
+
+<span class="kw">if</span> (piorCaso &gt; limite)
+    System.out.println(<span class="str">"Restrição violada no pior caso: ajustar o buffer ou a rede"</span>);</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Pior caso, não caso médio:</strong> restrições de tempo real se verificam no pior caso. Um sistema que é rápido
+      em média, mas pode demorar 10 s uma vez em mil, não cumpre um deadline rígido.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-jitter" data-toc="Atraso e variação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wave-square text-cyan-400 mr-2"></i>Atraso, variação (jitter) e timeout</h2>
+  <div class="ah-prose">
+    <p>
+      Três conceitos aparecem com frequência nos diagramas de temporização e são confundidos entre si:
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Conceito</th><th>O que mede</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Atraso (latency)</td><td>Tempo entre envio e recepção</td><td>200 ms entre o clique e a primeira resposta</td></tr>
+        <tr><td>Variação (jitter)</td><td>Diferença entre atrasos consecutivos</td><td>Pacotes chegando em 180, 240 e 210 ms</td></tr>
+        <tr><td>Timeout</td><td>Prazo após o qual a espera é abandonada</td><td>Desistir da requisição após 5 s e tentar de novo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-cyan-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Um rebuffering deve ser religado em até 2 s, mas a rede tem latência de até 1,2 s. Há folga para o buffer encher? Quanto?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> folga de 0,8 s (2,0 − 1,2). Se o buffer de reenchimento levar mais que 0,8 s, a restrição é violada no pior caso. A conclusão deve constar no modelo, com a folga indicada.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Por que um diagrama de máquina de estados não basta para verificar a restrição de 2 s?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> a máquina de estados mostra as transições, mas não tem escala de tempo nem restrições de duração. Ela diz que o rebuffering acontece; só a temporização diz quanto tempo ele pode durar.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Um sistema de alarme de incêndio deve acionar a sirene em até 1 segundo após a detecção. Classifique a restrição e proponha a modelagem.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> tempo real rígido, pois atrasar a sirene é falha grave. Modelar com temporização: linha do evento “fumaça detectada” em t0, linha da sirene, e restrição <code>{t_sirene - t0 &lt;= 1s}</code>. O cálculo do pior caso inclui processamento, comunicação e atuação.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-cyan-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>OMG. UML 2.5.1, capítulo <em>Timing Diagrams</em>: linhas de estado, eventos e restrições de tempo.</li>
+    <li>LIU, Jane W. S. <em>Real-Time Systems</em>. Prentice Hall. Fundamentos de tempo real, deadlines e pior caso.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-cyan-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
