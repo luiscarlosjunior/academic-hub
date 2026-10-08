@@ -337,6 +337,222 @@ classDiagram
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-processo" data-toc="Aprofundamento: o processo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-next text-emerald-400 mr-2"></i>O processo de modelagem é iterativo</h2>
+  <div class="ah-prose">
+    <p>
+      Muita gente imagina que a modelagem é uma fase única, feita antes de programar, como se o modelo fosse
+      “escrito de uma vez”. Na prática, a modelagem é um <strong>ciclo</strong>: você entende um pedaço do domínio,
+      desenha, mostra ao cliente, descobre que errou, corrige e avança. Metodologias iterativas, como o Processo
+      Unificado, tratam o modelo como um artefato vivo que acompanha o código.
+    </p>
+    <p>Um ciclo típico tem quatro movimentos, que se repetem a cada fatia de funcionalidade:</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-3 my-5">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">1 · Entender</div>
+      <p class="text-xs text-slate-400">Conversar com quem conhece o negócio. Ouvir, perguntar, anotar o vocabulário.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">2 · Modelar</div>
+      <p class="text-xs text-slate-400">Traduzir o que foi entendido em classes, relações e casos de uso.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">3 · Validar</div>
+      <p class="text-xs text-slate-400">Mostrar o diagrama ao cliente em linguagem de negócio, sem notação técnica.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">4 · Refinar</div>
+      <p class="text-xs text-slate-400">Corrigir, simplificar e voltar ao passo 1 com as novas perguntas.</p>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Regra de ouro:</strong> o diagrama é um meio de comunicação, não um fim. Se ele não ajuda a conversa com o
+      cliente ou com a equipe, ele está mal feito, mesmo que esteja tecnicamente correto.
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Artefatos que sustentam a modelagem</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Artefato</th><th>Pergunta que responde</th><th>No Melodia</th></tr></thead>
+      <tbody>
+        <tr><td>Glossário</td><td>Qual é o significado de cada palavra do negócio?</td><td>“Assinatura” = vínculo do ouvinte com um plano</td></tr>
+        <tr><td>Lista de requisitos</td><td>O que o sistema deve fazer?</td><td>“Assinar um plano”, “cobrar todo mês”</td></tr>
+        <tr><td>Modelo de domínio</td><td>Quais conceitos existem e como se relacionam?</td><td>Ouvinte, Assinatura, Conta, Transação</td></tr>
+        <tr><td>Diagramas de casos de uso</td><td>Quem usa o sistema e para quê?</td><td>Ouvinte, Artista e Sistema de Cobrança</td></tr>
+        <tr><td>Modelo de projeto</td><td>Quais classes de software implementam o domínio?</td><td>Classes Java com <code>private</code> e validações</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-dominio" data-toc="Modelo de domínio × modelo de projeto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Modelo de domínio × modelo de projeto</h2>
+  <div class="ah-prose">
+    <p>
+      Há dois modelos que se confundem com facilidade. O <strong>modelo de domínio</strong> representa os conceitos do
+      <em>negócio</em>, sem se preocupar com tecnologia. O <strong>modelo de projeto</strong> representa as <em>classes de
+      software</em> que vão implementar esses conceitos, com detalhes como banco de dados, interfaces e frameworks.
+    </p>
+    <p>
+      Um erro clássico é misturar os dois. Quando o analista desenha <code>UsuarioDAO</code> e <code>ConexaoJDBC</code>
+      no modelo de domínio, ele está respondendo a uma pergunta técnica antes de entender o negócio. O cliente do
+      Melodia não sabe o que é um DAO, mas entende “assinatura” e “conta”.
+    </p>
+  </div>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    direction LR
+    class Ouvinte
+    class Assinatura {
+        status : StatusAssinatura
+    }
+    class Plano {
+        preco : valor
+    }
+    class ContaBancaria {
+        saldo : valor
+    }
+    Ouvinte "1" -- "1" Assinatura : possui
+    Assinatura "0..*" --> "1" Plano : é do plano
+    Assinatura "1" --> "1" ContaBancaria : é cobrada de
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Modelo de domínio: só conceitos do negócio, com nomes que o cliente reconhece. Não há <code>id</code>, <code>DAO</code> ou <code>List&lt;&gt;</code> aqui.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Linguagem ubíqua (Evans, 2003):</strong> o termo “assinatura” deve significar a mesma coisa para o cliente,
+      para o analista e para o código. Se o cliente diz “plano” e o código diz “pacote”, cada conversa vira uma tradução
+      com risco de erro. Esse é o motivo de manter um glossário no início do projeto.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-criterios" data-toc="Critérios para extrair classes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-filter text-emerald-400 mr-2"></i>Critérios para aceitar ou rejeitar um candidato a classe</h2>
+  <p class="ah-lead text-sm mb-5">
+    Sublinhar substantivos produz uma lista longa e ruidosa. O professor Craig Larman propõe um filtro: cada candidato
+    precisa passar por critérios antes de virar classe. Os mais úteis estão abaixo.
+  </p>
+
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th>Pergunta</th><th>Exemplo no Melodia</th><th>Veredito</th></tr></thead>
+      <tbody>
+        <tr><td>Informação que o sistema precisa guardar</td><td>Preciso lembrar disso depois?</td><td>Saldo da conta</td><td>Sim: é atributo</td></tr>
+        <tr><td>Serviço ou comportamento</td><td>Isto faz algo ou só guarda dado?</td><td>Conta (sacar, depositar)</td><td>Sim: é classe</td></tr>
+        <tr><td>Redundância</td><td>Já existe outro nome para a mesma coisa?</td><td>“Cliente” e “ouvinte” no mesmo sistema</td><td>Unifique em um nome</td></tr>
+        <tr><td>Irrelevante para o problema</td><td>O caso de uso precisa disso?</td><td>Cor favorita do ouvinte</td><td>Não: fora do modelo</td></tr>
+        <tr><td>Vago demais</td><td>É um conceito específico?</td><td>“Coisa”, “item”, “dado”</td><td>Não: refine a palavra</td></tr>
+        <tr><td>Atributo disfarçado</td><td>É só um valor, sem vida própria?</td><td>Título da música</td><td>Atributo de Música</td></tr>
+        <tr><td>Evento ou ação</td><td>É um acontecimento ou uma operação?</td><td>“Cobrança” (ação), “Pagamento falhou” (evento)</td><td>Operação ou evento, não classe comum</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Atenção ao “Pagamento”:</strong> dependendo do domínio, pagamento é classe (quando guarda histórico e
+      comprovante, como em uma auditoria), ou apenas uma operação (quando só dispara um débito). Não existe resposta única:
+      a decisão depende do que o sistema precisa fazer. Justifique sempre.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-exemplo" data-toc="Exemplo resolvido: uma biblioteca" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-emerald-400 mr-2"></i>Exemplo resolvido: do texto ao modelo</h2>
+  <p class="ah-lead text-sm mb-5">Um domínio pequeno, para você acompanhar a técnica do começo ao fim.</p>
+
+  <div class="ah-card p-5 mb-5 border-l-4 border-indigo-400">
+    <div class="text-xs uppercase tracking-wide text-indigo-300 font-bold mb-2">Enunciado</div>
+    <p class="text-sm text-slate-200 leading-relaxed">
+      “Uma biblioteca empresta livros a leitores cadastrados. Cada empréstimo tem uma data de devolução prevista.
+      Um leitor pode ter até três empréstimos simultâneos. Se o livro for devolvido com atraso, o leitor fica
+      bloqueado por dez dias.”
+    </p>
+  </div>
+
+  <ol class="ah-prose space-y-3 list-decimal pl-5">
+    <li><strong>Sublinhe os substantivos:</strong> biblioteca, livros, leitores, empréstimo, data de devolução, atraso, bloqueio.</li>
+    <li><strong>Aplique os critérios:</strong> “biblioteca” é o próprio sistema, não uma classe do domínio. “Data de devolução” é atributo do empréstimo. “Atraso” é uma condição calculada, não precisa ser classe. “Bloqueio” tem duração e estado, então merece ser classe ou estado.</li>
+    <li><strong>Escolha as classes:</strong> <code>Livro</code>, <code>Leitor</code>, <code>Emprestimo</code>. O empréstimo é uma classe porque tem dados (datas) e comportamento (devolver, verificar atraso).</li>
+    <li><strong>Identifique as relações:</strong> um leitor tem zero ou mais empréstimos (<code>0..*</code>); um empréstimo se refere a exatamente um livro e um leitor.</li>
+    <li><strong>Extraia as regras:</strong> “até três empréstimos” é um limite de multiplicidade <em>e</em> uma regra de negócio, que deve estar no construtor ou em uma operação de <code>Leitor</code>.</li>
+  </ol>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Leitor {
+        -String nome
+        -boolean bloqueado
+        +podeEmprestar() boolean
+    }
+    class Livro {
+        -String titulo
+        -boolean disponivel
+    }
+    class Emprestimo {
+        -Date dataEmprestimo
+        -Date dataPrevista
+        +estaAtrasado() boolean
+    }
+    Leitor "1" --> "0..*" Emprestimo : realiza
+    Emprestimo "*" --> "1" Livro : refere-se a
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Note que a regra “máximo de três empréstimos” não aparece no diagrama como texto solto: ela pertence ao comportamento de <code>Leitor.podeEmprestar()</code>.</p>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <p class="ah-lead text-sm mb-5">Tente antes de abrir o gabarito. Justifique cada decisão, porque a justificativa é o que a banca avalia.</p>
+
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Um restaurante recebe pedidos de clientes. Cada pedido tem vários itens de cardápio. O garçom é quem atende a mesa. Liste as classes e justifique o que ficou de fora.</summary>
+      <div class="ah-prose mt-4 text-sm">
+        <p><strong>Gabarito:</strong> classes candidatas: <code>Pedido</code>, <code>ItemPedido</code>, <code>ItemCardapio</code>, <code>Garcom</code>, <code>Mesa</code>. Ficam de fora: “restaurante” (é o próprio sistema), “cliente” (se o sistema não guarda dados do cliente, não é classe), e “fome” (fora do escopo). <code>ItemPedido</code> é necessário porque o pedido guarda quantidade e observação de cada item: uma associação simples entre <code>Pedido</code> e <code>ItemCardapio</code> não basta.</p>
+      </div>
+    </details>
+
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Na Melodia, o plano Família permite até seis contas vinculadas. Como isso aparece no diagrama?</summary>
+      <div class="ah-prose mt-4 text-sm">
+        <p><strong>Gabarito:</strong> uma associação entre <code>Plano</code> (ou <code>Assinatura</code>) e <code>Ouvinte</code> com multiplicidade <code>1</code> de um lado e <code>1..6</code> do outro. O limite de seis é uma regra de negócio: pode aparecer como restrição <code>{tamanho &lt;= 6}</code> na associação, e deve ser verificado no código antes de adicionar um novo ouvinte.</p>
+      </div>
+    </details>
+
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Um colega desenhou <code>UsuarioMySQL</code> no diagrama de domínio. O que você diz a ele?</summary>
+      <div class="ah-prose mt-4 text-sm">
+        <p><strong>Gabarito:</strong> o diagrama de domínio deve conter conceitos do negócio. <code>MySQL</code> é detalhe de implementação, que pertence ao modelo de projeto ou à infraestrutura. Sugira o conceito de negócio (<code>Ouvinte</code>) e, se for preciso representar persistência, faça isso em outro diagrama.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>LARMAN, Craig. <em>Utilizando UML e padrões</em>. Bookman. Referência clássica sobre análise e projeto orientados a objetos e os critérios de extração de classes.</li>
+    <li>EVANS, Eric. <em>Domain-Driven Design</em>. Addison-Wesley, 2003. Origem do conceito de linguagem ubíqua.</li>
+    <li>FOWLER, Martin. <em>UML Essencial</em>. Bookman. Guia enxuto e prático da notação.</li>
+    <li>OMG. <em>Unified Modeling Language (UML) Specification</em>, versão 2.5.1. Fonte normativa da notação.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
 
