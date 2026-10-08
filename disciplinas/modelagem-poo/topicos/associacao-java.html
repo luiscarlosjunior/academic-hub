@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Associação, Agregação e Composição em Java · AcademicHub</title>
+<meta name="description" content="Como associação, agregação e composição viram código Java: multiplicidade, navegabilidade, ciclo de vida e o teste é-um × tem-um.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/associacao-java">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<!-- ============================ ASSOCIAÇÃO ============================ -->
+<section id="associacao" data-toc="Associação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-rose-400 mr-2"></i>Associação: objetos que se conhecem</h2>
+  <div class="ah-prose">
+    <p>
+      Objetos não vivem sozinhos. Uma <strong>associação</strong> é um vínculo estrutural entre classes: os objetos
+      <em>se conhecem</em> e trocam mensagens. No Melodia, um <code>Ouvinte</code> tem uma <code>Assinatura</code>, e uma
+      <code>Playlist</code> tem várias <code>Musica</code>s.
+    </p>
+    <p>Cada associação é descrita por quatro elementos, que a UML desenha e que o Java precisa implementar:</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+    <div class="ah-card p-4"><div class="text-xs font-bold text-rose-300 mb-1">Nome / verbo</div><p class="text-xs text-slate-400">O que a ligação significa: <em>possui, contém, publica</em>.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-bold text-rose-300 mb-1">Multiplicidade</div><p class="text-xs text-slate-400">Quantos objetos participam de cada lado: <code>1</code>, <code>0..1</code>, <code>0..*</code>, <code>1..*</code>.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-bold text-rose-300 mb-1">Navegabilidade</div><p class="text-xs text-slate-400">De que lado se consegue chegar ao outro (a seta). Define <strong class="text-white">o campo</strong> no código.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-bold text-rose-300 mb-1">Papel (role)</div><p class="text-xs text-slate-400">O “cargo” de cada ponta na ligação, geralmente o nome do atributo.</p></div>
+  </div>
+
+  <div class="ah-diagram mt-6">
+    <pre class="mermaid">
+classDiagram
+    class Ouvinte
+    class Assinatura
+    class Playlist
+    class Musica
+    Ouvinte "1" --> "1" Assinatura : possui
+    Ouvinte "1" --> "0..*" Playlist : monta
+    Playlist "0..*" --> "0..*" Musica : contém
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Leia: um ouvinte possui exatamente uma assinatura e monta de zero a muitas playlists. A seta indica que o ouvinte “enxerga” a assinatura, e não o contrário.</p>
+</section>
+
+<!-- ============================ MULTIPLICIDADE EM JAVA ============================ -->
+<section id="multiplicidade" data-toc="Multiplicidade no código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-rose-400 mr-2"></i>Da multiplicidade ao campo Java</h2>
+  <p class="ah-lead text-sm mb-5">A multiplicidade decide <strong class="text-white">o tipo do campo</strong>: um objeto, um objeto que pode faltar, ou uma coleção.</p>
+
+  <div class="overflow-x-auto ah-card mb-5">
+    <table class="ah-table">
+      <thead><tr><th>UML</th><th>Significa</th><th>Em Java</th></tr></thead>
+      <tbody>
+        <tr><td><code>1</code></td><td>Exatamente um, sempre presente</td><td><code>private final Assinatura assinatura;</code></td></tr>
+        <tr><td><code>0..1</code></td><td>Pode não existir</td><td><code>private Assinatura assinatura;</code> (pode ser <code>null</code> ou <code>Optional</code>)</td></tr>
+        <tr><td><code>0..*</code></td><td>Zero ou muitos</td><td><code>private final List&lt;Playlist&gt; playlists = new ArrayList&lt;&gt;();</code></td></tr>
+        <tr><td><code>1..*</code></td><td>Pelo menos um</td><td>Lista + validação no construtor (não pode vir vazia)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Ouvinte</span> {
+    <span class="cm">// 1 --&gt; 1: sempre tem uma assinatura, obrigatória no construtor</span>
+    <span class="kw">private final</span> <span class="ty">Assinatura</span> assinatura;
+
+    <span class="cm">// 1 --&gt; 0..*: zero ou muitas playlists, criadas conforme o ouvinte monta</span>
+    <span class="kw">private final</span> List&lt;<span class="ty">Playlist</span>&gt; playlists = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Ouvinte</span>(<span class="ty">Assinatura</span> assinatura) {
+        <span class="kw">if</span> (assinatura == <span class="kw">null</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"todo ouvinte tem uma assinatura (multiplicidade 1)"</span>);
+        <span class="kw">this</span>.assinatura = assinatura;
+    }
+
+    <span class="kw">public</span> <span class="ty">Playlist</span> <span class="fn">montarPlaylist</span>(String nome) {
+        <span class="ty">Playlist</span> p = <span class="kw">new</span> <span class="ty">Playlist</span>(nome, <span class="kw">this</span>);
+        playlists.add(p);
+        <span class="kw">return</span> p;
+    }
+}</code></pre>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Multiplicidade vira regra.</strong> O <code>1</code> da assinatura se traduz em uma verificação no construtor.
+      Quando o diagrama documenta a regra, o código a reproduz, e quem lê o modelo sabe o que esperar.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ AGREGAÇÃO ============================ -->
+<section id="agregacao" data-toc="Agregação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-regular fa-square text-indigo-400 mr-2"></i>Agregação: “tem um”, mas a parte vive sozinha</h2>
+  <div class="ah-prose">
+    <p>
+      Na <strong>agregação</strong> (losango <em>vazio</em> na UML), o todo <strong>tem</strong> partes, mas as partes
+      <strong>existem independentemente</strong>. Se a playlist for apagada, as músicas continuam no catálogo.
+    </p>
+    <p>
+      Em Java, a agregação aparece quando o todo <strong>recebe</strong> um objeto que já existe, em vez de criá-lo.
+    </p>
+  </div>
+
+<pre class="ah-code"><code><span class="cm">// Playlist (agregação): só APONTA para músicas que já existem no catálogo</span>
+<span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; musicas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Musica</span> m) {   <span class="cm">// recebe de fora: a música não nasce aqui</span>
+        <span class="kw">if</span> (!musicas.contains(m)) musicas.add(m);
+    }
+}
+
+<span class="cm">// Uso: a música é criada pelo catálogo, a playlist só a referencia</span>
+<span class="ty">Musica</span> cometa = catalogo.buscar(<span class="str">"Cometa"</span>);
+<span class="ty">Playlist</span> treino = <span class="kw">new</span> <span class="ty">Playlist</span>(<span class="str">"Treino"</span>, ouvinte);
+treino.adicionar(cometa);
+<span class="cm">// apagar "treino" NÃO apaga "cometa" do catálogo</span></code></pre>
+</section>
+
+<!-- ============================ COMPOSIÇÃO ============================ -->
+<section id="composicao" data-toc="Composição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diamond text-emerald-400 mr-2"></i>Composição: o todo cria e é dono da parte</h2>
+  <div class="ah-prose">
+    <p>
+      Na <strong>composição</strong> (losango <em>cheio</em>), a parte <strong>não faz sentido sem o todo</strong> e morre
+      com ele. As faixas de um álbum são criadas dentro do álbum: se ele some, elas somem junto.
+    </p>
+    <p>
+      Em Java, a composição aparece quando o todo <strong>cria</strong> a parte internamente, e a parte não é exposta
+      para ser criada por fora.
+    </p>
+  </div>
+
+<pre class="ah-code"><code><span class="cm">// Album (composição): CRIA as faixas. A faixa nasce dentro do álbum.</span>
+<span class="kw">public class</span> <span class="ty">Album</span> {
+    <span class="kw">private final</span> String titulo;
+    <span class="kw">private final</span> String artista;
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; faixas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">public</span> <span class="ty">Musica</span> <span class="fn">adicionarFaixa</span>(String tituloFaixa, <span class="kw">int</span> duracao) {
+        <span class="ty">Musica</span> m = <span class="kw">new</span> <span class="ty">Musica</span>(tituloFaixa, artista, duracao);  <span class="cm">// o álbum é o criador</span>
+        faixas.add(m);
+        <span class="kw">return</span> m;
+    }
+
+    <span class="kw">public</span> List&lt;<span class="ty">Musica</span>&gt; <span class="fn">getFaixas</span>() {
+        <span class="kw">return</span> Collections.unmodifiableList(faixas);   <span class="cm">// ninguém de fora altera a lista</span>
+    }
+}
+
+<span class="ty">Album</span> album = <span class="kw">new</span> <span class="ty">Album</span>(<span class="str">"Órbita"</span>, <span class="str">"Banda Nébula"</span>, <span class="num">2024</span>);
+album.adicionarFaixa(<span class="str">"Gravidade Zero"</span>, <span class="num">213</span>);</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Repare no contraste.</strong> Em <code>Album</code>, o método <code>adicionarFaixa</code> <em>cria</em> a música.
+      Em <code>Playlist</code>, o método <code>adicionar</code> <em>recebe</em> uma música pronta. A mesma classe
+      <code>Musica</code>, duas relações diferentes, e isso é o que o diagrama precisa deixar claro.
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">A tabela de decisão: qual relação usar?</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    A["Ligar a classe X à classe Y"] --> B{"X é um Y?"}
+    B -- "Sim" --> C["HERANÇA: extends"]
+    B -- "Não" --> D{"X tem um Y?"}
+    D -- "Sim, e Y morre com X" --> E["COMPOSIÇÃO: X cria Y"]
+    D -- "Sim, mas Y vive sem X" --> F["AGREGAÇÃO: X recebe Y"]
+    D -- "Só usa ou conhece" --> G["ASSOCIAÇÃO: Y num método"]
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Pergunte nesta ordem: primeiro “é um?” (herança), depois “tem um?”, e então a vida da parte decide entre composição e agregação.</p>
+</section>
+
+<!-- ============================ NAVEGABILIDADE E ACOPLAMENTO ============================ -->
+<section id="navegabilidade" data-toc="Navegabilidade e acoplamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-rose-400 mr-2"></i>Navegabilidade: uma seta, um campo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada seta do diagrama vira um <strong class="text-white">campo</strong> no código de quem a origina. Sem seta, não há
+    campo: o objeto não consegue chegar ao outro.
+  </p>
+
+<pre class="ah-code"><code><span class="cm">// Seta de Playlist para Ouvinte: a Playlist guarda o dono; o Ouvinte não precisa guardar a playlist</span>
+<span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private final</span> String nome;
+    <span class="kw">private final</span> <span class="ty">Ouvinte</span> dono;   <span class="cm">// só existe se houver seta Playlist → Ouvinte</span>
+}</code></pre>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Associação bidirecional é cara.</strong> Quando os dois lados se conhecem, cada alteração precisa manter os dois
+      em sincronia. Se <code>ouvinte.adicionarPlaylist(p)</code> não atualizar <code>p.setDono(ouvinte)</code>, os dois
+      objetos passam a dizer coisas diferentes. Só navegue nos dois sentidos quando o negócio exigir.
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <h4 class="ah-h3 text-sm mb-2">O cheiro do acoplamento</h4>
+    <p class="text-xs text-slate-400 leading-relaxed">
+      Um diagrama com setas para todo lado indica <strong class="text-white">acoplamento alto</strong>: mudar uma classe
+      obriga a mexer em muitas outras. Bons modelos têm poucas dependências, bem direcionadas. Menos setas significa
+      sistema mais fácil de mudar.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-rose-400 mr-2"></i>Erros comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Erro</th><th>Consequência</th><th>Como resolver</th></tr></thead>
+      <tbody>
+        <tr><td>Usar herança para tudo (“Playlist é uma Lista”)</td><td>Hierarquia rígida, difícil de mudar</td><td>Prefira composição: a playlist <em>tem</em> uma lista</td></tr>
+        <tr><td>Composição onde a parte deveria sobreviver</td><td>Apagar a playlist apaga as músicas do catálogo</td><td>Use agregação: receba o objeto de fora</td></tr>
+        <tr><td>Campo público para uma coleção</td><td>Alguém altera a lista por fora da classe</td><td>Retorne <code>Collections.unmodifiableList</code></td></tr>
+        <tr><td>Associação bidirecional sem necessidade</td><td>Os dois lados ficam fora de sincronia</td><td>Navegue só para um lado</td></tr>
+        <tr><td>Ignorar a multiplicidade</td><td>Regras do negócio ficam escondidas no código</td><td>Reproduza <code>1</code> e <code>0..*</code> no tipo do campo e no construtor</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ NA INDÚSTRIA ============================ -->
+<section id="industria" data-toc="Na indústria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-building text-rose-400 mr-2"></i>Na indústria</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Multiplicidade vira restrição no banco de dados.</strong> Uma associação <code>1 --&gt; 0..*</code> normalmente
+      vira uma chave estrangeira com índice. Modelar a multiplicidade certa evita dados inconsistentes, como uma música
+      sem álbum quando o negócio exige um.
+    </p>
+    <p>
+      <strong>“Composição sobre herança”</strong> é um conselho clássico de projeto (do livro <em>Effective Java</em> e do
+      catálogo de padrões GoF). Frameworks modernos preferem montar objetos pequenos a herdar hierarquias profundas.
+    </p>
+    <p>
+      Em ORMs como JPA/Hibernate, associações bidirecionais são fonte comum de bugs e de problemas de carregamento
+      preguiçoso (<em>lazy loading</em>). Regra prática: só navegue nos dois sentidos se o negócio realmente exigir.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-rose-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Ao apagar uma <code>Playlist</code>, as músicas que ela continha devem continuar existindo no catálogo. Qual relação descreve isso?</p>
+      <button class="ah-quiz-opt">Composição: a playlist cria as músicas</button>
+      <button class="ah-quiz-opt">Agregação: a playlist só aponta para músicas existentes</button>
+      <button class="ah-quiz-opt">Herança: a playlist é uma música</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. Na agregação a parte vive independentemente do todo. A playlist recebe músicas que já existem, e apagá-la
+        não afeta o catálogo.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma seta da classe <code>Album</code> para <code>Musica</code> (sem seta de volta) significa que, no código:</p>
+      <button class="ah-quiz-opt"><code>Album</code> tem um campo de <code>Musica</code>, e <code>Musica</code> não conhece o álbum</button>
+      <button class="ah-quiz-opt"><code>Musica</code> tem um campo de <code>Album</code>, e <code>Album</code> não tem nada</button>
+      <button class="ah-quiz-opt">As duas classes precisam ter campos uma da outra</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. A navegabilidade define o campo: a seta de <code>Album</code> para <code>Musica</code> dá a <code>Album</code>
+        uma referência à música, e nenhum campo em sentido contrário.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHECKLIST ============================ -->
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-rose-400 mr-2"></i>O que levar deste tópico</h2>
+  <ul class="ah-prose">
+    <li>Associação é o vínculo entre objetos, descrito por multiplicidade, navegabilidade e papel.</li>
+    <li>Multiplicidade define o tipo do campo: objeto único, opcional ou coleção.</li>
+    <li><strong>Composição</strong> (o todo cria e é dono) × <strong>agregação</strong> (o todo recebe e apenas aponta).</li>
+    <li>Prefira composição a herança quando o “é um” não for realmente verdadeiro. Menos setas, menos acoplamento.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
