@@ -105,6 +105,116 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-elementos" data-toc="Aprofundamento: nós, artefatos e caminhos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-server text-emerald-400 mr-2"></i>Nós, artefatos e caminhos de comunicação</h2>
+  <div class="ah-prose">
+    <p>
+      O diagrama de implantação mostra <strong>onde o software roda</strong>. Ele tem três elementos centrais. O <strong>nó</strong> é
+      um recurso computacional: um servidor físico, uma máquina virtual, um contêiner, um celular. O <strong>artefato</strong> é uma
+      peça concreta que é implantada, como um <code>.jar</code>, um <code>.war</code>, um script SQL ou um arquivo de configuração. O
+      <strong>caminho de comunicação</strong> é a conexão entre nós, com o protocolo quando for relevante (HTTPS, JDBC).
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Elemento</th><th>Notação</th><th>Exemplo na Melodia</th></tr></thead>
+      <tbody>
+        <tr><td>Nó de dispositivo</td><td>cubo com «device»</td><td>Smartphone do ouvinte</td></tr>
+        <tr><td>Ambiente de execução</td><td>cubo com «executionEnvironment»</td><td>Máquina virtual Java, servidor de aplicação</td></tr>
+        <tr><td>Artefato</td><td>retângulo com «artifact»</td><td><code>melodia-api.jar</code></td></tr>
+        <tr><td>Manifestação</td><td>artefato dentro de um nó</td><td>O <code>.jar</code> implantado no servidor</td></tr>
+        <tr><td>Caminho de comunicação</td><td>linha entre nós, com protocolo</td><td>HTTPS entre celular e servidor</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-manifestacao" data-toc="Componentes, artefatos e nós" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Como os três níveis se conectam</h2>
+  <div class="ah-prose">
+    <p>
+      Um erro comum é tratar o componente, o artefato e o nó como se fossem a mesma coisa. Eles estão em níveis diferentes.
+      O <strong>componente</strong> é uma unidade lógica (tópico 13). O <strong>artefato</strong> é o arquivo que materializa o
+      componente. O <strong>nó</strong> é o lugar onde o artefato roda. Um componente pode gerar vários artefatos, e um
+      artefato pode ser implantado em vários nós (uma réplica por servidor, por exemplo).
+    </p>
+  </div>
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+flowchart TB
+    subgraph Servidor["«device» Servidor de aplicação"]
+        A1["«artifact» melodia-api.jar"]
+        A2["«artifact» melodia-cobranca.jar"]
+    end
+    subgraph BancoDados["«device» Banco de dados"]
+        A3["«artifact» schema.sql"]
+    end
+    Celular["«device» Smartphone"] -- "HTTPS" --> A1
+    A1 -- "JDBC" --> A3
+    A2 -- "HTTPS" --> Gateway["«device» Gateway de pagamento"]
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Dois artefatos no mesmo servidor, um banco separado, e um gateway externo. Os caminhos têm protocolo, o que orienta a configuração de rede e segurança.</p>
+</section>
+
+<section id="aprof-topologias" data-toc="Topologias comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-emerald-400 mr-2"></i>Topologias: onde o modelo muda de forma</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-slate-500"><div class="text-xs font-bold text-slate-300 mb-2">Monolito</div><p class="text-xs text-slate-400 leading-relaxed">Um nó, um artefato. Simples de implantar, difícil de escalar partes isoladas.</p></div>
+    <div class="ah-card p-5 border-t-4 border-indigo-400"><div class="text-xs font-bold text-indigo-300 mb-2">Três camadas</div><p class="text-xs text-slate-400 leading-relaxed">Cliente, aplicação e banco em nós separados. Permite escalar cada camada.</p></div>
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Nuvem e contêineres</div><p class="text-xs text-slate-400 leading-relaxed">Nós virtuais, com réplicas do mesmo artefato. O diagrama mostra a réplica como manifestação em vários nós.</p></div>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Por que isso importa para o modelo:</strong> a topologia decide a latência, o custo e o ponto de falha. Um diagrama
+      de implantação que mostra um único nó quando há três réplicas esconde justamente o risco que a equipe precisa avaliar.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-especificacao" data-toc="Especificação de implantação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-emerald-400 mr-2"></i>Parametrizando a implantação</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>especificação de implantação</strong> associa um artefato a um nó com configuração própria: porta, variável de
+      ambiente, limite de memória. É o que diferencia a implantação de desenvolvimento da de produção, sem mudar o artefato.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm"># implantação em produção: mesmo artefato, configuração diferente</span>
+<span class="cm"># melodia-api.jar  →  Servidor de aplicação (produção)</span>
+MELODIA_DB_URL=jdbc:postgresql://db-prod:5432/melodia
+MELODIA_PORTA=8443
+MELODIA_LOG_NIVEL=WARN</code></pre>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. A Melodia vai rodar três réplicas da API atrás de um balanceador. Como modelar?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> três nós de ambiente de execução, cada um com a manifestação do mesmo <code>melodia-api.jar</code>, e um nó balanceador com caminhos de comunicação para cada réplica. O artefato é um só; as manifestações são três.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Um colega desenhou “Componente de cobrança” dentro do nó do servidor, como se fosse um arquivo. O que corrigir?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> o componente é lógico; no diagrama de implantação deve aparecer o <em>artefato</em> que o materializa (por exemplo, <code>melodia-cobranca.jar</code>) dentro do nó. A confusão entre componente e artefato é o erro mais comum.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Quando o diagrama de implantação é mais útil que o de componentes?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> quando as decisões dependem da infraestrutura: escalabilidade, latência entre nós, segurança de rede, custo, ponto único de falha. O componente mostra o que existe; a implantação mostra onde e com que conexões.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>OMG. UML 2.5.1, capítulo <em>Deployments</em>: nós, artefatos, manifestação e especificações de implantação.</li>
+    <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. O'Reilly. Discussão sobre topologias, réplicas e falhas que informam o diagrama.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -152,6 +262,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
