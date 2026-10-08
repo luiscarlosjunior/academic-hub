@@ -139,6 +139,172 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-transicao" data-toc="Aprofundamento: transição, evento, guarda e ação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-toggle-on text-emerald-400 mr-2"></i>A anatomia de uma transição</h2>
+  <div class="ah-prose">
+    <p>
+      Uma máquina de estados descreve o <strong>ciclo de vida</strong> de um objeto: em que situações ele pode estar e o que
+      faz com que mude. Um objeto está em <strong>um</strong> estado por vez. A mudança entre estados é uma <strong>transição</strong>,
+      que a UML escreve no formato <code>evento [guarda] / ação</code>.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Parte</th><th>Pergunta que responde</th><th>Exemplo na assinatura</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Evento</strong></td><td>O que dispara a mudança?</td><td><code>cobrancaFalhou</code></td></tr>
+        <tr><td><strong>Guarda</strong></td><td>A mudança só ocorre se for verdade?</td><td><code>[tentativas &gt;= 3]</code></td></tr>
+        <tr><td><strong>Ação</strong></td><td>O que é feito durante a transição?</td><td><code>/ notificarOuvinte()</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Guarda não é evento:</strong> o evento acontece em um instante. A guarda é uma condição avaliada no momento do evento.
+      Se a guarda for falsa, a transição não ocorre e o objeto permanece no estado atual.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-assinatura" data-toc="Exemplo: ciclo de vida da assinatura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-emerald-400 mr-2"></i>Exemplo: o ciclo de vida da assinatura Melodia</h2>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; Ativa : contratar
+    Ativa --&gt; Suspensa : cobrancaFalhou
+    Suspensa --&gt; Ativa : pagamentoRegularizado
+    Suspensa --&gt; Cancelada : cancelar
+    Ativa --&gt; Cancelada : cancelar
+    Cancelada --&gt; [*]
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">O estado <code>Cancelada</code> é final: não há transição de saída, o que implementa a regra R4 do projeto-base.</p>
+
+  <div class="ah-prose mt-5">
+    <p>
+      Repare no que o diagrama <strong>proíbe</strong>. Não existe seta de <code>Cancelada</code> para <code>Ativa</code>. Essa
+      ausência é um requisito, e deve ser lida como tal. Em uma prova ou revisão, procurar transições que <em>não</em> existem é
+      tão importante quanto ler as que existem.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-acoes-estado" data-toc="Entrada, saída e atividade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-to-bracket text-emerald-400 mr-2"></i>Ações internas: entry, exit e do</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">entry /</div><p class="text-xs text-slate-400 leading-relaxed">Executa ao entrar no estado, qualquer que seja a transição. Ex.: <code>entry / registrarInicio()</code>.</p></div>
+    <div class="ah-card p-5 border-t-4 border-amber-400"><div class="text-xs font-bold text-amber-300 mb-2">exit /</div><p class="text-xs text-slate-400 leading-relaxed">Executa ao sair do estado. Ex.: <code>exit / liberarRecursos()</code>.</p></div>
+    <div class="ah-card p-5 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-2">do /</div><p class="text-xs text-slate-400 leading-relaxed">Atividade contínua enquanto o objeto estiver no estado. Ex.: <code>do / reproduzirAudio()</code> em “Tocando”.</p></div>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Regra prática:</strong> se a ação deve acontecer <em>toda vez</em> que se entra no estado, ela vai em <code>entry</code>,
+      e não repetida em cada transição que leva até ele. Isso evita esquecer a ação em um dos caminhos.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-compostos" data-toc="Estados compostos e pseudo-estados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Estados compostos e pseudo-estados</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>estado composto</strong> contém uma sub-máquina. Ele serve para organizar uma máquina grande: “Ativa” pode conter
+      “Tocando”, “Pausada” e “Em buffer”, que juntos formam o estado de reprodução. Pseudo-estados são nós de controle que não são
+      estados de verdade: o <em>inicial</em> marca o começo, o <em>choice</em> decide com guardas, e o <em>history</em> lembra o
+      último subestado visitado ao retornar.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Pseudo-estado</th><th>Função</th></tr></thead>
+      <tbody>
+        <tr><td>Inicial</td><td>Ponto de entrada da máquina (círculo cheio)</td></tr>
+        <tr><td>Final</td><td>Fim da máquina (círculo com borda)</td></tr>
+        <tr><td>Choice</td><td>Escolhe um caminho por guardas avaliadas na hora</td></tr>
+        <tr><td>History (H)</td><td>Retorna ao último subestado ativo do composto</td></tr>
+        <tr><td>Fork / Join</td><td>Ativa ou sincroniza regiões ortogonais em paralelo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-tabela" data-toc="Máquina × tabela de transições" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>Verifique a máquina com uma tabela</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma técnica de revisão muito eficaz: converta o diagrama em uma tabela, com linhas para estados e colunas para eventos.
+    Cada célula vazia é uma decisão a ser justificada.
+  </p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Estado \ Evento</th><th>cobrancaFalhou</th><th>pagamentoRegularizado</th><th>cancelar</th></tr></thead>
+      <tbody>
+        <tr><td>Ativa</td><td>Suspensa</td><td><em>(ignorado)</em></td><td>Cancelada</td></tr>
+        <tr><td>Suspensa</td><td><em>(ignorado)</em></td><td>Ativa</td><td>Cancelada</td></tr>
+        <tr><td>Cancelada</td><td><strong>(proibido)</strong></td><td><strong>(proibido)</strong></td><td><strong>(proibido)</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Célula vazia não é “nada acontece”:</strong> ela precisa ser decidida. Ignorar o evento, bloquear ou gerar erro
+      são comportamentos diferentes, e o código precisa implementar um deles.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-codigo" data-toc="Da máquina ao código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Implementação: enum com transições validadas</h2>
+<pre class="ah-code"><code><span class="kw">public enum</span> <span class="ty">StatusAssinatura</span> {
+    ATIVA, SUSPENSA, CANCELADA;
+
+    <span class="cm">// transições permitidas, conforme o diagrama (CANCELADA não tem saída)</span>
+    <span class="kw">public boolean</span> <span class="fn">podeIr</span>(<span class="ty">StatusAssinatura</span> destino) {
+        <span class="kw">return switch</span> (<span class="kw">this</span>) {
+            <span class="kw">case</span> ATIVA    -&gt; destino == SUSPENSA || destino == CANCELADA;
+            <span class="kw">case</span> SUSPENSA -&gt; destino == ATIVA || destino == CANCELADA;
+            <span class="kw">case</span> CANCELADA -&gt; <span class="kw">false</span>;
+        };
+    }
+}</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Esse código é a tradução direta da tabela. A regra R4 vira uma linha: <code>CANCELADA -&gt; false</code>. Se alguém tentar
+      reativar uma assinatura cancelada, a operação é recusada, porque o diagrama não permite.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Desenhe a máquina de estados de um ouvinte que pode estar “Deslogado”, “Logado” ou “Bloqueado”. O login falha três vezes seguidas e o usuário é bloqueado.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> transição <code>Deslogado → Logado</code> com evento <code>login</code> e guarda <code>[senha correta]</code>; a falha incrementa um contador; <code>Deslogado → Bloqueado</code> com evento <code>loginFalhou</code> e guarda <code>[tentativas &gt;= 3]</code>. Explicite que o contador é um atributo, e que a guarda o consulta.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Por que <code>entry / registrarInicio()</code> é melhor que colocar <code>registrarInicio()</code> em cada transição que leva a Ativa?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> porque garante a ação em qualquer caminho de entrada. Se um novo evento for adicionado e levar a Ativa, a ação já acontece, sem depender de alguém lembrar de incluí-la na nova transição.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Na tabela do exemplo, a célula “Ativa × pagamentoRegularizado” está como “ignorado”. Você concorda?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> é uma decisão razoável, mas precisa ser justificada e documentada. Se o evento chegar em Ativa, não há nada a regularizar. A alternativa seria tratá-lo como erro. Qualquer escolha deve aparecer no modelo, e não ficar implícita.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>HAREL, David. “Statecharts: a visual formalism for complex systems”, <em>Science of Computer Programming</em>, 1987. Origem dos estados compostos e da ortogonalidade, base da UML.</li>
+    <li>OMG. UML 2.5.1, capítulo <em>State Machines</em>.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -187,6 +353,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
