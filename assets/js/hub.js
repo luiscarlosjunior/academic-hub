@@ -371,6 +371,35 @@
     return ctrl;
   };
 
+  /* ------------------------------------------------------------------ */
+  /* Diagramas UML em texto (Mermaid) — só roda se a página carregou a lib */
+  /* ------------------------------------------------------------------ */
+  AH.initMermaid = function () {
+    if (!global.mermaid || !document.querySelector('.mermaid')) return;
+    global.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'loose',
+      theme: 'base',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      themeVariables: {
+        background: '#0b1220',
+        primaryColor: '#1e293b',
+        primaryTextColor: '#e2e8f0',
+        primaryBorderColor: '#6366f1',
+        secondaryColor: '#0f172a',
+        tertiaryColor: '#020617',
+        lineColor: '#94a3b8',
+        textColor: '#e2e8f0',
+        noteBkgColor: '#1e293b',
+        noteTextColor: '#e2e8f0',
+        noteBorderColor: '#a855f7',
+        classText: '#e2e8f0',
+        labelColor: '#e2e8f0'
+      }
+    });
+    global.mermaid.run({ querySelector: '.mermaid' });
+  };
+
   /* ------------------------------ helpers --------------------------- */
   AH.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   AH.lerp = (a, b, t) => a + (b - a) * t;
@@ -414,6 +443,7 @@
       const parts = page.split('/');
       AH.mountTopic(parts[0], parts[1]);
       AH.initReveal();
+      AH.initMermaid();
     }
   };
 
