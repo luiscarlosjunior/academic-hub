@@ -175,6 +175,215 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-semantica" data-toc="Aprofundamento: semântica das relações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-emerald-400 mr-2"></i>O que cada relação afirma sobre o mundo</h2>
+  <div class="ah-prose">
+    <p>
+      Uma relação no diagrama de classes é uma <strong>afirmação</strong> sobre o domínio, que pode ser verdadeira ou falsa.
+      Desenhar uma seta é dizer “existe este vínculo, com estas regras”. Por isso, a pergunta certa não é “qual símbolo
+      eu uso?”, e sim “o que é verdade sobre estes objetos?”.
+    </p>
+    <p>
+      A UML 2.5 define a <strong>associação</strong> como a relação genérica. Agregação e composição são <em>casos
+      especiais</em> de associação, com a semântica de “todo-parte” acrescentada. A dependência é mais fraca: um elemento
+      usa outro temporariamente, por exemplo como parâmetro de uma operação.
+    </p>
+  </div>
+
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Relação</th><th>Notação</th><th>Afirmação</th><th>Ciclo de vida</th></tr></thead>
+      <tbody>
+        <tr><td>Associação</td><td>linha simples</td><td>X conhece Y e mantém relação com ele</td><td>Independentes</td></tr>
+        <tr><td>Agregação</td><td>losango vazio no todo</td><td>X é um todo que reúne partes (“tem um”)</td><td>Partes sobrevivem ao todo</td></tr>
+        <tr><td>Composição</td><td>losango cheio no todo</td><td>X é o dono exclusivo das partes</td><td>Partes morrem com o todo</td></tr>
+        <tr><td>Dependência</td><td>seta tracejada</td><td>Y muda se X mudar (uso temporário)</td><td>Não há vínculo estrutural</td></tr>
+        <tr><td>Generalização</td><td>triângulo vazio, linha sólida</td><td>X é um Y</td><td>Herança</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-navegabilidade" data-toc="Navegabilidade e papéis" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-emerald-400 mr-2"></i>Navegabilidade, papéis e associação bidirecional</h2>
+  <div class="ah-prose">
+    <p>
+      A <strong>navegabilidade</strong> diz em qual sentido é possível percorrer a associação. Uma seta de <code>Ouvinte</code>
+      para <code>Assinatura</code> significa que o ouvinte sabe quem é sua assinatura; a assinatura não precisa saber de
+      volta. Sem seta, a navegabilidade é indefinida, o que é uma pendência de modelagem, não uma decisão.
+    </p>
+    <p>
+      O <strong>papel</strong> (<em>role</em>) é o nome da ponta da associação, e geralmente vira o nome do atributo no código.
+      Quando a associação é bidirecional, cada lado tem seu papel: <code>Playlist.dono</code> e <code>Ouvinte.playlists</code>.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Bidirecional custa caro:</strong> cada alteração precisa atualizar os dois lados. Se só um for atualizado, os
+      objetos passam a discordar. Use bidirecional apenas quando o negócio exigir navegar nos dois sentidos, e centralize a
+      atualização em um método único.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-classe-associacao" data-toc="Classe de associação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-emerald-400 mr-2"></i>Classe de associação: quando a relação tem dados próprios</h2>
+  <div class="ah-prose">
+    <p>
+      Às vezes o vínculo entre duas classes tem informação própria. Um <code>Ouvinte</code> e um <code>Plano</code> se
+      relacionam por meio de uma <strong>assinatura</strong>, que tem data de início e status. Esses dados não pertencem
+      a nenhum dos dois lados, pertencem ao vínculo. A UML representa isso com uma <strong>classe de associação</strong>,
+      ligada à linha por uma linha pontilhada.
+    </p>
+  </div>
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Ouvinte
+    class Plano
+    class Assinatura {
+        -LocalDate inicio
+        -StatusAssinatura status
+        +suspender() void
+    }
+    Ouvinte "*" -- "*" Plano
+    Assinatura .. Ouvinte
+    Assinatura .. Plano
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Um ouvinte pode ter vários planos ao longo do tempo, e um plano tem vários ouvintes. A <code>Assinatura</code> guarda o que pertence ao vínculo: início e status.</p>
+</section>
+
+<section id="aprof-qualificada" data-toc="Associação qualificada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-emerald-400 mr-2"></i>Associação qualificada: o acesso por chave</h2>
+  <div class="ah-prose">
+    <p>
+      Em uma associação qualificada, um <em>qualificador</em> (uma chave) seleciona um único objeto do outro lado. Em vez de
+      “um ouvinte tem muitas playlists”, a relação passa a ser “um ouvinte tem, para cada nome, uma playlist”. A
+      multiplicidade do lado qualificado cai para <code>0..1</code>.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// Qualificador "nome": o ouvinte acessa a playlist pela chave</span>
+<span class="kw">public class</span> <span class="ty">Ouvinte</span> {
+    <span class="kw">private final</span> Map&lt;String, <span class="ty">Playlist</span>&gt; playlists = <span class="kw">new</span> HashMap&lt;&gt;();
+
+    <span class="kw">public</span> <span class="ty">Optional</span>&lt;<span class="ty">Playlist</span>&gt; <span class="fn">playlist</span>(String nome) {
+        <span class="kw">return</span> Optional.ofNullable(playlists.get(nome));
+    }
+}</code></pre>
+</section>
+
+<section id="aprof-agregacao-composicao" data-toc="Agregação × composição em profundidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diamond text-emerald-400 mr-2"></i>Agregação e composição: a regra da multiplicidade</h2>
+  <div class="ah-prose">
+    <p>
+      Na composição, o todo é o <strong>dono exclusivo</strong> da parte. Isso impõe uma regra estrutural: a parte pertence
+      a <strong>no máximo um</strong> todo ao mesmo tempo. Por isso, no lado do todo, a multiplicidade de uma composição é
+      quase sempre <code>1</code> ou <code>0..1</code>. Um álbum é dono das faixas; uma faixa não pode pertencer a dois álbuns
+      como dona.
+    </p>
+    <p>
+      Na agregação, não há exclusividade. A mesma música pode estar em muitas playlists, e a playlist não é dona dela.
+    </p>
+  </div>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Album {
+        -String titulo
+    }
+    class Musica {
+        -String titulo
+    }
+    class Playlist {
+        -String nome
+    }
+    Album "1" *-- "1..*" Musica : composição
+    Playlist "0..*" o-- "0..*" Musica : agregação
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Losango cheio do lado do álbum: a faixa não existe sem ele. Losango vazio do lado da playlist: a música existe por conta própria.</p>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Teste prático:</strong> apague o todo mentalmente. Se as partes devem desaparecer junto, é composição. Se
+      continuam válidas e úteis, é agregação. Quando não estiver claro, prefira associação simples: é mais fácil de
+      tornar mais forte depois do que o contrário.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-dependencia" data-toc="Dependência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-share-nodes text-emerald-400 mr-2"></i>Dependência: o vínculo mais fraco</h2>
+  <div class="ah-prose">
+    <p>
+      A dependência indica que uma mudança em um elemento pode afetar outro, geralmente porque o segundo usa o primeiro
+      como parâmetro, retorno ou variável local. Não existe campo guardado. Na UML, é uma seta tracejada, muitas vezes
+      com o estereótipo <code>«use»</code>.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">ServicoCobranca</span> {
+    <span class="cm">// dependência: usa Assinatura só dentro do método, sem guardar referência</span>
+    <span class="kw">public boolean</span> <span class="fn">cobrar</span>(<span class="ty">Assinatura</span> a, <span class="kw">double</span> valor) {
+        <span class="kw">return</span> a.debitar(valor);
+    }
+}</code></pre>
+</section>
+
+<section id="aprof-multiplicidade" data-toc="Multiplicidade: regras finas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hashtag text-emerald-400 mr-2"></i>Multiplicidade com precisão</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Multiplicidade</th><th>Leitura</th><th>Erro comum</th></tr></thead>
+      <tbody>
+        <tr><td><code>1</code></td><td>Exatamente um, sempre</td><td>Usar <code>1</code> quando é <code>0..1</code>, e exigir um objeto que pode faltar</td></tr>
+        <tr><td><code>0..1</code></td><td>Zero ou um</td><td>Esquecer o caso sem objeto (usar <code>null</code> sem tratamento)</td></tr>
+        <tr><td><code>*</code> ou <code>0..*</code></td><td>Zero ou muitos</td><td>Confundir com “pelo menos um”</td></tr>
+        <tr><td><code>1..*</code></td><td>Pelo menos um</td><td>Permitir lista vazia no construtor</td></tr>
+        <tr><td><code>3..6</code></td><td>Entre três e seis</td><td>Não validar os limites no código</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Leia sempre dos dois lados:</strong> em uma associação <code>Ouvinte "1" -- "0..*" Playlist</code>, a
+      multiplicidade perto de <code>Playlist</code> responde “quantas playlists um ouvinte tem?”, e a perto de <code>Ouvinte</code>
+      responde “quantos ouvintes uma playlist tem?”. Confundir os dois lados é um erro muito comum em prova.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Um <code>Carro</code> tem quatro <code>Roda</code>s. Se o carro for destruído, as rodas devem ser destruídas? Qual relação?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> depende do domínio. Em uma oficina que troca rodas, a roda é um item de estoque e sobrevive ao carro: agregação. Em um simulador que modela o veículo como um todo, a roda não existe fora dele: composição. A resposta forte explicita o domínio que decide.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Por que uma faixa não pode ser composição de dois álbuns ao mesmo tempo?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> porque a composição implica posse exclusiva: a parte pertence a no máximo um todo. Se a mesma faixa pudesse ser de dois álbuns como dona, a exclusão de um álbum deixaria a questão de quem a apaga indefinida. Se o negócio quer que a faixa esteja em dois álbuns (coletânea), a relação correta é agregação.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Desenhe a associação entre <code>Ouvinte</code> e <code>Plano</code> com a classe de associação <code>Assinatura</code>, sabendo que um ouvinte tem no máximo um plano ativo por vez.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> <code>Ouvinte "1" -- "0..*" Plano</code> com <code>Assinatura</code> como classe de associação. A restrição “no máximo um ativo” não cabe na multiplicidade: anote com uma restrição <code>{no máximo uma assinatura com status ATIVA}</code> na classe <code>Ouvinte</code>.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>RUMBAUGH, James et al. <em>Object-Oriented Modeling and Design</em>. Prentice Hall, 1991. Origem da notação de associação e das multiplicidades.</li>
+    <li>FOWLER, Martin. <em>UML Essencial</em>. Bookman. Capítulo sobre agregação e composição, com a recomendação de evitar agregação por ser ambígua.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -233,6 +442,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
