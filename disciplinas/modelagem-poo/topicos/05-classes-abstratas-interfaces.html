@@ -235,6 +235,163 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-notacao" data-toc="Aprofundamento: notação UML" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shapes text-emerald-400 mr-2"></i>Notação: classe abstrata e interface</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>classe abstrata</strong> é uma classe que não pode ser instanciada e pode ter operações sem implementação.
+      Uma <strong>interface</strong> é um contrato puro: declara operações que um classificador deve oferecer, sem dizer
+      como. Na UML, a classe abstrata tem nome em <em>itálico</em> ou o estereótipo <code>«abstract»</code>; a interface
+      usa <code>«interface»</code>.
+    </p>
+  </div>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Reproduzivel {
+        &lt;&lt;interface&gt;&gt;
+        +reproduzir() void
+        +duracao() int
+    }
+    class Conteudo {
+        &lt;&lt;abstract&gt;&gt;
+        #String titulo
+        +descricao() String
+        +duracao()* int
+    }
+    class Musica {
+        -int segundos
+        +duracao() int
+    }
+    class Podcast {
+        -int minutos
+        +duracao() int
+    }
+    Conteudo <|-- Musica
+    Conteudo <|-- Podcast
+    Reproduzivel <|.. Conteudo
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Dois tipos de relação com a mesma aparência de “seta com triângulo”: generalização é linha <em>sólida</em> (herança de classe); realização é linha <em>tracejada</em> (implementação de interface).</p>
+</section>
+
+<section id="aprof-quando" data-toc="Quando usar cada um" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Classe abstrata ou interface?</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th>Classe abstrata</th><th>Interface</th></tr></thead>
+      <tbody>
+        <tr><td>Pode ter estado (atributos)?</td><td>Sim</td><td>Não (apenas constantes)</td></tr>
+        <tr><td>Pode ter implementação?</td><td>Sim, para compartilhar código</td><td>Métodos <code>default</code> e <code>static</code> (Java 8+), com cuidado</td></tr>
+        <tr><td>Quantas podem ser usadas por uma classe?</td><td>Uma (herança simples em Java)</td><td>Quantas forem necessárias</td></tr>
+        <tr><td>Relação semântica típica</td><td>“é um”, com parte do comportamento comum</td><td>“sabe fazer”, um papel ou capacidade</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Regra de bolso:</strong> pergunte se as classes compartilham <em>código e estado</em>. Se sim, use classe
+      abstrata. Se o que compartilham é apenas uma <em>capacidade</em> (reproduzir, cobrar, exportar), use interface.
+      Um mesmo objeto pode ter várias capacidades, mas só uma superclasse concreta.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-template" data-toc="Template method: o padrão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Classe abstrata em ação: o padrão Template Method</h2>
+  <p class="ah-lead text-sm mb-5">
+    Quando várias subclasses seguem o mesmo roteiro com passos diferentes, a classe abstrata define o roteiro (método
+    concreto) e deixa os passos variáveis como operações abstratas. Esse é o padrão <em>Template Method</em> do Gang of Four.
+  </p>
+<pre class="ah-code"><code><span class="kw">public abstract class</span> <span class="ty">Cobranca</span> {
+    <span class="cm">// roteiro fixo (método final: a sequência não muda)</span>
+    <span class="kw">public final void</span> <span class="fn">executar</span>(<span class="kw">double</span> valor) {
+        <span class="kw">if</span> (!validar(valor)) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"valor inválido"</span>);
+        <span class="kw">double</span> total = calcularComTaxa(valor);   <span class="cm">// passo variável</span>
+        registrar(total);                                 <span class="cm">// passo comum, já implementado</span>
+    }
+    <span class="kw">protected boolean</span> <span class="fn">validar</span>(<span class="kw">double</span> v) { <span class="kw">return</span> v &gt; <span class="num">0</span>; }
+    <span class="kw">protected abstract double</span> <span class="fn">calcularComTaxa</span>(<span class="kw">double</span> v);  <span class="cm">// cada meio define</span>
+    <span class="kw">private void</span> <span class="fn">registrar</span>(<span class="kw">double</span> t) { <span class="cm">/* grava no extrato */</span> }
+}
+
+<span class="kw">public class</span> <span class="ty">CobrancaCartao</span> <span class="kw">extends</span> <span class="ty">Cobranca</span> {
+    <span class="kw">@Override protected double</span> <span class="fn">calcularComTaxa</span>(<span class="kw">double</span> v) { <span class="kw">return</span> v * <span class="num">1.03</span>; }
+}</code></pre>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Na modelagem:</strong> a operação abstrata aparece em itálico no diagrama (ou com <code>*</code>, como no
+      Mermaid deste tópico), e o método concreto que a chama é o “roteiro” que você quer proteger.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-diamante" data-toc="Herança múltipla e o diamante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gem text-emerald-400 mr-2"></i>O problema do diamante</h2>
+  <div class="ah-prose">
+    <p>
+      Linguagens como C++ permitem herança múltipla de classes. Se duas superclasses herdam de uma terceira, e a subclasse
+      herda das duas, surge o <strong>problema do diamante</strong>: qual cópia do estado e de qual método prevalece? Java
+      evita o problema proibindo herança múltipla de classes, mas permite implementar várias interfaces, e isso pode
+      gerar um conflito parecido quando dois <code>default</code> têm a mesma assinatura. Nesse caso, a classe é obrigada a
+      escolher explicitamente.
+    </p>
+  </div>
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Entidade {
+        +id() int
+    }
+    class Assinavel {
+        +assinar() void
+    }
+    class Cobravel {
+        +cobrar() void
+    }
+    class ContaFamilia {
+        +assinar() void
+        +cobrar() void
+    }
+    Entidade <|-- Assinavel
+    Entidade <|-- Cobravel
+    Assinavel <|-- ContaFamilia
+    Cobravel <|-- ContaFamilia
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Diamante: <code>ContaFamilia</code> herda <code>id()</code> por dois caminhos. Em Java, com interfaces com <code>default</code>, o compilador exige que você resolva o conflito.</p>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. A Melodia precisa que “Playlist”, “Album” e “Podcast” possam ser exportados em CSV. Classe abstrata ou interface?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> interface <code>Exportavel</code>. A capacidade é o que é compartilhado (exportar), e as três classes não têm estado comum a herdar. Uma playlist ainda pode ser <code>Reproduzivel</code> e <code>Exportavel</code> ao mesmo tempo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o método <code>executar</code> do exemplo é <code>final</code>?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> para impedir que subclasses alterem o roteiro (ordem dos passos e a regra de registro). Só os passos variáveis podem ser sobrescritos. Isso preserva o invariante de que toda cobrança passa por validação e registro.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Desenhe, em UML, uma classe abstrata <code>Usuario</code> com a operação abstrata <code>tipoDePerfil</code>, e mostre que <code>Artista</code> também implementa a interface <code>Publicavel</code>.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> <code>Usuario</code> com nome em itálico ou «abstract» e <code>tipoDePerfil()</code> em itálico; <code>Artista</code> herda de <code>Usuario</code> (seta sólida com triângulo vazio) e realiza <code>Publicavel</code> (seta tracejada com triângulo vazio). A resposta correta distingue as duas linhas.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>GAMMA, E. et al. <em>Padrões de Projeto</em>. Bookman. Template Method e a distinção entre herança de implementação e de interface.</li>
+    <li>BLOCH, Joshua. <em>Effective Java</em>, 3ª edição. Addison-Wesley. Capítulos sobre interfaces e herança.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -285,6 +442,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
