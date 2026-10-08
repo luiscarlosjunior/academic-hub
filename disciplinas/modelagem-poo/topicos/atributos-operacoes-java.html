@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atributos e Operações em Java · AcademicHub</title>
+<meta name="description" content="Atributos e métodos em Java: visibilidade, static, atributos derivados, operação × método e comando × consulta com o domínio Melodia.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/atributos-operacoes-java">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<!-- ============================ ATRIBUTO ============================ -->
+<section id="atributos" data-toc="Atributos: o estado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-database text-sky-400 mr-2"></i>Atributo é a propriedade que o objeto guarda</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>atributo</strong> é um dado nomeado que todo objeto de uma classe guarda. Se a operação é o <em>verbo</em>
+      do objeto, o atributo é o <em>substantivo</em> dele. Na UML, a sintaxe completa é
+      <code>[visibilidade] nome : tipo [= valorPadrão] [{propriedades}]</code>, e em Java ela se traduz diretamente.
+    </p>
+  </div>
+
+<pre class="ah-code"><code><span class="cm">// UML                               →  Java</span>
+<span class="cm">// - saldo : double = 0.0            →  private double saldo = 0.0;</span>
+<span class="cm">// - titulo : String                 →  private String titulo;</span>
+<span class="cm">// - duracaoSegundos : int {&gt;= 0}     →  private int duracaoSegundos;  // validado no construtor</span>
+<span class="cm">// - status : StatusAssinatura = ATIVA → private StatusAssinatura status = StatusAssinatura.ATIVA;</span></code></pre>
+</section>
+
+<!-- ============================ VISIBILIDADE ============================ -->
+<section id="visibilidade" data-toc="Visibilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye-slash text-sky-400 mr-2"></i>Visibilidade: quem pode acessar</h2>
+  <p class="ah-lead text-sm mb-5">Os símbolos da UML têm correspondência direta com os modificadores de acesso do Java.</p>
+
+  <div class="overflow-x-auto ah-card mb-5">
+    <table class="ah-table">
+      <thead><tr><th>UML</th><th>Java</th><th>Quem enxerga</th></tr></thead>
+      <tbody>
+        <tr><td><code>-</code> private</td><td><code>private</code></td><td>Só a própria classe</td></tr>
+        <tr><td><code>#</code> protected</td><td><code>protected</code></td><td>A classe, suas subclasses e o mesmo pacote</td></tr>
+        <tr><td><code>~</code> package</td><td><em>(sem modificador)</em></td><td>Classes do mesmo pacote</td></tr>
+        <tr><td><code>+</code> public</td><td><code>public</code></td><td>Qualquer classe</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-diagram">
+    <pre class="mermaid">
+classDiagram
+    class ContaBancaria {
+        -String numero
+        -double saldo
+        +depositar(valor) double
+        +sacar(valor) double
+        #registrarTransacao(t) void
+    }
+    note for ContaBancaria "saldo é private: só muda por operações que validam"
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Três níveis de acesso no mesmo diagrama: <code>-</code> esconde o saldo, <code>+</code> expõe as operações e <code>#</code> libera a subclasse.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Regra de ouro:</strong> atributos quase sempre são <code>private</code>. O acesso vem por operações que
+      validam. É isso que torna um invariante possível: se o saldo fosse <code>public</code>, qualquer código poderia
+      escrever <code>conta.saldo = -999</code> e quebrar a regra R1.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NA PRÁTICA ============================ -->
+<section id="pratica" data-toc="Atributo protegido na prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>O saldo protegido, passo a passo</h2>
+  <p class="ah-lead text-sm mb-5">A mesma conta, duas formas de implementar. Compare o que acontece quando alguém tenta quebrar a regra R1.</p>
+
+<pre class="ah-code"><code><span class="cm">// ❌ Atributo público: qualquer um escreve no saldo</span>
+<span class="kw">public class</span> <span class="ty">ContaFragil</span> {
+    <span class="kw">public double</span> saldo = <span class="num">0</span>;
+}
+<span class="ty">ContaFragil</span> c = <span class="kw">new</span> <span class="ty">ContaFragil</span>();
+c.saldo = -<span class="num">5000</span>;              <span class="cm">// compila e quebra a regra R1 silenciosamente</span>
+
+<span class="cm">// ✅ Atributo privado: a única porta de entrada valida</span>
+<span class="kw">public class</span> <span class="ty">ContaBancaria</span> {
+    <span class="kw">private double</span> saldo;
+
+    <span class="kw">public double</span> <span class="fn">sacar</span>(<span class="kw">double</span> valor) {
+        <span class="kw">if</span> (valor &lt;= <span class="num">0</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"valor deve ser positivo"</span>);
+        <span class="kw">if</span> (valor &gt; saldo)
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"saldo insuficiente (regra R1)"</span>);
+        saldo -= valor;
+        <span class="kw">return</span> saldo;
+    }
+
+    <span class="kw">public double</span> <span class="fn">getSaldo</span>() {          <span class="cm">// só leitura: não há setSaldo</span>
+        <span class="kw">return</span> saldo;
+    }
+}
+<span class="ty">ContaBancaria</span> cb = <span class="kw">new</span> <span class="ty">ContaBancaria</span>();
+cb.sacar(<span class="num">100</span>);                <span class="cm">// lança IllegalStateException: o invariante se mantém</span></code></pre>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Cuidado com <code>getSaldo()</code> sem <code>setSaldo()</code>:</strong> a ausência do <em>setter</em> é o que
+      protege a regra. Gerar getters e setters automaticamente para todos os campos (o chamado modelo anêmico)
+      derruba essa proteção, mesmo com os campos privados.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ESTÁTICO E DERIVADO ============================ -->
+<section id="tipos" data-toc="Estático e derivado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Atributos de instância, de classe e derivados</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="ah-card p-5 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 uppercase mb-2">De instância</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Cada objeto tem o seu. Cada conta tem o próprio saldo.</p>
+      <p class="font-mono text-[11px] text-slate-300 mt-2">private double saldo;</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 uppercase mb-2">De classe (static)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um só para todos os objetos. Na UML aparece sublinhado.</p>
+      <p class="font-mono text-[11px] text-slate-300 mt-2">static final double ROYALTY = 0.004;</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 uppercase mb-2">Derivado (/)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Calculado quando pedido, não guardado. Evita dados inconsistentes.</p>
+      <p class="font-mono text-[11px] text-slate-300 mt-2">duracaoTotal() { ... }</p>
+    </div>
+  </div>
+
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="cm">// de classe: uma taxa única para todas as reproduções do sistema</span>
+    <span class="kw">public static final double</span> ROYALTY_POR_REPRODUCAO = <span class="num">0.004</span>;
+
+    <span class="cm">// de instância: cada playlist tem as suas músicas</span>
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; musicas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="cm">// derivado: não existe campo "duracaoTotal" — calculamos quando pedem</span>
+    <span class="kw">public int</span> <span class="fn">duracaoTotalSegundos</span>() {
+        <span class="kw">return</span> musicas.stream().mapToInt(<span class="ty">Musica</span>::getDuracaoSegundos).sum();
+    }
+}</code></pre>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Por que derivado e não campo?</strong> Se você guardar a duração total e alguém adicionar uma música sem
+      atualizar o total, os dois ficam diferentes. Calcular na hora elimina esse risco. Guarde o dado <em>primário</em>;
+      calcule o <em>derivado</em>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ OPERAÇÃO × MÉTODO ============================ -->
+<section id="operacoes" data-toc="Operação × método" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gears text-sky-400 mr-2"></i>Operação é o contrato; método é a implementação</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>operação</strong> é a declaração: nome, parâmetros e retorno (a assinatura). É o <em>o quê</em>.
+      Um <strong>método</strong> é a implementação concreta, com o corpo do código. É o <em>como</em>.
+    </p>
+    <p>
+      Em Java, uma operação declarada como <code>abstract</code> na superclasse é um contrato, e cada subclasse
+      fornece seu método. É a base do polimorfismo, tema do tópico de herança.
+    </p>
+  </div>
+
+<pre class="ah-code"><code><span class="kw">public abstract class</span> <span class="ty">Usuario</span> {
+    <span class="cm">// operação (contrato): toda subclasse PRECISA ter este método</span>
+    <span class="kw">public abstract</span> String <span class="fn">tipoDePerfil</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Ouvinte</span> <span class="kw">extends</span> <span class="ty">Usuario</span> {
+    <span class="cm">// método (implementação) da operação para o ouvinte</span>
+    <span class="kw">@Override</span>
+    <span class="kw">public</span> String <span class="fn">tipoDePerfil</span>() { <span class="kw">return</span> <span class="str">"Ouvinte"</span>; }
+}
+
+<span class="kw">public class</span> <span class="ty">Artista</span> <span class="kw">extends</span> <span class="ty">Usuario</span> {
+    <span class="kw">@Override</span>
+    <span class="kw">public</span> String <span class="fn">tipoDePerfil</span>() { <span class="kw">return</span> <span class="str">"Artista"</span>; }
+}</code></pre>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Usuario {
+        &lt;&lt;abstract&gt;&gt;
+        +tipoDePerfil()* String
+    }
+    class Ouvinte {
+        +tipoDePerfil() String
+    }
+    class Artista {
+        +tipoDePerfil() String
+    }
+    Usuario &lt;|-- Ouvinte
+    Usuario &lt;|-- Artista
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Uma operação (<code>tipoDePerfil</code> na superclasse) e dois métodos (um em cada subclasse). Veja o polimorfismo em ação no tópico de herança.</p>
+</section>
+
+<!-- ============================ COMANDO × CONSULTA ============================ -->
+<section id="comando-consulta" data-toc="Comando × consulta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-sky-400 mr-2"></i>Comando ou consulta: não misture</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um bom método faz <strong class="text-white">uma</strong> dessas duas coisas: <strong class="text-white">muda o estado</strong>
+    (comando) ou <strong class="text-white">responde uma pergunta</strong> (consulta). Quando faz as duas, o efeito colateral
+    fica escondido e o código fica difícil de entender e de testar.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div class="ah-card p-5">
+      <div class="text-xs font-bold text-rose-300 uppercase mb-2">Comando — muda estado</div>
+      <p class="font-mono text-xs text-slate-300">void depositar(double valor)</p>
+      <p class="text-xs text-slate-400 mt-2">Não retorna o saldo. Quem quiser ver o saldo chama <code>getSaldo()</code>.</p>
+    </div>
+    <div class="ah-card p-5">
+      <div class="text-xs font-bold text-emerald-300 uppercase mb-2">Consulta — só lê</div>
+      <p class="font-mono text-xs text-slate-300">double getSaldo()</p>
+      <p class="text-xs text-slate-400 mt-2">Não altera nada. Pode ser chamada quantas vezes for preciso sem efeito colateral.</p>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Efeito colateral escondido</strong> é uma das maiores fontes de bugs. Um método chamado <code>getSaldo()</code>
+      que, por acidente, registra um log ou cobra uma taxa surpreende quem só queria ler. Nomes honestos evitam isso.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NOMES E PARÂMETROS ============================ -->
+<section id="nomes" data-toc="Nomes e parâmetros" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tag text-sky-400 mr-2"></i>Nomes contam uma história de negócio</h2>
+  <p class="ah-lead text-sm mb-5">Compare duas operações que mexem no mesmo saldo. Os nomes dizem a intenção.</p>
+
+<pre class="ah-code"><code><span class="cm">// Nome vago: não se sabe o porquê da movimentação</span>
+<span class="kw">public void</span> <span class="fn">processar</span>(<span class="kw">double</span> v) { ... }
+
+<span class="cm">// Nome de domínio: a intenção aparece no código e no extrato</span>
+<span class="kw">public void</span> <span class="fn">debitarAssinatura</span>(<span class="kw">double</span> valor, String descricao) { ... }
+<span class="kw">public void</span> <span class="fn">sacar</span>(<span class="kw">double</span> valor) { ... }</code></pre>
+
+  <div class="ah-prose mt-5">
+    <p>
+      Quando um método precisa de muitos parâmetros (quatro ou mais), é sinal de que falta um objeto que os agrupe.
+      Esse agrupador se chama <em>parameter object</em>:
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// ⚠️ Muitos parâmetros soltos, fácil de trocar a ordem</span>
+<span class="kw">public void</span> <span class="fn">reproduzir</span>(String musicaId, String qualidade, String dispositivo, String regiao) { ... }
+
+<span class="cm">// ✅ Um objeto que nomeia o contexto</span>
+<span class="kw">public record</span> <span class="ty">ContextoDeReproducao</span>(String musicaId, String qualidade, String dispositivo, String regiao) {}
+<span class="kw">public void</span> <span class="fn">reproduzir</span>(<span class="ty">ContextoDeReproducao</span> ctx) { ... }</code></pre>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Cheiro</th><th>Problema</th><th>Caminho</th></tr></thead>
+      <tbody>
+        <tr><td>Atributo <code>public</code></td><td>Qualquer código corrompe o estado</td><td><code>private</code> + operação que valida</td></tr>
+        <tr><td>Campo derivado guardado</td><td>Dado duplicado que pode ficar desatualizado</td><td>Calcular no método</td></tr>
+        <tr><td>Setter para tudo</td><td>Modelo anêmico: a regra fica fora da classe</td><td>Só exponha o que o negócio pede</td></tr>
+        <tr><td>Método que muda e retorna</td><td>Efeito colateral escondido</td><td>Separe comando de consulta</td></tr>
+        <tr><td>Nome genérico (<code>processar</code>)</td><td>Ninguém sabe o que acontece</td><td>Verbo do domínio: <code>cobrar</code>, <code>reproduzir</code></td></tr>
+        <tr><td>Dinheiro em <code>double</code></td><td>Erro de arredondamento acumulado</td><td>Use <code>BigDecimal</code> em produção</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ NA INDÚSTRIA ============================ -->
+<section id="industria" data-toc="Na indústria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-building text-sky-400 mr-2"></i>Na indústria</h2>
+  <div class="ah-prose">
+    <p>
+      Em sistemas financeiros, <strong>dinheiro nunca é <code>double</code></strong>. Use <code>BigDecimal</code>, porque
+      <code>double</code> acumula erros de arredondamento. O Melodia usa <code>double</code> apenas por didática.
+    </p>
+    <p>
+      Tipos ricos também evitam bugs: em vez de um <code>int status</code> com códigos mágicos, um <code>enum</code> como
+      <code>StatusAssinatura</code> só aceita valores válidos, e o compilador reclama de valores errados.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public enum</span> <span class="ty">StatusAssinatura</span> { ATIVA, SUSPENSA, CANCELADA }
+
+<span class="cm">// O compilador impede o valor inválido "ATIVADA" ou "1"</span>
+<span class="kw">private</span> <span class="ty">StatusAssinatura</span> status = <span class="ty">StatusAssinatura</span>.ATIVA;</code></pre>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual método segue o princípio “comando × consulta”?</p>
+      <button class="ah-quiz-opt"><code>double sacar(double v)</code>, que altera o saldo e devolve o novo valor</button>
+      <button class="ah-quiz-opt"><code>double getSaldo()</code>, que apenas lê o saldo</button>
+      <button class="ah-quiz-opt"><code>void processar()</code>, que altera tudo e não diz o que faz</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. <code>getSaldo()</code> só responde uma pergunta, sem efeito colateral. O <code>sacar</code> da primeira
+        opção mistura comando e consulta, e o <code>processar</code> tem nome vago.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um atributo <code>duracaoTotal</code> é guardado e atualizado a cada música adicionada. Qual é o problema principal?</p>
+      <button class="ah-quiz-opt">Dado derivado duplicado, que pode ficar inconsistente</button>
+      <button class="ah-quiz-opt">Ele não pode ser <code>int</code></button>
+      <button class="ah-quiz-opt">Atributos não podem armazenar números</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. Se alguém esquecer de atualizar o total, ele mente. Como a duração pode ser calculada a partir das
+        músicas, é melhor derivá-la no método do que guardá-la.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHECKLIST ============================ -->
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar deste tópico</h2>
+  <ul class="ah-prose">
+    <li>Atributos são o estado do objeto. Quase sempre <code>private</code>, para proteger os invariantes.</li>
+    <li><code>static</code> é de classe (um para todos). Dado derivado é calculado, não guardado.</li>
+    <li>Operação é o contrato; método é a implementação. Subclasses implementam o mesmo contrato de jeitos diferentes.</li>
+    <li>Separe comando (muda estado) de consulta (lê). Use nomes do domínio e agrupe parâmetros demais.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
