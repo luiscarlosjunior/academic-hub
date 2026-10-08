@@ -121,6 +121,192 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-origem" data-toc="Aprofundamento: origem e propósito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>De onde vêm os cinco princípios</h2>
+  <div class="ah-prose">
+    <p>
+      O acrônimo SOLID foi popularizado por Robert C. Martin (“Uncle Bob”) no início dos anos 2000, reunindo princípios
+      formulados por outros autores: Liskov (1987), Meyer (1988, com o <em>open–closed</em>) e o próprio Martin. Eles não são
+      leis, e sim heurísticas que descrevem o que torna um projeto <strong>fácil de mudar</strong>.
+    </p>
+    <p>
+      O objetivo comum é controlar o <strong>acoplamento</strong> e a <strong>coesão</strong>. Um módulo coeso faz uma coisa.
+      Um módulo pouco acoplado não depende de detalhes de outros. Quando esses dois critérios são atendidos, uma mudança fica
+      restrita ao lugar onde ela deve acontecer.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Sigla</th><th>Princípio</th><th>Pergunta de revisão</th></tr></thead>
+      <tbody>
+        <tr><td>S</td><td>Responsabilidade Única (SRP)</td><td>Quantas razões diferentes existem para esta classe mudar?</td></tr>
+        <tr><td>O</td><td>Aberto–Fechado (OCP)</td><td>Adicionar um novo caso exige editar código existente?</td></tr>
+        <tr><td>L</td><td>Substituição de Liskov (LSP)</td><td>O subtipo pode substituir o tipo base sem surpresas?</td></tr>
+        <tr><td>I</td><td>Segregação de Interfaces (ISP)</td><td>Algum cliente é obrigado a depender de métodos que não usa?</td></tr>
+        <tr><td>D</td><td>Inversão de Dependência (DIP)</td><td>A regra de negócio depende de um detalhe concreto (banco, API)?</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-srp" data-toc="S: responsabilidade única" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-1 text-emerald-400 mr-2"></i>S — Responsabilidade Única</h2>
+  <p class="ah-lead text-sm mb-5">
+    Martin define a responsabilidade como uma razão para mudar, e não como uma tarefa. Uma classe deve ter apenas uma
+    <em>razão para mudar</em>, ou seja, um único ator (grupo de pessoas) que a pede.
+  </p>
+<pre class="ah-code"><code><span class="cm">// ❌ Três razões para mudar: regra de cobrança, persistência e formato do recibo</span>
+<span class="kw">public class</span> <span class="ty">Assinatura</span> {
+    <span class="kw">public void</span> <span class="fn">cobrar</span>(<span class="kw">double</span> valor) { <span class="cm">/* regra */</span> }
+    <span class="kw">public void</span> <span class="fn">salvarNoBanco</span>() { <span class="cm">/* JDBC aqui */</span> }
+    <span class="kw">public String</span> <span class="fn">gerarReciboHtml</span>() { <span class="cm">/* HTML aqui */</span> }
+}
+
+<span class="cm">// ✅ Cada responsabilidade tem sua classe</span>
+<span class="kw">public class</span> <span class="ty">Assinatura</span> { <span class="kw">public void</span> <span class="fn">cobrar</span>(<span class="kw">double</span> valor) { <span class="cm">/* regra */</span> } }
+<span class="kw">public class</span> <span class="ty">RepositorioAssinaturas</span> { <span class="cm">/* persistência */</span> }
+<span class="kw">public class</span> <span class="ty">FormatadorRecibo</span> { <span class="cm">/* apresentação */</span> }</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Teste do ator:</strong> se o financeiro pede uma mudança na cobrança, a equipe de dados pede outra no banco e o
+      marketing pede outra no recibo, a classe tem três atores e precisa ser dividida.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-ocp" data-toc="O: aberto–fechado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-door-open text-emerald-400 mr-2"></i>O — Aberto para extensão, fechado para modificação</h2>
+  <p class="ah-lead text-sm mb-5">
+    Bertrand Meyer (1988) propôs que um módulo deveria ser aberto para extensão e fechado para modificação. Na prática, isso
+    significa que um novo comportamento entra como uma nova classe, e não como mais um <code>if</code> em código antigo.
+  </p>
+<pre class="ah-code"><code><span class="cm">// ❌ Cada novo meio de pagamento exige editar este método</span>
+<span class="kw">public void</span> <span class="fn">cobrar</span>(String meio, <span class="kw">double</span> valor) {
+    <span class="kw">if</span> (meio.equals(<span class="str">"cartao"</span>))     { <span class="cm">/* ... */</span> }
+    <span class="kw">else if</span> (meio.equals(<span class="str">"boleto"</span>)) { <span class="cm">/* ... */</span> }
+    <span class="kw">else if</span> (meio.equals(<span class="str">"pix"</span>))    { <span class="cm">/* ... */</span> }
+}
+
+<span class="cm">// ✅ Um contrato, e cada meio é uma extensão nova</span>
+<span class="kw">public interface</span> <span class="ty">MeioDePagamento</span> { <span class="kw">void</span> <span class="fn">cobrar</span>(<span class="kw">double</span> valor); }
+<span class="kw">public class</span> <span class="ty">Pix</span> <span class="kw">implements</span> <span class="ty">MeioDePagamento</span> { <span class="kw">public void</span> <span class="fn">cobrar</span>(<span class="kw">double</span> v) { <span class="cm">/* ... */</span> } }</code></pre>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Aberto e fechado têm custo:</strong> o OCP só compensa onde a variação é real e recorrente. Abstrair antes de a
+      variação aparecer é o erro de “abstração especulativa” discutido no tópico 03.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-lsp" data-toc="L: substituição de Liskov" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>L — Substituição de Liskov</h2>
+  <p class="ah-lead text-sm mb-5">
+    O exemplo do retângulo e do quadrado (tópico 04) é o caso clássico. Subtipo que quebra o comportamento esperado do tipo
+    base viola o LSP, mesmo que a herança compile sem erros.
+  </p>
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Sinal de violação:</strong> um <code>if (x instanceof Subtipo)</code> dentro de um método que recebe o tipo base
+      é quase sempre um indício de que o subtipo não cumpre o contrato.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-isp" data-toc="I: segregação de interfaces" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-emerald-400 mr-2"></i>I — Segregação de Interfaces</h2>
+  <p class="ah-lead text-sm mb-5">
+    Clientes não devem ser forçados a depender de métodos que não usam. Uma interface “gorda” obriga toda implementação a
+    fornecer métodos que podem não fazer sentido para ela.
+  </p>
+<pre class="ah-code"><code><span class="cm">// ❌ Interface gorda: ouvinte e artista não usam tudo</span>
+<span class="kw">public interface</span> <span class="ty">Usuario</span> {
+    <span class="kw">void</span> <span class="fn">ouvir</span>(<span class="ty">Musica</span> m);
+    <span class="kw">void</span> <span class="fn">publicarAlbum</span>(<span class="ty">Album</span> a);   <span class="cm">// ouvinte não publica: seria exceção</span>
+}
+
+<span class="cm">// ✅ Interfaces por papel</span>
+<span class="kw">public interface</span> <span class="ty">Ouvinte</span>  { <span class="kw">void</span> <span class="fn">ouvir</span>(<span class="ty">Musica</span> m); }
+<span class="kw">public interface</span> <span class="ty">Publicador</span> { <span class="kw">void</span> <span class="fn">publicarAlbum</span>(<span class="ty">Album</span> a); }</code></pre>
+</section>
+
+<section id="aprof-dip" data-toc="D: inversão de dependência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-turn-to-dots text-emerald-400 mr-2"></i>D — Inversão de Dependência</h2>
+  <p class="ah-lead text-sm mb-5">
+    Módulos de alto nível (regras de negócio) não devem depender de módulos de baixo nível (banco, API). Ambos devem depender
+    de abstrações, e as abstrações não devem depender de detalhes.
+  </p>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart LR
+    subgraph Antes["Dependência direta"]
+        R1["RegraCobranca"] --&gt; B1["BancoPostgres"]
+    end
+    subgraph Depois["Dependência invertida"]
+        R2["RegraCobranca"] --&gt; I["«interface» Repositorio"]
+        B2["BancoPostgres"] -.-&gt; I
+    end
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Depois da inversão, a regra de negócio depende de uma interface que ela mesma define. O banco passa a implementar essa interface, e a seta de dependência aponta para a abstração.</p>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">RegraCobranca</span> {
+    <span class="kw">private final</span> <span class="ty">Repositorio</span> repositorio;     <span class="cm">// abstração, não BancoPostgres</span>
+    <span class="kw">public</span> <span class="fn">RegraCobranca</span>(<span class="ty">Repositorio</span> r) { <span class="kw">this</span>.repositorio = r; }
+}</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Benefício concreto:</strong> os testes de <code>RegraCobranca</code> usam um repositório falso em memória. Sem
+      DIP, testar a regra exigiria um banco rodando.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-nao-aplicar" data-toc="Quando não aplicar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ban text-emerald-400 mr-2"></i>SOLID não é uma checklist obrigatória</h2>
+  <div class="ah-prose">
+    <p>
+      Aplicar SOLID em tudo gera um sistema cheio de interfaces com uma única implementação, classes minúsculas e uma navegação
+      cansativa. Os princípios têm custo: cada abstração é uma camada a mais para entender. A decisão correta depende de
+      quanto a parte vai mudar.
+    </p>
+    <p>
+      Regra de bolso: aplique o princípio quando a mudança já aconteceu ou é previsível com boa razão. Para código que nunca vai
+      mudar, a solução simples é a melhor, e o princípio KISS e o YAGNI pesam mais.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Uma classe <code>Relatorio</code> calcula totais, gera PDF e envia e-mail. Quais responsabilidades e quais atores?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> três responsabilidades: cálculo (financeiro), geração do PDF (apresentação) e envio (comunicação). Cada uma muda por um ator diferente. Separe em três classes e uma orquestração simples.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o DIP ajuda a modelagem, e não só o código?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> porque o diagrama passa a mostrar as regras de negócio dependendo de interfaces do domínio, e não de tecnologias. O modelo de domínio fica limpo, e a infraestrutura aparece no diagrama de componentes ou de implantação, como uma implementação da interface.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Um sistema pequeno tem uma única forma de pagamento que não deve mudar. Você aplicaria OCP com uma interface?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> não, por enquanto. Sem variação, a interface é custo sem benefício (YAGNI). Se a segunda forma de pagamento aparecer, aí se extrai a interface, e a refatoração é pequena com testes em volta.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>MARTIN, Robert C. <em>Arquitetura Limpa</em>. Alta Books. Capítulos sobre os princípios de projeto e de empacotamento.</li>
+    <li>MARTIN, Robert C. <em>Código Limpo</em>. Alta Books. Aplicação prática da responsabilidade única e da legibilidade.</li>
+    <li>MEYER, Bertrand. <em>Object-Oriented Software Construction</em>. Origem do princípio aberto–fechado.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -191,6 +377,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
