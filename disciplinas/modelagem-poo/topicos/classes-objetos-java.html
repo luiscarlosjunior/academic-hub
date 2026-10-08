@@ -268,6 +268,156 @@ x.titulo();   <span class="cm">// "Cometa"</span></code></pre>
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-memoria" data-toc="Aprofundamento: memória, referências e heap" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-memory text-amber-400 mr-2"></i>O que acontece na memória quando um objeto nasce</h2>
+  <div class="ah-prose">
+    <p>
+      Em Java, objetos vivem no <strong>heap</strong>, a região de memória gerenciada pelo coletor de lixo. As variáveis locais
+      e os parâmetros vivem na <strong>pilha</strong> (stack) de cada chamada. Uma variável de tipo de classe não guarda o
+      objeto: guarda uma <strong>referência</strong>, que é um endereço para o objeto no heap.
+    </p>
+    <p>
+      Essa distinção explica quase todos os comportamentos surpreendentes de objetos. Quando você passa um objeto para um
+      método, a referência é copiada, mas aponta para o mesmo objeto. Quando você atribui <code>b = a</code>, dois nomes passam
+      a apontar para o mesmo lugar.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public static void</span> <span class="fn">renomear</span>(<span class="ty">Musica</span> m) {
+    m.setTitulo(<span class="str">"Novo título"</span>);       <span class="cm">// altera o MESMO objeto que o chamador tem</span>
+    m = <span class="kw">new</span> <span class="ty">Musica</span>(<span class="str">"Outra"</span>, <span class="str">"X"</span>, <span class="num">1</span>);  <span class="cm">// troca só a cópia local da referência</span>
+}
+
+<span class="ty">Musica</span> cometa = <span class="kw">new</span> <span class="ty">Musica</span>(<span class="str">"Cometa"</span>, <span class="str">"Banda Nébula"</span>, <span class="num">187</span>);
+renomear(cometa);
+System.out.println(cometa.getTitulo());     <span class="cm">// "Novo título", não "Outra"</span></code></pre>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Java passa referências por valor:</strong> o valor copiado é o endereço. Quem recebe pode alterar o objeto, mas
+      não pode trocar a variável do chamador. Essa é a regra que resolve a maioria das dúvidas de parâmetros.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-vida" data-toc="Ciclo de vida e coleta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-recycle text-amber-400 mr-2"></i>Ciclo de vida: quando um objeto deixa de existir</h2>
+  <div class="ah-prose">
+    <p>
+      Um objeto é <strong>elegível para coleta</strong> quando nenhuma referência alcançável aponta para ele. Não há um
+      <code>delete</code> em Java: o coletor de lixo recupera a memória no seu tempo. Isso significa que a vida de um objeto é
+      definida pelas referências, e não por quem o criou.
+    </p>
+    <p>
+      Na modelagem, isso importa para a composição. O ciclo de vida de uma parte composta depende do todo: se o álbum some, suas
+      faixas devem ficar inacessíveis, o que em Java acontece quando nenhuma outra referência as mantém.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-construtores" data-toc="Sobrecarga de construtores" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Construtores múltiplos e encadeamento</h2>
+  <div class="ah-prose">
+    <p>
+      Uma classe pode ter mais de um construtor, desde que as assinaturas sejam diferentes. Para evitar duplicar a validação,
+      um construtor pode chamar outro com <code>this(...)</code>. A chamada deve ser a primeira instrução.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Musica</span> {
+    <span class="kw">private final</span> String titulo;
+    <span class="kw">private final</span> String artista;
+    <span class="kw">private final</span> <span class="kw">int</span> duracaoSegundos;
+
+    <span class="kw">public</span> <span class="fn">Musica</span>(String titulo, String artista, <span class="kw">int</span> duracaoSegundos) {
+        <span class="kw">if</span> (duracaoSegundos &lt;= <span class="num">0</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"duração deve ser positiva"</span>);
+        <span class="kw">this</span>.titulo = titulo;
+        <span class="kw">this</span>.artista = artista;
+        <span class="kw">this</span>.duracaoSegundos = duracaoSegundos;
+    }
+
+    <span class="cm">// construtor secundário: reaproveita a validação do principal</span>
+    <span class="kw">public</span> <span class="fn">Musica</span>(String titulo, String artista) {
+        <span class="kw">this</span>(titulo, artista, <span class="num">180</span>);   <span class="cm">// padrão de 3 minutos</span>
+    }
+}</code></pre>
+</section>
+
+<section id="aprof-igualdade" data-toc="Igualdade: equals e hashCode" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-equals text-amber-400 mr-2"></i>Igualdade de conteúdo: o contrato de equals e hashCode</h2>
+  <div class="ah-prose">
+    <p>
+      Quando duas faixas com o mesmo título, artista e duração devem ser consideradas a mesma música, a classe precisa
+      sobrescrever <code>equals</code>. Quem sobrescreve <code>equals</code> também deve sobrescrever <code>hashCode</code>, porque
+      coleções como <code>HashSet</code> e <code>HashMap</code> dependem dos dois. O contrato exige que objetos iguais tenham o
+      mesmo <code>hashCode</code>.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">@Override public boolean</span> <span class="fn">equals</span>(Object o) {
+    <span class="kw">if</span> (<span class="kw">this</span> == o) <span class="kw">return true</span>;                 <span class="cm">// mesma identidade</span>
+    <span class="kw">if</span> (!(o <span class="kw">instanceof</span> <span class="ty">Musica</span> m)) <span class="kw">return false</span>;
+    <span class="kw">return</span> titulo.equals(m.titulo) &amp;&amp; artista.equals(m.artista)
+        &amp;&amp; duracaoSegundos == m.duracaoSegundos;   <span class="cm">// mesmo conteúdo</span>
+}
+
+<span class="kw">@Override public int</span> <span class="fn">hashCode</span>() {
+    <span class="kw">return</span> Objects.hash(titulo, artista, duracaoSegundos);
+}</code></pre>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Decisão de modelagem, não só de código:</strong> “são a mesma música?” depende do negócio. Duas gravações ao vivo
+      da mesma canção são objetos diferentes com o mesmo título. Por isso, em sistemas reais, costuma-se usar um identificador
+      próprio (<code>id</code>) como chave, e não o conteúdo.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-copia" data-toc="Cópia rasa e cópia profunda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-copy text-amber-400 mr-2"></i>Copiar um objeto: rasa ou profunda?</h2>
+  <div class="ah-prose">
+    <p>
+      Uma cópia <strong>rasa</strong> duplica o objeto de primeiro nível, mas os objetos referenciados por ele continuam sendo os
+      mesmos. Uma cópia <strong>profunda</strong> duplica também os objetos referenciados. A escolha depende da relação modelada:
+      na composição, a cópia do álbum deve copiar as faixas; na agregação, pode apenas referenciar as músicas.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// Cópia rasa: a lista é nova, mas as Musica dentro dela são as MESMAS</span>
+<span class="ty">Album</span> copiaRasa = <span class="kw">new</span> <span class="ty">Album</span>(original.getTitulo(), original.getArtista(), original.getAno());
+copiaRasa.getFaixas().addAll(original.getFaixas());   <span class="cm">// mesmos objetos Musica</span>
+
+<span class="cm">// Cópia profunda (composição): cada faixa é copiada também</span>
+<span class="kw">for</span> (<span class="ty">Musica</span> m : original.getFaixas()) {
+    copiaProfunda.adicionarFaixa(m.getTitulo(), m.getDuracaoSegundos());
+}</code></pre>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Após <code>Musica a = new Musica(...)</code>, <code>Musica b = a; b = null;</code>, o objeto ainda existe? E se, em seguida, <code>a = null</code>?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> sim, após <code>b = null</code>, o objeto ainda é referenciado por <code>a</code>. Após <code>a = null</code>, não há mais referência alcançável, e o objeto torna-se elegível para coleta.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Você sobrescreveu <code>equals</code> em <code>Musica</code> mas não <code>hashCode</code>. O que pode acontecer com um <code>HashSet</code>?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> duas músicas “iguais” podem cair em baldes diferentes do conjunto, e o conjunto aceita duplicatas ou não encontra um elemento que está lá. O <code>hashCode</code> precisa ser coerente com o <code>equals</code>.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Para uma <code>Playlist</code> (agregação), a cópia deve ser rasa ou profunda? E para um <code>Album</code>?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> a playlist copiada pode ser rasa, pois as músicas pertencem ao catálogo e são apenas referenciadas. O álbum copiado deve ser profundo, pois as faixas são partes que pertencem a ele (composição).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>BLOCH, Joshua. <em>Effective Java</em>, 3ª edição. Itens sobre <code>equals</code>, <code>hashCode</code> e imutabilidade.</li>
+    <li>ORACLE. <em>The Java Tutorials</em>: seção sobre objetos, construtores e coleta de lixo.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
