@@ -218,6 +218,158 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-abstracao" data-toc="Aprofundamento: abstração" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye-slash text-emerald-400 mr-2"></i>Abstração: o que o modelo decide ignorar</h2>
+  <div class="ah-prose">
+    <p>
+      Abstração é o processo de <strong>destacar o que é essencial</strong> para um propósito e suprimir o resto. Booch a
+      trata como um dos princípios centrais da orientação a objetos. Ela não é uma propriedade do mundo: é uma escolha
+      feita pelo modelador, de acordo com a pergunta que o modelo precisa responder.
+    </p>
+    <p>
+      Por isso a mesma pessoa vira classes diferentes conforme o contexto. Um sistema acadêmico vê <code>Aluno</code> com
+      matrícula e coeficiente de rendimento. Um hospital vê <code>Paciente</code> com alergias e tipo sanguíneo. A pessoa é
+      a mesma; o recorte muda.
+    </p>
+  </div>
+
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Tipo de abstração</th><th>Descrição</th><th>Exemplo no Melodia</th></tr></thead>
+      <tbody>
+        <tr><td>Abstração de dados</td><td>Representar um conceito pelo conjunto de operações que o manipulam</td><td>“Conta” é definida por <code>depositar</code>, <code>sacar</code> e <code>extrato</code></td></tr>
+        <tr><td>Abstração de controle</td><td>Esconder a sequência de passos atrás de uma operação de alto nível</td><td><code>cobrarAssinatura()</code> esconde a consulta, o débito e o registro</td></tr>
+        <tr><td>Generalização</td><td>Reunir tipos parecidos sob um tipo comum</td><td><code>Usuario</code> abstrai <code>Ouvinte</code> e <code>Artista</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Abstração errada é pior que não abstrair.</strong> Uma abstração que esconde o que importa obriga quem usa a
+      classe a adivinhar o comportamento. A pergunta de controle é: “o cliente desta classe consegue entender o que ela faz
+      sem ler o código dela?”
+    </div>
+  </div>
+</section>
+
+<section id="aprof-ocultacao" data-toc="Ocultação de informação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-emerald-400 mr-2"></i>Encapsulamento e ocultação de informação</h2>
+  <div class="ah-prose">
+    <p>
+      David Parnas (1972) propôs que um módulo deve <strong>esconder decisões de projeto que provavelmente vão mudar</strong>.
+      Esse é o princípio da <em>ocultação de informação</em>, e o encapsulamento é o mecanismo que o torna possível em
+      linguagens orientadas a objetos.
+    </p>
+    <p>
+      Note a diferença entre dois termos que aparecem juntos. <strong>Encapsulamento</strong> é a técnica de agrupar dados e
+      operações e restringir o acesso direto aos dados. <strong>Ocultação de informação</strong> é o objetivo: proteger o
+      cliente de decisões que podem mudar.
+    </p>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <h4 class="ah-h3 text-sm mb-3">Exemplo: o saldo pode mudar de formato?</h4>
+    <p class="text-xs text-slate-400 leading-relaxed mb-3">
+      Imagine que o Melodia passe a guardar o saldo em centavos (<code>long</code>) para evitar erros de arredondamento.
+      Se o campo for público, todo código que lê <code>conta.saldo</code> quebra. Se for privado e exposto por
+      <code>getSaldo()</code>, só a classe muda.
+    </p>
+  </div>
+
+<pre class="ah-code"><code><span class="cm">// Versão 1: saldo em reais (double)</span>
+<span class="kw">public class</span> <span class="ty">ContaBancaria</span> {
+    <span class="kw">private double</span> saldo;
+    <span class="kw">public double</span> <span class="fn">getSaldo</span>() { <span class="kw">return</span> saldo; }
+}
+
+<span class="cm">// Versão 2: saldo em centavos (long). Quem chama getSaldo() não percebe a mudança.</span>
+<span class="kw">public class</span> <span class="ty">ContaBancaria</span> {
+    <span class="kw">private long</span> saldoEmCentavos;
+    <span class="kw">public double</span> <span class="fn">getSaldo</span>() { <span class="kw">return</span> saldoEmCentavos / <span class="num">100.0</span>; }
+}</code></pre>
+</section>
+
+<section id="aprof-contratos" data-toc="Invariantes e contratos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-signature text-emerald-400 mr-2"></i>Invariantes e contratos (Design by Contract)</h2>
+  <p class="ah-lead text-sm mb-5">
+    Bertrand Meyer, criador da linguagem Eiffel, formalizou o encapsulamento como um <strong class="text-white">contrato</strong>
+    entre a classe e quem a usa. Três tipos de condição definem o contrato.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-indigo-400"><div class="text-xs font-bold text-indigo-300 mb-2">Pré-condição</div><p class="text-xs text-slate-400 leading-relaxed">O que o cliente precisa garantir antes de chamar. Ex.: <code>valor &gt; 0</code> em <code>sacar</code>.</p></div>
+    <div class="ah-card p-5 border-t-4 border-indigo-400"><div class="text-xs font-bold text-indigo-300 mb-2">Pós-condição</div><p class="text-xs text-slate-400 leading-relaxed">O que a operação garante ao terminar. Ex.: <code>saldo@depois = saldo@antes - valor</code>.</p></div>
+    <div class="ah-card p-5 border-t-4 border-indigo-400"><div class="text-xs font-bold text-indigo-300 mb-2">Invariante</div><p class="text-xs text-slate-400 leading-relaxed">Condição que vale sempre, antes e depois de qualquer operação pública. Ex.: <code>saldo &gt;= 0</code>.</p></div>
+  </div>
+
+<pre class="ah-code"><code><span class="kw">public double</span> <span class="fn">sacar</span>(<span class="kw">double</span> valor) {
+    <span class="cm">// pré-condição: o cliente deve respeitar</span>
+    <span class="kw">if</span> (valor &lt;= <span class="num">0</span>) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"pré: valor &gt; 0"</span>);
+    <span class="kw">if</span> (valor &gt; saldo)    <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"invariante: saldo &gt;= 0"</span>);
+
+    <span class="kw">double</span> anterior = saldo;
+    saldo -= valor;
+
+    <span class="cm">// pós-condição: verificada pela própria classe</span>
+    <span class="kw">assert</span> saldo == anterior - valor;
+    <span class="kw">return</span> saldo;
+}</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Quem é responsável por quê:</strong> se a pré-condição falha, a culpa é do cliente. Se a pós-condição ou o
+      invariante falham, a culpa é da classe. Essa separação ajuda a localizar bugs rapidamente.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-visibilidade" data-toc="Visibilidade na UML e em Java" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-emerald-400 mr-2"></i>Visibilidade: a notação de cada decisão</h2>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+classDiagram
+    class ContaBancaria {
+        -String numero
+        -double saldo
+        +depositar(valor) double
+        +sacar(valor) double
+        #aplicarTaxa(valor) void
+        ~validarNumero() boolean
+    }
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Quatro visibilidades: <code>-</code> private, <code>+</code> public, <code>#</code> protected, <code>~</code> package. O saldo é privado, e só operações validadas o alteram.</p>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Dê um exemplo de abstração que <em>não</em> deveria existir no sistema de uma escola (abstração especulativa).</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> uma hierarquia <code>Pessoa → Aluno/Professor/Funcionario/Terceirizado</code> criada “porque um dia pode haver outro tipo”, quando só existe aluno e professor. Pela regra de bolso (abstrair na terceira repetição), o correto é modelar só o que existe e refatorar quando a variação aparecer.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Escreva a pré-condição, a pós-condição e um invariante para a operação <code>depositar(valor)</code>.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> pré: <code>valor &gt; 0</code>. Pós: <code>saldo@depois = saldo@antes + valor</code>. Invariante: <code>saldo &gt;= 0</code> (vale também após o depósito, que só aumenta o saldo).</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Por que tornar o atributo <code>saldo</code> público fere a ocultação de informação, mesmo que o código atual funcione?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> porque expõe uma decisão de projeto (saldo em <code>double</code>, como armazenado) a todo o sistema. Qualquer mudança futura de representação, ou de regra, passa a exigir alterações em todos os clientes. Além disso, deixa o invariante sem proteção.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>PARNAS, David L. “On the Criteria to Be Used in Decomposing Systems into Modules”, <em>Communications of the ACM</em>, 1972. Texto fundador da ocultação de informação.</li>
+    <li>MEYER, Bertrand. <em>Object-Oriented Software Construction</em>. Prentice Hall. Design by Contract, com pré, pós e invariantes.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -267,6 +419,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
