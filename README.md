@@ -31,15 +31,16 @@ Não há build, não há dependência de Node, não há servidor: basta abrir.
 | 15 | Processamento Estatístico de Linguagem Natural | Modelo de n-gramas, Naive Bayes e TF-IDF |
 | 16 | Lógica Fuzzy | Fuzzificação e controlador Mamdani completo com defuzzificação |
 
-### 📐 Modelagem Orientada a Objetos (UML) — 16 tópicos
+### 📐 Modelagem Orientada a Objetos — 22 tópicos em duas trilhas
+
+A disciplina é dividida em duas trilhas, selecionáveis por abas na página da disciplina:
+
+**Trilha 1 — Modelagem UML (13 tópicos)**
 
 | # | Tópico | Laboratório interativo |
 |---|--------|------------------------|
-| 01 | Introdução à POO e à Modelagem | Instanciação de objetos a partir de uma classe |
+| 00 | Modelagem do Zero: do Requisito ao Modelo | Evolução v1 → v4 do modelo Melodia, com diagramas Mermaid |
 | 02 | UML: Visão Geral e Tipos de Diagramas | Catálogo navegável dos 14 diagramas |
-| 03 | Abstração e Encapsulamento | Duas contas lado a lado: com e sem encapsulamento |
-| 04 | Herança e Polimorfismo | Despacho dinâmico passo a passo |
-| 05 | Classes Abstratas e Interfaces | “Compilador” que valida a declaração montada |
 | 06 | Relacionamentos entre Classes | Seis relações com UML + Java + ciclo de vida animado |
 | 07 | Diagrama de Casos de Uso | Diagrama clicável com «include», «extend» e generalização |
 | 08 | Diagrama de Classes | **Editor** de diagrama com geração de código Java |
@@ -49,6 +50,20 @@ Não há build, não há dependência de Node, não há servidor: basta abrir.
 | 12 | Diagrama de Máquina de Estados | Máquina de um Pedido com eventos, guardas e ações |
 | 13 | Diagramas de Componentes e Pacotes | Troca de componente e detector de dependência circular |
 | 14 | Diagrama de Implantação | Três topologias: monolito, três camadas e nuvem |
+| 17 | Diagramas de Comunicação e Estrutura Composta | Numeração com aninhamento e partes/portas de um elemento |
+| 18 | Diagrama de Temporização | Linha do tempo em escala com restrições de duração |
+
+**Trilha 2 — POO em Java (9 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 01 | Introdução à POO e à Modelagem | Instanciação de objetos a partir de uma classe |
+| — | Classes e Objetos em Java | Molde × instância, `new`, identidade e construtores |
+| — | Atributos e Operações em Java | Visibilidade, `static`, derivados e comando × consulta |
+| 03 | Abstração e Encapsulamento | Duas contas lado a lado: com e sem encapsulamento |
+| — | Associação, Agregação e Composição em Java | Album (composição) × Playlist (agregação) no código |
+| 04 | Herança e Polimorfismo | Despacho dinâmico passo a passo |
+| 05 | Classes Abstratas e Interfaces | “Compilador” que valida a declaração montada |
 | 15 | Do Diagrama ao Código | Tradutor UML → Java / C# / Python |
 | 16 | Princípios de Projeto (SOLID) | Antes e depois de cada princípio |
 
