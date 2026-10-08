@@ -219,6 +219,184 @@ pilha.<span class="fn">remove</span>(<span class="num">3</span>);      <span cla
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-generalizacao" data-toc="Aprofundamento: generalização" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Generalização e especialização na UML</h2>
+  <div class="ah-prose">
+    <p>
+      A relação de <strong>generalização</strong> expressa o “é um”: um <code>Ouvinte</code> é um <code>Usuario</code>. A
+      superclasse (mais geral) define o que é comum; a subclasse (mais específica) acrescenta ou redefine. Na UML, a seta é
+      uma linha com <strong>triângulo vazio</strong> apontando para a superclasse.
+    </p>
+    <p>
+      A herança é a implementação dessa relação em código. Quando o modelo não tem um “é um” verdadeiro, a herança é
+      errada, mesmo que seja tecnicamente possível. A verificação mais simples é o <em>teste da substituição</em>, que
+      veremos adiante com o princípio de Liskov.
+    </p>
+  </div>
+
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    class Usuario {
+        &lt;&lt;abstract&gt;&gt;
+        #String nome
+        #String email
+        +tipoDePerfil()* String
+        +resumo() String
+    }
+    class Ouvinte {
+        -Assinatura assinatura
+        +tipoDePerfil() String
+    }
+    class Artista {
+        -List~Album~ albuns
+        +tipoDePerfil() String
+    }
+    Usuario <|-- Ouvinte
+    Usuario <|-- Artista
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">A superclasse <code>Usuario</code> é abstrata: nenhum usuário “genérico” existe, só ouvintes e artistas. O <code>*</code> indica operação abstrata.</p>
+</section>
+
+<section id="aprof-tipos" data-toc="Tipos de polimorfismo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-masks-theater text-emerald-400 mr-2"></i>Polimorfismo: quatro formas que o termo cobre</h2>
+  <p class="ah-lead text-sm mb-5">
+    A palavra “polimorfismo” (do grego, “muitas formas”) aparece em contextos diferentes. Na prova, convém distinguir os quatro tipos.
+  </p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Tipo</th><th>Quando é resolvido</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Inclusão (subtipo)</strong></td><td>Em tempo de execução (ligação dinâmica)</td><td><code>Usuario u = new Ouvinte(); u.tipoDePerfil();</code></td></tr>
+        <tr><td><strong>Paramétrico (genéricos)</strong></td><td>Em compilação, uma implementação para vários tipos</td><td><code>List&lt;Musica&gt;</code>, <code>Repositorio&lt;T&gt;</code></td></tr>
+        <tr><td><strong>Sobrecarga (ad hoc)</strong></td><td>Em compilação, pela assinatura</td><td><code>somar(int, int)</code> e <code>somar(double, double)</code></td></tr>
+        <tr><td><strong>Coerção</strong></td><td>Em compilação, conversão implícita</td><td><code>double d = 3;</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Quando o termo é usado sem qualificação</strong>, em POO, quase sempre se refere ao polimorfismo de <em>inclusão</em>
+      (subtipo), que é o que a herança permite. É o que este tópico trata.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-ligacao" data-toc="Ligação dinâmica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Ligação dinâmica: quem decide o método é o objeto</h2>
+  <div class="ah-prose">
+    <p>
+      Na chamada <code>u.tipoDePerfil()</code>, o compilador só sabe que <code>u</code> é um <code>Usuario</code>. O método
+      que roda é escolhido <strong>em execução</strong>, pelo tipo real do objeto. Essa escolha chama-se <em>ligação
+      dinâmica</em> (ou <em>despacho dinâmico</em>).
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="kw">public static void</span> <span class="fn">main</span>(String[] args) {
+    <span class="ty">Usuario[]</span> usuarios = { <span class="kw">new</span> <span class="ty">Ouvinte</span>(), <span class="kw">new</span> <span class="ty">Artista</span>() };
+    <span class="kw">for</span> (<span class="ty">Usuario</span> u : usuarios) {
+        System.out.println(u.tipoDePerfil());   <span class="cm">// Ouvinte, depois Artista: o objeto escolhe</span>
+    }
+}</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Por que isso importa na modelagem:</strong> um diagrama de sequência que chama <code>tipoDePerfil()</code> em um
+      <code>Usuario</code> é válido para qualquer subtipo. Você não precisa desenhar uma interação por tipo concreto.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-liskov" data-toc="Princípio de Liskov" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>Quando a herança mente: o princípio de Liskov</h2>
+  <p class="ah-lead text-sm mb-5">
+    Barbara Liskov (1987) propôs: <em>objetos de um subtipo devem poder substituir objetos do tipo base sem alterar o
+    comportamento correto do programa</em>. O exemplo clássico mostra a violação.
+  </p>
+
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Retangulo</span> {
+    <span class="kw">protected int</span> largura, altura;
+    <span class="kw">public void</span> <span class="fn">setLargura</span>(<span class="kw">int</span> l) { largura = l; }
+    <span class="kw">public void</span> <span class="fn">setAltura</span>(<span class="kw">int</span> a)  { altura = a; }
+    <span class="kw">public int</span> <span class="fn">area</span>() { <span class="kw">return</span> largura * altura; }
+}
+
+<span class="cm">// "Quadrado é um Retângulo"? Geometricamente, sim. Como classe, quebra o contrato:</span>
+<span class="kw">public class</span> <span class="ty">Quadrado</span> <span class="kw">extends</span> <span class="ty">Retangulo</span> {
+    <span class="kw">@Override public void</span> <span class="fn">setLargura</span>(<span class="kw">int</span> l) { largura = altura = l; }   <span class="cm">// altera o outro lado!</span>
+    <span class="kw">@Override public void</span> <span class="fn">setAltura</span>(<span class="kw">int</span> a)  { largura = altura = a; }
+}
+
+<span class="cm">// Cliente que funciona com Retangulo e quebra com Quadrado:</span>
+<span class="ty">Retangulo r</span> = <span class="kw">new</span> <span class="ty">Quadrado</span>();
+r.setLargura(<span class="num">4</span>);
+r.setAltura(<span class="num">5</span>);
+System.out.println(r.area());   <span class="cm">// esperado: 20. Obtido: 25</span></code></pre>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Lição de modelagem:</strong> o “é um” precisa valer para <em>comportamento</em>, e não só para o vocabulário.
+      Um quadrado é um retângulo na geometria, mas um objeto mutável <code>Quadrado</code> não substitui <code>Retangulo</code>.
+      A solução típica é não herdar, e sim compartilhar uma interface ou composição.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-composicao" data-toc="Herança × composição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-puzzle-piece text-emerald-400 mr-2"></i>Herança ou composição?</h2>
+  <div class="ah-prose">
+    <p>
+      Herança é uma relação <strong>forte e fixa</strong>: a subclasse fica presa às decisões da superclasse, e mudanças na
+      base quebram os filhos (o problema da <em>fragilidade da classe base</em>). A composição é uma relação <strong>fraca e
+      flexível</strong>: um objeto usa outro, e a troca de comportamento é feita em tempo de execução.
+    </p>
+    <p>
+      O conselho do Gang of Four (Gamma et al., 1994) é “prefira composição a herança”. Não é uma proibição, e sim uma
+      ordem de preferência: use herança quando o “é um” for verdadeiro e estável.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th>Herança</th><th>Composição</th></tr></thead>
+      <tbody>
+        <tr><td>Relação</td><td>é um</td><td>tem um / usa um</td></tr>
+        <tr><td>Acoplamento</td><td>Alto: a subclasse conhece detalhes da base</td><td>Baixo: depende só da interface</td></tr>
+        <tr><td>Troca de comportamento</td><td>Estática (na criação da classe)</td><td>Dinâmica (troca de objeto em execução)</td></tr>
+        <tr><td>Reuso</td><td>Por especialização</td><td>Por delegação</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Na Melodia, um “Podcast” deveria herdar de “Musica”? Justifique pelo princípio de Liskov.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> depende do comportamento que o cliente espera. Se a Playlist trata qualquer item como música (duração, faixa, álbum), um podcast pode não ter álbum nem faixa, e a substituição quebra. A resposta forte propõe uma interface <code>FonteDeAudio</code> com o contrato comum (duração, título, reproduzir) e deixa música e podcast implementá-la.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Qual será a saída do código do exemplo Retângulo/Quadrado se o setter de altura for chamado antes do de largura?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> <code>setAltura(5)</code> define os dois lados como 5; <code>setLargura(4)</code> define os dois como 4; a área é 16. Qualquer ordem resulta no último valor para os dois lados, o que mostra que o quadrado não preserva a independência esperada dos lados de um retângulo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Um sistema tem <code>Pagamento</code> com subclasses por forma de pagamento (cartão, boleto, pix). Você modelaria com herança ou composição?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> a forma de pagamento muda com frequência e pode ser trocada em execução; isso favorece uma interface <code>MeioDePagamento</code> injetada em <code>Pagamento</code> (composição). Herança aqui cria uma hierarquia rígida que cresce a cada novo meio.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>LISKOV, Barbara; WING, Jeannette. “A Behavioral Notion of Subtyping”, <em>ACM TOPLAS</em>, 1994.</li>
+    <li>GAMMA, E. et al. <em>Padrões de Projeto: soluções reutilizáveis de software orientado a objetos</em>. Bookman. Origem do conselho “prefira composição a herança”.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -277,6 +455,7 @@ pilha.<span class="fn">remove</span>(<span class="num">3</span>);      <span cla
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
