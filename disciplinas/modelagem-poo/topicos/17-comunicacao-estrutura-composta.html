@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagramas de Comunicação e Estrutura Composta · AcademicHub</title>
+<meta name="description" content="Dois diagramas estruturais e de interação da UML: quem fala com quem (comunicação) e as partes internas de um elemento (estrutura composta).">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕸️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/17-comunicacao-estrutura-composta">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<!-- ============================ COMUNICAÇÃO: CONCEITO ============================ -->
+<section id="comunicacao" data-toc="Diagrama de comunicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-indigo-400 mr-2"></i>Diagrama de comunicação: quem fala com quem</h2>
+  <div class="ah-prose">
+    <p>
+      O diagrama de <strong>comunicação</strong> (chamado <em>diagrama de colaboração</em> na UML 1.x) mostra a mesma
+      interação do diagrama de sequência, mas com foco na <strong>topologia</strong>: quais objetos se conectam e quais
+      mensagens trocam. A ordem das mensagens não é uma linha do tempo, e sim uma <strong>numeração</strong>: 1, 2, 2.1, 2.2…
+    </p>
+    <p>
+      Os números com ponto indicam <strong>aninhamento</strong>. A mensagem <code>2.1</code> é disparada <em>dentro</em> da
+      mensagem <code>2</code>, e <code>2.2.1</code> é uma sub-chamada dentro de <code>2.2</code>.
+    </p>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-arrows-rotate"></i>
+    <div>
+      <strong>Sequência × comunicação:</strong> carregam a <em>mesma informação</em>. Use a sequência quando a
+      <strong>ordem no tempo</strong> importa. Use a comunicação quando o foco são as <strong>conexões</strong>
+      (acoplamento, dependências). Na prática, a sequência costuma vencer.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMUNICAÇÃO: EXEMPLO ============================ -->
+<section id="comunicacao-exemplo" data-toc="Exemplo: assinar Premium" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-crown text-indigo-400 mr-2"></i>Exemplo: assinar o plano Premium</h2>
+  <p class="ah-lead text-sm mb-5">A mesma interação do tópico de sequência, agora vista pela topologia. Quem é o centro da colaboração?</p>
+
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart LR
+    Ana["ana : Ouvinte"]
+    UI["ui : TelaAssinatura"]
+    P["p : PlataformaStreaming"]
+    A["a : Assinatura"]
+    C["c : ContaBancaria"]
+    Ana ---|"1: assinarPremium()"| UI
+    UI ---|"2: assinarPremium(ana)"| P
+    P ---|"2.1: mudarPlano(PREMIUM)"| A
+    P ---|"2.2: cobrar(conta)"| A
+    A ---|"2.2.1: debitarAssinatura(19.90)"| C
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">A <code>PlataformaStreaming</code> é o centro: fala com a <code>Assinatura</code>, que fala com a <code>ContaBancaria</code>. A numeração <code>2.2.1</code> diz que o débito é um passo dentro de <code>cobrar</code>.</p>
+
+  <div class="ah-card p-5 mt-5">
+    <h4 class="ah-h3 text-sm mb-3"><i class="fa-solid fa-magnifying-glass text-indigo-400 mr-1"></i>Como ler a numeração</h4>
+    <div class="overflow-x-auto">
+      <table class="ah-table">
+        <thead><tr><th>Número</th><th>Mensagem</th><th>Quem chama quem</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>assinarPremium()</code></td><td>Ana → tela</td></tr>
+          <tr><td>2</td><td><code>assinarPremium(ana)</code></td><td>tela → plataforma</td></tr>
+          <tr><td>2.1</td><td><code>mudarPlano(PREMIUM)</code></td><td>plataforma → assinatura (dentro da 2)</td></tr>
+          <tr><td>2.2</td><td><code>cobrar(conta)</code></td><td>plataforma → assinatura (dentro da 2)</td></tr>
+          <tr><td>2.2.1</td><td><code>debitarAssinatura(19.90)</code></td><td>assinatura → conta (dentro da 2.2)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Sinal de acoplamento alto:</strong> se um objeto tem setas para muitos outros, ele conhece demais. Na figura,
+      a plataforma está no centro de tudo. Se isso se repetir em todo o sistema, o modelo está pedindo para dividir
+      responsabilidades.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMUNICAÇÃO: PRÓS E CONTRAS ============================ -->
+<section id="comunicacao-pros" data-toc="Vantagens e limites" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-indigo-400 mr-2"></i>Vantagens, limites e uso real</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 uppercase mb-2">Vantagens</div>
+      <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
+        <li>Destaca a <strong class="text-white">topologia</strong> e o acoplamento entre objetos.</li>
+        <li>Compacto quando há poucas mensagens.</li>
+        <li>Bom para discutir <strong class="text-white">dependências</strong> em uma reunião de design.</li>
+      </ul>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-rose-400">
+      <div class="text-xs font-bold text-rose-300 uppercase mb-2">Limites</div>
+      <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
+        <li>A ordem, por meio de números, é menos legível que a linha do tempo da sequência.</li>
+        <li>Fica confuso com muitas mensagens e muitos níveis de aninhamento.</li>
+        <li>É redundante com a sequência: escolha um dos dois.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Dica de professor:</strong> saiba que os dois são equivalentes (isso cai em prova), mas na prática você vai
+      desenhar a <em>sequência</em> com mais frequência. Use a comunicação quando a pergunta for “quem depende de quem?”.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ESTRUTURA COMPOSTA ============================ -->
+<section id="estrutura" data-toc="Estrutura composta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes text-indigo-400 mr-2"></i>Estrutura composta: abrindo a caixa</h2>
+  <div class="ah-prose">
+    <p>
+      O diagrama de <strong>estrutura composta</strong> abre a “caixa” de um elemento e mostra suas <strong>partes internas</strong>,
+      as <strong>portas</strong> pelas quais ele se comunica com o exterior e os <strong>conectores</strong> entre as partes.
+      Enquanto o diagrama de classes mostra <em>tipos</em> e associações gerais, este mostra <em>como as partes colaboram
+      dentro de um contexto específico</em>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5 mb-6">
+    <div class="ah-card p-4">
+      <div class="text-xs font-bold text-indigo-300 mb-1">Parte (part)</div>
+      <p class="text-xs text-slate-400">Retângulo interno <code>nome : Tipo [multiplicidade]</code>, desenhado dentro do elemento que a contém.</p>
+    </div>
+    <div class="ah-card p-4">
+      <div class="text-xs font-bold text-indigo-300 mb-1">Porta (port)</div>
+      <p class="text-xs text-slate-400">Pequeno quadrado na borda: ponto de interação com o exterior.</p>
+    </div>
+    <div class="ah-card p-4">
+      <div class="text-xs font-bold text-indigo-300 mb-1">Interfaces</div>
+      <p class="text-xs text-slate-400"><strong class="text-white">Pirulito</strong> (○) = fornece. <strong class="text-white">Soquete</strong> (◗) = requer.</p>
+    </div>
+  </div>
+
+  <div class="ah-diagram">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
+      <div class="ah-card p-4 border-l-4 border-emerald-400">
+        <div class="font-mono text-xs text-emerald-300">catalogo : CatalogoMusicas</div>
+        <p class="text-[11px] text-slate-400 mt-2">Parte interna que guarda as faixas: <span class="font-mono text-slate-300">musicas : Musica[*]</span></p>
+      </div>
+      <div class="ah-card p-4 border-l-4 border-indigo-400">
+        <div class="font-mono text-xs text-indigo-300">servicoAssinatura : ServicoAssinatura</div>
+        <p class="text-[11px] text-slate-400 mt-2">Parte que cuida dos planos. Expõe a porta <span class="font-mono text-slate-300">○ assinar</span>.</p>
+      </div>
+      <div class="ah-card p-4 border-l-4 border-amber-400 md:col-span-2">
+        <div class="font-mono text-xs text-amber-300">gateway : ServicoPagamento</div>
+        <p class="text-[11px] text-slate-400 mt-2">Parte que <strong class="text-white">requer</strong> um serviço externo de cobrança, indicado pelo soquete <span class="font-mono text-slate-300">( requer conta</span>.</p>
+      </div>
+    </div>
+    <p class="ah-diagram-cap px-2">
+      Tudo isso fica dentro de <code>PlataformaStreaming</code>. Os conectores (linhas) ligam as partes que colaboram: o serviço de assinatura usa o catálogo e o gateway.
+    </p>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Quando o diagrama de classes diz</strong> “a plataforma tem um catálogo e um serviço de assinatura”,
+      a estrutura composta mostra <strong>quais partes concretas</strong> existem dentro dela e <strong>por quais portas</strong>
+      ela oferece e requer serviços.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TABELA COMPARATIVA ============================ -->
+<section id="comparacao" data-toc="Estrutura × classes × componentes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-indigo-400 mr-2"></i>Qual diagrama usar?</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Diagrama</th><th>Mostra</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Classes</td><td>Os tipos e como se associam, em geral</td><td>Quais classes existem?</td></tr>
+        <tr><td>Estrutura composta</td><td>As partes internas de <em>um</em> elemento e como colaboram</td><td>De que peças este elemento é feito?</td></tr>
+        <tr><td>Componentes</td><td>Peças de software de alto nível e suas interfaces</td><td>Quais módulos existem e como se conectam?</td></tr>
+        <tr><td>Comunicação</td><td>Quem se liga a quem, com mensagens numeradas</td><td>Quais objetos dependem uns dos outros?</td></tr>
+        <tr><td>Sequência</td><td>A ordem das mensagens no tempo</td><td>Em que ordem as coisas acontecem?</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ NA INDÚSTRIA ============================ -->
+<section id="industria" data-toc="Na indústria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-building text-indigo-400 mr-2"></i>Na indústria</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <div class="text-xs font-bold text-amber-300 uppercase mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Raramente desenhado</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        A comunicação e a estrutura composta quase não aparecem em projetos de negócio comuns. Você pode passar uma carreira
+        sem desenhá-los, e tudo bem. A equipe costuma preferir sequência e componentes.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <div class="text-xs font-bold text-emerald-300 uppercase mb-2"><i class="fa-solid fa-check mr-1"></i>Onde brilha</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Sistemas <strong class="text-white">baseados em partes plugáveis</strong>: software embarcado, arquitetura de
+        plugins e engenharia de sistemas (o SysML é um “primo” da UML). Também ajuda a entender frameworks que montam
+        objetos a partir de partes configuráveis.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-indigo-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Na mensagem numerada <code>2.2.1</code>, o que o “.1” indica?</p>
+      <button class="ah-quiz-opt">É a primeira mensagem de uma nova interação</button>
+      <button class="ah-quiz-opt">Uma repetição do passo 2</button>
+      <button class="ah-quiz-opt">É uma sub-chamada disparada dentro da mensagem 2.2</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. A numeração com pontos mostra aninhamento: a mensagem 2.2.1 acontece dentro do passo 2.2.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Você quer mostrar as partes internas de uma <code>PlataformaStreaming</code> e as portas por onde ela oferece serviços. Qual diagrama é o mais adequado?</p>
+      <button class="ah-quiz-opt">Diagrama de sequência</button>
+      <button class="ah-quiz-opt">Diagrama de estrutura composta</button>
+      <button class="ah-quiz-opt">Diagrama de atividades</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. A estrutura composta abre a caixa de um elemento e mostra partes, portas e conectores.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHECKLIST ============================ -->
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-indigo-400 mr-2"></i>O que levar deste tópico</h2>
+  <ul class="ah-prose">
+    <li>Comunicação mostra a mesma interação da sequência, focada em <strong>quem se liga a quem</strong>.</li>
+    <li>A ordem vem de números; <code>2.1</code> e <code>2.2</code> são sub-passos da mensagem 2.</li>
+    <li>Estrutura composta mostra as <strong>partes internas</strong> de um elemento, suas <strong>portas</strong> e conectores.</li>
+    <li>Ambos são pouco usados. Conheça-os para reconhecer, mas priorize classes, sequência, estados e componentes.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
