@@ -138,6 +138,144 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-componentes" data-toc="Aprofundamento: componentes e contratos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-boxes-stacked text-emerald-400 mr-2"></i>Componente: uma peça com contrato</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>componente</strong> é uma parte modular e substituível do sistema, que oferece e consome serviços por meio de
+      <strong>interfaces</strong>. Ele esconde a implementação: quem usa o componente conhece apenas o contrato. Essa é a
+      ocultação de informação (tópico 03) aplicada em escala de arquitetura.
+    </p>
+    <p>
+      Na UML, o componente é um retângulo com o estereótipo <code>«component»</code>, e suas interfaces aparecem como
+      <strong>pirulito</strong> (interface <em>fornecida</em>, ○) e <strong>soquete</strong> (interface <em>requerida</em>, ◗).
+      A conexão entre um pirulito e um soquete é uma relação de montagem, e mostra quem depende de quem.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Interface fornecida</div><p class="text-xs text-slate-400 leading-relaxed">O que o componente oferece. Ex.: <code>IAssinatura</code>, com <code>assinar()</code>.</p></div>
+    <div class="ah-card p-5 border-t-4 border-amber-400"><div class="text-xs font-bold text-amber-300 mb-2">Interface requerida</div><p class="text-xs text-slate-400 leading-relaxed">O que o componente precisa de fora. Ex.: <code>IPagamento</code>, com <code>cobrar()</code>.</p></div>
+    <div class="ah-card p-5 border-t-4 border-indigo-400"><div class="text-xs font-bold text-indigo-300 mb-2">Porta</div><p class="text-xs text-slate-400 leading-relaxed">Ponto de interação do componente com o exterior, agrupando interfaces relacionadas.</p></div>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Substituibilidade:</strong> se o gateway de pagamento muda, o componente de cobrança continua válido desde que
+      implemente a mesma interface requerida. Esse é o benefício de desenhar pelo contrato.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-pacotes" data-toc="Pacotes: espaços de nomes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-folder-tree text-emerald-400 mr-2"></i>Pacotes: organização e visibilidade</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>pacote</strong> agrupa elementos relacionados e cria um espaço de nomes. Dois elementos podem se chamar
+      <code>Pagamento</code> desde que estejam em pacotes diferentes. Em Java, o pacote corresponde à declaração
+      <code>package</code> no topo do arquivo, e o diagrama de pacotes espelha a estrutura de diretórios do projeto.
+    </p>
+  </div>
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+classDiagram
+    namespace catalogo {
+        class Musica
+        class Album
+    }
+    namespace assinatura {
+        class Assinatura
+        class Plano
+    }
+    namespace cobranca {
+        class ContaBancaria
+        class Transacao
+    }
+    Assinatura --&gt; Plano
+    Assinatura --&gt; ContaBancaria
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Três pacotes. A dependência de <code>assinatura</code> para <code>cobranca</code> é a única que atravessa a fronteira; <code>catalogo</code> não depende de ninguém.</p>
+</section>
+
+<section id="aprof-aciclico" data-toc="Dependências acíclicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-emerald-400 mr-2"></i>O princípio das dependências acíclicas</h2>
+  <div class="ah-prose">
+    <p>
+      Robert C. Martin propôs, entre os princípios de empacotamento, que o grafo de dependências entre pacotes seja
+      <strong>acíclico</strong>. Um ciclo significa que, para compilar ou testar um pacote, é preciso compilar outro que depende
+      dele, e assim por diante. O ciclo cria um bloco que não pode ser separado.
+    </p>
+  </div>
+  <div class="ah-diagram mt-5">
+    <pre class="mermaid">
+flowchart LR
+    A["assinatura"] --&gt; B["cobranca"]
+    B --&gt; C["relatorios"]
+    C --&gt; A
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Ciclo: <code>assinatura → cobranca → relatorios → assinatura</code>. Nenhum dos três pode ser testado ou reutilizado isoladamente.</p>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Como quebrar um ciclo:</strong> extraia o elemento compartilhado para um terceiro pacote, ou inverta uma dependência
+      com uma interface (DIP, tópico 16). Na maioria dos casos, o ciclo indica uma responsabilidade mal distribuída.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-java" data-toc="Pacotes e módulos em Java" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-java text-emerald-400 mr-2"></i>Do diagrama de pacotes ao Java</h2>
+<pre class="ah-code"><code><span class="cm">// src/com/melodia/cobranca/ContaBancaria.java</span>
+<span class="kw">package</span> com.melodia.cobranca;
+
+<span class="kw">public class</span> <span class="ty">ContaBancaria</span> { <span class="cm">/* ... */</span> }
+
+<span class="cm">// src/com/melodia/assinatura/Assinatura.java  (depende de cobranca)</span>
+<span class="kw">package</span> com.melodia.assinatura;
+<span class="kw">import</span> com.melodia.cobranca.<span class="ty">ContaBancaria</span>;
+
+<span class="cm">// module-info.java: o componente declara o que oferece e o que exige (Java 9+)</span>
+<span class="kw">module</span> com.melodia.assinatura {
+    <span class="kw">requires</span> com.melodia.cobranca;   <span class="cm">// interface requerida</span>
+    <span class="kw">exports</span> com.melodia.assinatura;  <span class="cm">// interface fornecida</span>
+}</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      O <code>module-info.java</code> torna a noção de componente concreta: <code>requires</code> é o soquete, <code>exports</code>
+      é o pirulito. Um compilador que aceite <code>requires</code> circular entre módulos não existe; o Java bloqueia o ciclo, que
+      é exatamente o que o princípio pede.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Você precisa trocar o provedor de e-mail do Melodia sem mexer no módulo de assinatura. Quais interfaces desenhar?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> o módulo de assinatura exige uma interface <code>IEnvioEmail</code> (soquete). Cada provedor fornece uma implementação (pirulito) em seu próprio componente. A troca de provedor é trocar a montagem, sem alterar a assinatura.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. No diagrama de pacotes, <code>relatorios</code> depende de <code>assinatura</code>, e <code>assinatura</code> depende de <code>relatorios</code> para gerar o recibo. Como resolver?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> extrair a geração do recibo para um pacote próprio que ambos usam, ou inverter a dependência: <code>assinatura</code> define uma interface <code>Recibo</code> e <code>relatorios</code> a implementa. Ambas as soluções eliminam o ciclo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Qual a diferença entre a dependência de pacotes e a de componentes?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> o pacote é uma unidade de organização (nome, arquivos, visibilidade). O componente é uma unidade de implantação e contrato, com interfaces explícitas. Um componente pode conter vários pacotes, e a dependência entre componentes é mais forte, porque envolve um contrato publicado.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>MARTIN, Robert C. <em>Arquitetura Limpa</em>. Alta Books. Princípios de empacotamento, incluindo as dependências acíclicas.</li>
+    <li>OMG. UML 2.5.1, capítulos <em>Components</em> e <em>Packages</em>.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -185,6 +323,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
