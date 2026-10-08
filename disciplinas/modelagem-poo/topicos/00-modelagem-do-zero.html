@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelagem do zero · AcademicHub</title>
+<meta name="description" content="Como uma frase do cliente vira um modelo de classes: substantivos, verbos, evolução do diagrama e o sistema Melodia.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/00-modelagem-do-zero">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<!-- ============================ POR QUE MODELAR ============================ -->
+<section id="por-que" data-toc="Por que modelar?" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-emerald-400 mr-2"></i>Por que modelar antes de programar?</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine construir uma casa sem planta. Os pedreiros começam, descobrem que a cozinha não cabe ao lado da
+      área de serviço, derrubam uma parede e refazem a instalação elétrica. O custo de corrigir uma decisão
+      cresce muito quando a obra já está em andamento.
+    </p>
+    <p>
+      Com software é igual. Um erro de modelo — uma classe que faltou, uma associação com a multiplicidade
+      errada — custa uma conversa e um rabisco no papel quando está no diagrama. Depois que ele vira código,
+      espalhado em dezenas de arquivos e já usado por clientes, o mesmo erro custa dias.
+    </p>
+    <p>
+      <strong>Modelar é traduzir uma descrição em linguagem natural para uma estrutura que se possa discutir,
+      revisar e transformar em código.</strong> Este tópico mostra essa tradução passo a passo, usando um
+      sistema real de exemplo do curso: a plataforma de streaming <strong>Melodia</strong>.
+    </p>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Ideia central:</strong> o diagrama final <em>não é burocracia</em>. Ele é o esqueleto do código:
+      cada classe desenhada vira uma classe Java, cada seta vira um atributo ou uma referência.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ O ENUNCIADO ============================ -->
+<section id="enunciado" data-toc="O enunciado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-scroll text-emerald-400 mr-2"></i>Ponto de partida: a frase do cliente</h2>
+  <p class="ah-lead text-sm mb-5">Modelagem começa com um texto, quase sempre vago. Este é o pedido que vamos transformar em modelo:</p>
+
+  <blockquote class="border-l-4 border-indigo-500 bg-slate-900/60 rounded-r-xl px-5 py-4 text-slate-200 leading-relaxed text-sm sm:text-base">
+    “A <strong>Melodia</strong> é uma plataforma de streaming de música. Nela, <strong>ouvintes</strong> escutam
+    <strong>músicas</strong> organizadas em <strong>álbuns</strong> (publicados por <strong>artistas</strong>) e
+    montam suas próprias <strong>playlists</strong>. Para ouvir sem anúncios, o ouvinte assina um
+    <strong>plano</strong>. A assinatura paga é cobrada todo mês de uma <strong>conta bancária</strong>: se houver
+    saldo, fica <strong>ativa</strong>; se faltar, é <strong>suspensa</strong>. Cada reprodução gera um pequeno
+    <strong>royalty</strong> ao artista.”
+  </blockquote>
+
+  <div class="mt-5">
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Esse parágrafo é a <strong>fonte de verdade</strong> do sistema. Antes de desenhar qualquer coisa, leia-o
+      mais de uma vez e pergunte: <em>o que o sistema precisa guardar? o que precisa fazer? quais regras não
+      podem ser quebradas?</em>
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">As regras de negócio (invariantes)</h3>
+  <p class="text-sm text-slate-400 mb-3">Regras que o sistema <strong class="text-white">sempre</strong> deve respeitar. Elas viram validações no código e guardas nos diagramas.</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Código</th><th>Regra</th><th>Onde aparece depois</th></tr></thead>
+      <tbody>
+        <tr><td>R1</td><td>O saldo de uma conta nunca fica negativo.</td><td>Validação em <code>sacar()</code></td></tr>
+        <tr><td>R2</td><td>Um plano pago só fica ativo enquanto houver pagamento em dia.</td><td>Estado da assinatura</td></tr>
+        <tr><td>R3</td><td>Sem saldo na cobrança, a assinatura é <em>suspensa</em> (não cancelada).</td><td>Máquina de estados</td></tr>
+        <tr><td>R4</td><td>Uma assinatura cancelada não volta a ser cobrada (estado final).</td><td>Transição proibida</td></tr>
+        <tr><td>R5</td><td>Toda movimentação financeira gera uma transação no extrato.</td><td>Classe <code>Transacao</code></td></tr>
+        <tr><td>R6</td><td>O plano Free tem anúncios; os planos pagos não.</td><td>Atributo do plano</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ TÉCNICA ============================ -->
+<section id="tecnica" data-toc="A técnica: substantivo e verbo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-highlighter text-emerald-400 mr-2"></i>A técnica: sublinhe o texto</h2>
+  <p class="ah-lead text-sm mb-5">
+    A forma mais simples de começar é grifar o texto do cliente com duas cores. Substantivos viram candidatos a
+    <strong class="text-white">classe</strong> ou <strong class="text-white">atributo</strong>; verbos viram candidatos a
+    <strong class="text-white">operação</strong>. Depois você separa o joio do trigo, porque nem todo substantivo é classe.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#10b981">
+      <div class="text-xs uppercase tracking-wide text-emerald-400 font-bold mb-2">Substantivos</div>
+      <p class="text-sm text-slate-300 mb-3">Coisas do domínio com vida própria.</p>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        <strong class="text-white">ouvinte, música, álbum, playlist, plano, conta</strong> → <em>classes</em><br>
+        <strong class="text-white">título, duração, saldo, status</strong> → <em>atributos</em>
+      </p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#6366f1">
+      <div class="text-xs uppercase tracking-wide text-indigo-400 font-bold mb-2">Verbos</div>
+      <p class="text-sm text-slate-300 mb-3">Ações que o sistema executa ou que alguém pede.</p>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        <strong class="text-white">escutar, assinar, cobrar, suspender, publicar, creditar</strong> → <em>operações</em>
+      </p>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Trecho do enunciado</th><th>Vira</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>“ouvintes escutam músicas”</td><td>Classes <code>Ouvinte</code> e <code>Musica</code></td><td>Têm dados e comportamento próprios</td></tr>
+        <tr><td>“saldo”</td><td>Atributo de <code>ContaBancaria</code></td><td>É só um valor, sem vida própria</td></tr>
+        <tr><td>“reprodução”</td><td>Classe <em>ou</em> evento</td><td>Depende de o sistema precisar guardar histórico</td></tr>
+        <tr><td>“cobrada todo mês”</td><td>Operação <code>cobrar()</code> e um ator de tempo</td><td>É uma ação disparada periodicamente</td></tr>
+        <tr><td>“ativa / suspensa”</td><td>Estados (ou enum <code>StatusAssinatura</code>)</td><td>Valores que mudam conforme regras</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Pergunta que decide:</strong> “isto tem só valor, ou tem valor <em>e</em> comportamento (ou aparece muitas
+      vezes no sistema)?” Se só tem valor, é atributo. Se tem comportamento, é classe. “Saldo” é só número; “conta”
+      tem saldo, sacar, depositar e extrato — por isso é classe.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ EVOLUÇÃO ============================ -->
+<section id="evolucao" data-toc="A evolução do modelo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>O modelo cresce em versões</h2>
+  <p class="ah-lead text-sm mb-6">
+    Ninguém acerta o modelo completo de primeira. Um bom modelo <strong class="text-white">começa simples e cresce</strong>
+    conforme a necessidade aparece. Acompanhe as quatro primeiras versões do Melodia.
+  </p>
+
+  <!-- v1 -->
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="ah-badge">v1</span>
+      <h3 class="ah-h3">Primeiras classes</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-4">Só os substantivos mais óbvios, sem atributos. Modelar é <strong class="text-white">recortar</strong>: começamos pelo essencial e não prevemos tudo.</p>
+    <div class="ah-diagram">
+      <pre class="mermaid">
+classDiagram
+    class Usuario
+    class Musica
+    class Album
+    class Playlist
+      </pre>
+    </div>
+  </div>
+
+  <!-- v2 -->
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="ah-badge">v2</span>
+      <h3 class="ah-h3">Atributos e operações</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-4">Estado e comportamento entram juntos. Repare que os atributos são <strong class="text-white">privados</strong> (<code>-</code>): é a porta de entrada do encapsulamento.</p>
+    <div class="ah-diagram">
+      <pre class="mermaid">
+classDiagram
+    class Musica {
+        -String titulo
+        -int duracaoSegundos
+        +duracaoFormatada() String
+    }
+    class Album {
+        -String titulo
+        -int ano
+        +adicionarFaixa(titulo, duracao) Musica
+    }
+    class Usuario {
+        &lt;&lt;abstract&gt;&gt;
+        -String nome
+        -String email
+        +tipoDePerfil() String
+    }
+      </pre>
+    </div>
+  </div>
+
+  <!-- v3 -->
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="ah-badge">v3</span>
+      <h3 class="ah-h3">A playlist aparece: associação</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-4">Surge a playlist e, com ela, a primeira <strong class="text-white">associação</strong> com multiplicidade. Uma playlist tem muitas músicas; uma música pode estar em muitas playlists.</p>
+    <div class="ah-diagram">
+      <pre class="mermaid">
+classDiagram
+    class Ouvinte
+    class Playlist {
+        -String nome
+    }
+    class Musica
+    Ouvinte "1" --> "0..*" Playlist : monta
+    Playlist "0..*" --> "0..*" Musica : contém
+      </pre>
+    </div>
+  </div>
+
+  <!-- v4 -->
+  <div class="mb-2">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="ah-badge">v4</span>
+      <h3 class="ah-h3">Artista e álbum: composição × agregação</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-4">
+      Aqui está o ponto-chave da aula. As duas classes apontam para <code>Musica</code>, mas de formas diferentes.
+      O álbum <strong class="text-white">cria</strong> suas faixas; a playlist só <strong class="text-white">aponta</strong> para músicas que já existem.
+    </p>
+    <div class="ah-diagram">
+      <pre class="mermaid">
+classDiagram
+    class Artista
+    class Album
+    class Playlist
+    class Musica
+    Artista "1" --> "0..*" Album : publica
+    Album "1" *-- "1..*" Musica : faixas
+    Playlist "1" o-- "0..*" Musica : contém
+      </pre>
+    </div>
+    <p class="ah-diagram-cap">
+      <strong class="text-emerald-400">Losango cheio</strong> (<code>*--</code>) = composição: a faixa morre com o álbum.
+      &nbsp;·&nbsp; <strong class="text-indigo-300">Losango vazio</strong> (<code>o--</code>) = agregação: a música continua existindo sem a playlist.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ DO ENUNCIADO AO CÓDIGO ============================ -->
+<section id="codigo" data-toc="Do modelo ao código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-java text-emerald-400 mr-2"></i>Do modelo ao código Java</h2>
+  <p class="ah-lead text-sm mb-5">
+    Veja como o diagrama v4 se traduz em código. A composição aparece porque o <code>Album</code> cria a
+    <code>Musica</code> dentro de si. A agregação aparece porque a <code>Playlist</code> recebe uma música que já existe.
+  </p>
+
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Album</span> {
+    <span class="kw">private final</span> String titulo;
+    <span class="kw">private final</span> String artista;
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; faixas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="cm">// Composição: o álbum cria a faixa e é dono dela</span>
+    <span class="kw">public</span> <span class="ty">Musica</span> <span class="fn">adicionarFaixa</span>(String tituloFaixa, <span class="kw">int</span> duracao) {
+        <span class="ty">Musica</span> m = <span class="kw">new</span> <span class="ty">Musica</span>(tituloFaixa, artista, duracao);
+        faixas.add(m);
+        <span class="kw">return</span> m;
+    }
+}
+
+<span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; musicas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="cm">// Agregação: a playlist só recebe uma música que já existe no catálogo</span>
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Musica</span> m) {
+        <span class="kw">if</span> (!musicas.contains(m)) musicas.add(m);
+    }
+}</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Repare na correspondência:</strong> o losango cheio do diagrama aparece no código como um objeto criado
+      <em>dentro</em> da classe “dona”. O losango vazio aparece como um objeto <em>recebido</em> de fora.
+      Isso é o que o tópico <a href="06-relacionamentos.html" class="text-indigo-300 underline-offset-2 hover:underline">Relacionamentos</a> explica com mais detalhe.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros comuns de quem começa</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-xmark text-rose-400 mr-1"></i>Transformar todo substantivo em classe</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">“Título” e “saldo” não precisam de classe própria. Uma classe <code>Titulo</code> sem comportamento só polui o modelo.</p>
+    </div>
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-xmark text-rose-400 mr-1"></i>Desenhar tudo de uma vez</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Modelar a versão final antes de entender o básico gera diagramas com 30 classes que ninguém consegue revisar.</p>
+    </div>
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-xmark text-rose-400 mr-1"></i>Atributos públicos “por preguiça”</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Se <code>saldo</code> é público, qualquer código consegue fazer <code>conta.saldo = -999</code> e quebrar a regra R1.</p>
+    </div>
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-xmark text-rose-400 mr-1"></i>Associação sem multiplicidade</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma seta sem <code>1</code>, <code>0..*</code> ou <code>1..*</code> não diz quantos objetos participam. A regra fica escondida.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NA INDÚSTRIA ============================ -->
+<section id="industria" data-toc="Na indústria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-building text-emerald-400 mr-2"></i>Na indústria</h2>
+  <div class="ah-prose">
+    <p>
+      Ninguém desenha os 13 diagramas da UML para cada projeto. Em uma equipe real, o trabalho típico é uma conversa
+      com o cliente, alguns rabiscos em um quadro, um diagrama de classes para a parte mais difícil e, às vezes, um
+      diagrama de sequência para uma integração. O que muda de empresa para empresa é o <em>tamanho</em> do modelo,
+      não a técnica.
+    </p>
+    <p>
+      O termo <strong>linguagem ubíqua</strong> (do Domain-Driven Design) descreve exatamente o glossário do tópico
+      anterior: negócio e desenvolvedores usam as mesmas palavras. Quando o time diz “conta” e o código tem
+      <code>Cliente.saldoDisponivel</code>, a tradução errada começa ali.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Na frase “a conta tem saldo e pode sacar”, o que “saldo” deve virar no modelo?</p>
+      <button class="ah-quiz-opt">Uma classe <code>Saldo</code> separada</button>
+      <button class="ah-quiz-opt">Uma operação <code>saldo()</code></button>
+      <button class="ah-quiz-opt">Um atributo da classe <code>ContaBancaria</code></button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. “Saldo” é só um valor, sem comportamento próprio: vira atributo. O verbo “sacar” é que vira operação.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual relacionamento melhor representa o vínculo entre <code>Album</code> e <code>Musica</code>, sabendo que a faixa só existe dentro do álbum?</p>
+      <button class="ah-quiz-opt">Agregação (losango vazio)</button>
+      <button class="ah-quiz-opt">Composição (losango cheio)</button>
+      <button class="ah-quiz-opt">Associação simples</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">
+        Correto. Quando a parte não faz sentido sem o todo e morre com ele, é composição. A playlist, ao contrário,
+        só aponta para músicas que já existem: isso é agregação.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHECKLIST ============================ -->
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar deste tópico</h2>
+  <ul class="ah-prose">
+    <li>Modelar antes de codar é mais barato: erro no papel custa uma conversa; erro em produção custa dias.</li>
+    <li>Substantivo com comportamento vira classe; substantivo só com valor vira atributo; verbo vira operação.</li>
+    <li>Um bom modelo começa simples e cresce, versão a versão.</li>
+    <li>Composição (<em>o todo cria e é dono</em>) e agregação (<em>o todo apenas aponta</em>) se distinguem pela vida da parte.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

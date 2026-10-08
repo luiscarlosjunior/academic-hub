@@ -86,6 +86,10 @@ const AH_DATA = {
       descricao:
         'Os pilares da orientação a objetos e os diagramas da UML — do caso de uso ao código Java, passando por classes, sequência, estados e implantação.',
       topicos: [
+        { id: '00-modelagem-do-zero', titulo: 'Modelagem do Zero: do Requisito ao Modelo', icone: 'fa-compass-drafting',
+          resumo: 'Como uma frase do cliente vira um modelo: substantivos, verbos, a evolução v1 → v4 e o caminho até o código.',
+          trilha: 'uml',
+          tags: ['Processo', 'Requisitos', 'Melodia'], nivel: 'Introdutório', minutos: 16 },
         { id: '01-introducao-poo', titulo: 'Introdução à POO e à Modelagem', icone: 'fa-cube',
           resumo: 'Por que modelar? Do paradigma estruturado ao orientado a objetos: classe, objeto, atributo e método.',
           trilha: 'java',
