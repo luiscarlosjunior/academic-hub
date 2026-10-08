@@ -141,6 +141,149 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-semantica" data-toc="Aprofundamento: semântica de fichas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-predecessor text-emerald-400 mr-2"></i>Como um diagrama de atividades “executa”</h2>
+  <div class="ah-prose">
+    <p>
+      O diagrama de atividades descreve um <strong>fluxo</strong> de ações. A UML o define com uma semântica de <strong>fichas</strong>
+      (<em>tokens</em>): uma ficha começa no nó inicial e percorre o diagrama. Uma ação só começa quando recebe uma ficha
+      em cada entrada. Esse modelo explica por que a bifurcação é paralela e por que a junção espera.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>Nó</th><th>Notação</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td>Inicial</td><td>círculo cheio</td><td>Gera uma ficha ao começar o fluxo</td></tr>
+        <tr><td>Final de atividade</td><td>círculo com borda</td><td>Encerra todo o fluxo, com todas as fichas</td></tr>
+        <tr><td>Final de fluxo</td><td>círculo com um X</td><td>Encerra só aquela ficha, sem parar o restante</td></tr>
+        <tr><td>Ação</td><td>retângulo arredondado</td><td>Executa uma unidade de trabalho</td></tr>
+        <tr><td>Decisão</td><td>losango com saída de guardas</td><td>Envia a ficha para uma saída, conforme <code>[condição]</code></td></tr>
+        <tr><td>Junção (merge)</td><td>losango de entrada</td><td>Passa qualquer ficha que chegar, sem sincronizar</td></tr>
+        <tr><td>Bifurcação (fork)</td><td>barra grossa com uma entrada</td><td>Copia a ficha em várias saídas paralelas</td></tr>
+        <tr><td>Junção (join)</td><td>barra grossa com várias entradas</td><td>Espera uma ficha de cada entrada e então segue com uma</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Erro clássico:</strong> usar <em>decisão</em> para juntar caminhos (ou <em>merge</em> para decidir). Decisão divide;
+      merge une. Se você usar um losango sem guardas para unir, o resultado é ambíguo.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-exemplo" data-toc="Exemplo: contratar assinatura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-check text-emerald-400 mr-2"></i>Exemplo: o fluxo de contratação de uma assinatura</h2>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    I((" ")) --> A["Escolher plano"]
+    A --> V{"Plano pago?"}
+    V -- "não (Free)" --> F["Ativar plano Free"]
+    V -- "sim" --> P["Verificar saldo"]
+    P --> S{"Saldo suficiente?"}
+    S -- "sim" --> C["Cobrar valor mensal"]
+    S -- "não" --> U["Suspender assinatura"]
+    C --> R["Registrar transação"]
+    F --> Z(((" ")))
+    R --> Z
+    U --> Z
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Decisão em dois pontos (plano pago e saldo). As três saídas convergem para um único final de atividade. Os nomes das ações são verbos do domínio, como na Melodia.</p>
+
+  <div class="ah-prose mt-5">
+    <p>
+      Note o que o diagrama mostra e o que não mostra. Ele mostra a <strong>ordem</strong> e as <strong>condições</strong>. Não
+      mostra quem faz cada passo, nem o tempo que cada um leva. Para isso, usamos as <strong>raias</strong>, que veremos a seguir.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-paralelismo" data-toc="Paralelismo: fork e join" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-merge text-emerald-400 mr-2"></i>Paralelismo: quando as ações não dependem umas das outras</h2>
+  <div class="ah-prose">
+    <p>
+      Após a cobrança, o sistema pode enviar o recibo por e-mail e atualizar o histórico do ouvinte ao mesmo tempo. Essas duas
+      ações são independentes, então entram em <strong>fork</strong> e se reencontram em um <strong>join</strong>. O join garante que
+      o próximo passo só comece quando as duas terminarem, e não antes.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// Equivalente em Java: fork = iniciar tarefas; join = esperar todas</span>
+<span class="ty">CompletableFuture</span>&lt;<span class="ty">Void</span>&gt; recibo = CompletableFuture.runAsync(() -&gt; enviarRecibo(ouvinte));
+<span class="ty">CompletableFuture</span>&lt;<span class="ty">Void</span>&gt; historico = CompletableFuture.runAsync(() -&gt; atualizarHistorico(ouvinte));
+<span class="ty">CompletableFuture</span>.allOf(recibo, historico).join();   <span class="cm">// join: espera as duas</span>
+concluirAssinatura(ouvinte);</code></pre>
+</section>
+
+<section id="aprof-raias" data-toc="Raias: quem faz o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Raias (swimlanes): responsabilidade na mesma figura</h2>
+  <div class="ah-prose">
+    <p>
+      As <strong>raias</strong> dividem o diagrama em colunas ou linhas, uma por responsável: o ouvinte, o sistema, o gateway
+      de pagamento. Cada ação cai na raia de quem a executa. A raia não é uma classe, mas costuma se mapear para um ator ou
+      um componente do sistema.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+    <div class="ah-card p-4 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-1">Ouvinte</div><p class="text-xs text-slate-400">Escolhe o plano e confirma.</p></div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-1">Sistema Melodia</div><p class="text-xs text-slate-400">Verifica regras e registra a assinatura.</p></div>
+    <div class="ah-card p-4 border-t-4 border-amber-400"><div class="text-xs font-bold text-amber-300 mb-1">Gateway de pagamento</div><p class="text-xs text-slate-400">Executa o débito e devolve o resultado.</p></div>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Raias revelam dependências ocultas:</strong> quando um fluxo passa de uma raia para outra muitas vezes, há uma
+      troca de responsabilidade. Se a raia do gateway aparece no meio de todo o fluxo, talvez a integração esteja acoplada
+      demais ao processo.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-excecoes" data-toc="Exceções e fluxos de erro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>Modelando exceções</h2>
+  <div class="ah-prose">
+    <p>
+      Fluxos de erro são onde o modelo costuma ser omitido. A UML 2.5 permite representar uma <strong>região de tratamento de
+      exceção</strong>: uma ação protegida, com um tratador que desvia o fluxo quando ocorre uma falha. Em um diagrama de
+      atividades, a falha do débito pode ser um fluxo que sai da ação de cobrança e segue para “Suspender assinatura”.
+    </p>
+    <p>
+      Um bom modelo mostra o caminho feliz e pelo menos os erros que mudam o negócio. Erros técnicos, como uma queda de rede,
+      costumam ficar no diagrama de implantação ou no código, a menos que mudem o resultado para o cliente.
+    </p>
+  </div>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Um pedido precisa de aprovação do gerente <em>ou</em> de um valor abaixo de R$ 100. Qual nó usar para juntar os dois caminhos depois?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> uma decisão com guardas para escolher o caminho, e um <em>merge</em> para juntá-los. Como só um caminho é tomado por vez, o merge não precisa sincronizar: basta passar a ficha.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Enviar o e-mail de boas-vindas e criar a playlist padrão são independentes. Como modelar, e o que muda se a playlist precisar existir antes do e-mail?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> fork após o cadastro, com dois ramos paralelos, e join antes do passo seguinte. Se a playlist precisa existir antes do e-mail, a dependência é sequencial: não há fork, e a ação do e-mail vem depois da ação da playlist.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Um colega usou um losango sem guardas para juntar dois caminhos paralelos. O que está errado?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> caminhos paralelos precisam de <em>join</em>, que espera as duas fichas. O losango é um merge, que passa cada ficha sem esperar. Com o merge, a ação seguinte rodaria duas vezes.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>OMG. UML 2.5.1, capítulo <em>Activities</em>: semântica de fichas e nós de controle.</li>
+    <li>FOWLER, Martin. <em>UML Essencial</em>. Bookman. Visão prática de diagramas de atividades.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -188,6 +331,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>
