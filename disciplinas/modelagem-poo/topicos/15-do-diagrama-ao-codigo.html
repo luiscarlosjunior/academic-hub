@@ -122,6 +122,136 @@
 </section>
 
 <!-- ============================ QUIZ ============================ -->
+<!-- APROFUNDAMENTO:INI -->
+<section id="aprof-tabela-mapeamento" data-toc="Aprofundamento: tabela de mapeamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>Mapeamento rigoroso: cada símbolo tem uma construção</h2>
+  <p class="ah-lead text-sm mb-5">
+    Traduzir um diagrama para código não é um processo mágico. Cada elemento UML tem uma correspondência em Java, e conhecê-la
+    é o que permite revisar o código contra o modelo.
+  </p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Elemento UML</th><th>Construção Java</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Classe</td><td><code>class</code></td><td>Um arquivo por classe pública</td></tr>
+        <tr><td>Classe abstrata</td><td><code>abstract class</code></td><td>Não instanciável; pode ter métodos concretos</td></tr>
+        <tr><td>Interface</td><td><code>interface</code></td><td>Contrato; métodos abstratos por padrão</td></tr>
+        <tr><td>Generalização</td><td><code>extends</code></td><td>Apenas uma superclasse concreta</td></tr>
+        <tr><td>Realização</td><td><code>implements</code></td><td>Quantas interfaces forem necessárias</td></tr>
+        <tr><td>Atributo <code>- nome : T</code></td><td><code>private T nome;</code></td><td>Visibilidade traduzida diretamente</td></tr>
+        <tr><td>Atributo <em>estático</em></td><td><code>static</code></td><td>Compartilhado pela classe</td></tr>
+        <tr><td>Operação <code>+ op(p : T) : R</code></td><td><code>public R op(T p)</code></td><td>Parâmetros e retorno com tipos</td></tr>
+        <tr><td>Associação com multiplicidade 1</td><td>campo de referência</td><td>Obrigatório: validar no construtor</td></tr>
+        <tr><td>Multiplicidade <code>*</code></td><td><code>List&lt;T&gt;</code></td><td>A coleção é o papel, não uma classe nova</td></tr>
+        <tr><td>Composição</td><td>objeto criado dentro do todo</td><td><code>new</code> no construtor ou método do todo</td></tr>
+        <tr><td>Agregação</td><td>objeto recebido de fora</td><td>Parâmetro de método ou do construtor</td></tr>
+        <tr><td>Enumeração (<code>«enumeration»</code>)</td><td><code>enum</code></td><td>Valores fixos, com comportamento opcional</td></tr>
+        <tr><td>Restrição <code>{...}</code></td><td>validação ou asserção</td><td>Pré, pós e invariantes (tópico 03)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aprof-multiplicidade" data-toc="Multiplicidade e coleções" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-boxes-packing text-emerald-400 mr-2"></i>Multiplicidade vira tipo, e o tipo vira regra</h2>
+  <div class="ah-prose">
+    <p>
+      A multiplicidade é a parte mais informativa do diagrama, e a mais esquecida no código. Ela decide o tipo do campo e as
+      validações do construtor. Um <code>1..*</code> exige uma lista não vazia, e um <code>0..1</code> aceita <code>null</code> ou
+      <code>Optional</code>.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="cm">// Album "1" *-- "1..*" Musica   (composição, pelo menos uma faixa)</span>
+<span class="kw">public class</span> <span class="ty">Album</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; faixas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Album</span>(String titulo, String artista, <span class="kw">int</span> primeiraDuracao) {
+        <span class="cm">// 1..* : o álbum nasce com pelo menos uma faixa</span>
+        faixas.add(<span class="kw">new</span> <span class="ty">Musica</span>(titulo, artista, primeiraDuracao));
+    }
+}
+
+<span class="cm">// Playlist "0..*" o-- "0..*" Musica   (agregação: a música vem de fora)</span>
+<span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; musicas = <span class="kw">new</span> ArrayList&lt;&gt;();
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Musica</span> m) { musicas.add(m); }
+}</code></pre>
+</section>
+
+<section id="aprof-genericos" data-toc="Associações qualificadas e genéricos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-brackets-curly text-emerald-400 mr-2"></i>Casos que o mapeamento simples não cobre</h2>
+  <div class="ah-prose">
+    <p>
+      Alguns elementos não têm uma tradução direta, e exigem uma decisão de projeto explícita:
+    </p>
+    <ul>
+      <li><strong>Associação qualificada:</strong> o qualificador vira a chave de um <code>Map</code> (tópico 06).</li>
+      <li><strong>Classe de associação:</strong> vira uma classe própria, com referências aos dois lados, como <code>Assinatura</code>.</li>
+      <li><strong>Classe parametrizada (<code>&lt;&lt;template&gt;&gt;</code>):</strong> vira um genérico, como <code>Repositorio&lt;T&gt;</code>.</li>
+      <li><strong>Operações com retorno múltiplo ou sem retorno:</strong> use <code>void</code>, um <code>record</code> de resposta ou uma exceção.</li>
+    </ul>
+  </div>
+<pre class="ah-code"><code><span class="cm">// Classe parametrizada: um repositório genérico para qualquer entidade</span>
+<span class="kw">public interface</span> <span class="ty">Repositorio</span>&lt;T, ID&gt; {
+    <span class="kw">void</span> <span class="fn">salvar</span>(T entidade);
+    <span class="ty">Optional</span>&lt;T&gt; <span class="fn">buscar</span>(ID id);
+}</code></pre>
+</section>
+
+<section id="aprof-ida-volta" data-toc="Engenharia direta e reversa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-emerald-400 mr-2"></i>Modelo e código: a sincronização é o problema</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Engenharia direta</div><p class="text-xs text-slate-400 leading-relaxed">Gera código a partir do modelo. Funciona bem para a estrutura (classes, campos, assinaturas). Não gera a lógica, que precisa ser escrita.</p></div>
+    <div class="ah-card p-5 border-t-4 border-rose-400"><div class="text-xs font-bold text-rose-300 mb-2">Engenharia reversa</div><p class="text-xs text-slate-400 leading-relaxed">Gera o diagrama a partir do código. Mostra o que existe, mas não o que deveria existir. Um código ruim gera um diagrama ruim.</p></div>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>O diagrama que mente:</strong> depois de algumas semanas, modelo e código divergem. Um diagrama desatualizado é
+      pior que nenhum, porque ele inspira confiança. Escolha uma fonte da verdade (normalmente o código, com testes) e
+      atualize o diagrama como documentação viva, ou gere-o a partir do código.
+    </div>
+  </div>
+</section>
+
+<section id="aprof-revisao" data-toc="Revisar o código contra o modelo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clipboard-check text-emerald-400 mr-2"></i>Checklist de revisão do código</h2>
+  <ul class="ah-prose space-y-2 text-sm">
+    <li>Toda associação do diagrama tem um campo (ou um parâmetro, se for agregação ou dependência)?</li>
+    <li>A multiplicidade <code>1</code> é garantida no construtor, e não apenas na documentação?</li>
+    <li>Atributos marcados como privados no diagrama estão privados no código?</li>
+    <li>Toda composição cria a parte dentro do todo, e a parte não é exposta para criação externa?</li>
+    <li>As restrições do diagrama aparecem como validações ou testes?</li>
+    <li>Não há dependência no código que o diagrama não mostra (por exemplo, uma classe de domínio importando um pacote de infraestrutura)?</li>
+  </ul>
+</section>
+
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Traduza para Java: <code>Ouvinte "1" -- "0..*" Playlist</code>, em que a playlist é criada pelo ouvinte.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> em <code>Ouvinte</code>, <code>private final List&lt;Playlist&gt; playlists</code> e um método <code>montarPlaylist(nome)</code> que cria a playlist com <code>new</code>. Como o ouvinte cria a playlist, a relação é de composição do lado do ouvinte; se a playlist pudesse existir sem ouvinte, seria agregação.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Um colega gera código de um diagrama com <code>Musica</code> ligada a <code>Album</code> por composição e o código tem <code>public List&lt;Musica&gt; faixas</code>. Qual o problema?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> a lista pública permite que qualquer código altere as faixas, o que quebra a posse exclusiva do álbum. O correto é <code>private</code> com retorno de lista imutável (<code>Collections.unmodifiableList</code>), e a adição feita pelo próprio álbum.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Por que a engenharia reversa pura não basta para projetar um sistema?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> porque ela descreve o que foi feito, com todos os acidentes do código, e não o que deveria ser feito. Projetar exige decidir antes de implementar, e a reversa só documenta essas decisões depois, quando já estão tomadas.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <ul class="ah-prose">
+    <li>FOWLER, Martin. <em>UML Essencial</em>. Bookman. Discussão sobre o papel do diagrama como esboço, e não como especificação completa.</li>
+    <li>BLOCH, Joshua. <em>Effective Java</em>, 3ª edição. Itens sobre imutabilidade, coleções e encapsulamento de campos.</li>
+  </ul>
+</section>
+<!-- APROFUNDAMENTO:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
