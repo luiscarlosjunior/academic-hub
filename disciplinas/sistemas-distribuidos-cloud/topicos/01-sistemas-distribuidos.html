@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistemas Distribuídos: tempo, consistência e escala na cloud · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Sistemas distribuídos e cloud: por que não existe relógio global, relógios de Lamport, hash consistente, teorema CAP, consenso e os modelos de serviço da cloud, com animações e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/01-sistemas-distribuidos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud text-sky-400 mr-2"></i>Tópico 1 · Sistemas distribuídos</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>sistema distribuído</strong> é um conjunto de computadores independentes, ligados por uma rede, que se apresenta ao usuário
+      como um único sistema. Quando você envia uma mensagem num aplicativo de conversa, ela passa por dezenas de máquinas em data centers
+      diferentes, e você só percebe se algo dá errado. É a mesma ideia por trás de um caixa eletrônico, de um carrinho de compras em
+      Black Friday ou de um serviço de streaming: a aplicação roda em muitos lugares ao mesmo tempo.
+    </p>
+    <p>
+      A dificuldade central não é técnica no sentido de "faltar código". É que, em rede, <strong>não há um relógio global, a comunicação
+      demora e pode falhar, e um nó pode cair sem avisar</strong>. Um sistema de um computador só não precisa lidar com nada disso.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar por que não é possível ordenar eventos em rede usando apenas o relógio físico;</li>
+      <li>calcular os carimbos de um relógio lógico de Lamport em uma troca de mensagens;</li>
+      <li>usar hash consistente para distribuir dados entre servidores que entram e saem;</li>
+      <li>interpretar o teorema CAP e a escolha entre consistência e disponibilidade;</li>
+      <li>reconhecer os modelos de serviço da cloud (IaaS, PaaS, SaaS) e os padrões que tornam um serviço resiliente.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="falacias" data-toc="Teoria: as ilusões da rede" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Teoria: por que a rede engana</h2>
+  <div class="ah-prose">
+    <p>
+      Peter Deutsch, na Sun Microsystems no início dos anos 1990, listou as suposições que programadores costumam fazer sobre redes e que
+      são falsas. A lista é conhecida como <em>as falácias da computação distribuída</em>. As mais importantes para esta aula:
+    </p>
+    <ul>
+      <li>"A rede é confiável": mensagens se perdem, chegam duplicadas ou fora de ordem.</li>
+      <li>"A latência é zero": uma chamada remota custa milissegundos onde uma chamada local custa nanossegundos.</li>
+      <li>"A topologia não muda": servidores entram, saem e mudam de endereço o tempo todo.</li>
+      <li>"Existe um administrador e um único estado": cada nó tem a sua própria visão, que pode estar atrasada.</li>
+    </ul>
+    <p>
+      Lamport, no artigo de 1978 que abre este tópico, resumiu o problema assim: sem um relógio global, a única ordem confiável entre
+      eventos é a <strong>ordem causal</strong>, dada pelo que um processo podia ter sabido ao agir. Eventos que não têm relação causal
+      são <strong>concorrentes</strong>, e nenhum dos dois "veio antes" no sentido que importa.
+    </p>
+  </div>
+</section>
+
+<section id="lamport" data-toc="Operação 1: relógio de Lamport" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clock text-sky-400 mr-2"></i>Operação 1 · Relógio lógico de Lamport</h2>
+  <div class="ah-prose">
+    <p>
+      Cada processo mantém um contador inteiro <code>L</code>. Três regras bastam:
+    </p>
+    <ul>
+      <li>um evento local incrementa <code>L</code>;</li>
+      <li>um envio incrementa <code>L</code> e carrega esse valor na mensagem;</li>
+      <li>um recebimento faz <code>L = max(L local, L da mensagem) + 1</code>.</li>
+    </ul>
+    <p>
+      Com essas regras vale a propriedade fundamental: se o evento <em>a</em> causou o evento <em>b</em>, então <code>L(a) &lt; L(b)</code>.
+      A recíproca <strong>não</strong> vale: <code>L(a) &lt; L(b)</code> não garante que <em>a</em> causou <em>b</em>. Por isso o carimbo de
+      Lamport ordena eventos, mas não detecta concorrência. Para isso existem os relógios vetoriais, que aparecem em Tanenbaum e van Steen.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>01-sistemas-distribuidos.py · op:lamport</code></p>
+<pre class="ah-code"><code>class RelogioLamport:
+    def __init__(self):
+        self.L = 0
+
+    def evento_local(self):
+        self.L += 1
+        return self.L
+
+    def envia(self):
+        self.L += 1                  # envio é um evento
+        return self.L                # o carimbo viaja com a mensagem
+
+    def recebe(self, carimbo_msg):
+        self.L = max(self.L, carimbo_msg) + 1
+        return self.L</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: três processos, uma troca de mensagens</h3>
+  <p class="ah-lead text-sm mb-4">Acompanhe cada carimbo. Repare que o recebimento de P2 salta de 0 para 3, porque a mensagem chegou com 2.</p>
+  <div class="ah-stage" style="height:260px"><canvas id="cvLamport" style="height:260px"></canvas></div>
+  <div id="ctlLamport" class="mt-4"></div>
+  <div id="capLamport" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="consistencia" data-toc="Consistência e replicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-copy text-sky-400 mr-2"></i>Teoria · Replicação e consistência</h2>
+  <div class="ah-prose">
+    <p>
+      Para não depender de um único servidor, dados são <strong>replicados</strong>: cópias ficam em várias máquinas. A pergunta
+      passa a ser: quando um cliente grava num nó, quando os outros nós passam a mostrar esse valor? Há um espectro de respostas.
+    </p>
+    <ul>
+      <li><strong>Consistência forte (linearizabilidade):</strong> depois que uma escrita é confirmada, toda leitura posterior vê o novo valor, em qualquer réplica. Parece um sistema de um computador só, mas exige coordenação e custa latência.</li>
+      <li><strong>Consistência eventual:</strong> as réplicas podem divergir por um tempo e convergem quando as atualizações chegam. É o modelo de muitos sistemas de contagem de curtidas e de catálogos replicados globalmente.</li>
+    </ul>
+    <p>
+      Kleppmann, no capítulo 5 de <em>Designing Data-Intensive Applications</em>, mostra que a escolha depende do que o negócio tolera: um saldo bancário
+      não pode ser lido desatualizado; o número de visualizações de um vídeo pode.
+    </p>
+  </div>
+</section>
+
+<section id="cap" data-toc="Teoria: teorema CAP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · O teorema CAP</h2>
+  <div class="ah-prose">
+    <p>
+      Eric Brewer apresentou a conjectura em 2000, e Seth Gilbert e Nancy Lynch a provaram formalmente em 2002. O teorema diz que um sistema
+      de dados replicado não pode garantir ao mesmo tempo três propriedades quando ocorre uma <strong>partição de rede</strong>:
+    </p>
+    <ul>
+      <li><strong>C (Consistência):</strong> toda leitura recebe a escrita mais recente ou um erro;</li>
+      <li><strong>A (Disponibilidade):</strong> todo pedido recebe uma resposta, sem erro;</li>
+      <li><strong>P (Tolerância a partições):</strong> o sistema continua funcionando mesmo que mensagens entre nós se percam.</li>
+    </ul>
+    <p>
+      O ponto que costuma confundir: <strong>partições acontecem</strong>, então P não é opcional em uma rede real. A escolha prática é entre C e A
+      durante a partição. Um nó isolado ou responde com um valor possivelmente antigo (escolhe A) ou recusa a resposta até reconectar (escolhe C).
+      Daniel Abadi estendeu a ideia com o modelo PACELC, que lembra que, mesmo sem partição, existe um trade-off entre latência e consistência.
+    </p>
+  </div>
+</section>
+
+<section id="hash" data-toc="Operação 2: hash consistente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-sky-400 mr-2"></i>Operação 2 · Hash consistente</h2>
+  <div class="ah-prose">
+    <p>
+      Como dividir chaves entre <em>N</em> servidores? A forma ingênua é <code>servidor = hash(chave) mod N</code>. Funciona, até o dia em
+      que N muda: quase todas as chaves mudam de servidor e os dados precisam ser copiados em massa.
+    </p>
+    <p>
+      O <strong>hash consistente</strong>, descrito por Karger e colaboradores em 1997 e usado em sistemas como o Dynamo da Amazon, espalha servidores e
+      chaves num anel. Cada chave pertence ao primeiro servidor no sentido horário. Ao entrar um servidor, só as chaves do arco que ele
+      assume são movidas. Em média, ao passar de <em>N</em> para <em>N + 1</em> servidores, a fração de chaves que se move é cerca de <code>1 / (N + 1)</code>.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>01-sistemas-distribuidos.py · op:responsavel</code></p>
+<pre class="ah-code"><code>def responsavel(self, chave):
+    pos = hash_posicao(chave)
+    i = bisect.bisect_left(self.anel, (pos,))
+    if i == len(self.anel):      # passou do fim do anel: volta ao início
+        i = 0
+    return self.anel[i][1]</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: o servidor D entra no anel</h3>
+  <p class="ah-lead text-sm mb-4">Clique em "Próximo" e observe a chave k1 mudar de dono. As outras permanecem onde estavam.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvAnel" style="height:320px"></canvas></div>
+  <div id="ctlAnel" class="mt-4"></div>
+  <div id="capAnel" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="cloud" data-toc="Teoria: a cloud" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud-arrow-up text-sky-400 mr-2"></i>Teoria · O que é cloud computing</h2>
+  <div class="ah-prose">
+    <p>
+      O NIST, no documento SP 800-145 de Peter Mell e Timothy Grance (2011), define cloud pela presença de cinco características:
+      <strong>autosserviço sob demanda</strong>, <strong>acesso amplo pela rede</strong>, <strong>pool de recursos compartilhado</strong>,
+      <strong>elasticidade rápida</strong> (crescer e encolher conforme a demanda) e <strong>serviço medido</strong> (paga-se pelo uso).
+    </p>
+    <p>Os modelos de serviço, do mais baixo ao mais alto nível de abstração, são:</p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Modelo</th><th>Você gerencia</th><th>O provedor gerencia</th><th>Exemplo do dia a dia</th></tr></thead>
+      <tbody>
+        <tr><td><strong>IaaS</strong> (infraestrutura)</td><td>sistema operacional, rede, aplicação</td><td>servidores virtuais, armazenamento, rede física</td><td>uma máquina virtual que você liga e desliga</td></tr>
+        <tr><td><strong>PaaS</strong> (plataforma)</td><td>o código e os dados</td><td>runtime, balanceamento, escala do sistema operacional</td><td>publicar uma API sem cuidar de servidores</td></tr>
+        <tr><td><strong>SaaS</strong> (software)</td><td>apenas a configuração e os usuários</td><td>tudo o resto</td><td>e-mail, planilhas e videoconferência no navegador</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-6">
+    <p>
+      Dois pontos de virada recentes. <strong>Containers</strong> empacotam a aplicação com suas dependências, e um orquestrador como o Kubernetes decide
+      em quais máquinas cada container roda e o reinicia se cair. O artigo de Burns e colaboradores (2016) descreve a linhagem desse modelo no
+      Borg, o sistema interno do Google. <strong>Serverless</strong> vai além: você envia uma função, e a plataforma cria e destrói instâncias
+      conforme as requisições chegam, cobrando por execução.
+    </p>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de resiliência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Padrões de resiliência</h2>
+  <p class="ah-prose text-sm mb-4">Nygard, em <em>Release It!</em>, organizou soluções para falhas que se repetem em produção. Estes quatro aparecem em quase todo serviço em cloud:</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Timeout</div>
+      <p class="text-xs text-slate-400">Nenhuma chamada remota espera para sempre. Sem timeout, uma thread presa num nó morto esgota o serviço inteiro.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Retry com backoff e jitter</div>
+      <p class="text-xs text-slate-400">Tente de novo, esperando mais a cada falha e com um atraso aleatório. Sem o aleatório, milhares de clientes tentam ao mesmo tempo e derrubam o serviço de novo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Idempotência</div>
+      <p class="text-xs text-slate-400">Como uma mensagem pode chegar duas vezes, a operação deve dar o mesmo resultado se repetida. Um Pix com identificador único não deve ser cobrado duas vezes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Circuit breaker</div>
+      <p class="text-xs text-slate-400">Após falhas seguidas, o cliente para de chamar o serviço por um tempo e responde rápido com erro, dando tempo para ele se recuperar.</p>
+    </div>
+  </div>
+</section>
+
+<section id="programa" data-toc="Programa completo em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-sky-300 underline underline-offset-2" href="../exemplos-python/01-sistemas-distribuidos.py">01-sistemas-distribuidos.py</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>--- Relógio de Lamport: P1 -> P2 -> P3 ---
+P2 recebe m: 3
+P3 evento local: 1
+P3 recebe m': 5
+
+--- Hash consistente: 3 servidores e depois 4 ---
+hash consistente: 245 de 1000 chaves mudaram de servidor
+hash mod N (3 -> 4): 749 de 1000 chaves mudaram</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Os 245 de 1000 batem com a previsão de cerca de 1/(N+1) = 1/4 para N = 3. O mod N move 749, perto de 3/4. A diferença é o que justifica o hash
+      consistente em qualquer sistema que muda de tamanho com frequência.
+    </p>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: carimbos de Lamport</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> P1 envia uma mensagem para P2 no seu evento 2. P2, que estava no evento 5, recebe a mensagem. Qual o carimbo do recebimento?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O carimbo da mensagem é 2. O relógio local de P2 vale 5. Logo, <code>L = max(5, 2) + 1 = 6</code>.</p>
+      <p><strong>Ponto de atenção.</strong> O <code>max</code> importa quando o relógio local está atrás. Se P2 estivesse no evento 1, a regra daria <code>max(1, 2) + 1 = 3</code>: a mensagem é que puxa o relógio para frente.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quantas chaves se movem?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um cache usa hash consistente com 9 servidores. Uma nova máquina entra. Qual fração aproximada das chaves é movida, e quantas de 100 000 chaves isso representa?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A fração esperada é 1/(N+1) = 1/10 = 10%. Isso dá cerca de 10 000 chaves movidas. Com mod N, a grande maioria das chaves mudaria (no caso de 3 para 4 servidores, o exemplo mediu 75%, e a tendência é semelhante com mais servidores): dezenas de milhares de chaves.</p>
+      <p><strong>Lição.</strong> A conta é uma média. Com poucos servidores e poucas chaves, o resultado varia. Por isso sistemas reais usam várias réplicas virtuais por servidor, como no exemplo em Python.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Dois eventos têm carimbos de Lamport L = 4 e L = 7. Podemos afirmar que o primeiro causou o segundo? E que eles são concorrentes?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não podemos afirmar nenhum dos dois. Lamport garante que causa implica carimbo menor, não o contrário. Para distinguir causalidade de concorrência é preciso um relógio vetorial.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um banco precisa de um saldo sempre correto em todas as agências, mesmo se um link entre agências cair. Qual lado do CAP ele escolhe, e que consequência isso tem para o cliente?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> escolhe consistência. Durante a partição, a agência isolada recusa ou adia a operação em vez de mostrar um saldo possivelmente desatualizado. O cliente vê uma mensagem de indisponibilidade temporária em vez de um valor errado.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Por que um retry sem jitter pode piorar uma falha em vez de resolvê-la?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> se milhares de clientes falham no mesmo instante e esperam o mesmo tempo, todos voltam juntos. A carga de retorno sincronizada pode derrubar o serviço recém-recuperado. O atraso aleatório espalha as tentativas no tempo.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um processo com L = 2 recebe uma mensagem com carimbo 9. Qual o novo L?</p>
+      <button class="ah-quiz-opt">3</button>
+      <button class="ah-quiz-opt">10</button>
+      <button class="ah-quiz-opt">11</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. L = max(2, 9) + 1 = 10. O recebimento sempre fica depois do envio.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o hash mod N é ruim quando o número de servidores muda?</p>
+      <button class="ah-quiz-opt">Porque ele não funciona com números pares</button>
+      <button class="ah-quiz-opt">Porque ele exige mais memória que uma tabela</button>
+      <button class="ah-quiz-opt">Porque trocar N muda o resto de quase todas as chaves, forçando uma migração em massa</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. No exemplo, 749 de 1000 chaves mudaram. O hash consistente move só cerca de 1/(N+1).</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Segundo o teorema CAP, o que acontece durante uma partição de rede?</p>
+      <button class="ah-quiz-opt">O sistema deve escolher entre consistência e disponibilidade</button>
+      <button class="ah-quiz-opt">Os três atributos C, A e P continuam garantidos</button>
+      <button class="ah-quiz-opt">Os dados são apagados automaticamente</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Como partições acontecem, a escolha real é entre C e A enquanto a partição dura.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Em rede não há relógio global. Para ordenar eventos, use a ordem causal (Lamport) ou aceite a concorrência.</li>
+    <li>Partições acontecem. A escolha real do CAP é entre consistência e disponibilidade durante a falha.</li>
+    <li>Hash consistente move só uma fração das chaves quando servidores entram ou saem.</li>
+    <li>Cloud é elasticidade, autosserviço e pagamento pelo uso, sustentada por containers, orquestração e serverless.</li>
+    <li>Timeout, retry com jitter, idempotência e circuit breaker são o mínimo para um serviço sobreviver a falhas.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>LAMPORT, L. Time, clocks, and the ordering of events in a distributed system. <em>Communications of the ACM</em>, v. 21, n. 7, p. 558–565, 1978. O artigo original dos relógios lógicos.</li>
+    <li>TANENBAUM, A. S.; VAN STEEN, M. <em>Distributed Systems</em>. 3. ed. 2017. Cap. 6 (sincronização, relógios lógicos) e cap. 7 (consistência e replicação).</li>
+    <li>COULOURIS, G. <em>et al.</em> <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Visão ampla de comunicação, falhas e segurança.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Caps. 5 (replicação), 6 (particionamento) e 9 (consistência e consenso).</li>
+    <li>GILBERT, S.; LYNCH, N. Brewer's conjecture and the feasibility of consistent, available, partition-tolerant web services. <em>ACM SIGACT News</em>, v. 33, n. 2, 2002.</li>
+    <li>KARGER, D. <em>et al.</em> Consistent hashing and random trees. In: <em>ACM Symposium on Theory of Computing (STOC)</em>, 1997.</li>
+    <li>ONGARO, D.; OUSTERHOUT, J. In search of an understandable consensus algorithm (Raft). In: <em>USENIX Annual Technical Conference</em>, 2014.</li>
+    <li>MELL, P.; GRANCE, T. <em>The NIST Definition of Cloud Computing</em>. NIST SP 800-145, 2011.</li>
+    <li>BURNS, B. <em>et al.</em> Borg, Omega, and Kubernetes. <em>ACM Queue</em>, v. 14, n. 1, 2016.</li>
+    <li>NYGARD, M. T. <em>Release It!: Design and Deploy Production-Ready Software</em>. 2. ed. Raleigh: Pragmatic Bookshelf, 2018. Padrões de resiliência.</li>
+    <li>BEYER, B. <em>et al.</em> <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly, 2016. Como operar serviços em produção.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvLamport', ctl: 'ctlLamport', cap: 'capLamport',
+    desenha: SD.desenhaLamport, gera: SD.geraLamport, velocidade: 1800
+  });
+  ED.criaAnimacao({
+    canvas: 'cvAnel', ctl: 'ctlAnel', cap: 'capAnel',
+    desenha: SD.desenhaAnel, gera: SD.geraAnel, velocidade: 2600
+  });
+
+})();
+</script>
+</body>
+</html>
