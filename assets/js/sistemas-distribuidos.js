@@ -236,9 +236,91 @@
     });
   }
 
+  /* ===================================================================
+     0b. CHAMADA REMOTA COM PERDA DE RESPOSTA
+     Um débito é pedido; a resposta se perde; o cliente reenvia.
+     Opção "sem": o servidor executa o débito duas vezes.
+     Opção "com": o identificador evita a segunda execução (idempotência).
+     =================================================================== */
+  function geraRPC(opcao) {
+    const com = opcao === 'com';
+    const ev = [
+      { passo: 0, tipo: 'req', rot: 'debitar(100) id=7', txt: 'Cliente envia o pedido debitar(100), com identificador id=7.' },
+      { passo: 1, tipo: 'exec', rot: 'saldo 500 → 400', txt: 'Servidor executa o débito: o saldo passa de 500 para 400.' },
+      { passo: 2, tipo: 'perdida', rot: 'ok', txt: 'Servidor responde "ok", mas a resposta se perde na rede. O cliente não sabe disso.' },
+      { passo: 3, tipo: 'timeout', rot: 'timeout', txt: 'O cliente espera, estoura o timeout e reenvia o mesmo pedido, com o mesmo id=7.' },
+      { passo: 4, tipo: 'req', rot: 'debitar(100) id=7', txt: 'Reenvio: o pedido é idêntico, inclusive o identificador.' },
+      com
+        ? { passo: 5, tipo: 'reconhece', rot: 'id=7 já feito', txt: 'O servidor vê o id=7, já processado, e devolve a resposta guardada. Nada é debitado de novo.' }
+        : { passo: 5, tipo: 'exec2', rot: 'saldo 400 → 300', txt: 'Sem identificador, o servidor não sabe que é repetição e debita de novo.' },
+      { passo: 6, tipo: 'resp', rot: 'ok', txt: com
+        ? 'O cliente recebe "ok". Saldo final: 400. O débito foi aplicado uma vez.'
+        : 'O cliente recebe "ok". Saldo final: 300. O débito foi aplicado duas vezes.' }
+    ];
+    let saldo = 500;
+    return ev.map((e, k) => {
+      if (e.tipo === 'exec') saldo = 400;
+      if (e.tipo === 'exec2') saldo = 300;
+      return { passo: e.passo, cur: e, hist: ev.slice(0, k + 1), saldo, t: e.txt };
+    });
+  }
+
+  function desenhaRPC(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const xA = 130, xB = w - 130, yTopo = 64, yFim = h - 28;
+    const yDe = p => yTopo + (p / 6) * (yFim - yTopo);
+
+    ctx.strokeStyle = 'rgba(148,163,184,.35)';
+    ctx.lineWidth = 2;
+    [xA, xB].forEach(x => {
+      ctx.beginPath();
+      ctx.moveTo(x, yTopo);
+      ctx.lineTo(x, yFim);
+      ctx.stroke();
+    });
+    rotulo(ctx, 'Cliente', xA, yTopo - 24, CORES.txt, 'center');
+    rotulo(ctx, 'Servidor', xB, yTopo - 24, CORES.txt, 'center');
+    rotulo(ctx, 'saldo da conta: ' + q.saldo, w / 2, 22, CORES.amarelo, 'center');
+
+    q.hist.forEach(e => {
+      const atual = e.passo === q.cur.passo;
+      const y = yDe(e.passo);
+      const esmaece = atual ? 1 : 0.35;
+      ctx.globalAlpha = esmaece;
+      const cor = e.tipo === 'perdida' || e.tipo === 'exec2' ? CORES.rosa
+        : e.tipo === 'reconhece' || e.tipo === 'resp' ? CORES.verde
+        : e.tipo === 'timeout' ? CORES.amarelo : CORES.azul;
+
+      if (e.tipo === 'req') {
+        global.AH.arrow(ctx, xA, y, xB, y, CORES.azul, true);
+        rotulo(ctx, e.rot, (xA + xB) / 2, y - 12, CORES.azul, 'center');
+      } else if (e.tipo === 'exec' || e.tipo === 'exec2' || e.tipo === 'reconhece') {
+        global.AH.roundRect(ctx, xB - 70, y - 13, 140, 26, 8);
+        ctx.fillStyle = '#1e293b'; ctx.fill();
+        ctx.strokeStyle = cor; ctx.lineWidth = 2; ctx.stroke();
+        rotulo(ctx, e.rot, xB, y, cor, 'center');
+      } else if (e.tipo === 'perdida') {
+        ctx.setLineDash([6, 5]);
+        global.AH.arrow(ctx, xB, y, xA, y, CORES.rosa, true);
+        ctx.setLineDash([]);
+        const mx = (xA + xB) / 2;
+        rotulo(ctx, 'X', mx, y, CORES.rosa, 'center');
+        rotulo(ctx, 'ok (perdida)', mx, y - 12, CORES.rosa, 'center');
+      } else if (e.tipo === 'timeout') {
+        rotulo(ctx, 'timeout', xA + 14, y, cor);
+      } else if (e.tipo === 'resp') {
+        global.AH.arrow(ctx, xB, y, xA, y, CORES.verde, true);
+        rotulo(ctx, e.rot, (xA + xB) / 2, y - 12, CORES.verde, 'center');
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
+    geraRPC,
+    desenhaRPC,
     geraLamport,
     desenhaLamport,
     SERVIDORES,
