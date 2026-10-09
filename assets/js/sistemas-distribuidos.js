@@ -492,11 +492,74 @@
     rotulo(ctx, 'verde: dentro da seção crítica · rosa: pedindo entrada', 16, h - 16, CORES.mudo);
   }
 
+  /* ===================================================================
+     0e. QUÓRUNS DE LEITURA E ESCRITA (N = 3)
+     A escrita exige W confirmações; a leitura consulta R réplicas e fica
+     com a versão mais nova. Se W + R > N, toda leitura toca alguma réplica
+     que recebeu a escrita. Opções: "r1" (R = 1) e "r2" (R = 2), com W = 2.
+     =================================================================== */
+  const REPLICAS = ['R1', 'R2', 'R3'];
+
+  function geraQuorum(opcao) {
+    const r2 = opcao === 'r2';
+    const estadoInicial = [['A', 1], ['A', 1], ['A', 1]];
+    const comEscrita = [['B', 2], ['B', 2], ['A', 1]];
+    const base = [
+      { rep: estadoInicial, escritas: [], ativos: [], leitura: null, t: 'Três réplicas guardam o valor A, na versão 1.' },
+      { rep: [['B', 2], ['A', 1], ['A', 1]], escritas: [0], ativos: [], leitura: null, t: 'O cliente escreve B, versão 2. R1 recebe e confirma.' },
+      { rep: comEscrita, escritas: [0, 1], ativos: [], leitura: null, t: 'R2 também confirma. Com W = 2 confirmações, a escrita é dada como concluída. R3 ainda não recebeu, por atraso ou partição.' }
+    ];
+    const leitura = r2
+      ? { rep: comEscrita, escritas: [], ativos: [0, 2], leitura: ['B', 2],
+          t: 'Leitura com R = 2: consulta R1 e R3. R1 devolve B, versão 2, a mais nova. Como W + R = 4 > N = 3, sempre há uma réplica comum ao quórum da escrita.' }
+      : { rep: comEscrita, escritas: [], ativos: [2], leitura: ['A', 1],
+          t: 'Leitura com R = 1: consulta só R3, que devolve A, versão 1. Essa leitura é desatualizada, feita depois de uma escrita já confirmada.' };
+    return base.concat([leitura]);
+  }
+
+  function desenhaQuorum(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const yBox = h * 0.42, larg = 150, alt = 84;
+    const xDe = i => w * (0.2 + i * 0.3);
+
+    REPLICAS.forEach((nome, i) => {
+      const [valor, versao] = q.rep[i];
+      const x = xDe(i) - larg / 2;
+      const escrita = q.escritas.indexOf(i) >= 0;
+      const lida = q.ativos.indexOf(i) >= 0;
+      const borda = lida ? CORES.amarelo : escrita ? CORES.verde : CORES.azul;
+      global.AH.roundRect(ctx, x, yBox - alt / 2, larg, alt, 10);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = borda;
+      ctx.stroke();
+      rotulo(ctx, nome, xDe(i), yBox - alt / 2 - 14, CORES.txt, 'center');
+      ctx.fillStyle = CORES.txt;
+      ctx.font = '600 18px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(valor, xDe(i), yBox - 10);
+      rotulo(ctx, 'versão ' + versao, xDe(i), yBox + 18, versao === 2 ? CORES.verde : CORES.mudo, 'center');
+      if (lida) rotulo(ctx, 'consultada', xDe(i), yBox + alt / 2 + 16, CORES.amarelo, 'center');
+    });
+
+    if (q.leitura) {
+      const [valor, versao] = q.leitura;
+      const cor = versao === 2 ? CORES.verde : CORES.rosa;
+      rotulo(ctx, 'resposta da leitura: ' + valor + ' (versão ' + versao + ')' +
+        (versao === 2 ? ' · atual' : ' · desatualizada'), w / 2, h - 34, cor, 'center');
+    }
+    rotulo(ctx, 'verde: escrita confirmada · amarelo: réplica consultada na leitura', 16, h - 14, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraQuorum,
+    desenhaQuorum,
     geraEleicao,
     desenhaEleicao,
     geraToken,

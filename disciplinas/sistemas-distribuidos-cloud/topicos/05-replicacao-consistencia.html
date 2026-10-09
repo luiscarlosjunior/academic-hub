@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Replicação e modelos de consistência: líder-seguidor, quóruns e linearizabilidade · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Por que replicar, as estratégias líder-seguidor, multi-líder e sem líder, os modelos de consistência (linearizável, sequencial, causal, eventual) e quóruns W + R > N, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/05-replicacao-consistencia">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-copy text-sky-400 mr-2"></i>Tópico 5 · Replicação e consistência</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Replicar</strong> é manter cópias do mesmo dado em máquinas diferentes. Faz-se por três motivos: o sistema continua disponível quando
+      uma máquina cai; leituras podem ser atendidas perto do usuário, com menor latência; e a carga de leitura é dividida entre várias cópias. O preço é
+      que as cópias podem divergir, e a pergunta central desta disciplina aparece aqui de forma concreta: <strong>o que um cliente tem o direito de
+      ver depois de uma escrita?</strong>
+    </p>
+    <p>
+      A resposta é o <strong>modelo de consistência</strong>, um contrato entre o sistema e o cliente. Quanto mais forte o contrato, mais coordenação
+      é necessária e mais lenta é a operação. Este tópico apresenta as principais estratégias de replicação, os modelos de consistência que elas
+      oferecem e a matemática dos quóruns, que permite ajustar esse trade-off.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>distinguir replicação líder-seguidor, multi-líder e sem líder, com suas vantagens e riscos;</li>
+      <li>definir linearizabilidade, consistência sequencial, causal e eventual, e dar um exemplo de cada;</li>
+      <li>usar a condição W + R &gt; N para decidir se uma leitura vê a última escrita confirmada;</li>
+      <li>explicar o que são leituras desatualizadas, read repair e anti-entropia;</li>
+      <li>escolher o modelo de consistência certo para um dado de negócio concreto.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="motivacao" data-toc="Teoria: por que replicar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Teoria · Por que replicar</h2>
+  <div class="ah-prose">
+    <p>
+      Considere um serviço que guarda o saldo de uma conta em um único servidor. Se o servidor cai, a conta fica inacessível. Se o servidor fica em
+      São Paulo e o cliente está em Lisboa, cada leitura custa centenas de milissegundos. Se muitos clientes leem ao mesmo tempo, o servidor satura.
+      Replicar em três locais resolve os três problemas, ao custo de manter as cópias sincronizadas.
+    </p>
+    <p>
+      Kleppmann (2017, cap. 5) organiza as estratégias em três famílias, conforme quem aceita escritas:
+    </p>
+    <ul>
+      <li><strong>Líder-seguidor (primário-réplica):</strong> uma réplica é o líder e aceita todas as escritas, que são propagadas aos seguidores. Leituras podem ir a qualquer réplica. Simples de raciocinar; o líder é um gargalo e um ponto de falha até a eleição de um novo.</li>
+      <li><strong>Multi-líder:</strong> várias réplicas aceitam escritas, normalmente uma por data center. Dá boa latência de escrita entre regiões, mas exige resolver conflitos quando a mesma chave é escrita em dois líderes ao mesmo tempo.</li>
+      <li><strong>Sem líder:</strong> o cliente (ou um coordenador) escreve em várias réplicas e lê de várias, com quóruns. É a abordagem do Dynamo (DeCandia et al., 2007) e de sistemas como Cassandra e Riak.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="lider" data-toc="Teoria: líder-seguidor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-tie text-sky-400 mr-2"></i>Teoria · Líder-seguidor, síncrono e assíncrono</h2>
+  <div class="ah-prose">
+    <p>
+      Na replicação <strong>síncrona</strong>, o líder só confirma a escrita depois que o seguidor a gravou. Se o seguidor cai, o líder bloqueia
+      ou escolhe outro seguidor. Ninguém vê dados perdidos após o commit, mas a latência de escrita cresce com a distância até o seguidor.
+    </p>
+    <p>
+      Na replicação <strong>assíncrona</strong>, o líder confirma logo e propaga em segundo plano. A escrita é rápida, mas, se o líder cai antes de
+      propagar, a escrita confirmada se perde quando um seguidor atrasado vira líder. Essa é a origem de muitos incidentes de "dados sumiram após o
+      failover". O <strong>lag</strong> de replicação, medido em segundos, é o tamanho da janela de perda e também a janela de leitura desatualizada.
+    </p>
+    <p>
+      Na prática, usa-se um meio-termo: um seguidor síncrono e os demais assíncronos. Assim, sempre existe uma cópia atualizada para promover, sem
+      que toda escrita espere todos os seguidores.
+    </p>
+  </div>
+</section>
+
+<section id="modelos" data-toc="Teoria: modelos de consistência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · Modelos de consistência</h2>
+  <div class="ah-prose">
+    <p>
+      Um modelo de consistência define quais históricos de leituras e escritas são aceitáveis. Do mais forte ao mais fraco:
+    </p>
+    <ul>
+      <li><strong>Linearizabilidade</strong> (Herlihy e Wing, 1990): cada operação parece acontecer instantaneamente em algum ponto entre seu início e seu fim, e esses pontos formam uma única ordem que respeita o tempo real. Se uma escrita foi confirmada, toda leitura posterior vê essa escrita. É o modelo que o programador espera de uma variável em memória.</li>
+      <li><strong>Consistência sequencial</strong> (Lamport, 1979): as operações têm uma ordem total, consistente com a ordem de cada processo, mas não precisa respeitar o tempo real. Mais barata que a linearizabilidade, e suficiente para muitos algoritmos.</li>
+      <li><strong>Consistência causal:</strong> se uma operação causou outra (tópico 3), todos veem as duas nessa ordem. Operações concorrentes podem ser vistas em ordens diferentes. É o modelo mais forte que ainda admite disponibilidade durante partições.</li>
+      <li><strong>Consistência eventual:</strong> se as escritas param, todas as réplicas convergem para o mesmo valor. Até lá, leituras podem ser antigas e até inconsistentes entre si. Vogels (2009) defende que é o modelo adequado para muitos serviços de larga escala, desde que a aplicação saiba conviver com isso.</li>
+    </ul>
+    <p>
+      Há também garantias de sessão, úteis para o usuário sem exigir o custo da linearizabilidade. A mais comum é <strong>ler suas próprias escritas</strong>
+      (read-your-writes): depois de publicar um comentário, o usuário sempre o vê, mesmo que outros usuários ainda não. E <strong>leituras monotônicas</strong>:
+      uma vez vista uma versão, o usuário não volta a ver uma mais antiga.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Modelo</th><th>Garantia para o cliente</th><th>Custo típico</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Linearizável</td><td>escrita confirmada é vista por qualquer leitura seguinte</td><td>alto: coordenação e latência</td><td>saldo bancário, bloqueios, eleições</td></tr>
+        <tr><td>Sequencial</td><td>ordem total consistente com cada processo</td><td>médio</td><td>cache de CPU, algoritmos de memória compartilhada</td></tr>
+        <tr><td>Causal</td><td>efeito sempre vem depois da causa</td><td>médio-baixo</td><td>comentários e respostas em uma rede social</td></tr>
+        <tr><td>Eventual</td><td>convergência quando as escritas param</td><td>baixo</td><td>contador de visualizações, catálogo de produtos</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="quoruns" data-toc="Teoria: quóruns W e R" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-sky-400 mr-2"></i>Teoria · Quóruns: a condição W + R &gt; N</h2>
+  <div class="ah-prose">
+    <p>
+      Em um sistema sem líder com <em>N</em> réplicas, uma escrita é confirmada quando <em>W</em> réplicas a gravaram, e uma leitura consulta <em>R</em>
+      réplicas e fica com a versão mais nova. A pergunta é: quando uma leitura vê a última escrita confirmada?
+    </p>
+    <p>
+      <strong>Teorema.</strong> Se <em>W + R &gt; N</em>, todo conjunto de <em>R</em> réplicas intersecta todo conjunto de <em>W</em> réplicas. Como a
+      escrita confirmada está em pelo menos <em>W</em> réplicas, a leitura toca pelo menos uma delas e recebe a versão nova.
+    </p>
+    <p>
+      <strong>Demonstração.</strong> Seja <em>S</em> o conjunto das <em>W</em> réplicas da escrita e <em>T</em> o das <em>R</em> réplicas da leitura, ambos
+      subconjuntos de N elementos. Se <em>S</em> e <em>T</em> fossem disjuntos, teríamos |S| + |T| ≤ N, ou seja, W + R ≤ N. Contradição.
+    </p>
+    <p>
+      A condição é suficiente, mas não garante leitura atual em todos os casos: se a escrita ainda está em andamento, ou se o sistema usa leituras
+      com R menor, a leitura pode voltar valor antigo. Para N = 3 e W = 2, a leitura precisa de R = 2 para garantir atualidade.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>05-replicacao-consistencia.py · op:le</code></p>
+<pre class="ah-code"><code>def le(self, r):
+    consultadas = self.rng.sample(self.replicas, r)
+    return max(consultadas, key=lambda rep: rep.versao)</code></pre>
+</section>
+
+<section id="animacao" data-toc="Animação: quórum com e sem sobreposição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Uma escrita e uma leitura com N = 3</h2>
+  <p class="ah-lead text-sm mb-4">A escrita de B é confirmada por R1 e R2. R3 fica para trás. Escolha o tamanho da leitura no seletor: com R = 1, a leitura cai em R3 e volta A; com R = 2, a leitura inclui R1 e volta B.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvQuorum" style="height:300px"></canvas></div>
+  <div id="ctlQuorum" class="mt-4"></div>
+  <div id="capQuorum" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="reparo" data-toc="Teoria: leituras desatualizadas e reparo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-screwdriver-wrench text-sky-400 mr-2"></i>Teoria · Como as réplicas convergem</h2>
+  <div class="ah-prose">
+    <p>
+      Mesmo com quóruns bem escolhidos, uma réplica pode ficar para trás: ela estava fora do ar durante a escrita. O Dynamo trata isso com três mecanismos:
+    </p>
+    <ul>
+      <li><strong>Read repair:</strong> quando uma leitura percebe que uma réplica tem versão antiga, ela envia o valor novo a essa réplica. Corrige o que é lido com frequência.</li>
+      <li><strong>Hinted handoff:</strong> se uma réplica está fora do ar, outra guarda a escrita como "dica" e a entrega quando a réplica voltar. Mantém W alcançável durante falhas curtas.</li>
+      <li><strong>Anti-entropia:</strong> réplicas comparam periodicamente os dados por meio de árvores de Merkle, que comparam hashes de intervalos de chaves. Só os intervalos diferentes são transferidos. Corrige o que nunca é lido.</li>
+    </ul>
+    <p>
+      Versões concorrentes, por sua vez, exigem relógios vetoriais (tópico 3) para serem detectadas. Quando duas escritas são concorrentes, o sistema
+      guarda as duas como <em>irmãs</em> e deixa a aplicação decidir a fusão, ou usa uma regra determinística como <em>last write wins</em> (LWW), que perde
+      uma das escritas e deve ser usada com cautela.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: leituras desatualizadas em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Medindo leituras desatualizadas</h2>
+  <div class="ah-prose">
+    <p>
+      O programa cria 20 000 clusters de N = 3 réplicas. Em cada um, faz uma escrita confirmada por W réplicas escolhidas ao acaso, e uma leitura que
+      consulta R réplicas. Conta quantas leituras devolvem valor antigo. Com a semente fixa, o resultado é reproduzível.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>N = 3. Fração de leituras desatualizadas, depois de uma escrita confirmada:
+   W  R   W+R &gt; N?   desatualizadas
+   1  1        não            66.5%
+   2  1        não            33.5%
+   1  2        não            33.5%
+   2  2        sim             0.0%
+   3  1        sim             0.0%
+
+Com W + R &gt; N, a sobreposição garante leitura atual. Sem ela, a leitura pode ser antiga.</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Os valores batem com o cálculo: se a leitura e a escrita escolhem réplicas ao acaso, com W = 1 e R = 1 a leitura erra com probabilidade 2/3 (a
+      escrita atingiu uma das três, e a leitura pega outra com probabilidade 2/3). Com W + R = 3, a leitura erra 1/3 das vezes. Com W + R = 4 ou mais,
+      a sobreposição elimina o erro.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Saldo bancário</div>
+      <p class="text-xs text-slate-400">Após um pagamento confirmado, o saldo precisa estar correto em qualquer canal. É um dado que exige linearizabilidade, ou ao menos leitura do líder, e aceita mais latência por isso.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Contador de curtidas</div>
+      <p class="text-xs text-slate-400">Um número que aparece como 1,2 mil em um lugar e 1,3 mil em outro não causa dano. A consistência eventual basta, e a escrita é rápida em todas as regiões.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Comentário que some</div>
+      <p class="text-xs text-slate-400">Você publica um comentário, recarrega a página e ele não aparece. Isso é falta de read-your-writes. A correção comum é direcionar as leituras do usuário à mesma réplica por um tempo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Carrinho de compras</div>
+      <p class="text-xs text-slate-400">O Dynamo nasceu desse caso. Um carrinho nunca deve ser recusado por indisponibilidade, mesmo que duas versões divergentes apareçam. Ao fim, a fusão preserva os itens de ambas, e no pior caso um item extra é removido no checkout.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: escolher W e R</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um sistema tem N = 5 réplicas. Quais pares (W, R) garantem leitura atual, e qual o menor R com W = 3?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A condição é W + R &gt; 5. Com W = 3, precisamos de R &gt; 2, ou seja, R = 3 é o menor valor. Com W = 1, R precisa ser 5. Com W = 4, R = 2 já basta. Os pares que garantem leitura atual são aqueles com W + R ≥ 6.</p>
+      <p><strong>Trade-off.</strong> W alto torna a escrita lenta e sensível a falhas. R alto torna a leitura lenta. Muitos sistemas escolhem W = R = 3 com N = 5, que equilibra os dois e tolera duas falhas.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: classificar o modelo</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um usuário posta uma foto e recarrega a página; a foto aparece. Outro usuário, em outra região, só vê a foto minutos depois. Qual modelo descreve o sistema? E o que faltaria para garantir que o primeiro usuário sempre a veja?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O sistema é eventualmente consistente para os outros usuários, mas oferece read-your-writes para o autor. Para garantir essa propriedade sempre, o sistema direcionaria as leituras do autor à réplica onde a escrita foi feita, ou usaria um token de sessão com a versão mínima esperada.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um sistema com N = 3 usa W = 2 e R = 2. Ele tolera quantas falhas simultâneas de réplicas sem perder a disponibilidade de escrita e de leitura?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> com uma falha, ainda restam duas réplicas, suficientes para W = 2 e R = 2. Com duas falhas, resta uma réplica, e nem a escrita nem a leitura conseguem o quórum. Logo, tolera uma falha.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que a replicação assíncrona pode perder uma escrita já confirmada ao cliente? Desenhe um cenário com líder e dois seguidores.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> o líder confirma a escrita após gravar localmente. O seguidor S1 ainda não recebeu a mensagem de replicação. O líder cai. S1 é promovido e não tem a escrita. O cliente viu "confirmado", mas a escrita sumiu. Um seguidor síncrono evitaria isso, ao custo de latência.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Explique por que consistência causal é mais fraca que linearizabilidade, mas mais forte que consistência eventual. Dê um exemplo de histórico causal que não é linearizável.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a linearizabilidade exige uma ordem total que respeita o tempo real; a causal exige apenas a ordem entre eventos causalmente relacionados. Considere duas escritas concorrentes, x = 1 e x = 2, feitas por clientes diferentes, e depois dois leitores. O leitor A lê 1 e depois 2; o leitor B lê 2 e depois 1. Como as escritas são concorrentes, não há ordem causal entre elas, então a causal aceita esse histórico. Mas a linearizabilidade exige uma única ordem para as escritas, que A e B não podem ambos respeitar: o histórico não é linearizável. A eventual, por sua vez, não garante nem a ordem entre causas e efeitos durante a convergência.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com N = 3, W = 2 e R = 1, a leitura é garantida atual?</p>
+      <button class="ah-quiz-opt">Sim, sempre</button>
+      <button class="ah-quiz-opt">Não: W + R = 3 não é maior que N = 3</button>
+      <button class="ah-quiz-opt">Sim, porque W é maior que R</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A condição é W + R &gt; N, e 3 não é maior que 3. Uma leitura em uma única réplica pode cair fora do quórum da escrita.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual modelo garante que, se uma escrita foi confirmada, toda leitura posterior a vê?</p>
+      <button class="ah-quiz-opt">Consistência eventual</button>
+      <button class="ah-quiz-opt">Consistência causal</button>
+      <button class="ah-quiz-opt">Linearizabilidade</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A linearizabilidade respeita o tempo real: a escrita confirmada precede qualquer leitura que começa depois dela.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual mecanismo do Dynamo usa árvores de Merkle para comparar réplicas?</p>
+      <button class="ah-quiz-opt">Anti-entropia</button>
+      <button class="ah-quiz-opt">Read repair</button>
+      <button class="ah-quiz-opt">Hinted handoff</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A anti-entropia compara hashes de intervalos de chaves e transfere apenas o que difere.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Replicação existe por disponibilidade, latência e escala de leitura. Todo ganho tem um custo em consistência.</li>
+    <li>Escolha o modelo pelo dado: saldo exige forte; contador aceita eventual; comentário exige read-your-writes.</li>
+    <li>Com quóruns, W + R &gt; N garante que a leitura toca a última escrita confirmada.</li>
+    <li>Réplicas que ficam para trás se corrigem por read repair, hinted handoff e anti-entropia.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 5 (replicação), cap. 9 (consistência).</li>
+    <li>HERLIHY, M. P.; WING, J. M. Linearizability: a correctness condition for concurrent objects. <em>ACM Transactions on Programming Languages and Systems</em>, v. 12, n. 3, p. 463–492, 1990.</li>
+    <li>LAMPORT, L. How to make a multiprocessor computer that correctly executes multiprocess programs. <em>IEEE Transactions on Computers</em>, v. C-28, n. 9, p. 690–691, 1979.</li>
+    <li>VOGELS, W. Eventually consistent. <em>Communications of the ACM</em>, v. 52, n. 1, p. 40–44, 2009.</li>
+    <li>BAILIS, P.; GHODSI, A. Eventual consistency today: limitations, extensions, and beyond. <em>ACM Queue</em>, v. 11, n. 3, 2013.</li>
+    <li>DECANDIA, G. et al. Dynamo: Amazon's highly available key-value store. In: <em>ACM SOSP</em>, 2007.</li>
+    <li>COULOURIS, G. et al. <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Cap. 18 (replicação).</li>
+    <li>TANENBAUM, A. S.; VAN STEEN, M. <em>Distributed Systems</em>. 3. ed. 2017. Cap. 7 (consistência e replicação).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvQuorum', ctl: 'ctlQuorum', cap: 'capQuorum',
+    desenha: SD.desenhaQuorum, gera: SD.geraQuorum, velocidade: 2200,
+    opcoes: [
+      { v: 'r1', rotulo: 'Leitura com R = 1' },
+      { v: 'r2', rotulo: 'Leitura com R = 2' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>
