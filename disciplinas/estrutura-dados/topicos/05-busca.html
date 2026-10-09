@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Busca: linear, binária e busca na resposta · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Busca linear e binária em C (iterativa e recursiva), lower_bound, busca sobre a resposta, animações e exercícios resolvidos com o padrão de dividir o espaço de busca.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/05-busca">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-amber-400 mr-2"></i>Tópico 5 · Busca</h2>
+  <div class="ah-prose">
+    <p>
+      Buscar é a operação mais frequente em qualquer sistema: achar um usuário, uma chave, uma posição. O custo depende de duas coisas: se os
+      dados estão organizados, e quanto da organização o algoritmo consegue aproveitar. Esta página vai da busca linear, que não exige nada,
+      à busca binária, que exige ordem e transforma O(n) em O(log n), e à busca sobre a resposta, que usa a mesma ideia para problemas
+      que nem parecem de busca.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>justificar a busca linear e calcular seu custo, com e sem ordem;</li>
+      <li>implementar a busca binária de forma correta, sem armadilhas de limites;</li>
+      <li>usar <code>lower_bound</code> para achar a primeira ocorrência;</li>
+      <li>aplicar busca sobre a resposta a problemas com resposta monotônica.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: a ideia de dividir" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-amber-400 mr-2"></i>Teoria: por que dividir ao meio funciona</h2>
+  <div class="ah-prose">
+    <p>
+      Numa busca binária, comparamos o alvo com o elemento do meio. Se o alvo é menor, a metade direita não pode conter o alvo, e a descartamos
+      sem olhar. Cada comparação elimina metade do espaço restante. Após <code>k</code> comparações, restam n / 2<sup>k</sup> candidatos.
+      O processo termina quando resta um, ou seja, k = log₂ n: O(log n). Para um bilhão de elementos, bastam cerca de 30 comparações.
+    </p>
+    <p>
+      A regra é <strong>absoluta</strong>: a busca binária só funciona se o vetor estiver ordenado. Sem a ordem, descartar uma metade pode eliminar
+      o alvo, e o algoritmo devolve “não encontrado” sem nenhum aviso. Bentley (1999, cap. 4) mostrou que uma fração grande das implementações
+      publicadas tinha algum erro sutil de limites, e Bloch (2006) descreveu um desses erros, de estouro de inteiro, que aparecia em bibliotecas
+      padrão. A forma segura do meio é <code>lo + (hi − lo) / 2</code>.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Busca</th><th>Pré-condição</th><th>Tempo</th><th>Espaço extra</th></tr></thead>
+      <tbody>
+        <tr><td>Linear</td><td>nenhuma</td><td>O(n)</td><td>O(1)</td></tr>
+        <tr><td>Binária, iterativa</td><td>vetor ordenado</td><td>O(log n)</td><td>O(1)</td></tr>
+        <tr><td>Binária, recursiva</td><td>vetor ordenado</td><td>O(log n)</td><td>O(log n) de pilha</td></tr>
+        <tr><td>Busca sobre a resposta</td><td>resposta monotônica</td><td>O(log(intervalo) · custo do teste)</td><td>O(1)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="linear" data-toc="Operação 1: busca linear" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bars-staggered text-amber-400 mr-2"></i>Operação 1 · Busca linear</h2>
+  <div class="ah-prose">
+    <p>
+      Percorre o vetor do início ao fim até achar o valor. É o método certo quando os dados não estão ordenados e a busca é feita uma única vez:
+      ordenar custa O(n log n), mais do que a própria busca. Pior caso: O(n), quando o valor não existe ou está no fim.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:linear</code></p>
+<pre class="ah-code"><code>static long busca_linear(const int a[], size_t n, int x) {
+    for (size_t i = 0; i &lt; n; i++)
+        if (a[i] == x) return (long)i;
+    return -1;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: busca linear</h3>
+  <div class="ah-stage" style="height:240px"><canvas id="cvBuscaLinear" style="height:240px"></canvas></div>
+  <div id="ctlBuscaLinear" class="mt-4"></div>
+  <div id="capBuscaLinear" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="binaria" data-toc="Operação 2: busca binária" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-divide text-amber-400 mr-2"></i>Operação 2 · Busca binária</h2>
+  <div class="ah-prose">
+    <p>
+      A versão iterativa mantém o intervalo semiaberto <code>[lo, hi)</code>: o alvo, se existir, está dentro dele. Essa convenção evita
+      casos especiais: <code>lo == hi</code> significa intervalo vazio. A versão recursiva é mais clara, mas usa O(log n) de pilha.
+      Em C, prefira a iterativa.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:binaria-iter</code></p>
+<pre class="ah-code"><code>static long busca_binaria(const int a[], size_t n, int x) {
+    size_t lo = 0, hi = n;                         /* intervalo [lo, hi) */
+    while (lo &lt; hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (a[mid] == x) return (long)mid;
+        if (a[mid] &lt; x) lo = mid + 1;
+        else hi = mid;
+    }
+    return -1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:binaria-rec</code></p>
+<pre class="ah-code"><code>static long busca_rec(const int a[], size_t lo, size_t hi, int x) {
+    if (lo &gt;= hi) return -1;
+    size_t mid = lo + (hi - lo) / 2;
+    if (a[mid] == x) return (long)mid;
+    if (a[mid] &lt; x) return busca_rec(a, mid + 1, hi, x);
+    return busca_rec(a, lo, mid, x);
+}
+
+static long busca_binaria_rec(const int a[], size_t n, int x) {
+    return busca_rec(a, 0, n, x);
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: busca binária</h3>
+  <p class="ah-lead text-sm mb-4">Os elementos apagados já foram descartados. Teste um valor presente, um ausente e o primeiro elemento.</p>
+  <div class="ah-stage" style="height:240px"><canvas id="cvBusca" style="height:240px"></canvas></div>
+  <div id="ctlBusca" class="mt-4"></div>
+  <div id="capBusca" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="lower" data-toc="Operação 3: lower_bound" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-turn-down text-amber-400 mr-2"></i>Operação 3 · <em>lower_bound</em>: a primeira posição</h2>
+  <div class="ah-prose">
+    <p>
+      Em vetores com repetições, a pergunta útil costuma ser <em>onde começa</em> o valor. <code>lower_bound</code> devolve a primeira posição
+      com <code>a[i] ≥ x</code>. Ela é a busca binária com uma troca: quando <code>a[mid] ≥ x</code>, a resposta está em <code>mid</code>
+      ou à esquerda, então guardamos <code>hi = mid</code>. Com ela, contar ocorrências é <code>lower_bound(x+1) − lower_bound(x)</code>.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:lower-bound</code></p>
+<pre class="ah-code"><code>static size_t lower_bound(const int a[], size_t n, int x) {
+    size_t lo = 0, hi = n;
+    while (lo &lt; hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (a[mid] &lt; x) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;                                     /* primeira posição com a[i] &gt;= x */
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/05-busca.c">05-busca.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>buscar 24: linear=5 binária=5 recursiva=5
+buscar 40: linear=-1 binária=-1 recursiva=-1
+buscar  3: linear=0 binária=0 recursiva=0
+primeira ocorrência de 2 em {1,2,2,2,5,8} = 1
+primeira ocorrência de 4 = -1
+raiz inteira de 99 = 9, de 100 = 10
+mínimo de {4,5,6,7,0,1,2} = 0
+índice de um pico em {1,3,8,12,4,2} = 3</code></pre>
+</section>
+
+<section id="resposta" data-toc="Padrão: busca sobre a resposta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-amber-400 mr-2"></i>Padrão de resolução: busca sobre a resposta</h2>
+  <div class="ah-prose">
+    <p>
+      Muitos problemas pedem “o menor/maior valor tal que …”. Se a condição é <strong>monotônica</strong> (se vale para um valor, vale para os
+      seguintes, ou o contrário), não precisamos adivinhar a resposta: buscamos sobre o intervalo de respostas possíveis. Cada teste custa O(f)
+      e o número de testes é log(intervalo). O exercício de raiz quadrada ilustra o padrão.
+    </p>
+    <ol class="list-decimal pl-5 space-y-1">
+      <li>Defina o intervalo de respostas possíveis <code>[lo, hi]</code>.</li>
+      <li>Escreva um teste <code>viável(x)</code>, monotônico em x.</li>
+      <li>Busque o menor (ou maior) x com <code>viável(x)</code> verdadeiro.</li>
+      <li>Cuidado com o meio: arredonde para cima quando a resposta pode ser <code>mid</code>, para não entrar em laço infinito.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: primeira ocorrência</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Num vetor ordenado com repetições, devolva o índice da primeira ocorrência de x, ou −1.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> <code>lower_bound</code> já devolve a primeira posição com valor ≥ x. Basta verificar se essa posição existe e contém exatamente x. Se a busca comum devolvesse uma ocorrência qualquer, precisaríamos andar para trás, o que seria O(n) no pior caso.</p>
+      <p><strong>Complexidade:</strong> O(log n).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · ex:primeira</code></p>
+<pre class="ah-code"><code>static long primeira_ocorrencia(const int a[], size_t n, int x) {
+    size_t p = lower_bound(a, n, x);
+    return (p &lt; n &amp;&amp; a[p] == x) ? (long)p : -1;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: raiz quadrada inteira</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Calcule o maior r tal que r² ≤ n, sem usar funções de ponto flutuante.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> busca sobre a resposta. A condição <code>r² ≤ n</code> é verdadeira até um certo r e falsa depois. Para evitar estouro, escrevemos <code>mid ≤ n / mid</code> em vez de <code>mid · mid ≤ n</code>. O meio arredonda para cima, para que <code>lo = mid</code> avance sempre.</p>
+      <p><strong>Complexidade:</strong> O(log n) testes, cada um O(1).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · ex:raiz</code></p>
+<pre class="ah-code"><code>static unsigned long raiz_inteira(unsigned long n) {
+    unsigned long lo = 0, hi = n;                  /* a resposta está em [lo, hi] */
+    while (lo &lt; hi) {
+        unsigned long mid = lo + (hi - lo + 1) / 2;   /* arredonda para cima */
+        if (mid &lt;= n / mid) lo = mid;              /* mid² &lt;= n, sem estouro */
+        else hi = mid - 1;
+    }
+    return lo;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: mínimo em vetor ordenado e rotacionado</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> O vetor <code>[4,5,6,7,0,1,2]</code> foi ordenado e depois rotacionado. Encontre o mínimo em O(log n), com valores distintos.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Em um vetor rotacionado, a metade que contém a virada tem o mínimo. Comparar <code>a[mid]</code> com <code>a[hi]</code> decide de que lado a virada está: se <code>a[mid] &gt; a[hi]</code>, o mínimo está à direita de mid; senão, mid ou algo à esquerda dele é o mínimo.</p>
+      <p><strong>Complexidade:</strong> O(log n).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · ex:rotacionado</code></p>
+<pre class="ah-code"><code>static int minimo_rotacionado(const int a[], size_t n) {
+    size_t lo = 0, hi = n - 1;
+    while (lo &lt; hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (a[mid] &gt; a[hi]) lo = mid + 1;          /* o mínimo está à direita */
+        else hi = mid;
+    }
+    return a[lo];
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 4: elemento de pico</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um pico é um elemento maior que seus vizinhos. Encontre um pico em O(log n), sabendo que <code>a[i] ≠ a[i+1]</code>.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Se <code>a[mid] &lt; a[mid+1]</code>, o vetor está subindo: um pico existe à direita (o último elemento pode ser o pico, com a fronteira implícita −∞). Senão, o vetor está descendo ou em um pico: há pico em mid ou à esquerda. Assim, a busca sempre tem um lado garantido.</p>
+      <p><strong>Complexidade:</strong> O(log n).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · ex:pico</code></p>
+<pre class="ah-code"><code>static size_t achar_pico(const int a[], size_t n) {
+    size_t lo = 0, hi = n - 1;
+    while (lo &lt; hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (a[mid] &lt; a[mid + 1]) lo = mid + 1;     /* subindo: pico à direita */
+        else hi = mid;                             /* descendo: pico em mid ou à esquerda */
+    }
+    return lo;
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Menor capacidade de navio para enviar todos os pacotes em D dias, com pesos em ordem fixa e capacidade igual a cada dia.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> busca sobre a resposta. O intervalo é [maior peso, soma total]. O teste “com capacidade c, cabe em D dias?” é monotônico em c. Cada teste é O(n), total O(n log(soma)).</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Dado um vetor ordenado, conte quantas vezes x aparece, em O(log n).</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> <code>lower_bound(x + 1) − lower_bound(x)</code>. Cada chamada é O(log n). Cuidado com a diferença de tipos quando x é o maior inteiro possível.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Quantas comparações, no máximo, a busca binária faz em um vetor de 1024 elementos?</p>
+      <button class="ah-quiz-opt">1024</button>
+      <button class="ah-quiz-opt">512</button>
+      <button class="ah-quiz-opt">11</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada comparação reduz o intervalo pela metade: 1024 → 512 → … → 1, são ⌊log₂ 1024⌋ + 1 = 11 comparações no máximo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que <code>lo + (hi − lo) / 2</code> é preferível a <code>(lo + hi) / 2</code>?</p>
+      <button class="ah-quiz-opt">Porque evita estouro de inteiro quando lo e hi são grandes</button>
+      <button class="ah-quiz-opt">Porque é mais rápido em qualquer máquina</button>
+      <button class="ah-quiz-opt">Porque sempre dá um resultado ímpar</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A soma lo + hi pode ultrapassar o máximo do tipo int antes da divisão, mesmo que o índice médio caiba. Bloch (2006) descreveu esse erro.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em qual cenário a busca linear é preferível à binária?</p>
+      <button class="ah-quiz-opt">Sempre, porque é mais simples</button>
+      <button class="ah-quiz-opt">Quando o vetor não está ordenado e a busca é feita uma única vez</button>
+      <button class="ah-quiz-opt">Quando o vetor tem um milhão de elementos ordenados</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Ordenar custa O(n log n); se a busca é única, ordenar não compensa. A binária só vale a pena com muitas buscas sobre dados já ordenados.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Busca linear não exige nada e custa O(n); busca binária exige ordem e custa O(log n).</li>
+    <li>Use intervalos semiabertos e atualize <code>lo</code> ou <code>hi</code> de forma que o espaço de busca sempre diminua.</li>
+    <li>Para a primeira ocorrência, use <code>lower_bound</code>.</li>
+    <li>Problemas de “menor valor que satisfaz …” com condição monotônica são busca sobre a resposta.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BENTLEY, J. <em>Programming Pearls</em>. 2. ed. Reading, MA: Addison-Wesley, 1999. Cap. 4 (busca binária).</li>
+    <li>BLOCH, J. Extra, extra – read all about it: nearly all binary searches and mergesorts are broken. <em>Google Research Blog</em>, 2006.</li>
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 2.</li>
+    <li>KNUTH, D. E. <em>The Art of Computer Programming</em>, v. 3: <em>Sorting and Searching</em>. 2. ed. Reading, MA: Addison-Wesley, 1998. Seção 6.2 (busca em tabelas ordenadas).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvBuscaLinear', ctl: 'ctlBuscaLinear', cap: 'capBuscaLinear',
+    desenha: ED.desenhaBusca, gera: function () { return ED.geraBuscaLinear(); }, velocidade: 900
+  });
+  ED.criaAnimacao({
+    canvas: 'cvBusca', ctl: 'ctlBusca', cap: 'capBusca',
+    desenha: ED.desenhaBusca, gera: ED.geraBusca,
+    opcoes: [
+      { v: '24', rotulo: 'Procurar 24 (presente)' },
+      { v: '40', rotulo: 'Procurar 40 (ausente)' },
+      { v: '3', rotulo: 'Procurar 3 (primeiro elemento)' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grafos: representação, BFS, DFS, componentes, Dijkstra e topologia · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Grafos em C: lista de adjacências, busca em largura e em profundidade, componentes conexas, ciclos, caminho mínimo de Dijkstra, ordenação topológica, animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕸️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/10-grafos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-amber-400 mr-2"></i>Tópico 10 · Grafos</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>grafo</strong> <code>G = (V, E)</code> é um conjunto de vértices ligados por arestas. Redes sociais, mapas, dependências entre
+      módulos, a web e redes de comunicação são grafos. Quase todo problema de conexão ou de caminho vira uma pergunta sobre um grafo: é possível
+      ir de A até B? qual o caminho mais curto? existe uma ordem válida para executar as tarefas?
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>escolher entre lista e matriz de adjacências, com seus custos de espaço e consulta;</li>
+      <li>implementar BFS e DFS, e explicar por que a BFS dá distâncias mínimas em grafos sem peso;</li>
+      <li>usar travessias para contar componentes conexas e detectar ciclos;</li>
+      <li>implementar Dijkstra com arestas de peso não negativo e ordenação topológica para grafos dirigidos acíclicos.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: representação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-amber-400 mr-2"></i>Teoria: representar o grafo</h2>
+  <div class="ah-prose">
+    <p>
+      A <strong>matriz de adjacências</strong> usa uma tabela V × V: consultar se u e v estão ligados é O(1), mas ocupa O(V²) de memória,
+      mesmo que o grafo tenha poucas arestas. A <strong>lista de adjacências</strong> guarda, para cada vértice, a lista dos vizinhos: ocupa
+      O(V + E) e percorrer os vizinhos de u custa O(grau de u). Em grafos esparsos, que são a regra em redes e mapas, a lista é a escolha natural.
+    </p>
+    <p>
+      Um grafo pode ser <strong>não dirigido</strong> (cada aresta vale nos dois sentidos) ou <strong>dirigido</strong>, e pode ter <strong>pesos</strong>.
+      Um <strong>ciclo</strong> é um caminho que volta ao início. Um grafo dirigido sem ciclos é um DAG, e só DAGs admitem ordenação topológica.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Lista de adjacências</th><th>Matriz de adjacências</th></tr></thead>
+      <tbody>
+        <tr><td>Verificar se a aresta u–v existe</td><td>O(grau de u)</td><td>O(1)</td></tr>
+        <tr><td>Percorrer os vizinhos de u</td><td>O(grau de u)</td><td>O(V)</td></tr>
+        <tr><td>BFS ou DFS completa</td><td>O(V + E)</td><td>O(V²)</td></tr>
+        <tr><td>Espaço</td><td>O(V + E)</td><td>O(V²)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="lista" data-toc="Operação 0: lista de adjacências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list text-amber-400 mr-2"></i>Representação em C</h2>
+  <div class="ah-prose">
+    <p>
+      Para manter os exemplos simples, a lista de adjacências usa vetores de tamanho fixo (<code>MAXV</code>). Em uma implementação de produção,
+      cada vértice teria uma lista dinâmica. A ideia é a mesma. Repare que, em grafo não dirigido, cada aresta entra nas duas listas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · op:lista-adjacencias</code></p>
+<pre class="ah-code"><code>typedef struct {
+    size_t V;                          /* número de vértices */
+    int viz[MAXV][MAXV];               /* viz[u][k]: k-ésimo vizinho de u */
+    int peso[MAXV][MAXV];              /* peso da aresta correspondente */
+    size_t grau[MAXV];                 /* quantos vizinhos cada vértice tem */
+} Grafo;
+
+static void grafo_iniciar(Grafo *g, size_t V) {
+    g-&gt;V = V;
+    memset(g-&gt;grau, 0, sizeof g-&gt;grau);
+}
+
+static void grafo_aresta(Grafo *g, int u, int v, int w, int dirigido) {
+    g-&gt;viz[u][g-&gt;grau[u]] = v;
+    g-&gt;peso[u][g-&gt;grau[u]++] = w;
+    if (!dirigido) {
+        g-&gt;viz[v][g-&gt;grau[v]] = u;
+        g-&gt;peso[v][g-&gt;grau[v]++] = w;
+    }
+}</code></pre>
+</section>
+
+<section id="bfs" data-toc="Operação 1: busca em largura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-water text-amber-400 mr-2"></i>Operação 1 · Busca em largura (BFS)</h2>
+  <div class="ah-prose">
+    <p>
+      A BFS visita o grafo em <strong>camadas</strong>: primeiro os vizinhos da origem (distância 1), depois os vizinhos desses (distância 2), e assim
+      por diante. Isso acontece porque a fila é FIFO: todo vértice de distância d entra antes dos de distância d + 1. Por isso, em grafo sem pesos, a
+      primeira vez que um vértice é alcançado corresponde ao caminho mais curto (MOORE, 1959). O vetor <code>dist</code> marca a distância e serve
+      também de “visitado”. Custo: O(V + E), porque cada vértice entra uma vez e cada aresta é examinada uma vez (ou duas, em não dirigido).
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · op:bfs</code></p>
+<pre class="ah-code"><code>static void bfs(const Grafo *g, int origem, int dist[]) {
+    int fila[MAXV];
+    size_t ini = 0, fim = 0;
+    for (size_t i = 0; i &lt; g-&gt;V; i++) dist[i] = -1;
+    dist[origem] = 0;
+    fila[fim++] = origem;
+    while (ini &lt; fim) {
+        int u = fila[ini++];
+        for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) {
+            int v = g-&gt;viz[u][k];
+            if (dist[v] &lt; 0) {
+                dist[v] = dist[u] + 1;
+                fila[fim++] = v;
+            }
+        }
+    }
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: BFS e DFS no mesmo grafo</h3>
+  <p class="ah-lead text-sm mb-4">Grafo com sete vértices, todos alcançáveis a partir de <strong>A</strong>. Verde = visitado; âmbar = vértice atual. A faixa de baixo mostra a estrutura auxiliar: fila na BFS, pilha na DFS.</p>
+  <div class="ah-stage" style="height:330px"><canvas id="cvGrafo" style="height:330px"></canvas></div>
+  <div id="ctlGrafo" class="mt-4"></div>
+  <div id="capGrafo" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <div class="ah-card p-4 mt-5 text-sm text-slate-300">
+    <div class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Lista de adjacências do grafo animado</div>
+    <code class="block leading-relaxed">A: B, C &nbsp;|&nbsp; B: A, D, E &nbsp;|&nbsp; C: A, F &nbsp;|&nbsp; D: B &nbsp;|&nbsp; E: B, G &nbsp;|&nbsp; F: C, G &nbsp;|&nbsp; G: E, F</code>
+  </div>
+</section>
+
+<section id="dfs" data-toc="Operação 2: busca em profundidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-down-long text-amber-400 mr-2"></i>Operação 2 · Busca em profundidade (DFS)</h2>
+  <div class="ah-prose">
+    <p>
+      A DFS desce por um caminho até não poder mais e só então volta (<em>backtrack</em>). A versão recursiva usa a pilha de execução; a
+      versão iterativa usa uma pilha explícita. Ambas são O(V + E). A DFS não dá distâncias mínimas, mas é a ferramenta certa para
+      explorar, contar componentes, detectar ciclos e ordenar topologicamente.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · op:dfs</code></p>
+<pre class="ah-code"><code>static void dfs_aux(const Grafo *g, int u, int vis[], int ordem[], size_t *n) {
+    vis[u] = 1;
+    ordem[(*n)++] = u;
+    for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) {
+        int v = g-&gt;viz[u][k];
+        if (!vis[v]) dfs_aux(g, v, vis, ordem, n);
+    }
+}
+
+static size_t dfs(const Grafo *g, int origem, int ordem[]) {
+    int vis[MAXV] = {0};
+    size_t n = 0;
+    dfs_aux(g, origem, vis, ordem, &amp;n);
+    return n;
+}</code></pre>
+</section>
+
+<section id="componentes-ciclos" data-toc="Operação 3: componentes e ciclos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-amber-400 mr-2"></i>Operação 3 · Componentes conexas e ciclos</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>componente conexa</strong> é um conjunto de vértices mutuamente alcançáveis. Para contá-las, percorremos os vértices; cada vez que
+      encontramos um não visitado, iniciamos uma DFS e incrementamos o contador. Em um grafo não dirigido, há um ciclo se uma DFS encontra um vizinho
+      já visitado que <strong>não é o pai</strong> do vértice atual: a aresta de volta fecha um caminho. Esse é o motivo de guardar o pai na chamada.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · op:componentes</code></p>
+<pre class="ah-code"><code>static int componentes(const Grafo *g) {
+    int vis[MAXV] = {0}, ordem[MAXV];
+    int c = 0;
+    for (size_t s = 0; s &lt; g-&gt;V; s++)
+        if (!vis[s]) {
+            size_t n = 0;
+            c++;
+            dfs_aux(g, (int)s, vis, ordem, &amp;n);
+        }
+    return c;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · op:ciclo</code></p>
+<pre class="ah-code"><code>static int ciclo_aux(const Grafo *g, int u, int pai, int vis[]) {
+    vis[u] = 1;
+    for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) {
+        int v = g-&gt;viz[u][k];
+        if (!vis[v]) {
+            if (ciclo_aux(g, v, u, vis)) return 1;
+        } else if (v != pai) {
+            return 1;                           /* aresta de retorno: há ciclo */
+        }
+    }
+    return 0;
+}
+
+static int tem_ciclo(const Grafo *g) {          /* grafo não dirigido */
+    int vis[MAXV] = {0};
+    for (size_t s = 0; s &lt; g-&gt;V; s++)
+        if (!vis[s] &amp;&amp; ciclo_aux(g, (int)s, -1, vis)) return 1;
+    return 0;
+}</code></pre>
+</section>
+
+<section id="dijkstra" data-toc="Operação 4: Dijkstra" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Operação 4 · Caminho mínimo com pesos (Dijkstra)</h2>
+  <div class="ah-prose">
+    <p>
+      Com pesos, a BFS não basta. O algoritmo de Dijkstra (DIJKSTRA, 1959) funciona com pesos não negativos e tem uma ideia gulosa e correta:
+      o vértice não fechado mais próximo da origem já tem sua distância definitiva, porque qualquer outro caminho teria de passar por um vértice
+      ainda mais distante, e pesos não negativos não permitem “encurtar” depois. A cada passo, fechamos o vértice e <em>relaxamos</em> suas arestas.
+      Esta versão escolhe o mínimo por busca linear, O(V²). Com um heap binário, a escolha cai para O(log V) e o total para O((V + E) log V).
+    </p>
+    <p><strong>Atenção:</strong> pesos negativos quebram a correção. Para isso, use Bellman-Ford (cap. 24 de Cormen <em>et al.</em>).</p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · op:dijkstra</code></p>
+<pre class="ah-code"><code>static void dijkstra(const Grafo *g, int origem, int dist[]) {
+    int feito[MAXV] = {0};
+    for (size_t i = 0; i &lt; g-&gt;V; i++) dist[i] = INT_MAX;
+    dist[origem] = 0;
+    for (size_t it = 0; it &lt; g-&gt;V; it++) {
+        int u = -1;
+        for (size_t v = 0; v &lt; g-&gt;V; v++)       /* escolhe o não visitado mais perto */
+            if (!feito[v] &amp;&amp; dist[v] != INT_MAX &amp;&amp; (u &lt; 0 || dist[v] &lt; dist[u]))
+                u = (int)v;
+        if (u &lt; 0) break;
+        feito[u] = 1;
+        for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) {
+            int v = g-&gt;viz[u][k], w = g-&gt;peso[u][k];
+            if (dist[u] + w &lt; dist[v]) dist[v] = dist[u] + w;
+        }
+    }
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Dijkstra passo a passo</h3>
+  <p class="ah-lead text-sm mb-4">Grafo dirigido com seis arestas. Cada vértice mostra a distância conhecida (∞ = ainda desconhecida). Acompanhe quando uma rota mais longa é trocada por uma mais curta.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvDij" style="height:300px"></canvas></div>
+  <div id="ctlDij" class="mt-4"></div>
+  <div id="capDij" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="topologica" data-toc="Operação 5: ordenação topológica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-ol text-amber-400 mr-2"></i>Operação 5 · Ordenação topológica</h2>
+  <div class="ah-prose">
+    <p>
+      Em um DAG, uma ordenação topológica lista os vértices de modo que toda aresta u → v aparece com u antes de v. É o modelo de dependências:
+      compilar módulos, instalar pacotes, executar tarefas. O algoritmo de Kahn começa pelos vértices sem dependências (grau de entrada zero) e
+      vai removendo-os. Se, ao final, sobram vértices, há um ciclo: não existe ordem válida.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · ex:topologica</code></p>
+<pre class="ah-code"><code>static int ordenacao_topologica(const Grafo *g, int ordem[]) {
+    int entrada[MAXV] = {0}, fila[MAXV];
+    size_t ini = 0, fim = 0, n = 0;
+    for (size_t u = 0; u &lt; g-&gt;V; u++)
+        for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) entrada[g-&gt;viz[u][k]]++;
+    for (size_t v = 0; v &lt; g-&gt;V; v++)
+        if (entrada[v] == 0) fila[fim++] = (int)v;
+    while (ini &lt; fim) {
+        int u = fila[ini++];
+        ordem[n++] = u;
+        for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) {
+            int v = g-&gt;viz[u][k];
+            if (--entrada[v] == 0) fila[fim++] = v;
+        }
+    }
+    return n == g-&gt;V;                 /* se faltou algum vértice, há ciclo */
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/10-grafos.c">10-grafos.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>distâncias BFS a partir de A: A=0 B=1 C=1 D=2 E=2 F=2 G=3
+DFS a partir de A: A B D E G F C
+tem ciclo? sim
+componentes conexas = 2
+Dijkstra de 0: 0 3 1 4 7
+menor caminho na grade = 9 passos
+ordem topológica: 0 1 2 3</code></pre>
+</section>
+
+<section id="padroes" data-toc="Padrões com grafos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com grafos</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Modelar antes de programar</div>
+      <p class="text-xs text-slate-400">Grades, mapas, dependências e conflitos viram grafos. Defina o que é vértice, o que é aresta e o que a resposta mede.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">BFS para o mínimo sem peso</div>
+      <p class="text-xs text-slate-400">Se todas as arestas custam o mesmo, BFS dá a resposta em O(V + E). Vale também para grades (exercício 1).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Grau de entrada</div>
+      <p class="text-xs text-slate-400">Contar as arestas que chegam a cada vértice permite processar dependências em ordem (exercício 2).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Visitado como estado</div>
+      <p class="text-xs text-slate-400">Marcar um vértice ao entrar na fila ou na pilha (não ao sair) evita processá-lo várias vezes e mantém O(V + E).</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: menor caminho em uma grade</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma grade tem células livres (<code>.</code>) e obstáculos (<code>#</code>). Movimentos são nas quatro direções. Qual o menor número de passos de (0,0) até o canto oposto?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Modelagem.</strong> Cada célula livre é um vértice; cada movimento entre células livres vizinhas é uma aresta de peso 1. Como o peso é uniforme, BFS é suficiente. A fila guarda a célula, e <code>dist</code> marca a distância, que também faz o papel de visitado.</p>
+      <p><strong>Complexidade:</strong> O(L · C) de tempo e espaço, já que cada célula entra uma vez.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · ex:grade</code></p>
+<pre class="ah-code"><code>#define LIN 5
+#define COL 6
+
+static int caminho_grade(const char g[LIN][COL]) {
+    int dist[LIN][COL];
+    int fila[LIN * COL];
+    size_t ini = 0, fim = 0;
+    for (int i = 0; i &lt; LIN; i++)
+        for (int j = 0; j &lt; COL; j++) dist[i][j] = -1;
+    dist[0][0] = 0;
+    fila[fim++] = 0;
+    const int di[4] = {1, -1, 0, 0}, dj[4] = {0, 0, 1, -1};
+    while (ini &lt; fim) {
+        int p = fila[ini++], i = p / COL, j = p % COL;
+        for (int d = 0; d &lt; 4; d++) {
+            int ni = i + di[d], nj = j + dj[d];
+            if (ni &lt; 0 || nj &lt; 0 || ni &gt;= LIN || nj &gt;= COL) continue;
+            if (g[ni][nj] == '#' || dist[ni][nj] &gt;= 0) continue;
+            dist[ni][nj] = dist[i][j] + 1;
+            fila[fim++] = ni * COL + nj;
+        }
+    }
+    return dist[LIN - 1][COL - 1];
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: ordenação topológica de tarefas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Quatro tarefas têm dependências: 0 antes de 1 e de 2; 1 e 2 antes de 3. Dê uma ordem válida, ou diga que não existe.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Kahn: calcule o grau de entrada de cada tarefa, coloque na fila as que têm zero, e a cada retirada diminua o grau dos sucessores. Um sucessor entra na fila quando seu grau chega a zero. Se a ordem final tem menos vértices que o grafo, há ciclo.</p>
+      <p><strong>Complexidade:</strong> O(V + E) de tempo e espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>10-grafos.c · ex:topologica</code></p>
+<pre class="ah-code"><code>static int ordenacao_topologica(const Grafo *g, int ordem[]) {
+    int entrada[MAXV] = {0}, fila[MAXV];
+    size_t ini = 0, fim = 0, n = 0;
+    for (size_t u = 0; u &lt; g-&gt;V; u++)
+        for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) entrada[g-&gt;viz[u][k]]++;
+    for (size_t v = 0; v &lt; g-&gt;V; v++)
+        if (entrada[v] == 0) fila[fim++] = (int)v;
+    while (ini &lt; fim) {
+        int u = fila[ini++];
+        ordem[n++] = u;
+        for (size_t k = 0; k &lt; g-&gt;grau[u]; k++) {
+            int v = g-&gt;viz[u][k];
+            if (--entrada[v] == 0) fila[fim++] = v;
+        }
+    }
+    return n == g-&gt;V;                 /* se faltou algum vértice, há ciclo */
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que Dijkstra falha com pesos negativos? Dê um grafo pequeno em que a resposta está errada.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> um vértice dado como fechado pode ser alcançado depois por um caminho com peso negativo mais barato. Exemplo: A→B com peso 2, A→C com peso 1 e C→B com peso −3. Dijkstra fecha B com 2 antes de descobrir que o caminho por C custa −2.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Como você detectaria um ciclo num grafo dirigido? A regra do pai ainda vale?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não. Em dirigido, a regra do pai não basta. Use três cores: branco (não visitado), cinza (em exploração) e preto (concluído). Uma aresta para um vértice cinza indica ciclo. Alternativamente, use o Kahn: se ele não ordena tudo, há ciclo.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual estrutura auxiliar a BFS usa?</p>
+      <button class="ah-quiz-opt">Pilha</button>
+      <button class="ah-quiz-opt">Árvore binária</button>
+      <button class="ah-quiz-opt">Fila</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A fila (FIFO) garante a exploração em camadas.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a complexidade de BFS ou DFS com lista de adjacências?</p>
+      <button class="ah-quiz-opt">O(V + E)</button>
+      <button class="ah-quiz-opt">O(V²)</button>
+      <button class="ah-quiz-opt">O(E log V)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada vértice entra uma vez e cada aresta é examinada uma ou duas vezes.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em um grafo dirigido, o que indica a impossibilidade de uma ordenação topológica?</p>
+      <button class="ah-quiz-opt">Um vértice isolado</button>
+      <button class="ah-quiz-opt">Um ciclo</button>
+      <button class="ah-quiz-opt">Pesos iguais nas arestas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com ciclo, algum vértice depende de si mesmo direta ou indiretamente, e não há ordem que satisfaça todas as dependências.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Lista de adjacências para grafos esparsos; matriz para consultas de aresta frequentes e grafos densos.</li>
+    <li>BFS (fila) dá distâncias mínimas sem peso; DFS (pilha ou recursão) explora e detecta ciclos.</li>
+    <li>Dijkstra dá o caminho mínimo com pesos não negativos, fechando um vértice por vez.</li>
+    <li>Kahn produz uma ordenação topológica e revela ciclos pela falta de vértices no resultado.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 20 (BFS e DFS), cap. 22 (topológica e componentes) e cap. 24 (caminhos mínimos).</li>
+    <li>DIJKSTRA, E. W. A note on two problems in connexion with graphs. <em>Numerische Mathematik</em>, v. 1, p. 269–271, 1959.</li>
+    <li>KAHN, A. B. Topological sorting of large networks. <em>Communications of the ACM</em>, v. 5, n. 11, p. 558–562, 1962.</li>
+    <li>MOORE, E. F. The shortest path through a maze. In: <em>Proceedings of the International Symposium on the Theory of Switching</em>. Cambridge, MA: Harvard University, 1959. p. 285–292.</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 4 (grafos).</li>
+    <li>TARJAN, R. E. Depth-first search and linear graph algorithms. <em>SIAM Journal on Computing</em>, v. 1, n. 2, p. 146–160, 1972.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvGrafo', ctl: 'ctlGrafo', cap: 'capGrafo',
+    desenha: ED.desenhaGrafo, gera: ED.geraGrafo, velocidade: 1500,
+    opcoes: [
+      { v: 'bfs', rotulo: 'BFS — busca em largura (fila)' },
+      { v: 'dfs', rotulo: 'DFS — busca em profundidade (pilha)' }
+    ]
+  });
+  ED.criaAnimacao({
+    canvas: 'cvDij', ctl: 'ctlDij', cap: 'capDij',
+    desenha: ED.desenhaDijkstra, gera: ED.geraDijkstra, velocidade: 1400
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complexidade: tempo, espaço e Big-O · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Notação Big-O, complexidade temporal e espacial, regras de cálculo, casos de análise e exercícios resolvidos com código C medido na prática.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/01-complexidade">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-amber-400 mr-2"></i>Tópico 1 · Complexidade: tempo, espaço e Big-O</h2>
+  <div class="ah-prose">
+    <p>
+      Antes de escolher uma estrutura de dados, é preciso responder a uma pergunta: <em>quanto isso custa quando os dados crescem?</em>
+      Medir em segundos é frágil, porque o resultado depende da máquina, do compilador e da carga do sistema. A análise de complexidade
+      conta, em vez disso, quantas operações elementares o algoritmo executa em função do tamanho da entrada, <code>n</code>. Essa
+      contagem é a mesma em qualquer computador e mostra como o custo <strong>cresce</strong>.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>definir Big-O, Ω e Θ e explicar o que significa “crescimento assintótico”;</li>
+      <li>calcular a complexidade temporal de laços, sequências e chamadas recursivas;</li>
+      <li>distinguir complexidade espacial (memória auxiliar) de temporal;</li>
+      <li>reconhecer pior caso, caso médio e custo amortizado;</li>
+      <li>medir operações num programa em C e comparar com a previsão teórica.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="notacao" data-toc="A notação O, Ω e Θ" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-root-variable text-amber-400 mr-2"></i>A notação assintótica</h2>
+  <div class="ah-prose">
+    <p>
+      Dizemos que <code>f(n) = O(g(n))</code> quando existem constantes <code>c &gt; 0</code> e <code>n₀</code> tais que
+      <code>f(n) ≤ c · g(n)</code> para todo <code>n ≥ n₀</code>. Em palavras: para entradas grandes, <code>f</code> cresce
+      no máximo na proporção de <code>g</code>. A constante <code>c</code> absorve detalhes da máquina; o <code>n₀</code> ignora o
+      comportamento em entradas pequenas. Por isso Big-O descreve o crescimento, não um valor exato (CORMEN <em>et al.</em>, 2022, cap. 3).
+    </p>
+    <p>
+      As notações irmãs são <strong>Ω</strong> (limite inferior: <code>f(n) ≥ c · g(n)</code>) e <strong>Θ</strong> (limite justo:
+      vale Big-O e Ω ao mesmo tempo). Quando dizemos que a busca binária é O(log n), estamos dando um teto; quando dizemos que
+      ela é Θ(log n) no pior caso, estamos afirmando que não há teto menor. A notação foi popularizada na computação por Knuth (1976).
+    </p>
+  </div>
+
+  <div class="ah-prose mt-5">
+    <h4 class="font-semibold text-white mb-2">Regras para calcular</h4>
+    <ul>
+      <li><strong>Constantes saem:</strong> O(3n) = O(n).</li>
+      <li><strong>Fica o termo dominante:</strong> O(n² + n + 10) = O(n²).</li>
+      <li><strong>Sequências somam:</strong> um laço O(n) seguido de um laço O(n²) resulta em O(n²).</li>
+      <li><strong>Aninhamentos multiplicam:</strong> um laço de n dentro de um laço de n dá O(n²).</li>
+      <li><strong>Divisão ao meio</strong> repetida até chegar a 1 dá O(log n).</li>
+    </ul>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Ordens de crescimento</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Classe</th><th>Nome</th><th>Exemplo típico</th><th>Operações para n = 1 000 000</th></tr></thead>
+      <tbody>
+        <tr><td>O(1)</td><td>constante</td><td>acessar <code>a[i]</code>, <code>push</code>, <code>pop</code></td><td>1</td></tr>
+        <tr><td>O(log n)</td><td>logarítmica</td><td>busca binária</td><td>cerca de 20</td></tr>
+        <tr><td>O(n)</td><td>linear</td><td>somar um vetor, busca linear</td><td>1 000 000</td></tr>
+        <tr><td>O(n log n)</td><td>linearítmica</td><td>quicksort, merge sort</td><td>cerca de 20 milhões</td></tr>
+        <tr><td>O(n²)</td><td>quadrática</td><td>bolha, comparar todos os pares</td><td>10<sup>12</sup> (cerca de 17 min a 10<sup>9</sup> operações/s)</td></tr>
+        <tr><td>O(2ⁿ)</td><td>exponencial</td><td>testar todos os subconjuntos</td><td>inviável: 2<sup>1 000 000</sup> ≈ 10<sup>301 030</sup></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="animacao-crescimento" data-toc="Animação: quem cresce mais rápido" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-amber-400 mr-2"></i>Animação: quem cresce mais rápido?</h2>
+  <p class="ah-lead text-sm mb-4">Cada barra é uma classe. Como os valores vão até 10<sup>77</sup>, a altura é proporcional ao <strong>logaritmo</strong> do número de operações. Avance e observe o que acontece quando n dobra.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvBigO" style="height:300px"></canvas></div>
+  <div id="ctlBigO" class="mt-4"></div>
+  <div id="capBigO" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="tempo" data-toc="Contando operações em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stopwatch text-amber-400 mr-2"></i>Complexidade temporal: contando operações</h2>
+  <div class="ah-prose">
+    <p>
+      A complexidade temporal conta operações, não segundos. Para cada trecho de código, pergunte <em>quantas vezes ele executa em função de n?</em>
+      Um comando isolado é O(1). Um laço que percorre a entrada é O(n). Um laço dentro de outro laço, ambos de n, é O(n²).
+      Quando o tamanho da entrada é dividido ao meio a cada passo, o número de passos é O(log n).
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Constante e linear</h3>
+  <div class="ah-prose"><p>Ler <code>a[0]</code> custa o mesmo para qualquer n. Somar todos os elementos custa uma operação por elemento.</p></div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · op:constante</code></p>
+<pre class="ah-code"><code>static int primeiro(const int a[]) {
+    ops++;
+    return a[0];
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · op:linear</code></p>
+<pre class="ah-code"><code>static long soma(const int a[], int n) {
+    long s = 0;
+    for (int i = 0; i &lt; n; i++) {
+        ops++;
+        s += a[i];
+    }
+    return s;
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-2">Quadrática e logarítmica</h3>
+  <div class="ah-prose"><p>Comparar cada par de elementos exige um laço dentro de outro: n × n operações. Já <code>metades</code> divide o intervalo por 2 a cada volta, então executa log₂ n vezes.</p></div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · op:quadratico</code></p>
+<pre class="ah-code"><code>static int pares_iguais(const int a[], int n) {
+    int c = 0;
+    for (int i = 0; i &lt; n; i++)
+        for (int j = 0; j &lt; n; j++) {
+            ops++;
+            if (a[i] == a[j]) c++;
+        }
+    return c;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · op:logaritmico</code></p>
+<pre class="ah-code"><code>static int metades(int n) {
+    int k = 0;
+    for (int m = n; m &gt; 1; m /= 2) {
+        ops++;
+        k++;
+    }
+    return k;
+}</code></pre>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: contando operações</h3>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário. A caixa destacada é o elemento que o laço está lendo; o contador mostra o custo acumulado.</p>
+  <div class="ah-stage" style="height:240px"><canvas id="cvContagem" style="height:240px"></canvas></div>
+  <div id="ctlContagem" class="mt-4"></div>
+  <div id="capContagem" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="espaco" data-toc="Complexidade espacial" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-memory text-amber-400 mr-2"></i>Complexidade espacial: memória auxiliar</h2>
+  <div class="ah-prose">
+    <p>
+      A complexidade espacial conta a memória <em>extra</em> usada além da entrada. Uma função que usa algumas variáveis locais é O(1).
+      Uma recursão cria um quadro na pilha de execução para cada chamada pendente: se a profundidade é n, o espaço é O(n), mesmo que
+      o tempo também seja O(n). Um vetor auxiliar de tamanho n também custa O(n). Não confunda: o espaço que a própria entrada já ocupa não entra na conta.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · op:fatorial-rec</code></p>
+<pre class="ah-code"><code>static unsigned long long fat_rec(unsigned n) {
+    return n &lt;= 1 ? 1 : n * fat_rec(n - 1);
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · op:fatorial-it</code></p>
+<pre class="ah-code"><code>static unsigned long long fat_it(unsigned n) {
+    unsigned long long r = 1;
+    for (unsigned i = 2; i &lt;= n; i++) r *= i;
+    return r;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: pilha de execução contra variáveis fixas</h3>
+  <div class="ah-stage" style="height:300px"><canvas id="cvEspaco" style="height:300px"></canvas></div>
+  <div id="ctlEspaco" class="mt-4"></div>
+  <div id="capEspaco" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Dimensão</th><th>Pergunta</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Temporal</td><td>Quantas operações?</td><td>somar n números: O(n)</td></tr>
+        <tr><td>Espacial</td><td>Quanta memória extra?</td><td>fatorial iterativo: O(1); recursivo: O(n)</td></tr>
+        <tr><td>Pior caso</td><td>Máximo de operações para qualquer entrada</td><td>quicksort com pivô sempre extremo: O(n²)</td></tr>
+        <tr><td>Caso médio</td><td>Valor esperado sob entradas típicas</td><td>quicksort com pivô aleatório: O(n log n)</td></tr>
+        <tr><td>Amortizado</td><td>Média de uma sequência de operações</td><td>inserção no fim de vetor dinâmico: O(1)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="padrao-analise" data-toc="Padrão: como analisar um código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrão de resolução: como analisar um trecho de código</h2>
+  <ol class="ah-prose list-decimal pl-5 space-y-2">
+    <li><strong>Identifique o que cresce.</strong> Qual variável representa o tamanho da entrada? Ela pode aparecer em mais de um lugar (n, m, linhas, colunas).</li>
+    <li><strong>Conte os laços.</strong> Laço sobre a entrada: n. Laço dentro de laço: produto. Laço que divide ou multiplica o índice: log.</li>
+    <li><strong>Junte as partes.</strong> Sequências somam (fica o maior termo); aninhamentos multiplicam.</li>
+    <li><strong>Procure saídas antecipadas.</strong> Um <code>break</code> pode mudar o pior caso, mas não o melhor.</li>
+    <li><strong>Olhe a memória.</strong> Vetores auxiliares e recursão contam no espaço; variáveis escalares não.</li>
+  </ol>
+  <p class="ah-diagram-cap">Esse roteiro se repete em todas as páginas da disciplina.</p>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo: medindo o crescimento</h2>
+  <div class="ah-prose"><p>O programa abaixo conta operações reais para vários valores de n e confirma a previsão teórica: a coluna de O(log n) cresce uma unidade a cada dobra; a de O(n) dobra; a de O(n²) quadruplica.</p></div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/01-complexidade.c">01-complexidade.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>     n   O(1) O(log n)     O(n)     O(n^2)
+     8      1        3        8         64
+    16      1        4       16        256
+    32      1        5       32       1024
+    64      1        6       64       4096
+   128      1        7      128      16384
+   256      1        8      256      65536
+   512      1        9      512     262144
+  1024      1       10     1024    1048576
+
+fatorial de 10: recursivo=3628800 iterativo=3628800
+triangular(5)=10  n_log_n(8)=24  misto(4)=20</code></pre>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: laço triangular</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Qual é a complexidade de <code>triangular(n)</code>?</p>
+    <div class="ah-prose text-sm mt-3"><p><strong>Ideia.</strong> O laço interno roda <code>i</code> vezes, para <code>i = 0, 1, …, n−1</code>. A soma é 0 + 1 + … + (n−1) = n(n−1)/2. Esse termo tem n² como dominante, então a complexidade é O(n²). A constante 1/2 é descartada. O programa confirma: <code>triangular(5) = 10 = 5·4/2</code>.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · ex:1</code></p>
+<pre class="ah-code"><code>static long triangular(int n) {
+    long c = 0;
+    for (int i = 0; i &lt; n; i++)
+        for (int j = 0; j &lt; i; j++)
+            c++;
+    return c;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: laço com passo multiplicativo</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Analise <code>n_log_n(n)</code>.</p>
+    <div class="ah-prose text-sm mt-3"><p><strong>Ideia.</strong> O laço externo multiplica <code>i</code> por 2: roda log₂ n vezes. Cada volta executa um laço interno de n passos. O total é n · log₂ n, ou seja, O(n log n). Para n = 8, o resultado é 24 = 8 · 3.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · ex:2</code></p>
+<pre class="ah-code"><code>static long n_log_n(int n) {
+    long c = 0;
+    for (int i = 1; i &lt; n; i *= 2)
+        for (int j = 0; j &lt; n; j++)
+            c++;
+    return c;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: duas partes em sequência</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Analise <code>misto(n)</code>.</p>
+    <div class="ah-prose text-sm mt-3"><p><strong>Ideia.</strong> Primeiro vem um laço de n passos (O(n)); depois um laço aninhado (O(n²)). Em sequência, os custos somam: n + n². Na soma, o termo de maior ordem domina, então o resultado é O(n²). Para n = 4: 4 + 16 = 20.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>01-complexidade.c · ex:3</code></p>
+<pre class="ah-code"><code>static long misto(int n) {
+    long c = 0;
+    for (int i = 0; i &lt; n; i++) c++;
+    for (int i = 0; i &lt; n; i++)
+        for (int j = 0; j &lt; n; j++)
+            c++;
+    return c;
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Qual a complexidade de <code>for (i = 1; i &lt; n; i *= 2) for (j = 1; j &lt; i; j++)</code>?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> O(n). O laço interno roda i − 1 vezes; com i = 1, 2, 4, …, a soma é 0 + 1 + 3 + 7 + … ≈ 2n. A soma geométrica domina.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Uma função chama a si mesma duas vezes com n − 1 a cada chamada, até n = 0. Qual o tempo e o espaço?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> tempo O(2ⁿ), porque a árvore de chamadas tem cerca de 2ⁿ nós. Espaço O(n), que é a profundidade máxima da pilha. Esse é um caso típico de problema que pede programação dinâmica para cair em O(n).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um laço de n passos contém outro laço que percorre sempre 5 elementos fixos. Qual é a complexidade?</p>
+      <button class="ah-quiz-opt">O(n²)</button>
+      <button class="ah-quiz-opt">O(5n²)</button>
+      <button class="ah-quiz-opt">O(n)</button>
+      <button class="ah-quiz-opt">O(log n)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O laço interno tem custo constante (5 passos), então o total é 5n. A constante 5 é descartada e o resultado é O(n). O laço interno não cresce com n, por isso não há produto de dois termos variáveis.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual afirmação sobre o espaço da versão recursiva do fatorial é correta?</p>
+      <button class="ah-quiz-opt">Usa O(1) de espaço porque só tem uma variável</button>
+      <button class="ah-quiz-opt">Usa O(n) de espaço, um quadro de pilha por chamada pendente</button>
+      <button class="ah-quiz-opt">Não usa memória, só tempo</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A profundidade da recursão é n, e cada chamada pendente ocupa um quadro na pilha de execução.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o pior caso de um algoritmo descreve?</p>
+      <button class="ah-quiz-opt">O número máximo de operações para qualquer entrada de tamanho n</button>
+      <button class="ah-quiz-opt">O tempo de uma entrada específica e pequena</button>
+      <button class="ah-quiz-opt">A média de operações sobre entradas aleatórias</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. É a garantia usada na prática: nenhuma entrada de tamanho n exige mais operações do que o pior caso.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Big-O descreve o <strong>crescimento</strong> no pior caso, descartando constantes e termos menores.</li>
+    <li>Laços em sequência somam; aninhados multiplicam; divisões ao meio dão log n.</li>
+    <li>A complexidade <strong>espacial</strong> conta memória auxiliar: recursão custa O(profundidade) e vetores auxiliares custam O(tamanho).</li>
+    <li>Meça com contadores no código para confirmar a análise, como no programa desta página.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CORMEN, T. H.; LEISERSON, C. E.; RIVEST, R. L.; STEIN, C. <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 3 (crescimento de funções).</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988.</li>
+    <li>KNUTH, D. E. Big omicron and big omega and big theta. <em>SIGACT News</em>, v. 8, n. 2, p. 18–24, 1976.</li>
+    <li>KNUTH, D. E. <em>The Art of Computer Programming</em>, v. 1: <em>Fundamental Algorithms</em>. 3. ed. Reading, MA: Addison-Wesley, 1997. Seção 1.2.11 (análise de algoritmos).</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 1.4 (análise de algoritmos).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvBigO', ctl: 'ctlBigO', cap: 'capBigO',
+    desenha: ED.desenhaBigO, gera: ED.geraBigO, velocidade: 1600
+  });
+  ED.criaAnimacao({
+    canvas: 'cvContagem', ctl: 'ctlContagem', cap: 'capContagem',
+    desenha: ED.desenhaContagem, gera: ED.geraContagem, velocidade: 650,
+    opcoes: [
+      { v: 'const', rotulo: 'O(1): ler a[0]' },
+      { v: 'linear', rotulo: 'O(n): somar o vetor' },
+      { v: 'log', rotulo: 'O(log n): dividir ao meio' },
+      { v: 'quad', rotulo: 'O(n²): comparar pares' }
+    ]
+  });
+  ED.criaAnimacao({
+    canvas: 'cvEspaco', ctl: 'ctlEspaco', cap: 'capEspaco',
+    desenha: ED.desenhaEspaco, gera: ED.geraEspaco, velocidade: 1100,
+    opcoes: [
+      { v: 'rec', rotulo: 'Recursivo: O(n) de pilha' },
+      { v: 'it', rotulo: 'Iterativo: O(1) de memória extra' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

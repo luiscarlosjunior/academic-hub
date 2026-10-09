@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padrões de resolução de problemas · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Roteiro para resolver problemas com estruturas de dados e algoritmos: dois ponteiros, janela deslizante, prefixos, backtracking, divisão e conquista, guloso e programação dinâmica, com código em C, animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/11-padroes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-puzzle-piece text-amber-400 mr-2"></i>Tópico 11 · Padrões de resolução de problemas</h2>
+  <div class="ah-prose">
+    <p>
+      As páginas anteriores ensinaram estruturas e operações. Esta página ensina a <strong>usar</strong> essas peças. Quase todo problema de
+      programação competitiva, de entrevista técnica ou de engenharia real cai em um pequeno número de padrões. Reconhecê-los é mais importante
+      do que decorar soluções: um padrão é uma forma de pensar que se adapta a problemas novos.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>seguir um roteiro fixo para atacar qualquer problema, da leitura do enunciado ao teste;</li>
+      <li>reconhecer os sinais de cada padrão no enunciado;</li>
+      <li>implementar em C os padrões: dois ponteiros, janela deslizante, prefixos, backtracking, divisão e conquista, guloso e programação dinâmica;</li>
+      <li>justificar a escolha de um padrão com complexidade de tempo e espaço.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="roteiro" data-toc="O roteiro de seis passos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-check text-amber-400 mr-2"></i>O roteiro de seis passos</h2>
+  <ol class="ah-prose list-decimal pl-5 space-y-3">
+    <li><strong>Entenda a entrada e a saída.</strong> Qual é o formato exato? Pode haver vazio, um elemento, repetidos, negativos, valores enormes? Escreva os casos de borda antes de codificar.</li>
+    <li><strong>Resolva um exemplo pequeno à mão.</strong> Use um caso de 4 a 6 elementos. Anote o que você faz, passo a passo: a intuição do método aparece aqui.</li>
+    <li><strong>Escreva a força bruta e seu custo.</strong> Ela é a referência de correção e o ponto de partida. Se ela já cabe nos limites, pare.</li>
+    <li><strong>Identifique o padrão.</strong> Procure os sinais da tabela abaixo: ordenação, intervalo contínuo, soma fixa, escolha que se repete, resposta monotônica, dependência entre subproblemas.</li>
+    <li><strong>Escolha a estrutura e otimize.</strong> Vetor ordenado, hash, pilha, fila, árvore ou grafo. A otimização quase sempre troca tempo por espaço, ou por uma ordenação prévia.</li>
+    <li><strong>Teste as bordas e compare com a força bruta.</strong> Gere entradas pequenas e aleatórias e confira as duas versões. Um teste bem escolhido vale mais que cinco revisões.</li>
+  </ol>
+</section>
+
+<section id="sinais" data-toc="Sinais no enunciado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-chart text-amber-400 mr-2"></i>Catálogo: sinais no enunciado</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Se o enunciado fala em…</th><th>Pense em…</th><th>Página</th></tr></thead>
+      <tbody>
+        <tr><td>vetor ordenado, pares com soma fixa</td><td>dois ponteiros</td><td>aqui</td></tr>
+        <tr><td>subvetor ou substring contígua, tamanho fixo ou com condição</td><td>janela deslizante</td><td>aqui</td></tr>
+        <tr><td>soma de intervalos, muitas consultas de soma</td><td>prefixos acumulados</td><td>aqui</td></tr>
+        <tr><td>todas as combinações, subconjuntos, permutações</td><td>backtracking</td><td>aqui</td></tr>
+        <tr><td>dividir em partes independentes e combinar</td><td>divisão e conquista</td><td>aqui, 4</td></tr>
+        <tr><td>escolher o melhor local a cada passo, sem voltar atrás</td><td>guloso (com prova de corretude)</td><td>aqui</td></tr>
+        <tr><td>contar formas, mínimo ou máximo com subproblemas repetidos</td><td>programação dinâmica</td><td>aqui</td></tr>
+        <tr><td>buscar o valor que satisfaz uma condição monotônica</td><td>busca sobre a resposta</td><td>5</td></tr>
+        <tr><td>“já vi isso antes?”, pares, frequências</td><td>tabela hash</td><td>8</td></tr>
+        <tr><td>o próximo maior, parênteses, desfazer</td><td>pilha</td><td>7</td></tr>
+        <tr><td>conexão, caminho, dependências</td><td>grafo (BFS, DFS, Dijkstra, topológica)</td><td>10</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="dois-ponteiros" data-toc="Padrão 1: dois ponteiros" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-amber-400 mr-2"></i>Padrão 1 · Dois ponteiros</h2>
+  <div class="ah-prose">
+    <p>
+      Dois índices percorrem o vetor, geralmente das extremidades para o centro, ou ambos no mesmo sentido em velocidades diferentes. A cada passo,
+      uma comparação decide qual ponteiro avança, e como os ponteiros só andam para a frente, o total é O(n). <strong>Sinal:</strong> vetor ordenado
+      e um par, uma soma ou uma condição sobre dois valores.
+    </p>
+    <p>
+      A correção vem da ordem: se a soma atual é pequena demais, aumentar o menor valor é a única forma de crescê-la, e o maior valor já
+      foi descartado com o par que ele formava. Sem a ordenação, essa lógica não se sustenta.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:dois-ponteiros</code></p>
+<pre class="ah-code"><code>static int par_soma(const int a[], size_t n, long alvo, size_t *i, size_t *j) {
+    if (n &lt; 2) return 0;
+    size_t lo = 0, hi = n - 1;                       /* vetor já ordenado */
+    while (lo &lt; hi) {
+        long s = (long)a[lo] + a[hi];
+        if (s == alvo) {
+            *i = lo;
+            *j = hi;
+            return 1;
+        }
+        if (s &lt; alvo) lo++;                          /* soma pequena: aumenta o menor */
+        else hi--;                                   /* soma grande: diminui o maior */
+    }
+    return 0;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: dois ponteiros procurando soma 10</h3>
+  <div class="ah-stage" style="height:200px"><canvas id="cvPont" style="height:200px"></canvas></div>
+  <div id="ctlPont" class="mt-4"></div>
+  <div id="capPont" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="janela" data-toc="Padrão 2: janela deslizante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-window-maximize text-amber-400 mr-2"></i>Padrão 2 · Janela deslizante</h2>
+  <div class="ah-prose">
+    <p>
+      Uma janela cobre um trecho contínuo do vetor. Ao andar uma posição, entra um elemento à direita e sai um à esquerda, e a soma (ou outra
+      estatística) é atualizada em O(1). Recalcular cada janela do zero custaria O(n·k); a janela desliza em O(n). <strong>Sinal:</strong>
+      subvetor ou substring contígua com tamanho fixo ou com uma condição sobre os elementos.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:janela</code></p>
+<pre class="ah-code"><code>static long soma_janela_max(const int a[], size_t n, size_t k, size_t *inicio) {
+    long s = 0;
+    for (size_t i = 0; i &lt; k; i++) s += a[i];
+    long melhor = s;
+    *inicio = 0;
+    for (size_t i = k; i &lt; n; i++) {
+        s += a[i] - a[i - k];                        /* entra a[i], sai a[i-k] */
+        if (s &gt; melhor) {
+            melhor = s;
+            *inicio = i - k + 1;
+        }
+    }
+    return melhor;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: a janela de tamanho 3</h3>
+  <div class="ah-stage" style="height:200px"><canvas id="cvJan" style="height:200px"></canvas></div>
+  <div id="ctlJan" class="mt-4"></div>
+  <div id="capJan" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="prefixos" data-toc="Padrão 3: somas de prefixos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Padrão 3 · Somas de prefixos</h2>
+  <div class="ah-prose">
+    <p>
+      Pré-compute <code>p[i] = a[0] + … + a[i−1]</code> em O(n). Depois, a soma do intervalo <code>[l, r]</code> é <code>p[r+1] − p[l]</code>, em O(1).
+      Com muitas consultas, o investimento se paga: q consultas custam O(n + q), em vez de O(n·q). A mesma ideia responde a “quantos elementos
+      com determinada propriedade existem até i?” e, combinada com hash, a “subvetor com soma k”.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:prefixos</code></p>
+<pre class="ah-code"><code>static void prefixos(const int a[], size_t n, long p[]) {    /* p tem n+1 posições */
+    p[0] = 0;
+    for (size_t i = 0; i &lt; n; i++) p[i + 1] = p[i] + a[i];
+}
+
+static long soma_intervalo(const long p[], size_t l, size_t r) {   /* [l, r] inclusive */
+    return p[r + 1] - p[l];
+}</code></pre>
+</section>
+
+<section id="backtracking" data-toc="Padrão 4: backtracking" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-amber-400 mr-2"></i>Padrão 4 · Backtracking</h2>
+  <div class="ah-prose">
+    <p>
+      Constrói uma solução uma escolha de cada vez, explorando todas as alternativas. Quando uma escolha leva a um beco sem saída, desfaz-se
+      a escolha e tenta-se a seguinte. Para subconjuntos, cada elemento é incluído ou não: são 2ⁿ soluções, então o custo é exponencial,
+      mas necessário quando se precisa de todas. A chave é a <strong>poda</strong>: descartar cedo ramos que não podem dar solução.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:backtracking</code></p>
+<pre class="ah-code"><code>static void imprimir_subconjunto(const int a[], size_t k) {
+    printf("{");
+    for (size_t i = 0; i &lt; k; i++) printf("%s%d", i ? "," : "", a[i]);
+    printf("} ");
+}
+
+static void subconjuntos(const int a[], size_t n, size_t i, int atual[], size_t k) {
+    if (i == n) {
+        imprimir_subconjunto(atual, k);
+        return;
+    }
+    subconjuntos(a, n, i + 1, atual, k);             /* escolha 1: sem a[i] */
+    atual[k] = a[i];
+    subconjuntos(a, n, i + 1, atual, k + 1);         /* escolha 2: com a[i] */
+}</code></pre>
+</section>
+
+<section id="divisao" data-toc="Padrão 5: divisão e conquista" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-amber-400 mr-2"></i>Padrão 5 · Divisão e conquista</h2>
+  <div class="ah-prose">
+    <p>
+      Divide o problema em partes menores e independentes, resolve cada uma recursivamente e combina os resultados. Para o mínimo e o máximo,
+      a recorrência T(n) = 2T(n/2) + O(1) dá O(n), sem ganho em relação à varredura, mas mostra o padrão. Em outros problemas, a combinação é
+      o trabalho: a intercalação do merge sort e a contagem de inversões da página 4 são exemplos.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:divisao</code></p>
+<pre class="ah-code"><code>typedef struct {
+    int min, max;
+} MinMax;
+
+static MinMax minmax(const int a[], size_t lo, size_t hi) {    /* [lo, hi), hi &gt; lo */
+    MinMax r;
+    if (hi - lo == 1) {
+        r.min = r.max = a[lo];
+        return r;
+    }
+    size_t mid = lo + (hi - lo) / 2;
+    MinMax e = minmax(a, lo, mid), d = minmax(a, mid, hi);
+    r.min = e.min &lt; d.min ? e.min : d.min;
+    r.max = e.max &gt; d.max ? e.max : d.max;
+    return r;
+}</code></pre>
+</section>
+
+<section id="guloso" data-toc="Padrão 6: guloso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hand-holding-dollar text-amber-400 mr-2"></i>Padrão 6 · Algoritmo guloso</h2>
+  <div class="ah-prose">
+    <p>
+      Faz, a cada passo, a escolha que parece melhor no momento, sem voltar atrás. Funciona quando o problema tem <em>subestrutura ótima</em> e
+      <em>escolha gulosa segura</em>: a escolha local pode ser completada até uma solução ótima. Essa propriedade <strong>precisa ser provada</strong>.
+      O exemplo de troco funciona para o sistema de moedas 25, 10, 5 e 1, mas falha para sistemas arbitrários: com moedas 1, 3 e 4, o troco de 6
+      gulosamente seria 4 + 1 + 1 (três moedas), enquanto 3 + 3 usa duas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:guloso</code></p>
+<pre class="ah-code"><code>static int moedas_gulosas(int valor, int usadas[4]) {    /* sistema 25, 10, 5, 1 */
+    const int sistema[4] = {25, 10, 5, 1};
+    int total = 0;
+    for (size_t i = 0; i &lt; 4; i++) {
+        usadas[i] = valor / sistema[i];
+        total += usadas[i];
+        valor %= sistema[i];
+    }
+    return total;
+}</code></pre>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Teste antes de confiar:</strong> antes de usar o guloso, procure um contraexemplo pequeno. Se a força bruta e o guloso divergem em alguma entrada pequena, o guloso está errado.</div>
+  </div>
+</section>
+
+<section id="dinamica" data-toc="Padrão 7: programação dinâmica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-amber-400 mr-2"></i>Padrão 7 · Programação dinâmica</h2>
+  <div class="ah-prose">
+    <p>
+      Quando um problema se decompõe em subproblemas que se repetem, resolva cada subproblema uma só vez e guarde o resultado. A tabela de
+      resultados é a estrutura; a recorrência é o coração. O processo tem quatro passos: defina o estado (o que o subproblema representa), escreva a
+      recorrência, defina os casos base e escolha a ordem de preenchimento. Versões de baixo para cima evitam a recursão e costumam usar
+      menos memória.
+    </p>
+    <p>
+      Exemplo: escadas. Para chegar ao degrau n com passos de 1 ou 2, f(n) = f(n−1) + f(n−2). A versão recursiva pura custa O(2ⁿ); com a tabela,
+      O(n); e, como só os dois últimos valores são usados, O(1) de espaço.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · pad:dinamica</code></p>
+<pre class="ah-code"><code>static unsigned long long escadas(unsigned n) {      /* passos de 1 ou 2 */
+    if (n &lt;= 1) return 1;
+    unsigned long long a = 1, b = 1;
+    for (unsigned i = 2; i &lt;= n; i++) {
+        unsigned long long c = a + b;                 /* f(i) = f(i-1) + f(i-2) */
+        a = b;
+        b = c;
+    }
+    return b;
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/11-padroes.c">11-padroes.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>dois ponteiros: 4 + 6 = 10
+janela de 3: soma máxima = 9 a partir do índice 2
+soma de [1,4] = 10
+subconjuntos de {1,2,3}: {} {3} {2} {2,3} {1} {1,3} {1,2} {1,2,3} 
+divisão e conquista: min=1 max=9
+troco de 68 com o sistema guloso: 7 moedas (2×25, 1×10, 1×5, 3×1)
+escadas(5) = 8, escadas(10) = 89
+existe trio com soma zero em {-1,0,1,2,-1,-4}? sim
+subarray de soma 12: índices 1 a 3
+formas de formar 10 com moedas {1,2,5} = 10</code></pre>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: trio com soma zero</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Existem três valores distintos de índices cuja soma é zero?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Passo 1 (força bruta):</strong> três laços, O(n³). <strong>Passo 2 (padrão):</strong> fixe o primeiro valor <code>a[i]</code> e resolva o problema de dois ponteiros para <code>−a[i]</code> no restante. Ordenar uma vez custa O(n log n), e para cada i, os dois ponteiros custam O(n).</p>
+      <p><strong>Complexidade:</strong> O(n²) de tempo, dominado pelos dois ponteiros aninhados no fixo i.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · ex:tres-soma</code></p>
+<pre class="ah-code"><code>static int tres_soma_zero(int a[], size_t n) {
+    qsort(a, n, sizeof *a, cmp_int);                 /* ordena: O(n log n) */
+    for (size_t i = 0; i + 2 &lt; n; i++) {
+        size_t lo = i + 1, hi = n - 1;
+        while (lo &lt; hi) {
+            long s = (long)a[i] + a[lo] + a[hi];
+            if (s == 0) return 1;
+            if (s &lt; 0) lo++;
+            else hi--;
+        }
+    }
+    return 0;                                         /* O(n²) no total */
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: subvetor com soma alvo</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Num vetor de inteiros positivos, encontre um trecho contínuo cuja soma é exatamente o alvo.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Passo 2:</strong> como os valores são positivos, a soma de uma janela cresce ao estender e diminui ao encolher. Isso permite uma janela de tamanho variável: a janela cresce à direita; enquanto a soma passa do alvo, encolhe pela esquerda. Ao igualar, temos a resposta.</p>
+      <p>Para <code>{1, 2, 3, 7, 5}</code> e alvo 12, a resposta é o trecho de índices 1 a 3 (2 + 3 + 7).</p>
+      <p><strong>Complexidade:</strong> O(n), porque cada índice entra e sai da janela no máximo uma vez.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · ex:subarray</code></p>
+<pre class="ah-code"><code>static int subarray_com_soma(const int a[], size_t n, long alvo, size_t *ini, size_t *fim) {
+    /* valores positivos: a janela só cresce quando a soma é pequena */
+    size_t l = 0;
+    long s = 0;
+    for (size_t r = 0; r &lt; n; r++) {
+        s += a[r];
+        while (s &gt; alvo &amp;&amp; l &lt;= r) {
+            s -= a[l];
+            l++;
+        }
+        if (s == alvo) {
+            *ini = l;
+            *fim = r;
+            return 1;
+        }
+    }
+    return 0;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: formas de formar um valor com moedas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> De quantas formas diferentes é possível formar 10 com moedas de 1, 2 e 5? A ordem das moedas não importa.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Passo 1 e 4:</strong> a força bruta enumera combinações; o padrão é programação dinâmica. Seja <code>dp[v]</code> o número de formas de formar v. Para cada moeda m, todo v ≥ m ganha as formas que usam m: <code>dp[v] += dp[v − m]</code>. Processar moeda por moeda evita contar a mesma combinação em ordens diferentes.</p>
+      <p>Resultado: 10 formas. A tabela tem tamanho valor + 1.</p>
+      <p><strong>Complexidade:</strong> O(valor · número de moedas) de tempo, O(valor) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>11-padroes.c · ex:moedas</code></p>
+<pre class="ah-code"><code>static unsigned long long formas_troco(unsigned valor) {
+    unsigned long long *dp = calloc(valor + 1, sizeof *dp);
+    if (dp == NULL) return 0;
+    dp[0] = 1;
+    const unsigned moedas[3] = {1, 2, 5};
+    for (size_t m = 0; m &lt; 3; m++)
+        for (unsigned v = moedas[m]; v &lt;= valor; v++)
+            dp[v] += dp[v - moedas[m]];           /* as formas que usam a moeda m */
+    unsigned long long r = dp[valor];
+    free(dp);
+    return r;
+}</code></pre>
+  </div>
+</section>
+
+<section id="rotinas" data-toc="Aplicar em problemas novos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-amber-400 mr-2"></i>Como aplicar a problemas novos</h2>
+  <div class="ah-prose">
+    <p>
+      Um exemplo de raciocínio completo, sem código, ajuda a fixar o roteiro. <strong>Problema:</strong> dada uma lista de intervalos de reunião,
+      diga o número mínimo de salas necessárias.
+    </p>
+    <ol class="list-decimal pl-5 space-y-2">
+      <li><strong>Entrada e saída:</strong> intervalos [início, fim); saída, um inteiro. Casos de borda: lista vazia (0 salas); intervalos que se tocam exatamente no fim (não se sobrepõem).</li>
+      <li><strong>Exemplo à mão:</strong> [0,30), [5,10), [15,20). O primeiro e o segundo se sobrepõem; o terceiro começa depois do segundo acabar, mas antes do primeiro terminar. Resposta: 2.</li>
+      <li><strong>Força bruta:</strong> para cada instante, conte os intervalos ativos; O(n²) ou pior.</li>
+      <li><strong>Padrão:</strong> os sinais são “intervalos” e “número mínimo de recursos”. Ordenar por início e manter um conjunto de salas ocupadas com fim mínimo: <strong>guloso com fila de prioridade</strong> (ou dois ponteiros sobre eventos de início e fim).</li>
+      <li><strong>Estrutura e custo:</strong> ordenar eventos O(n log n); varrer os eventos e contar a sobreposição máxima com dois ponteiros em O(n). Total O(n log n).</li>
+      <li><strong>Teste:</strong> confira com a força bruta em entradas pequenas aleatórias; teste também intervalos idênticos e encostados.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Dado um vetor de valores 0 e 1, encontre o maior trecho contínuo com a mesma quantidade de 0s e de 1s. Qual padrão usar?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> troque 0 por −1 e use somas de prefixos: um trecho [l, r] tem soma zero quando p[l] = p[r+1]. Guarde, num hash, a primeira posição de cada valor de prefixo; o maior trecho é o maior r − l com o mesmo prefixo. O(n) de tempo e espaço.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Escreva o contraexemplo que mostra que o guloso não resolve a mochila 0/1, e diga qual padrão resolve.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> capacidade 50; itens (valor, peso): (60, 10), (100, 20), (120, 30). Ordenando por valor/peso, o guloso pega os dois primeiros (160 com peso 30), e o terceiro não cabe, somando 160 com 20 de folga. A solução ótima pega os dois últimos (220, peso 50). A programação dinâmica sobre a capacidade resolve em O(n · W).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual padrão é o mais indicado para o maior trecho contínuo com soma máxima de tamanho fixo k?</p>
+      <button class="ah-quiz-opt">Backtracking</button>
+      <button class="ah-quiz-opt">Janela deslizante</button>
+      <button class="ah-quiz-opt">Força bruta com três laços</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada janela muda por uma entrada e uma saída, então o total é O(n), contra O(n·k) da soma recalculada.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um algoritmo guloso precisa de uma prova de corretude?</p>
+      <button class="ah-quiz-opt">Porque sempre é mais lento que a programação dinâmica</button>
+      <button class="ah-quiz-opt">Porque ele só funciona com inteiros</button>
+      <button class="ah-quiz-opt">Porque a escolha local pode não levar a uma solução ótima, e a corretude depende da estrutura do problema</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O guloso é rápido mas arriscado: funciona para certos problemas, como o troco com moedas canônicas, e falha em outros, como a mochila 0/1.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a principal ideia da programação dinâmica?</p>
+      <button class="ah-quiz-opt">Resolver cada subproblema que se repete uma só vez e guardar o resultado</button>
+      <button class="ah-quiz-opt">Dividir o problema em partes que nunca se repetem</button>
+      <button class="ah-quiz-opt">Testar todas as permutações de entrada</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A tabela de resultados transforma uma recursão exponencial em uma varredura polinomial.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Siga o roteiro de seis passos: entenda, exemplifique à mão, faça a força bruta, identifique o padrão, otimize, teste.</li>
+    <li>Reconheça o padrão pelos sinais do enunciado, não pela solução que você já conhece.</li>
+    <li>Dois ponteiros e janelas transformam O(n²) em O(n) quando há ordem ou contiguidade.</li>
+    <li>Guloso exige prova; programação dinâmica exige um estado bem definido e uma recorrência correta.</li>
+    <li>Teste sempre contra a força bruta em entradas pequenas. É o único jeito seguro de confiar na otimização.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BENTLEY, J. <em>Programming Pearls</em>. 2. ed. Reading, MA: Addison-Wesley, 1999. Colunas sobre busca e otimização.</li>
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 15 (programação dinâmica), cap. 16 (algoritmos gulosos) e cap. 4 (divisão e conquista).</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988.</li>
+    <li>POLYA, G. <em>How to Solve It</em>. Princeton: Princeton University Press, 1945. Estratégias gerais de resolução de problemas.</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 1.1 (método de resolução de problemas).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvPont', ctl: 'ctlPont', cap: 'capPont',
+    desenha: ED.desenhaPonteiros, gera: ED.geraDoisPonteiros, velocidade: 1400
+  });
+  ED.criaAnimacao({
+    canvas: 'cvJan', ctl: 'ctlJan', cap: 'capJan',
+    desenha: ED.desenhaJanela, gera: ED.geraJanela, velocidade: 1200
+  });
+
+})();
+</script>
+</body>
+</html>

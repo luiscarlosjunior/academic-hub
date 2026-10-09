@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Árvores binárias de busca: inserção, remoção e percursos · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Árvores binárias de busca em C: inserção, busca, mínimo, remoção com sucessor, percursos pré, em, pós-ordem e por níveis, altura, animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌳</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/09-arvores">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-amber-400 mr-2"></i>Tópico 9 · Árvores binárias de busca</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>árvore</strong> organiza dados de forma hierárquica: uma raiz e subárvores. Uma <strong>árvore binária de busca</strong> (BST)
+      acrescenta uma regra: valores menores ficam à esquerda de cada nó, e maiores à direita. Essa regra torna a busca uma descida, em que cada
+      comparação descarta uma subárvore inteira, como na busca binária. A árvore combina a flexibilidade de uma estrutura ligada com a
+      ordem de um vetor ordenado.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>definir raiz, folha, altura e a propriedade de ordem de uma BST;</li>
+      <li>implementar inserção, busca, mínimo e remoção (com sucessor) em C;</li>
+      <li>gerar os percursos pré-ordem, em-ordem, pós-ordem e por níveis, e saber quando usar cada um;</li>
+      <li>resolver problemas de validação, ancestral comum e estatística de ordem.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: altura e custo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ruler-vertical text-amber-400 mr-2"></i>Teoria: altura, equilíbrio e custo</h2>
+  <div class="ah-prose">
+    <p>
+      Todas as operações da BST custam O(h), onde <code>h</code> é a altura: o número de arestas do caminho mais longo da raiz a uma folha.
+      O valor de h depende da ordem de inserção. Com valores aleatórios, a altura média é O(log n). Com valores já ordenados, cada novo nó vira
+      filho direito do anterior, a árvore degenera em uma lista e h = n − 1. O custo passa de O(log n) para O(n), e é por isso que árvores
+      práticas se reequilibram sozinhas: AVL (ADELSON-VEL'SKII; LANDIS, 1962) e rubro-negras (GUIBAS; SEDGEWICK, 1978) garantem h = O(log n).
+    </p>
+    <p>
+      Os percursos definem a ordem de visita: <strong>pré-ordem</strong> (raiz, esquerda, direita) serve para copiar ou serializar a árvore;
+      <strong>em-ordem</strong> (esquerda, raiz, direita) devolve os valores ordenados numa BST; <strong>pós-ordem</strong> (esquerda, direita, raiz)
+      serve para liberar memória ou calcular propriedades que dependem dos filhos; <strong>por níveis</strong> usa uma fila e visita da
+      raiz para as folhas, nível a nível.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead>
+      <tbody>
+        <tr><td>Buscar, inserir, remover, mínimo</td><td>O(h): O(log n) balanceada; O(n) degenerada</td><td>O(1) iterativo; O(h) recursivo</td></tr>
+        <tr><td>Qualquer percurso completo</td><td>O(n)</td><td>O(h) de pilha (recursivo); O(largura) para níveis</td></tr>
+        <tr><td>Guardar n nós</td><td>—</td><td>O(n)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="inserir" data-toc="Operação 1: inserir e buscar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-amber-400 mr-2"></i>Operação 1 · Inserir e buscar</h2>
+  <div class="ah-prose">
+    <p>
+      Inserir desce a partir da raiz, escolhendo a subárvore pela comparação, até achar uma posição livre. Buscar faz a mesma descida, mas para
+      ao achar o valor ou ao chegar em nulo. A versão recursiva de inserção devolve o nó atual, o que permite ligar o novo nó ao pai de forma
+      simples. A animação mostra o caminho percorrido em cada inserção.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · op:inserir</code></p>
+<pre class="ah-code"><code>static No *inserir(No *r, int v) {
+    if (r == NULL) return no_criar(v);
+    if (v &lt; r-&gt;v) r-&gt;esq = inserir(r-&gt;esq, v);
+    else if (v &gt; r-&gt;v) r-&gt;dir = inserir(r-&gt;dir, v);
+    return r;                                  /* repetido: ignora */
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · op:buscar</code></p>
+<pre class="ah-code"><code>static const No *buscar(const No *r, int v) {
+    while (r != NULL &amp;&amp; r-&gt;v != v)             /* O(h) */
+        r = (v &lt; r-&gt;v) ? r-&gt;esq : r-&gt;dir;
+    return r;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: inserindo oito valores</h3>
+  <p class="ah-lead text-sm mb-4">Inserimos 50, 30, 70, 20, 40, 60, 80 e 35. O caminho de cada inserção é destacado. Ao final, o percurso em-ordem sai ordenado.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvArvore" style="height:320px"></canvas></div>
+  <div id="ctlArvore" class="mt-4"></div>
+  <div id="capArvore" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="minimo-remover" data-toc="Operação 2: mínimo e remoção" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-amber-400 mr-2"></i>Operação 2 · Mínimo e remoção</h2>
+  <div class="ah-prose">
+    <p>
+      O mínimo é o nó mais à esquerda. A remoção tem três casos. Se o nó é uma folha ou tem um só filho, ele é substituído pelo filho.
+      Se tem dois filhos, a BST precisa continuar ordenada: substituímos o valor pelo <strong>sucessor em-ordem</strong>, que é o mínimo da subárvore
+      direita, e removemos esse sucessor de lá, o que é mais simples porque ele tem no máximo um filho. É o caso mais difícil e o mais
+      comum de errar.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · op:minimo</code></p>
+<pre class="ah-code"><code>static const No *minimo(const No *r) {
+    if (r == NULL) return NULL;
+    while (r-&gt;esq != NULL) r = r-&gt;esq;
+    return r;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · op:remover</code></p>
+<pre class="ah-code"><code>static No *remover(No *r, int v) {
+    if (r == NULL) return NULL;
+    if (v &lt; r-&gt;v) {
+        r-&gt;esq = remover(r-&gt;esq, v);
+    } else if (v &gt; r-&gt;v) {
+        r-&gt;dir = remover(r-&gt;dir, v);
+    } else if (r-&gt;esq == NULL) {               /* sem filho à esquerda */
+        No *d = r-&gt;dir;
+        free(r);
+        return d;
+    } else if (r-&gt;dir == NULL) {               /* sem filho à direita */
+        No *e = r-&gt;esq;
+        free(r);
+        return e;
+    } else {                                   /* dois filhos: sucessor em-ordem */
+        const No *s = minimo(r-&gt;dir);
+        r-&gt;v = s-&gt;v;
+        r-&gt;dir = remover(r-&gt;dir, s-&gt;v);
+    }
+    return r;
+}</code></pre>
+</section>
+
+<section id="percursos" data-toc="Operação 3: percursos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Operação 3 · Percursos</h2>
+  <div class="ah-prose">
+    <p>
+      Os três percursos recursivos diferem só na posição em que o nó é visitado. A animação abaixo mostra cada um na mesma árvore. Os níveis
+      usam uma fila, o que ilustra a relação entre árvores e a busca em largura da página de grafos.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · op:percursos</code></p>
+<pre class="ah-code"><code>static void pre_ordem(const No *r) {
+    if (r == NULL) return;
+    printf("%d ", r-&gt;v);
+    pre_ordem(r-&gt;esq);
+    pre_ordem(r-&gt;dir);
+}
+
+static void em_ordem(const No *r) {
+    if (r == NULL) return;
+    em_ordem(r-&gt;esq);
+    printf("%d ", r-&gt;v);
+    em_ordem(r-&gt;dir);
+}
+
+static void pos_ordem(const No *r) {
+    if (r == NULL) return;
+    pos_ordem(r-&gt;esq);
+    pos_ordem(r-&gt;dir);
+    printf("%d ", r-&gt;v);
+}
+
+/* Por níveis: usa uma fila (array circular de ponteiros) */
+static void por_niveis(const No *raiz) {
+    const No *fila[64];
+    size_t ini = 0, fim = 0;
+    if (raiz == NULL) return;
+    fila[fim++] = raiz;
+    while (ini &lt; fim) {
+        const No *r = fila[ini++];
+        printf("%d ", r-&gt;v);
+        if (r-&gt;esq) fila[fim++] = r-&gt;esq;
+        if (r-&gt;dir) fila[fim++] = r-&gt;dir;
+    }
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: escolha o percurso</h3>
+  <div class="ah-stage" style="height:320px"><canvas id="cvTrav" style="height:320px"></canvas></div>
+  <div id="ctlTrav" class="mt-4"></div>
+  <div id="capTrav" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="altura" data-toc="Operação 4: altura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-up-down text-amber-400 mr-2"></i>Operação 4 · Altura</h2>
+  <div class="ah-prose">
+    <p>
+      A altura é calculada por recursão: a altura de um nó é 1 mais a maior das alturas dos filhos, e a de nulo é −1 (contando arestas).
+      Visita cada nó uma vez: O(n) de tempo, e O(h) de pilha.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · op:altura</code></p>
+<pre class="ah-code"><code>static int altura(const No *r) {          /* número de arestas no caminho mais longo */
+    if (r == NULL) return -1;
+    int e = altura(r-&gt;esq), d = altura(r-&gt;dir);
+    return 1 + (e &gt; d ? e : d);
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/09-arvores.c">09-arvores.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>pré-ordem : 50 30 20 40 35 70 60 80 
+em-ordem  : 20 30 35 40 50 60 70 80 
+pós-ordem : 20 35 40 30 60 80 70 50 
+por níveis: 50 30 70 20 40 60 80 35 
+altura = 3 arestas
+buscar 40: achou, buscar 45: não achou
+mínimo = 20
+e_bst = 1
+ancestral comum de 20 e 35 = 30
+ancestral comum de 60 e 80 = 70
+3º menor = 35
+após remover 30, em-ordem: 20 35 40 50 60 70 80 </code></pre>
+</section>
+
+<section id="padroes" data-toc="Padrões com árvores" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com árvores</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Recursão pela estrutura</div>
+      <p class="text-xs text-slate-400">Para qualquer propriedade de árvore, resolva para a raiz assumindo que as subárvores já estão resolvidas. Altura, validação e contagem seguem esse padrão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Limites que se propagam</div>
+      <p class="text-xs text-slate-400">Para validar a BST, cada subárvore recebe um intervalo (min, max) que se estreita ao descer (exercício 1).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Descida guiada</div>
+      <p class="text-xs text-slate-400">Na BST, a comparação com a raiz diz de que lado está o alvo. Ancestral comum e buscas usam só um caminho (exercício 2).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Contar durante o percurso</div>
+      <p class="text-xs text-slate-400">Em-ordem visita os valores em ordem; um contador durante a visita responde a perguntas de posição, como o k-ésimo menor (exercício 3).</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: verificar se uma árvore é uma BST</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Dada uma árvore binária, diga se ela satisfaz a propriedade de BST. Cuidado: não basta comparar cada nó com seus filhos.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Armadilha:</strong> uma árvore pode ter cada filho corretamente posicionado em relação ao pai e ainda violar a regra, porque um nó da subárvore esquerda pode ser maior que a raiz. A regra vale para toda a subárvore.</p>
+      <p><strong>Padrão:</strong> limites que se propagam. Cada nó deve estar estritamente entre um mínimo e um máximo. Ao descer à esquerda, o máximo passa a ser o valor do pai; ao descer à direita, o mínimo passa a ser o pai. Usamos <code>LONG_MIN</code> e <code>LONG_MAX</code> para a raiz.</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(h) de pilha.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · ex:e-bst</code></p>
+<pre class="ah-code"><code>static int e_bst(const No *r, long min, long max) {
+    if (r == NULL) return 1;
+    if (r-&gt;v &lt;= min || r-&gt;v &gt;= max) return 0;
+    return e_bst(r-&gt;esq, min, r-&gt;v) &amp;&amp; e_bst(r-&gt;dir, r-&gt;v, max);
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: ancestral comum mais próximo</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Em uma BST, encontre o ancestral comum mais próximo de dois valores, que existem na árvore.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Desça a partir da raiz. Se os dois valores são menores que o nó, o ancestral comum está à esquerda; se são maiores, à direita. Quando os caminhos se separam (um valor é menor ou igual, e o outro maior ou igual), o nó atual é o ancestral comum. A BST torna isso uma descida simples, sem visitar a árvore inteira.</p>
+      <p>Em <code>{50, 30, 70, 20, 40, 60, 80, 35}</code>: o ancestral de 20 e 35 é 30, e o de 60 e 80 é 70.</p>
+      <p><strong>Complexidade:</strong> O(h) de tempo, O(1) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · ex:ancestral</code></p>
+<pre class="ah-code"><code>static const No *ancestral_comum(const No *r, int a, int b) {
+    while (r != NULL) {
+        if (a &lt; r-&gt;v &amp;&amp; b &lt; r-&gt;v) r = r-&gt;esq;      /* os dois estão à esquerda */
+        else if (a &gt; r-&gt;v &amp;&amp; b &gt; r-&gt;v) r = r-&gt;dir; /* os dois estão à direita */
+        else return r;                             /* o nó separa a e b */
+    }
+    return NULL;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: o k-ésimo menor</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Encontre o k-ésimo menor valor de uma BST.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> O percurso em-ordem visita os valores em ordem crescente. Um contador, incrementado a cada visita, diz qual posição estamos vendo: quando chega a k, paramos e devolvemos o nó. Para não percorrer tudo depois de achar, a recursão propaga o nó encontrado.</p>
+      <p>Para a árvore da aula, o terceiro menor é 35.</p>
+      <p><strong>Complexidade:</strong> O(k + h) de tempo no caso típico; O(n) no pior caso.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>09-arvores.c · ex:kesimo</code></p>
+<pre class="ah-code"><code>static const No *kesimo_aux(const No *r, int k, int *cont) {
+    if (r == NULL) return NULL;
+    const No *e = kesimo_aux(r-&gt;esq, k, cont);
+    if (e != NULL) return e;
+    if (++(*cont) == k) return r;
+    return kesimo_aux(r-&gt;dir, k, cont);
+}
+
+static const No *kesimo_menor(const No *r, int k) {
+    int cont = 0;
+    return kesimo_aux(r, k, &amp;cont);
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Escreva a versão iterativa da inserção em BST. Qual é a vantagem em relação à recursiva?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> use um ponteiro para ponteiro (<code>No **</code>) que aponta para o campo onde o novo nó deve ser ligado. A vantagem é espaço O(1) de pilha, o que evita estouro em árvores degeneradas profundas.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Uma árvore tem n nós e altura h. Quantos nós, no mínimo, ela pode ter? E no máximo?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> no mínimo h + 1 nós (um caminho). No máximo 2^(h+1) − 1 nós (árvore cheia). Por isso, uma árvore binária cheia com n nós tem altura ⌊log₂ n⌋, o que explica o O(log n) das árvores balanceadas.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual percurso devolve os valores de uma BST em ordem crescente?</p>
+      <button class="ah-quiz-opt">Pré-ordem</button>
+      <button class="ah-quiz-opt">Em-ordem</button>
+      <button class="ah-quiz-opt">Pós-ordem</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Em-ordem visita a subárvore esquerda (menores), a raiz e a direita (maiores).</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Ao remover um nó com dois filhos, qual valor pode substituí-lo para manter a propriedade de BST?</p>
+      <button class="ah-quiz-opt">O maior valor da subárvore esquerda, apenas</button>
+      <button class="ah-quiz-opt">A soma dos filhos</button>
+      <button class="ah-quiz-opt">O sucessor em-ordem: o mínimo da subárvore direita</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O sucessor é maior que tudo à esquerda e menor que o resto à direita. Também serve o predecessor (o máximo da esquerda), mas o sucessor é o padrão do exemplo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o custo de buscar um valor numa BST degenerada, com n nós em linha?</p>
+      <button class="ah-quiz-opt">O(n)</button>
+      <button class="ah-quiz-opt">O(log n)</button>
+      <button class="ah-quiz-opt">O(1)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A altura é n − 1, e a busca desce por todos os níveis. É a mesma situação de uma lista encadeada.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Em BST, todas as operações custam O(h): balanceada é O(log n), degenerada é O(n).</li>
+    <li>Remover com dois filhos troca o valor pelo sucessor em-ordem.</li>
+    <li>Em-ordem devolve valores ordenados; pré-ordem e pós-ordem servem a outras tarefas.</li>
+    <li>Propriedades de árvore se resolvem recursivamente, com limites ou contadores propagados.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>ADELSON-VEL'SKII, G. M.; LANDIS, E. M. An algorithm for the organization of information. <em>Doklady Akademii Nauk SSSR</em>, v. 146, p. 263–266, 1962.</li>
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 12 (árvores de busca binária) e cap. 13 (rubro-negras).</li>
+    <li>GUIBAS, L. J.; SEDGEWICK, R. A dichromatic framework for balanced trees. In: <em>19th Annual Symposium on Foundations of Computer Science</em>. IEEE, 1978. p. 8–21.</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988. Cap. 6 (estruturas).</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 3.2 (árvores de busca binária).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvArvore', ctl: 'ctlArvore', cap: 'capArvore',
+    desenha: ED.desenhaArvore, gera: ED.geraArvore, velocidade: 1300
+  });
+  ED.criaAnimacao({
+    canvas: 'cvTrav', ctl: 'ctlTrav', cap: 'capTrav',
+    desenha: ED.desenhaArvore, gera: ED.geraTravessia, velocidade: 800,
+    opcoes: [
+      { v: 'pre', rotulo: 'Pré-ordem' },
+      { v: 'em', rotulo: 'Em-ordem' },
+      { v: 'pos', rotulo: 'Pós-ordem' },
+      { v: 'nivel', rotulo: 'Por níveis' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

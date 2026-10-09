@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vetores: acesso, busca, inserção, remoção e crescimento · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Vetores em C: memória contígua, custo de cada operação, vetor dinâmico com realloc, exemplos completos e exercícios resolvidos com padrões de resolução.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧱</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/02-vetores">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-amber-400 mr-2"></i>Tópico 2 · Vetores</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>vetor</strong> (<em>array</em>) é uma sequência de elementos do mesmo tipo guardados em posições <strong>contíguas</strong>
+      da memória. É a estrutura mais simples e a base de quase todas as outras: filas, pilhas, tabelas hash e matrizes são construídas
+      sobre vetores. Entender o custo de cada operação aqui explica o custo de todo o restante.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar por que o acesso por índice é O(1) e a busca por valor é O(n);</li>
+      <li>implementar, em C, acesso, busca, inserção e remoção com verificação de limites;</li>
+      <li>usar realocação para criar um vetor dinâmico com inserção amortizada O(1) no fim;</li>
+      <li>resolver problemas com os padrões de manipulação in-place: inversão, rotação e compactação.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="memoria" data-toc="Teoria: memória contígua" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-amber-400 mr-2"></i>Teoria: o que acontece na memória</h2>
+  <div class="ah-prose">
+    <p>
+      Se o primeiro elemento de um vetor de inteiros está no endereço <code>base</code> e cada inteiro ocupa <code>s</code> bytes,
+      o elemento <code>i</code> está no endereço <code>base + i · s</code>. Não há busca: uma multiplicação e uma soma dão o endereço.
+      Em C isso é literal, porque <code>a[i]</code> é definido como <code>*(a + i)</code> (KERNIGHAN; RITCHIE, 1988, cap. 5).
+    </p>
+    <p>
+      Essa contiguidade traz duas consequências práticas. A primeira é a <strong>localidade</strong>: percorrer o vetor em ordem
+      carrega blocos inteiros para o cache do processador, o que costuma tornar o percurso muito mais rápido do que a análise
+      sugere (HENNESSY; PATTERSON, 2017, cap. 2). A segunda é a <strong>rigidez</strong>: inserir ou remover no meio exige deslocar
+      os elementos seguintes, e o tamanho fixo obriga a realocar quando a capacidade acaba.
+    </p>
+    <p>
+      C não verifica limites. Acessar <code>a[10]</code> num vetor de seis posições é <em>comportamento indefinido</em>: o programa pode
+      travar, devolver lixo ou corromper outra variável, sem aviso (ISO/IEC, 2018). Por isso, os exemplos desta página sempre
+      checam os índices antes de acessar.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>Acessar <code>a[i]</code></td><td>O(1)</td><td>O(1)</td><td>endereço calculado diretamente</td></tr>
+        <tr><td>Buscar um valor (sem ordem)</td><td>O(n)</td><td>O(1)</td><td>pode ser preciso olhar todos</td></tr>
+        <tr><td>Buscar um valor (ordenado)</td><td>O(log n)</td><td>O(1)</td><td>busca binária, página 5</td></tr>
+        <tr><td>Inserir no fim (com capacidade)</td><td>O(1)</td><td>O(1)</td><td>grava na próxima posição livre</td></tr>
+        <tr><td>Inserir ou remover no meio</td><td>O(n)</td><td>O(1)</td><td>deslocar os elementos seguintes</td></tr>
+        <tr><td>Crescer (realocação)</td><td>O(n) na chamada</td><td>O(n)</td><td>copiar tudo; amortizado O(1) por inserção</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="acessar" data-toc="Operação 1: acessar e buscar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-crosshairs text-amber-400 mr-2"></i>Operação 1 · Acesso por índice e busca por valor</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>acesso</strong> recebe um índice e devolve o valor: O(1), sem depender de n. A <strong>busca</strong> recebe um valor e
+      precisa descobrir onde ele está: sem ordem, o pior caso é percorrer tudo, O(n). Na animação, a primeira parte mostra o acesso
+      direto e a segunda, a busca comparando um elemento de cada vez.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · op:acessar</code></p>
+<pre class="ah-code"><code>static int vetor_acessar(const Vetor *v, size_t i, int *saida) {
+    if (i &gt;= v-&gt;tam) return 0;      /* C não verifica limites: a checagem é nossa */
+    *saida = v-&gt;dados[i];
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · op:buscar</code></p>
+<pre class="ah-code"><code>static long vetor_buscar(const Vetor *v, int x) {
+    for (size_t i = 0; i &lt; v-&gt;tam; i++)
+        if (v-&gt;dados[i] == x) return (long)i;
+    return -1;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: acesso e busca linear</h3>
+  <div class="ah-stage" style="height:260px"><canvas id="cvVetor" style="height:260px"></canvas></div>
+  <div id="ctlVetor" class="mt-4"></div>
+  <div id="capVetor" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="crescer" data-toc="Operação 2: crescer e inserir no fim" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-up-right-and-down-left-from-center text-amber-400 mr-2"></i>Operação 2 · Crescer e inserir no fim</h2>
+  <div class="ah-prose">
+    <p>
+      Um vetor de capacidade fixa não cresce. A solução é o <strong>vetor dinâmico</strong>: quando a capacidade acaba, pedimos
+      um bloco com o <em>dobro</em> do tamanho, copiamos tudo e liberamos o antigo. A chamada que realoca custa O(n), mas
+      ela é rara. Como o tamanho dobra, a soma das cópias ao longo de n inserções é menor que 2n, e o custo <strong>amortizado</strong>
+      por inserção é O(1). Esse é o mesmo princípio do <code>ArrayList</code> de Java e do <code>std::vector</code> de C++.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · op:crescer</code></p>
+<pre class="ah-code"><code>static int vetor_crescer(Vetor *v) {
+    size_t nova = (v-&gt;cap == 0) ? 4 : v-&gt;cap * 2;
+    int *p = realloc(v-&gt;dados, nova * sizeof *p);
+    if (p == NULL) return 0;
+    v-&gt;dados = p;
+    v-&gt;cap = nova;
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · op:inserir-fim</code></p>
+<pre class="ah-code"><code>static int vetor_push(Vetor *v, int x) {
+    if (v-&gt;tam == v-&gt;cap &amp;&amp; !vetor_crescer(v)) return 0;
+    v-&gt;dados[v-&gt;tam++] = x;
+    return 1;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: o vetor cresce por duplicação</h3>
+  <div class="ah-stage" style="height:200px"><canvas id="cvCrescimento" style="height:200px"></canvas></div>
+  <div id="ctlCrescimento" class="mt-4"></div>
+  <div id="capCrescimento" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="inserir-remover" data-toc="Operação 3: inserir e remover no meio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right-to-line text-amber-400 mr-2"></i>Operação 3 · Inserir e remover no meio</h2>
+  <div class="ah-prose">
+    <p>
+      Para abrir espaço na posição <code>p</code>, todos os elementos de <code>p</code> até o fim precisam andar uma casa para a direita.
+      <code>memmove</code> faz essa cópia com segurança mesmo quando as regiões se sobrepõem. Remover é o inverso: os elementos
+      andam para a esquerda, sem deixar buraco. Ambas custam O(n) no pior caso (inserir ou remover no início), e O(1) no fim.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · op:inserir-posicao</code></p>
+<pre class="ah-code"><code>static int vetor_inserir(Vetor *v, size_t pos, int x) {
+    if (pos &gt; v-&gt;tam) return 0;
+    if (v-&gt;tam == v-&gt;cap &amp;&amp; !vetor_crescer(v)) return 0;
+    memmove(&amp;v-&gt;dados[pos + 1], &amp;v-&gt;dados[pos], (v-&gt;tam - pos) * sizeof *v-&gt;dados);
+    v-&gt;dados[pos] = x;
+    v-&gt;tam++;
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · op:remover-posicao</code></p>
+<pre class="ah-code"><code>static int vetor_remover(Vetor *v, size_t pos, int *removido) {
+    if (pos &gt;= v-&gt;tam) return 0;
+    *removido = v-&gt;dados[pos];
+    memmove(&amp;v-&gt;dados[pos], &amp;v-&gt;dados[pos + 1], (v-&gt;tam - pos - 1) * sizeof *v-&gt;dados);
+    v-&gt;tam--;
+    return 1;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: inserção e remoção no meio</h3>
+  <p class="ah-lead text-sm mb-4">Use o seletor para alternar entre inserir e remover. Observe quantos elementos são deslocados.</p>
+  <div class="ah-stage" style="height:260px"><canvas id="cvVetor2" style="height:260px"></canvas></div>
+  <div id="ctlVetor2" class="mt-4"></div>
+  <div id="capVetor2" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo: todas as operações juntas</h2>
+  <div class="ah-prose"><p>O arquivo abaixo cria o vetor dinâmico, cresce, busca, insere, remove e roda os três exercícios desta página. Compile e rode você mesmo.</p></div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/02-vetores.c">02-vetores.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Crescimento por duplicação:
+  push 10 -&gt; tam=1 cap=2
+  push 20 -&gt; tam=2 cap=2
+  push 30 -&gt; tam=3 cap=4
+  push 40 -&gt; tam=4 cap=4
+  push 50 -&gt; tam=5 cap=8
+  push 60 -&gt; tam=6 cap=8
+  push 70 -&gt; tam=7 cap=8
+  push 80 -&gt; tam=8 cap=8
+  push 90 -&gt; tam=9 cap=16
+v[3] = 40
+v[99] fora dos limites
+buscar 50 -&gt; índice 4
+após inserir 99@2   tam=10 cap=16 : 10 20 99 30 40 50 60 70 80 90
+removido 10
+após remover @0     tam=9 cap=16 : 20 99 30 40 50 60 70 80 90
+invertido:           7 6 5 4 3 2 1
+rotação esq. 2:    3 4 5 6 7 1 2
+sem duplicados:      1 2 3 4
+maior soma contígua = 6</code></pre>
+</section>
+
+<section id="padroes" data-toc="Padrões para vetores" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com vetores</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dois ponteiros</div>
+      <p class="text-xs text-slate-400">Dois índices avançam pelo vetor (um de cada lado, ou um lendo e outro escrevendo). Usado em inversão, compactação e pares com soma fixa. Página 11.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Trabalhar in place</div>
+      <p class="text-xs text-slate-400">Reorganizar o próprio vetor, sem alocar outro. Espaço O(1). Exige cuidado com a ordem das escritas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Reverter em blocos</div>
+      <p class="text-xs text-slate-400">Inverter partes do vetor e depois o todo produz rotações sem memória extra (exercício 2).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Janela ou soma acumulada</div>
+      <p class="text-xs text-slate-400">Em vez de recalcular somas, atualizar a soma ao entrar e sair um elemento (exercício 4 e página 11).</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: inverter um vetor sem memória extra</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Inverta um vetor de n inteiros usando O(1) de espaço auxiliar.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> dois ponteiros nas extremidades. <code>i</code> começa no início e <code>j</code> no fim; trocamos e avançamos os dois até se cruzarem.</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(1) de espaço. Cada elemento é tocado uma vez.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · ex:inverter</code></p>
+<pre class="ah-code"><code>static void inverter(int a[], size_t n) {
+    if (n &lt; 2) return;
+    size_t i = 0, j = n - 1;
+    while (i &lt; j) {
+        int t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+        i++;
+        j--;
+    }
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: rotacionar à esquerda por k posições</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Rotacione o vetor <code>[1,2,3,4,5,6,7]</code> em 2 posições à esquerda, sem memória extra.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Rotacionar à esquerda por k equivale a: inverter a parte <code>[0, k)</code>, inverter <code>[k, n)</code>, e depois inverter o vetor inteiro. Exemplo: <code>[1,2 | 3..7]</code> vira <code>[2,1 | 7..3]</code>, e a inversão final dá <code>[3..7 | 1,2]</code>.</p>
+      <p><strong>Cuidado:</strong> use <code>k %= n</code> antes, para tratar k maior que n.</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(1) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · ex:rotacionar</code></p>
+<pre class="ah-code"><code>static void inverter_faixa(int a[], size_t ini, size_t fim) {   /* fim exclusivo */
+    if (fim - ini &lt; 2) return;
+    size_t i = ini, j = fim - 1;
+    while (i &lt; j) {
+        int t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+        i++;
+        j--;
+    }
+}
+
+static void rotacionar_esq(int a[], size_t n, size_t k) {
+    if (n == 0) return;
+    k %= n;
+    inverter_faixa(a, 0, k);
+    inverter_faixa(a, k, n);
+    inverter_faixa(a, 0, n);
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: remover duplicados de um vetor ordenado</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Em um vetor ordenado, remova as repetições e devolva o novo tamanho, sem alocar outro vetor.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> leitor e escritor. <code>r</code> lê todas as posições; <code>w</code> marca onde o próximo valor distinto deve ser gravado. Como o vetor é ordenado, os repetidos são vizinhos, e basta comparar com o último valor gravado.</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(1) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · ex:duplicados</code></p>
+<pre class="ah-code"><code>static size_t remover_duplicados(int a[], size_t n) {
+    if (n == 0) return 0;
+    size_t w = 1;                       /* próxima posição de escrita */
+    for (size_t r = 1; r &lt; n; r++)
+        if (a[r] != a[w - 1]) a[w++] = a[r];
+    return w;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 4: maior soma de subvetor contíguo (Kadane)</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Dado um vetor com valores negativos e positivos, encontre a maior soma de um trecho contínuo.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Para cada posição, decida: vale a pena continuar o trecho anterior, ou começar um novo a partir daqui? Se a soma acumulada até agora é positiva, ela ajuda o próximo elemento; se é negativa, só atrapalha, e recomeçamos. Guardamos o melhor valor visto. Esse é um exemplo de <strong>programação dinâmica</strong> com um único estado (página 11).</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(1) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>02-vetores.c · ex:kadane</code></p>
+<pre class="ah-code"><code>static int maior_soma(const int a[], size_t n) {
+    int melhor = a[0], atual = a[0];
+    for (size_t i = 1; i &lt; n; i++) {
+        atual = (atual &gt; 0) ? atual + a[i] : a[i];
+        if (atual &gt; melhor) melhor = atual;
+    }
+    return melhor;
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Mova todos os zeros de um vetor para o fim, mantendo a ordem dos demais, em O(n) e O(1) de espaço.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> use um escritor <code>w</code> que avança apenas ao gravar um valor não nulo; no fim, preencha de <code>w</code> até o fim com zeros. É a mesma ideia de remover duplicados, trocando o critério.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Junte dois vetores ordenados em um só, em ordem, em O(n + m).</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> dois ponteiros, um em cada vetor. Em cada passo, copie o menor dos dois valores atuais. Esse é o passo de intercalação do merge sort (página 4).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a inserção no fim de um vetor dinâmico é O(1) amortizado, apesar de algumas chamadas custarem O(n)?</p>
+      <button class="ah-quiz-opt">Porque o realloc nunca copia nada</button>
+      <button class="ah-quiz-opt">Porque a capacidade dobra, então as cópias caras são raras e se espalham pelas inserções baratas</button>
+      <button class="ah-quiz-opt">Porque o vetor é ordenado automaticamente</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A soma das cópias em n inserções é menor que 2n. Dividindo pelo número de inserções, o custo médio por operação é constante.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o custo de remover o primeiro elemento de um vetor com n elementos?</p>
+      <button class="ah-quiz-opt">O(1)</button>
+      <button class="ah-quiz-opt">O(log n)</button>
+      <button class="ah-quiz-opt">O(n)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Todos os n − 1 elementos restantes precisam andar uma posição para a esquerda.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um programa em C deve checar o índice antes de acessar <code>a[i]</code>?</p>
+      <button class="ah-quiz-opt">Porque C não verifica limites: um índice inválido é comportamento indefinido</button>
+      <button class="ah-quiz-opt">Porque o acesso por índice é lento sem a checagem</button>
+      <button class="ah-quiz-opt">Porque os índices começam em 1 em C</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O compilador não impede o acesso fora do bloco. O programa pode falhar ou corromper outra variável sem nenhum aviso.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Acesso por índice é O(1); busca por valor sem ordem é O(n).</li>
+    <li>Inserir ou remover no meio custa O(n), porque os elementos precisam se deslocar.</li>
+    <li>Vetor dinâmico dobra a capacidade: inserção no fim é O(1) amortizado, e a realocação custa O(n) de espaço temporário.</li>
+    <li>Em C, a checagem de índices é responsabilidade do programador.</li>
+    <li>Os padrões de dois ponteiros e de trabalho in place aparecem em quase todos os exercícios de vetor.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 10 (estruturas elementares) e cap. 17 (análise amortizada).</li>
+    <li>HENNESSY, J. L.; PATTERSON, D. A. <em>Computer Architecture: A Quantitative Approach</em>. 6. ed. Cambridge, MA: Morgan Kaufmann, 2017. Cap. 2 (hierarquia de memória).</li>
+    <li>ISO/IEC. <em>ISO/IEC 9899:2018: Programming languages — C</em>. Genebra: ISO, 2018.</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988. Cap. 5 (ponteiros e vetores).</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 1.3 (estruturas de dados elementares).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvVetor', ctl: 'ctlVetor', cap: 'capVetor',
+    desenha: ED.desenhaVetor, gera: ED.geraVetor,
+    opcoes: [
+      { v: 'acesso', rotulo: 'Acesso e busca por valor' },
+      { v: 'insercao', rotulo: 'Inserção no meio' },
+      { v: 'remocao', rotulo: 'Remoção no meio' }
+    ]
+  });
+  ED.criaAnimacao({
+    canvas: 'cvCrescimento', ctl: 'ctlCrescimento', cap: 'capCrescimento',
+    desenha: ED.desenhaCrescimento, gera: ED.geraCrescimento, velocidade: 1500
+  });
+  ED.criaAnimacao({
+    canvas: 'cvVetor2', ctl: 'ctlVetor2', cap: 'capVetor2',
+    desenha: ED.desenhaVetor, gera: ED.geraVetor,
+    opcoes: [
+      { v: 'insercao', rotulo: 'Inserção no meio' },
+      { v: 'remocao', rotulo: 'Remoção no meio' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

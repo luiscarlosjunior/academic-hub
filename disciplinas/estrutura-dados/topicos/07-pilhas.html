@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilhas: LIFO, parênteses, RPN e conversão de expressões · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Pilhas em C: push, pop e peek em O(1), validação de parênteses, avaliação de expressões pós-fixas, conversão infixa→pós-fixa (shunting-yard), animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/07-pilhas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Tópico 7 · Pilhas</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>pilha</strong> impõe a ordem inversa: o último a entrar é o primeiro a sair (LIFO, <em>last in, first out</em>). Só o topo
+      é acessível. Parece restritivo, mas essa restrição é justamente o que torna a pilha poderosa: tudo que depende de "voltar ao que
+      estava antes" é uma pilha. A pilha de chamadas de funções, o desfazer de editores, o casamento de parênteses e a avaliação de
+      expressões são exemplos.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>implementar <code>push</code>, <code>pop</code> e <code>peek</code> em C com verificação de limites, todos em O(1);</li>
+      <li>usar uma pilha para validar parênteses e para avaliar expressões pós-fixas;</li>
+      <li>converter uma expressão infixa em pós-fixa com o algoritmo shunting-yard;</li>
+      <li>resolver problemas com pilha monotônica e pilha auxiliar.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: pilha de chamadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-amber-400 mr-2"></i>Teoria: onde a pilha está escondida</h2>
+  <div class="ah-prose">
+    <p>
+      Quando uma função chama outra, o processador guarda o endereço de retorno e as variáveis locais numa região de memória chamada
+      <strong>pilha de execução</strong>. Ao retornar, essa região é desempilhada. É por isso que a recursão usa memória proporcional à sua
+      profundidade, como vimos na página 1. Uma pilha explícita, feita por você, faz exatamente o mesmo trabalho, e é a forma de converter
+      uma recursão profunda em iteração sem estourar a pilha do sistema.
+    </p>
+    <p>
+      A pilha é um tipo abstrato com um contrato: <code>push(x)</code> coloca x no topo; <code>pop()</code> remove e devolve o topo;
+      <code>peek()</code> devolve o topo sem remover; <code>vazia()</code> diz se há elementos. Em um vetor com ponteiro para o topo,
+      as quatro operações são O(1), sem deslocamento.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead>
+      <tbody>
+        <tr><td><code>push</code></td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td><code>pop</code></td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td><code>peek</code> e <code>vazia</code></td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td>Guardar n elementos</td><td>—</td><td>O(n)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="operacoes" data-toc="Operações básicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-amber-400 mr-2"></i>Operações básicas em C</h2>
+  <div class="ah-prose">
+    <p>
+      A implementação usa um vetor fixo e o índice do topo, que vale −1 quando a pilha está vazia. Nesse caso, <code>push</code> precisa
+      checar se há espaço e <code>pop</code> precisa checar se há elemento: esquecer qualquer uma das duas checagens é a causa mais
+      comum de erros com pilhas em C.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · op:push</code></p>
+<pre class="ah-code"><code>static int push(Pilha *p, int x) {
+    if (p-&gt;topo + 1 == MAX) return 0;             /* cheia */
+    p-&gt;d[++p-&gt;topo] = x;
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · op:pop</code></p>
+<pre class="ah-code"><code>static int pop(Pilha *p, int *x) {
+    if (p-&gt;topo &lt; 0) return 0;                    /* vazia */
+    *x = p-&gt;d[p-&gt;topo--];
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · op:peek</code></p>
+<pre class="ah-code"><code>static int peek(const Pilha *p, int *x) {
+    if (p-&gt;topo &lt; 0) return 0;
+    *x = p-&gt;d[p-&gt;topo];
+    return 1;
+}</code></pre>
+</section>
+
+<section id="parenteses" data-toc="Operação 1: validar parênteses" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-brackets-curly text-amber-400 mr-2"></i>Aplicação 1 · Validar parênteses</h2>
+  <div class="ah-prose">
+    <p>
+      Cada abertura é empilhada. Cada fechamento precisa casar com o <strong>topo</strong>: se a pilha está vazia, há um fechamento sobrando;
+      se o topo é do tipo errado, os pares se cruzam. Ao fim, a pilha deve estar vazia. Um contador de abertura não basta, porque
+      <code>{(})</code> tem o mesmo número de abre e fecha e ainda assim é inválido: a <em>ordem</em> importa, e a pilha guarda essa ordem.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · op:parenteses</code></p>
+<pre class="ah-code"><code>static int balanceada(const char *s) {
+    Pilha p;
+    pilha_iniciar(&amp;p);
+    for (; *s; s++) {
+        int c = *s, t;
+        if (c == '(' || c == '[' || c == '{') {
+            push(&amp;p, c);
+        } else if (c == ')' || c == ']' || c == '}') {
+            if (!pop(&amp;p, &amp;t)) return 0;
+            if ((c == ')' &amp;&amp; t != '(') || (c == ']' &amp;&amp; t != '[') || (c == '}' &amp;&amp; t != '{'))
+                return 0;
+        }
+    }
+    return p.topo &lt; 0;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: validar parênteses</h3>
+  <p class="ah-lead text-sm mb-4">A faixa de cima é a expressão, com o caractere atual destacado. À direita, a pilha. Compare uma expressão válida e uma inválida.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvPilha" style="height:300px"></canvas></div>
+  <div id="ctlPilha" class="mt-4"></div>
+  <div id="capPilha" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="rpn" data-toc="Aplicação 2: avaliar RPN" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-amber-400 mr-2"></i>Aplicação 2 · Avaliar expressões pós-fixas (RPN)</h2>
+  <div class="ah-prose">
+    <p>
+      Na notação pós-fixa (<em>reverse polish notation</em>), o operador vem depois dos operandos: <code>3 4 + 2 *</code> significa
+      <code>(3 + 4) * 2</code>. Não há parênteses nem precedência, porque a ordem dos tokens já define a conta. Calculadoras e a linguagem Forth usam essa notação, e máquinas de pilha, como a JVM, usam a mesma ideia de operandos empilhados. A avaliação é simples: número faz <em>push</em>; operador faz
+      <em>pop</em> de dois valores, calcula e empilha o resultado. Ao fim, deve sobrar exatamente um valor.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · op:rpn</code></p>
+<pre class="ah-code"><code>static int avaliar_rpn(const char *expr, int *resultado) {
+    Pilha p;
+    pilha_iniciar(&amp;p);
+    const char *s = expr;
+    while (*s) {
+        if (isspace((unsigned char)*s)) {
+            s++;
+        } else if (isdigit((unsigned char)*s)) {
+            int v = 0;
+            while (isdigit((unsigned char)*s)) v = v * 10 + (*s++ - '0');
+            push(&amp;p, v);
+        } else {
+            int b, a, r;
+            if (!pop(&amp;p, &amp;b) || !pop(&amp;p, &amp;a)) return 0;   /* faltam operandos */
+            switch (*s) {
+                case '+': r = a + b; break;
+                case '-': r = a - b; break;
+                case '*': r = a * b; break;
+                case '/': if (b == 0) return 0; r = a / b; break;
+                default: return 0;
+            }
+            push(&amp;p, r);
+            s++;
+        }
+    }
+    if (p.topo != 0) return 0;                   /* deve sobrar exatamente um valor */
+    *resultado = p.d[0];
+    return 1;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: avaliando uma expressão pós-fixa</h3>
+  <div class="ah-stage" style="height:280px"><canvas id="cvRPN" style="height:280px"></canvas></div>
+  <div id="ctlRPN" class="mt-4"></div>
+  <div id="capRPN" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="shunting" data-toc="Aplicação 3: infixa para pós-fixa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-amber-400 mr-2"></i>Aplicação 3 · Da notação infixa à pós-fixa</h2>
+  <div class="ah-prose">
+    <p>
+      O algoritmo <em>shunting-yard</em>, de Dijkstra, converte a expressão que escrevemos (infixa) na pós-fixa, que a máquina avalia. A ideia:
+      números vão direto para a saída; operadores esperam numa pilha até que um operador de precedência menor ou igual chegue (aí saem
+      primeiro); parênteses marcam o limite. Cada token entra e sai da pilha no máximo uma vez, então o custo é O(n).
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · op:shunting-yard</code></p>
+<pre class="ah-code"><code>static int precedencia(int op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    return 0;
+}
+
+static void infixa_para_posfixa(const char *in, char *out) {
+    Pilha ops;
+    pilha_iniciar(&amp;ops);
+    size_t k = 0;
+    for (const char *s = in; *s; s++) {
+        int t;
+        if (isdigit((unsigned char)*s)) {
+            out[k++] = *s;
+        } else if (*s == '(') {
+            push(&amp;ops, '(');
+        } else if (*s == ')') {
+            while (peek(&amp;ops, &amp;t) &amp;&amp; t != '(') {
+                pop(&amp;ops, &amp;t);
+                out[k++] = (char)t;
+            }
+            pop(&amp;ops, &amp;t);                       /* descarta '(' */
+        } else {
+            while (peek(&amp;ops, &amp;t) &amp;&amp; t != '(' &amp;&amp; precedencia(t) &gt;= precedencia(*s)) {
+                pop(&amp;ops, &amp;t);
+                out[k++] = (char)t;
+            }
+            push(&amp;ops, *s);
+        }
+    }
+    int t;
+    while (pop(&amp;ops, &amp;t)) out[k++] = (char)t;
+    out[k] = '\0';
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/07-pilhas.c">07-pilhas.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>{[()]}   -&gt; balanceada
+{[(])}   -&gt; não balanceada
+((()     -&gt; não balanceada
+RPN "3 4 + 2 *" = 14
+RPN "5 1 2 + 4 * + 3 -" = 14
+RPN "1 +" inválida
+3+4*2    =&gt; 342*+
+(1+2)*3  =&gt; 12+3*
+mínimo = 2
+após remover 2 e 7, mínimo = 5
+próximo maior de {4,5,2,10,8}: 5 10 10 -1 -1
+remover pares adjacentes de "abbaca" -&gt; "ca" (2)</code></pre>
+</section>
+
+<section id="padroes" data-toc="Padrões com pilhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com pilhas</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Casamento</div>
+      <p class="text-xs text-slate-400">Quando cada fechamento deve corresponder a uma abertura anterior (parênteses, tags HTML, blocos), empilhe as aberturas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Pilha auxiliar</div>
+      <p class="text-xs text-slate-400">Guarde junto com cada estado informação extra, como o mínimo até ali, para responder em O(1) (exercício 1).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Pilha monotônica</div>
+      <p class="text-xs text-slate-400">Mantenha a pilha em ordem crescente ou decrescente. Quando um novo elemento quebra a ordem, os elementos removidos ganham uma resposta (exercício 2).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Cancelamento</div>
+      <p class="text-xs text-slate-400">Quando um item cancela o anterior (como dois caracteres iguais seguidos), basta olhar o topo (exercício 3).</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: pilha com mínimo em O(1)</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Projete uma pilha que, além de <code>push</code>, <code>pop</code>, devolva o menor valor presente em O(1).</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Mantenha uma segunda pilha com os mínimos. Ao empilhar x, se x é menor ou igual ao mínimo atual, empilhe-o também nos mínimos. Ao desempilhar, se o valor removido é igual ao topo dos mínimos, remova dos dois. Assim, o topo dos mínimos é sempre o mínimo da pilha inteira, mesmo depois de removidos elementos.</p>
+      <p><strong>Complexidade:</strong> O(1) em todas as operações; espaço O(n).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · ex:min-pilha</code></p>
+<pre class="ah-code"><code>typedef struct {
+    Pilha dados;
+    Pilha minimos;              /* guarda o mínimo de cada estado da pilha */
+} PilhaMin;
+
+static void pm_push(PilhaMin *p, int x) {
+    push(&amp;p-&gt;dados, x);
+    int m;
+    if (p-&gt;minimos.topo &lt; 0 || (peek(&amp;p-&gt;minimos, &amp;m), x &lt;= m)) push(&amp;p-&gt;minimos, x);
+}
+
+static int pm_pop(PilhaMin *p, int *x) {
+    if (!pop(&amp;p-&gt;dados, x)) return 0;
+    int m;
+    peek(&amp;p-&gt;minimos, &amp;m);
+    if (*x == m) pop(&amp;p-&gt;minimos, &amp;m);
+    return 1;
+}
+
+static int pm_minimo(const PilhaMin *p, int *m) {
+    return peek(&amp;p-&gt;minimos, m);                 /* O(1) */
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: próximo maior elemento</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Para cada posição, encontre o primeiro valor à direita que é maior que ele, ou −1.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> pilha monotônica decrescente de índices. Ao processar <code>a[i]</code>, todo índice da pilha cujo valor é menor que <code>a[i]</code> encontrou seu próximo maior: é ele. Esses índices saem da pilha, e <code>i</code> entra. Para <code>{4, 5, 2, 10, 8}</code>, o resultado é <code>{5, 10, 10, −1, −1}</code>.</p>
+      <p><strong>Por que é O(n) e não O(n²):</strong> cada índice entra na pilha uma vez e sai no máximo uma vez.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · ex:proximo-maior</code></p>
+<pre class="ah-code"><code>static void proximo_maior(const int a[], int res[], size_t n) {
+    Pilha p;
+    pilha_iniciar(&amp;p);                           /* guarda índices, valores decrescentes */
+    for (size_t i = 0; i &lt; n; i++) res[i] = -1;
+    for (size_t i = 0; i &lt; n; i++) {
+        int j = 0;
+        while (peek(&amp;p, &amp;j) &amp;&amp; a[j] &lt; a[i]) {
+            pop(&amp;p, &amp;j);
+            res[j] = a[i];
+        }
+        push(&amp;p, (int)i);
+    }
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: remover pares adjacentes iguais</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Em uma string, remova pares de caracteres iguais adjacentes, repetidamente, até não restar nenhum. Por exemplo, <code>"abbaca"</code> vira <code>"ca"</code>.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Processe os caracteres da esquerda para a direita, mantendo na pilha o resultado parcial. Se o caractere atual é igual ao topo, o par se cancela: desempilhe. Senão, empilhe. A remoção em cascata acontece sozinha, porque após um cancelamento, o novo topo é comparado com o próximo caractere.</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(n) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>07-pilhas.c · ex:remover-pares</code></p>
+<pre class="ah-code"><code>static size_t remover_adjacentes(const char *s, char *out) {
+    Pilha p;
+    pilha_iniciar(&amp;p);
+    for (const char *c = s; *c; c++) {
+        int t;
+        if (peek(&amp;p, &amp;t) &amp;&amp; t == *c) pop(&amp;p, &amp;t);
+        else push(&amp;p, *c);
+    }
+    size_t n = 0;
+    for (int i = 0; i &lt;= p.topo; i++) out[n++] = (char)p.d[i];
+    out[n] = '\0';
+    return n;
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Como você adaptaria a avaliação de RPN para aceitar números com mais de um dígito e operadores de potência?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o código já acumula dígitos em <code>v</code>; a potência é um operador a mais no <code>switch</code>, com o cuidado de que expoentes negativos produzem frações, então o tipo precisa mudar. Para um código seguro, valide o domínio antes de calcular.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Uma pilha de navegador guarda as páginas visitadas. Como modelar “voltar” e “avançar” com duas pilhas?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a pilha de trás guarda as páginas anteriores; a pilha de frente guarda as páginas desfeitas. Voltar desempilha de trás e empilha na frente; avançar faz o contrário. Visitar uma nova página esvazia a pilha de frente.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o resultado de <code>5 1 2 + 4 * + 3 -</code> em notação pós-fixa?</p>
+      <button class="ah-quiz-opt">11</button>
+      <button class="ah-quiz-opt">13</button>
+      <button class="ah-quiz-opt">14</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. 1 + 2 = 3; 3 · 4 = 12; 5 + 12 = 17; 17 − 3 = 14. É a expressão 5 + (1 + 2) · 4 − 3.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a expressão <code>{(})</code> é inválida, mesmo tendo igual número de aberturas e fechamentos?</p>
+      <button class="ah-quiz-opt">Porque chaves não podem aparecer com parênteses</button>
+      <button class="ah-quiz-opt">Porque o fechamento ) não casa com o topo, que é {, e os pares se cruzam</button>
+      <button class="ah-quiz-opt">Porque a expressão tem menos de quatro caracteres</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A ordem dos pares é o que importa, e a pilha é a estrutura que registra essa ordem.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o custo de <code>push</code> e <code>pop</code> em um vetor com ponteiro para o topo?</p>
+      <button class="ah-quiz-opt">O(1) cada</button>
+      <button class="ah-quiz-opt">O(n) cada</button>
+      <button class="ah-quiz-opt">O(log n) cada</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Operam apenas no topo, sem deslocamento de elementos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Pilha é LIFO; push, pop e peek são O(1).</li>
+    <li>Casamento de pares, avaliação de RPN e shunting-yard são aplicações diretas.</li>
+    <li>Pilha monotônica resolve “próximo maior” em O(n) com análise amortizada.</li>
+    <li>A pilha de chamadas explica o custo de espaço da recursão.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AHO, A. V.; LAM, M. S.; SETHI, R.; ULLMAN, J. D. <em>Compilers: Principles, Techniques, and Tools</em>. 2. ed. Boston: Pearson/Addison-Wesley, 2006. Cap. 1 (avaliação de expressões e pilhas).</li>
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 10.1 (pilhas) e cap. 17 (análise amortizada).</li>
+    <li>DIJKSTRA, E. W. O algoritmo shunting-yard surgiu no contexto da tradução de ALGOL 60, nos anos 1960. Para a descrição moderna, consulte AHO <em>et al.</em> (2006), cap. 1.</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvPilha', ctl: 'ctlPilha', cap: 'capPilha',
+    desenha: ED.desenhaPilha, gera: ED.geraPilha, velocidade: 1200,
+    opcoes: [
+      { v: '{[()]}', rotulo: '{[()]} — balanceada' },
+      { v: '{[(])}', rotulo: '{[(])} — não balanceada' }
+    ]
+  });
+  ED.criaAnimacao({
+    canvas: 'cvRPN', ctl: 'ctlRPN', cap: 'capRPN',
+    desenha: ED.desenhaRPN, gera: ED.geraRPN, velocidade: 1200,
+    opcoes: [
+      { v: '3 4 + 2 *', rotulo: '3 4 + 2 *  = 14' },
+      { v: '5 1 2 + 4 * + 3 -', rotulo: '5 1 2 + 4 * + 3 -  = 14' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

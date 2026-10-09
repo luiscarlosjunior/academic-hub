@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filas: FIFO, buffer circular, fila encadeada e simulações · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Filas em C: enqueue e dequeue em O(1), buffer circular, fila encadeada, simulação round-robin, fila com duas pilhas, animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚶</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/06-filas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-to-bracket text-amber-400 mr-2"></i>Tópico 6 · Filas</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>fila</strong> impõe uma ordem de atendimento: quem chega primeiro é atendido primeiro (FIFO, <em>first in, first out</em>).
+      É o modelo de filas de banco, de impressão, de mensagens entre serviços e de buffers de rede e áudio. Na computação, é também a
+      estrutura por trás da busca em largura, que veremos na página de grafos.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>implementar fila com operações em O(1): <code>enqueue</code>, <code>dequeue</code>, <code>frente</code> e <code>vazia</code>;</li>
+      <li>explicar por que um vetor comum não serve bem para a fila e como o buffer circular resolve isso;</li>
+      <li>escolher entre buffer circular (capacidade fixa) e fila encadeada (crescimento livre);</li>
+      <li>modelar simulações com fila e resolver problemas que usam fila como ferramenta.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: o problema do vetor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Teoria: por que não usar um vetor comum</h2>
+  <div class="ah-prose">
+    <p>
+      Um vetor comum tem <code>enqueue</code> barato (escreve no fim), mas <code>dequeue</code> caro: remover o primeiro elemento exige
+      deslocar todos os outros, O(n). Uma fila que processa milhões de itens ficaria quadrática. Há duas saídas clássicas, ambas com todas as
+      operações em O(1):
+    </p>
+    <ul>
+      <li><strong>Buffer circular:</strong> um vetor de capacidade fixa, em que o início e o fim "dão a volta" pela aritmética módulo a capacidade. Não há deslocamento.</li>
+      <li><strong>Fila encadeada:</strong> nós alocados um a um, com ponteiros para o início e para o fim. Cresce sem limite, ao custo de uma alocação por elemento.</li>
+    </ul>
+    <p>
+      Em sistemas com memória limitada e tamanho previsível (um buffer de áudio, por exemplo), o buffer circular é o padrão. Quando o volume
+      é imprevisível, a fila encadeada evita o problema de realocar.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Vetor comum</th><th>Buffer circular</th><th>Fila encadeada</th></tr></thead>
+      <tbody>
+        <tr><td><code>enqueue</code></td><td>O(1)</td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td><code>dequeue</code></td><td>O(n)</td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td><code>frente</code> e <code>vazia</code></td><td>O(1)</td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td>Espaço</td><td>O(capacidade)</td><td>O(capacidade)</td><td>O(n) em nós</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="circular" data-toc="Operação 1: buffer circular" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate-right text-amber-400 mr-2"></i>Operação 1 · Buffer circular: enqueue e dequeue</h2>
+  <div class="ah-prose">
+    <p>
+      A fila guarda a posição da <strong>frente</strong> e a quantidade de elementos. O fim é calculado: <code>(frente + tam) % CAP</code>.
+      <code>enqueue</code> grava nessa posição e incrementa <code>tam</code>. <code>dequeue</code> lê a frente, avança a frente módulo
+      <code>CAP</code> e decrementa <code>tam</code>. A fila está cheia quando <code>tam == CAP</code>. As posições liberadas no início
+      são reaproveitadas pelo fim, que dá a volta: a lotação depende só do número de elementos, não de onde eles estão.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>06-filas.c · op:enqueue</code></p>
+<pre class="ah-code"><code>typedef struct {
+    int dados[CAP];
+    size_t frente;      /* índice do primeiro elemento */
+    size_t tam;         /* quantos elementos estão na fila */
+} FilaCirc;
+
+static int fila_enqueue(FilaCirc *f, int x) {
+    if (f-&gt;tam == CAP) return 0;                    /* cheia */
+    f-&gt;dados[(f-&gt;frente + f-&gt;tam) % CAP] = x;       /* índice circular */
+    f-&gt;tam++;
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>06-filas.c · op:dequeue</code></p>
+<pre class="ah-code"><code>static int fila_dequeue(FilaCirc *f, int *saida) {
+    if (f-&gt;tam == 0) return 0;                      /* vazia */
+    *saida = f-&gt;dados[f-&gt;frente];
+    f-&gt;frente = (f-&gt;frente + 1) % CAP;
+    f-&gt;tam--;
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>06-filas.c · op:peek</code></p>
+<pre class="ah-code"><code>static int fila_frente(const FilaCirc *f, int *saida) {
+    if (f-&gt;tam == 0) return 0;
+    *saida = f-&gt;dados[f-&gt;frente];
+    return 1;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: o buffer dá a volta</h3>
+  <p class="ah-lead text-sm mb-4">Capacidade 5. Acompanhe a frente andando e o fim voltando ao slot 0 depois da remoção.</p>
+  <div class="ah-stage" style="height:220px"><canvas id="cvFilaCirc" style="height:220px"></canvas></div>
+  <div id="ctlFilaCirc" class="mt-4"></div>
+  <div id="capFilaCirc" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="linear" data-toc="Animação: fila em vetor linear" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-people-line text-amber-400 mr-2"></i>Animação: FIFO passo a passo</h2>
+  <p class="ah-lead text-sm mb-4">Três entradas, uma saída, uma entrada e outra saída. Repare em quem sai e em quem entra.</p>
+  <div class="ah-stage" style="height:220px"><canvas id="cvFila" style="height:220px"></canvas></div>
+  <div id="ctlFila" class="mt-4"></div>
+  <div id="capFila" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="encadeada" data-toc="Operação 2: fila encadeada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-amber-400 mr-2"></i>Operação 2 · Fila encadeada</h2>
+  <div class="ah-prose">
+    <p>
+      A fila encadeada mantém dois ponteiros: <code>ini</code> aponta para o primeiro nó, <code>fim</code> para o último. Inserir no fim
+      liga o novo nó ao último; remover do início desliga o primeiro. O caso especial é a fila vazia, em que os dois ponteiros são nulos e
+      precisam ser ajustados juntos. É o caso mais fácil de errar: esquecer de zerar <code>fim</code> ao remover o último nó.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>06-filas.c · op:fila-encadeada</code></p>
+<pre class="ah-code"><code>typedef struct No {
+    int v;
+    struct No *prox;
+} No;
+
+typedef struct {
+    No *ini, *fim;
+} FilaLig;
+
+static int lig_enqueue(FilaLig *f, int v) {
+    No *n = malloc(sizeof *n);
+    if (n == NULL) return 0;
+    n-&gt;v = v;
+    n-&gt;prox = NULL;
+    if (f-&gt;fim) f-&gt;fim-&gt;prox = n;
+    else f-&gt;ini = n;
+    f-&gt;fim = n;
+    return 1;
+}
+
+static int lig_dequeue(FilaLig *f, int *saida) {
+    No *n = f-&gt;ini;
+    if (n == NULL) return 0;
+    *saida = n-&gt;v;
+    f-&gt;ini = n-&gt;prox;
+    if (f-&gt;ini == NULL) f-&gt;fim = NULL;
+    free(n);
+    return 1;
+}
+
+static void lig_liberar(FilaLig *f) {
+    int descartado;
+    while (lig_dequeue(f, &amp;descartado)) { }
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/06-filas.c">06-filas.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>fila cheia ao inserir 60
+saiu 10
+saiu 20
+frente agora = 30 (tamanho 5)
+fila encadeada: 1 2 3
+round-robin, quantum=2, durações {5,3,8}:
+  processo 1 termina em t=9
+  processo 0 termina em t=12
+  processo 2 termina em t=16
+duas pilhas: saiu 1
+duas pilhas: restante 2 3 4</code></pre>
+</section>
+
+<section id="padroes" data-toc="Padrões com filas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com filas</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Processar em camadas</div>
+      <p class="text-xs text-slate-400">Quando a ordem é “primeiro o que está mais perto”, use fila: é a base da BFS, que calcula distâncias em grafos sem peso e em grades.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Simulação de turnos</div>
+      <p class="text-xs text-slate-400">Processos, clientes ou tarefas que voltam ao fim da fila após um turno, como no round-robin (exercício 1).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Duas pilhas</div>
+      <p class="text-xs text-slate-400">Pilhas invertem a ordem. Duas pilhas em sequência devolvem a ordem original: é a fila com custo amortizado O(1) (exercício 2).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Deque para janelas</div>
+      <p class="text-xs text-slate-400">Uma fila de duas pontas (deque) mantém o máximo de uma janela deslizante em O(n). Fila e janela se encontram na página 11.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: escalonamento round-robin</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Processos com durações conhecidas usam a CPU em fatias de tamanho fixo (quantum). Um processo que não terminou volta ao fim da fila. Simule e diga quando cada um termina.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> simulação por fila. Cada processo é retirado da frente, recebe uma fatia, e se ainda falta tempo, volta ao fim. Assim, a ordem de atendimento é justa: nenhum processo espera mais que uma volta completa da fila.</p>
+      <p>Para durações {5, 3, 8} e quantum 2: o processo 1 termina em t = 9, o 0 em t = 12, o 2 em t = 16.</p>
+      <p><strong>Complexidade:</strong> o número de fatias é ⌈soma das durações / quantum⌉, e cada fatia custa O(1). Total O(T / q), com T a soma das durações.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>06-filas.c · ex:round-robin</code></p>
+<pre class="ah-code"><code>static void round_robin(const int duracao[], size_t n, int quantum) {
+    int restante[16];
+    FilaLig f = {NULL, NULL};
+    for (size_t i = 0; i &lt; n &amp;&amp; i &lt; 16; i++) {
+        restante[i] = duracao[i];
+        lig_enqueue(&amp;f, (int)i);
+    }
+    int t = 0, idx;
+    while (lig_dequeue(&amp;f, &amp;idx)) {
+        int fatia = restante[idx] &lt; quantum ? restante[idx] : quantum;
+        t += fatia;
+        restante[idx] -= fatia;
+        if (restante[idx] &gt; 0) lig_enqueue(&amp;f, idx);      /* volta para o fim da fila */
+        else printf("  processo %d termina em t=%d\n", idx, t);
+    }
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: fila com duas pilhas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Implemente uma fila usando apenas duas pilhas. Qual o custo de cada operação?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> <code>enqueue</code> empilha na pilha de entrada. <code>dequeue</code> olha a pilha de saída: se ela está vazia, passa todos os elementos da entrada para a saída, o que inverte a ordem e coloca o mais antigo no topo. Se a saída não está vazia, basta desempilhar dela.</p>
+      <p><strong>Análise amortizada:</strong> um elemento é movido da entrada para a saída no máximo uma vez. Em n operações, há no máximo n movimentos. O custo amortizado por operação é O(1), embora uma única <code>dequeue</code> possa custar O(n).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>06-filas.c · ex:duas-pilhas</code></p>
+<pre class="ah-code"><code>typedef struct {
+    int d[32];
+    int n;
+} Pilha;
+
+static void p_push(Pilha *p, int x) { p-&gt;d[p-&gt;n++] = x; }
+
+static int p_pop(Pilha *p, int *x) {
+    if (p-&gt;n == 0) return 0;
+    *x = p-&gt;d[--p-&gt;n];
+    return 1;
+}
+
+typedef struct {
+    Pilha entrada, saida;
+} FilaDuasPilhas;
+
+static void fdp_enqueue(FilaDuasPilhas *q, int x) {
+    p_push(&amp;q-&gt;entrada, x);
+}
+
+/* Amortizado O(1): cada elemento é movido da entrada para a saída no máximo uma vez */
+static int fdp_dequeue(FilaDuasPilhas *q, int *x) {
+    if (q-&gt;saida.n == 0) {
+        int t;
+        while (p_pop(&amp;q-&gt;entrada, &amp;t)) p_push(&amp;q-&gt;saida, t);
+    }
+    return p_pop(&amp;q-&gt;saida, x);
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que, num buffer circular, não basta comparar <code>frente == fim</code> para distinguir fila vazia de fila cheia? Proponha duas soluções.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> ambos os estados fazem frente e fim coincidirem. Solução 1: manter um contador <code>tam</code>, como nesta página. Solução 2: deixar uma posição sempre vazia, e considerar cheia quando <code>(fim + 1) % CAP == frente</code>; isso gasta uma posição, mas dispensa o contador.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Explique por que a fila encadeada é mais lenta que o buffer circular na prática, embora ambas sejam O(1).</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> cada enqueue faz uma alocação (malloc), e os nós ficam espalhados na memória. O buffer circular grava em um bloco contíguo, o que aproveita o cache. A complexidade assintótica é a mesma; a constante, não.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a ordem de saída de uma fila após enqueue(1), enqueue(2), dequeue(), enqueue(3), dequeue()?</p>
+      <button class="ah-quiz-opt">3, 2</button>
+      <button class="ah-quiz-opt">1, 2</button>
+      <button class="ah-quiz-opt">2, 3</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Saem 1 (o primeiro), depois 2 (o próximo mais antigo). O 3 ainda está na fila.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um buffer circular não precisa deslocar elementos ao remover?</p>
+      <button class="ah-quiz-opt">Porque ele nunca remove elementos</button>
+      <button class="ah-quiz-opt">Porque os elementos são guardados em ordem decrescente</button>
+      <button class="ah-quiz-opt">Porque a frente apenas avança, e o fim é calculado módulo a capacidade</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A remoção só move o índice da frente. O resto do vetor fica onde está.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o custo amortizado de dequeue em uma fila de duas pilhas?</p>
+      <button class="ah-quiz-opt">O(1)</button>
+      <button class="ah-quiz-opt">O(n)</button>
+      <button class="ah-quiz-opt">O(log n)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada elemento é transferido uma só vez, então o custo total de n operações é O(n), ou seja, O(1) por operação em média.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Fila é FIFO. Todas as operações devem ser O(1): use buffer circular ou fila encadeada.</li>
+    <li>Num vetor simples, <code>dequeue</code> é O(n) por causa do deslocamento. Isso é o que o buffer circular evita.</li>
+    <li>Fila modela turnos, camadas e simulações.</li>
+    <li>Análise amortizada explica por que duas pilhas dão uma fila barata na média.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 10.1 (pilhas e filas) e cap. 17 (análise amortizada).</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988. Cap. 6 (estruturas).</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 1.3 (filas e pilhas).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvFilaCirc', ctl: 'ctlFilaCirc', cap: 'capFilaCirc',
+    desenha: ED.desenhaFilaCircular, gera: ED.geraFilaCircular, velocidade: 1300
+  });
+  ED.criaAnimacao({
+    canvas: 'cvFila', ctl: 'ctlFila', cap: 'capFila',
+    desenha: ED.desenhaFila, gera: ED.geraFila, velocidade: 1300
+  });
+
+})();
+</script>
+</body>
+</html>

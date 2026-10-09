@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrizes: armazenamento, percursos, transposta, produto e espiral · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Matrizes em C: a fórmula do índice linear, percursos por linha e por coluna, transposta, multiplicação, espiral, rotação e zeragem, com animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔲</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/03-matrizes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-amber-400 mr-2"></i>Tópico 3 · Matrizes</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>matriz</strong> é um vetor indexado por duas coordenadas. Imagens, tabelas, grafos representados por adjacência,
+      programação dinâmica e transformações geométricas são matrizes. A memória do computador é linear, então toda matriz é, por
+      baixo, um vetor com uma fórmula de índice. Entender essa fórmula explica o custo dos percursos e a eficiência do cache.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>calcular a posição linear de <code>(i, j)</code> em uma matriz linha-maior;</li>
+      <li>implementar percursos, transposta e multiplicação de matrizes em C, com custos explícitos;</li>
+      <li>resolver problemas de percurso em espiral, rotação in place e marcação de linhas e colunas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="armazenamento" data-toc="Teoria: a fórmula do índice" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-root-variable text-amber-400 mr-2"></i>Teoria: a fórmula do índice</h2>
+  <div class="ah-prose">
+    <p>
+      Uma matriz de <code>L</code> linhas e <code>C</code> colunas ocupa <code>L · C</code> posições contíguas. Na convenção
+      <strong>linha-maior</strong> (<em>row-major</em>), usada por C, a linha 0 vem inteira, depois a linha 1, e assim por diante.
+      Então a posição linear de <code>(i, j)</code> é:
+    </p>
+    <p class="text-center font-mono text-amber-200">k = i · C + j</p>
+    <p>
+      A convenção <strong>coluna-maior</strong> (<em>column-major</em>), usada por Fortran e MATLAB, faz o oposto. As duas dão o mesmo
+      resultado lógico, mas custos físicos diferentes: percorrer na ordem da memória é mais rápido (HENNESSY; PATTERSON, 2017, cap. 2).
+      Em C, <code>int m[L][C]</code> é um único bloco contínuo, e essa garantia faz parte da linguagem (KERNIGHAN; RITCHIE, 1988, cap. 5).
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead>
+      <tbody>
+        <tr><td>Acessar <code>m[i][j]</code></td><td>O(1)</td><td>O(1)</td></tr>
+        <tr><td>Percorrer todas as células</td><td>O(L · C)</td><td>O(1)</td></tr>
+        <tr><td>Transposta (nova matriz)</td><td>O(L · C)</td><td>O(L · C)</td></tr>
+        <tr><td>Produto <code>A(L×K) · B(K×C)</code></td><td>O(L · K · C)</td><td>O(L · C)</td></tr>
+        <tr><td>Rotacionar uma matriz quadrada in place</td><td>O(n²)</td><td>O(1)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="percursos" data-toc="Operação 1: percursos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-amber-400 mr-2"></i>Operação 1 · Percursos por linha e por coluna</h2>
+  <div class="ah-prose">
+    <p>
+      Os dois percursos somam as mesmas células, então a complexidade é a mesma: O(L · C). A diferença está no padrão de acesso à memória.
+      Percorrer por linhas visita posições consecutivas (k = 0, 1, 2, …), que cabem nas mesmas linhas de cache. Percorrer por colunas
+      salta C posições a cada passo, e cada salto costuma trazer um bloco novo do cache. A animação mostra os dois padrões.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · op:acessar</code></p>
+<pre class="ah-code"><code>static int mat_get(const Matriz *m, size_t i, size_t j) {
+    return m-&gt;d[i * m-&gt;col + j];              /* posição linear k = i·col + j */
+}
+
+static void mat_set(Matriz *m, size_t i, size_t j, int x) {
+    m-&gt;d[i * m-&gt;col + j] = x;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · op:percurso-linha</code></p>
+<pre class="ah-code"><code>static long soma_por_linhas(const Matriz *m) {
+    long s = 0;
+    for (size_t i = 0; i &lt; m-&gt;lin; i++)
+        for (size_t j = 0; j &lt; m-&gt;col; j++)
+            s += mat_get(m, i, j);            /* acessos consecutivos na memória */
+    return s;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · op:percurso-coluna</code></p>
+<pre class="ah-code"><code>static long soma_por_colunas(const Matriz *m) {
+    long s = 0;
+    for (size_t j = 0; j &lt; m-&gt;col; j++)
+        for (size_t i = 0; i &lt; m-&gt;lin; i++)
+            s += mat_get(m, i, j);            /* saltos de 'col' posições */
+    return s;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: percurso por linhas e por colunas</h3>
+  <div class="ah-stage" style="height:320px"><canvas id="cvMatriz" style="height:320px"></canvas></div>
+  <div id="ctlMatriz" class="mt-4"></div>
+  <div id="capMatriz" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="transposta-produto" data-toc="Operação 2: transposta e produto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-xmark text-amber-400 mr-2"></i>Operação 2 · Transposta e produto</h2>
+  <div class="ah-prose">
+    <p>
+      A <strong>transposta</strong> troca linhas por colunas: <code>t[j][i] = a[i][j]</code>. Ela precisa de uma matriz nova, porque
+      a forma muda de <code>L×C</code> para <code>C×L</code>. O <strong>produto</strong> <code>C = A·B</code> tem três laços aninhados:
+      para cada célula de C, somamos o produto de uma linha de A por uma coluna de B. Com matrizes n × n, o custo é O(n³), e isso
+      motiva algoritmos mais sofisticados, como o de Strassen, que chega a O(n<sup>2,81</sup>) (CORMEN <em>et al.</em>, 2022, cap. 4).
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · op:transposta</code></p>
+<pre class="ah-code"><code>static int mat_transposta(const Matriz *a, Matriz *t) {
+    if (!mat_criar(t, a-&gt;col, a-&gt;lin)) return 0;
+    for (size_t i = 0; i &lt; a-&gt;lin; i++)
+        for (size_t j = 0; j &lt; a-&gt;col; j++)
+            mat_set(t, j, i, mat_get(a, i, j));
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · op:multiplicar</code></p>
+<pre class="ah-code"><code>static int mat_multiplicar(const Matriz *a, const Matriz *b, Matriz *c) {
+    if (a-&gt;col != b-&gt;lin) return 0;
+    if (!mat_criar(c, a-&gt;lin, b-&gt;col)) return 0;
+    for (size_t i = 0; i &lt; a-&gt;lin; i++)
+        for (size_t j = 0; j &lt; b-&gt;col; j++) {
+            int s = 0;
+            for (size_t k = 0; k &lt; a-&gt;col; k++)
+                s += mat_get(a, i, k) * mat_get(b, k, j);
+            mat_set(c, i, j, s);
+        }
+    return 1;
+}</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div><strong>Padrão:</strong> quando a estrutura é regular (sempre um produto de linha por coluna), escreva primeiro a fórmula da célula <code>c[i][j]</code> e só depois os laços. Isso evita erros de índice.</div>
+  </div>
+</section>
+
+<section id="criar" data-toc="Criação e liberação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hammer text-amber-400 mr-2"></i>Criação e liberação de memória</h2>
+  <div class="ah-prose">
+    <p>
+      Em C, uma matriz dinâmica é um bloco único alocado com <code>calloc</code> (já zerado) e acessado pela fórmula do índice.
+      Isso é mais eficiente e mais simples do que um vetor de ponteiros para vetores, porque há uma só alocação e nenhuma
+      indireção extra. Cada <code>calloc</code> precisa de um <code>free</code> correspondente, senão há vazamento de memória.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · op:criar</code></p>
+<pre class="ah-code"><code>static int mat_criar(Matriz *m, size_t lin, size_t col) {
+    m-&gt;d = calloc(lin * col, sizeof *m-&gt;d);   /* já zerada */
+    if (m-&gt;d == NULL) return 0;
+    m-&gt;lin = lin;
+    m-&gt;col = col;
+    return 1;
+}</code></pre>
+</section>
+
+<section id="espiral-sec" data-toc="Animação: espiral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-amber-400 mr-2"></i>Animação: percurso em espiral</h2>
+  <p class="ah-lead text-sm mb-4">Cada volta visita a borda da camada atual e então reduz os quatro limites. Observe como o percurso fecha uma camada de cada vez.</p>
+  <div class="ah-stage" style="height:260px"><canvas id="cvEspiral" style="height:260px"></canvas></div>
+  <div id="ctlEspiral" class="mt-4"></div>
+  <div id="capEspiral" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="padroes" data-toc="Padrões para matrizes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com matrizes</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Limites que encolhem</div>
+      <p class="text-xs text-slate-400">Espiral e percursos em camadas: quatro limites (topo, base, esquerda, direita) que avançam a cada borda visitada.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Transpor e inverter</div>
+      <p class="text-xs text-slate-400">Rotação de 90° = transposta seguida da inversão de cada linha. Mesma ideia da rotação de vetores.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Marcar e depois agir</div>
+      <p class="text-xs text-slate-400">Primeiro registre as linhas e colunas afetadas, depois altere. Não altere enquanto percorre, senão a própria marcação se contamina.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Soma por diagonal</div>
+      <p class="text-xs text-slate-400">Em matrizes quadradas, a diagonal principal é (i, i) e a secundária é (i, n − 1 − i). Cuidado com o centro, contado duas vezes.</p>
+    </div>
+  </div>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/03-matrizes.c">03-matrizes.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>A (3x4)
+     1   2   3   4
+     5   6   7   8
+     9  10  11  12
+soma por linhas = 78, por colunas = 78
+transposta de A (4x3)
+     1   5   9
+     2   6  10
+     3   7  11
+     4   8  12
+A x B (3x2)
+    20  30
+    44  70
+    68 110
+espiral de A: 1 2 3 4 8 12 11 10 9 5 6 7
+diagonais de Q = 25
+Q rotacionada 90° (3x3)
+     7   4   1
+     8   5   2
+     9   6   3
+Z após zerar (3x3)
+     0   0   0
+     0   0   0
+     0   0   0</code></pre>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: percurso em espiral</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Devolva os elementos de uma matriz L × C na ordem de uma espiral que começa no canto superior esquerdo e vai para dentro.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> limites que encolhem. Mantemos <code>topo</code>, <code>base</code>, <code>esq</code> e <code>dir</code>. Cada etapa percorre um lado e encolhe o limite correspondente. As condições <code>if</code> evitam percorrer a mesma linha ou coluna duas vezes quando a matriz tem uma só linha ou coluna restante.</p>
+      <p><strong>Complexidade:</strong> O(L · C) de tempo, O(1) de espaço extra (sem contar a saída).</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · ex:espiral</code></p>
+<pre class="ah-code"><code>static size_t espiral(const Matriz *m, int saida[]) {
+    size_t topo = 0, base = m-&gt;lin, esq = 0, dir = m-&gt;col, n = 0;
+    while (topo &lt; base &amp;&amp; esq &lt; dir) {
+        for (size_t j = esq; j &lt; dir; j++) saida[n++] = mat_get(m, topo, j);
+        topo++;
+        for (size_t i = topo; i &lt; base; i++) saida[n++] = mat_get(m, i, dir - 1);
+        dir--;
+        if (topo &lt; base) {
+            for (size_t j = dir; j &gt; esq; j--) saida[n++] = mat_get(m, base - 1, j - 1);
+            base--;
+        }
+        if (esq &lt; dir) {
+            for (size_t i = base; i &gt; topo; i--) saida[n++] = mat_get(m, i - 1, esq);
+            esq++;
+        }
+    }
+    return n;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: rotacionar uma matriz quadrada em 90° in place</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Gire uma matriz n × n no sentido horário, sem alocar outra.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Na rotação horária, a linha i vira a coluna n − 1 − i. Isso se decompõe em duas operações mais simples: primeiro transpor (linhas viram colunas, <code>(i,j) ↔ (j,i)</code>), depois inverter cada linha. Exemplo: a primeira linha <code>[1,2,3]</code> vira coluna, e a inversão a coloca na última coluna.</p>
+      <p><strong>Complexidade:</strong> O(n²) de tempo, O(1) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · ex:rotacionar90</code></p>
+<pre class="ah-code"><code>static void rotacionar90(Matriz *m) {                 /* quadrada, sentido horário */
+    size_t n = m-&gt;lin;
+    for (size_t i = 0; i &lt; n; i++)                     /* 1) transpõe in place */
+        for (size_t j = i + 1; j &lt; n; j++) {
+            int t = mat_get(m, i, j);
+            mat_set(m, i, j, mat_get(m, j, i));
+            mat_set(m, j, i, t);
+        }
+    for (size_t i = 0; i &lt; n; i++)                     /* 2) inverte cada linha */
+        for (size_t a = 0, b = n - 1; a &lt; b; a++, b--) {
+            int t = mat_get(m, i, a);
+            mat_set(m, i, a, mat_get(m, i, b));
+            mat_set(m, i, b, t);
+        }
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 3: zerar linhas e colunas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Se uma célula é zero, zere toda a sua linha e toda a sua coluna.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> marcar e depois agir. Se zerássemos durante a varredura, um zero novo poderia ser encontrado depois e zerar linhas que não deveriam ser zeradas. Por isso guardamos dois vetores de marcas (uma por linha, uma por coluna) e só então alteramos.</p>
+      <p><strong>Complexidade:</strong> O(L · C) de tempo; O(L + C) de espaço extra para as marcas.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · ex:zeros</code></p>
+<pre class="ah-code"><code>static void zerar_linhas_colunas(Matriz *m) {
+    unsigned char *linha = calloc(m-&gt;lin, 1);
+    unsigned char *coluna = calloc(m-&gt;col, 1);
+    if (linha == NULL || coluna == NULL) {
+        free(linha);
+        free(coluna);
+        return;
+    }
+    for (size_t i = 0; i &lt; m-&gt;lin; i++)
+        for (size_t j = 0; j &lt; m-&gt;col; j++)
+            if (mat_get(m, i, j) == 0) {
+                linha[i] = 1;
+                coluna[j] = 1;
+            }
+    for (size_t i = 0; i &lt; m-&gt;lin; i++)
+        for (size_t j = 0; j &lt; m-&gt;col; j++)
+            if (linha[i] || coluna[j]) mat_set(m, i, j, 0);
+    free(linha);
+    free(coluna);
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 4: soma das diagonais</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Some as diagonais principal e secundária de uma matriz quadrada, sem contar o centro duas vezes em matrizes de ordem ímpar.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> A diagonal principal é <code>(i, i)</code>; a secundária é <code>(i, n−1−i)</code>. Um único laço percorre i de 0 a n−1 e soma as duas. O centro de uma matriz ímpar aparece nas duas, então a segunda soma só acontece quando <code>k ≠ i</code>.</p>
+      <p><strong>Complexidade:</strong> O(n) de tempo, O(1) de espaço, já que a matriz é quadrada e tem n² células, mas só n são somadas.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>03-matrizes.c · ex:diagonais</code></p>
+<pre class="ah-code"><code>static long soma_diagonais(const Matriz *m) {
+    long s = 0;
+    for (size_t i = 0; i &lt; m-&gt;lin; i++) {
+        s += mat_get(m, i, i);
+        size_t k = m-&gt;lin - 1 - i;
+        if (k != i) s += mat_get(m, i, k);      /* o centro não é contado duas vezes */
+    }
+    return s;
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Dada uma matriz de inteiros com linhas e colunas ordenadas crescentemente, encontre se um valor existe, em tempo O(L + C).</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> comece no canto superior direito. Se o valor atual é maior que o alvo, a coluna inteira é descartada (andamos uma coluna para a esquerda); se é menor, a linha inteira é descartada (descemos uma linha). Cada passo elimina uma linha ou uma coluna.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Calcule o custo de multiplicar uma matriz 100 × 200 por uma 200 × 50, em número de multiplicações escalares.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> L · K · C = 100 · 200 · 50 = 1 000 000 multiplicações. Note que a ordem das matrizes importa: multiplicar 200 × 50 por 100 × 200 não é possível, porque o número de colunas precisa coincidir com o de linhas.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em uma matriz linha-maior com 4 colunas, qual é a posição linear de <code>(2, 1)</code>?</p>
+      <button class="ah-quiz-opt">9</button>
+      <button class="ah-quiz-opt">6</button>
+      <button class="ah-quiz-opt">10, porque os índices começam em 1</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto: k = i · C + j = 2 · 4 + 1 = 9, com índices começando em zero, como em C.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual percurso tende a ser mais rápido em C, e por quê?</p>
+      <button class="ah-quiz-opt">Por colunas, porque salta de uma linha para outra</button>
+      <button class="ah-quiz-opt">Os dois são idênticos em qualquer hardware</button>
+      <button class="ah-quiz-opt">Por linhas, porque acessa posições consecutivas da memória, aproveitando o cache</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A ordem de acesso coincide com a ordem física, e a localidade espacial faz o cache trazer blocos úteis.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o custo de multiplicar duas matrizes n × n pelo método direto?</p>
+      <button class="ah-quiz-opt">O(n²)</button>
+      <button class="ah-quiz-opt">O(n³)</button>
+      <button class="ah-quiz-opt">O(n log n)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. São três laços aninhados de n passos: n · n · n operações.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Em C, toda matriz é um bloco linear; o índice é <code>i · C + j</code>.</li>
+    <li>Acesso é O(1); percorrer tudo é O(L · C), e a ordem do percurso afeta o cache.</li>
+    <li>Transposta e rotação são operações de reorganização; a rotação in place combina transposta com inversões.</li>
+    <li>Problemas de espiral e de marcação usam limites que encolhem e marcas auxiliares.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 4 (multiplicação de matrizes).</li>
+    <li>HENNESSY, J. L.; PATTERSON, D. A. <em>Computer Architecture: A Quantitative Approach</em>. 6. ed. Cambridge, MA: Morgan Kaufmann, 2017. Cap. 2.</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988. Cap. 5.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvMatriz', ctl: 'ctlMatriz', cap: 'capMatriz',
+    desenha: ED.desenhaMatriz, gera: ED.geraMatriz,
+    opcoes: [
+      { v: 'linha', rotulo: 'Percurso por linhas (ordem da memória)' },
+      { v: 'coluna', rotulo: 'Percurso por colunas (saltos)' }
+    ]
+  });
+  ED.criaAnimacao({
+    canvas: 'cvEspiral', ctl: 'ctlEspiral', cap: 'capEspiral',
+    desenha: ED.desenhaEspiral, gera: ED.geraEspiral, velocidade: 900
+  });
+
+})();
+</script>
+</body>
+</html>

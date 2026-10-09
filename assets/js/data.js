@@ -187,9 +187,39 @@ const AH_DATA = {
       descricao:
         'Como organizar dados na memória para que as operações sejam rápidas: vetores, matrizes, ordenação e busca, filas, pilhas, tabelas hash, árvores e grafos.',
       topicos: [
-        { id: '01-estruturas-de-dados-fundamentais', titulo: 'Estruturas de Dados Fundamentais', icone: 'fa-table-cells',
-          resumo: 'Big-O (tempo e espaço), vetores, matrizes, ordenação, busca binária, filas, pilhas, tabelas hash, árvores e grafos — com animações, código em C e referências.',
-          tags: ['Big-O', 'Vetores', 'Ordenação', 'Árvores', 'Grafos', 'C'], nivel: 'Fundamental', minutos: 100 }
+        { id: '01-complexidade', titulo: 'Complexidade: tempo, espaço e Big-O', icone: 'fa-gauge-high',
+          resumo: 'Notação O, Ω e Θ, regras de cálculo, custo temporal e espacial, com contadores medidos em C.',
+          tags: ['Big-O', 'Análise', 'Espaço'], nivel: 'Introdutório', minutos: 40 },
+        { id: '02-vetores', titulo: 'Vetores: acesso, busca, inserção, remoção e crescimento', icone: 'fa-table-columns',
+          resumo: 'Memória contígua, vetor dinâmico com realloc, operações em C e exercícios de inversão, rotação e compactação.',
+          tags: ['Vetores', 'Realloc', 'In place'], nivel: 'Fundamental', minutos: 50 },
+        { id: '03-matrizes', titulo: 'Matrizes: armazenamento, percursos, produto e espiral', icone: 'fa-table-cells',
+          resumo: 'A fórmula do índice linear, percursos por linha e coluna, transposta, produto, espiral e rotação.',
+          tags: ['Matrizes', 'Cache', 'Espiral'], nivel: 'Fundamental', minutos: 45 },
+        { id: '04-ordenacao', titulo: 'Ordenação: bolha, seleção, inserção, quicksort, merge sort e contagem', icone: 'fa-arrow-down-wide-short',
+          resumo: 'Invariantes, custos de melhor, médio e pior caso, estabilidade, animações e exercícios de anagramas, inversões e k-ésimo.',
+          tags: ['Ordenação', 'Divisão e conquista', 'Partição'], nivel: 'Intermediário', minutos: 60 },
+        { id: '05-busca', titulo: 'Busca: linear, binária e busca na resposta', icone: 'fa-magnifying-glass',
+          resumo: 'Busca binária correta em C, lower_bound, busca sobre a resposta e exercícios com vetores rotacionados e picos.',
+          tags: ['Busca binária', 'lower_bound', 'Resposta'], nivel: 'Fundamental', minutos: 45 },
+        { id: '06-filas', titulo: 'Filas: FIFO, buffer circular, fila encadeada e simulações', icone: 'fa-arrow-right-to-bracket',
+          resumo: 'Operações em O(1), buffer circular, fila encadeada, escalonamento round-robin e fila com duas pilhas.',
+          tags: ['Filas', 'Buffer circular', 'Simulação'], nivel: 'Fundamental', minutos: 45 },
+        { id: '07-pilhas', titulo: 'Pilhas: LIFO, parênteses, RPN e conversão de expressões', icone: 'fa-layer-group',
+          resumo: 'Validação de parênteses, avaliação pós-fixa, shunting-yard, pilha com mínimo e pilha monotônica.',
+          tags: ['Pilhas', 'RPN', 'Monotônica'], nivel: 'Fundamental', minutos: 50 },
+        { id: '08-tabelas-hash', titulo: 'Tabelas hash: espalhamento, colisões e sondagem', icone: 'fa-hashtag',
+          resumo: 'Funções de espalhamento, encadeamento, sondagem linear, redimensionamento, dois somas e contagem de frequências.',
+          tags: ['Hash', 'Colisões', 'Sondagem'], nivel: 'Intermediário', minutos: 50 },
+        { id: '09-arvores', titulo: 'Árvores binárias de busca: inserção, remoção e percursos', icone: 'fa-sitemap',
+          resumo: 'Inserção, remoção com sucessor, percursos pré, em, pós-ordem e por níveis, e validação de BST.',
+          tags: ['BST', 'Percursos', 'Remoção'], nivel: 'Intermediário', minutos: 55 },
+        { id: '10-grafos', titulo: 'Grafos: BFS, DFS, componentes, Dijkstra e topologia', icone: 'fa-diagram-project',
+          resumo: 'Lista de adjacências, travessias, ciclos, caminho mínimo com pesos não negativos e ordenação topológica.',
+          tags: ['Grafos', 'BFS', 'Dijkstra'], nivel: 'Avançado', minutos: 60 },
+        { id: '11-padroes', titulo: 'Padrões de resolução de problemas', icone: 'fa-puzzle-piece',
+          resumo: 'Roteiro de seis passos e os padrões dois ponteiros, janela, prefixos, backtracking, divisão e conquista, guloso e programação dinâmica.',
+          tags: ['Padrões', 'Estratégia', 'Programação dinâmica'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]

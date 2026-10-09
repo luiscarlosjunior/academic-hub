@@ -67,11 +67,21 @@ A disciplina é dividida em duas trilhas, selecionáveis por abas na página da 
 | 15 | Do Diagrama ao Código | Tradutor UML → Java / C# / Python |
 | 16 | Princípios de Projeto (SOLID) | Antes e depois de cada princípio |
 
-**Disciplina — Estrutura de Dados (1 aula, 9 temas)**
+**Disciplina — Estrutura de Dados (11 tópicos)**
 
-| # | Tópico | Laboratório interativo |
-|---|--------|------------------------|
-| 01 | Estruturas de Dados Fundamentais | Big-O (tempo e espaço), vetores, matrizes, ordenação, busca binária, fila, pilha, tabela hash, árvore BST e BFS × DFS, com animações, exemplos completos em C e referências |
+| # | Tópico | Conteúdo |
+|---|--------|----------|
+| 01 | Complexidade: tempo, espaço e Big-O | Notação O/Ω/Θ, regras de cálculo, contadores em C, exercícios |
+| 02 | Vetores | Memória contígua, vetor dinâmico, operações em C, inversão, rotação, Kadane |
+| 03 | Matrizes | Fórmula do índice, percursos, transposta, produto, espiral, rotação in place |
+| 04 | Ordenação | Bolha, seleção, inserção, quicksort, merge sort, contagem; anagramas, inversões |
+| 05 | Busca | Linear, binária (iterativa e recursiva), lower_bound, busca sobre a resposta |
+| 06 | Filas | Buffer circular, fila encadeada, round-robin, fila com duas pilhas |
+| 07 | Pilhas | Parênteses, RPN, shunting-yard, pilha com mínimo, pilha monotônica |
+| 08 | Tabelas hash | Espalhamento, encadeamento, sondagem linear, redimensionamento |
+| 09 | Árvores binárias de busca | Inserção, remoção com sucessor, percursos, validação de BST |
+| 10 | Grafos | Lista de adjacências, BFS, DFS, componentes, Dijkstra, topológica |
+| 11 | Padrões de resolução de problemas | Roteiro de seis passos e os principais padrões, com código |
 
 ---
 
@@ -107,7 +117,8 @@ academic-hub/
 │   │   └── topicos/01-….html … 16-….html
 │   └── estrutura-dados/
 │       ├── index.html
-│       └── topicos/01-estruturas-de-dados-fundamentais.html
+│       ├── topicos/                 # uma página completa por tópico (11 páginas)
+│       └── exemplos-c/              # programas em C de cada tópico (compiláveis com -Wall -Wextra -pedantic)
 └── simuladores/
     ├── busca-cega-visual.html       # laboratório BFS × DFS em tela cheia
     └── busca-heuristica-visual.html # laboratório gulosa × A* em tela cheia

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabelas hash: espalhamento, colisões, encadeamento e sondagem · Estrutura de Dados · AcademicHub</title>
+<meta name="description" content="Tabelas hash em C: funções de espalhamento, encadeamento e endereçamento aberto com sondagem linear, redimensionamento, animações e exercícios resolvidos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>#️⃣</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ed/08-tabelas-hash">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hashtag text-amber-400 mr-2"></i>Tópico 8 · Tabelas hash</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>tabela hash</strong> associa chaves a valores com acesso médio O(1), independente do número de chaves. O segredo é uma
+      <strong>função de espalhamento</strong> <code>h(chave)</code>, que transforma a chave num índice de um vetor. Para achar uma chave,
+      calculamos <code>h</code> e olhamos uma posição, sem varrer nada. É a estrutura por trás de dicionários, conjuntos, caches e
+      tabelas de símbolos de compiladores.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar o que é uma colisão e por que ela é inevitável;</li>
+      <li>implementar encadeamento e endereçamento aberto com sondagem linear, em C;</li>
+      <li>calcular o fator de carga e decidir quando redimensionar a tabela;</li>
+      <li>resolver problemas de contagem, de complementos e de identificação de duplicados com hash.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: espalhamento e colisões" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-amber-400 mr-2"></i>Teoria: espalhamento, colisões e fator de carga</h2>
+  <div class="ah-prose">
+    <p>
+      Há mais chaves possíveis do que posições na tabela. Logo, duas chaves diferentes acabam no mesmo índice: isso é uma <strong>colisão</strong>,
+      e é inevitável pelo princípio da casa dos pombos. O que se deseja é que as colisões sejam raras e bem distribuídas. Uma função boa
+      espalha chaves parecidas em posições distantes; uma função ruim, como a soma simples dos caracteres, faz anagramas colidirem sempre.
+    </p>
+    <p>
+      O desempenho depende do <strong>fator de carga</strong> <code>α = n / M</code>, a razão entre elementos e posições. No encadeamento, a busca
+      média custa O(1 + α). No endereçamento aberto, as sondagens crescem muito quando α se aproxima de 1, por causa dos <em>aglomerados</em>
+      (clusters). Por isso, tabelas reais redimensionam antes de encher: a regra comum é dobrar a capacidade quando α passa de 0,75.
+      Knuth (1998, v. 3, seção 6.4) analisa esses custos com precisão.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Operação</th><th>Caso médio</th><th>Pior caso</th><th>Espaço</th></tr></thead>
+      <tbody>
+        <tr><td>Inserir</td><td>O(1)</td><td>O(n)</td><td>—</td></tr>
+        <tr><td>Buscar</td><td>O(1)</td><td>O(n)</td><td>—</td></tr>
+        <tr><td>Remover</td><td>O(1)</td><td>O(n)</td><td>—</td></tr>
+        <tr><td>Redimensionar</td><td>O(n) por evento; O(1) amortizado</td><td>O(n)</td><td>O(M + n)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="hash-funcao" data-toc="Operação 1: função de espalhamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-amber-400 mr-2"></i>Operação 1 · Função de espalhamento para strings</h2>
+  <div class="ah-prose">
+    <p>
+      O algoritmo <code>djb2</code>, de Daniel J. Bernstein, multiplica o acumulado por 33 e soma cada caractere. A multiplicação espalha os bits
+      de forma que a ordem dos caracteres importa: <code>"ab"</code> e <code>"ba"</code> dão valores diferentes. A posição final é
+      <code>h(chave) mod M</code>. Em C, o tamanho <code>M</code> deve ser, de preferência, primo ou uma potência de dois com cuidado, para
+      que o módulo use bem os bits.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · op:hash-string</code></p>
+<pre class="ah-code"><code>static unsigned long hash_str(const char *s) {        /* djb2 */
+    unsigned long h = 5381;
+    for (; *s; s++) h = h * 33 + (unsigned char)*s;
+    return h;
+}</code></pre>
+</section>
+
+<section id="encadeamento" data-toc="Operação 2: encadeamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-amber-400 mr-2"></i>Operação 2 · Encadeamento (chaining)</h2>
+  <div class="ah-prose">
+    <p>
+      Cada balde é uma lista encadeada. Inserir calcula o balde, percorre a lista para atualizar a chave se ela já existe, e senão adiciona
+      um nó no início. Buscar faz o mesmo percurso. Quando as colisões são poucas, cada operação é O(1); no pior caso, todas as chaves caem
+      no mesmo balde e a tabela vira uma lista de n nós.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · op:encadeamento-inserir</code></p>
+<pre class="ah-code"><code>static void enc_inserir(TabEnc *t, const char *chave, int valor) {
+    size_t len = strlen(chave);
+    if (len &gt;= sizeof ((No *)0)-&gt;chave) return;
+    size_t b = hash_str(chave) % t-&gt;m;
+    for (No *p = t-&gt;baldes[b]; p; p = p-&gt;prox)
+        if (strcmp(p-&gt;chave, chave) == 0) {    /* chave já existe: atualiza */
+            p-&gt;valor = valor;
+            return;
+        }
+    No *n = malloc(sizeof *n);
+    if (n == NULL) return;
+    memcpy(n-&gt;chave, chave, len + 1);
+    n-&gt;valor = valor;
+    n-&gt;prox = t-&gt;baldes[b];                    /* entra no início: O(1) */
+    t-&gt;baldes[b] = n;
+    t-&gt;n++;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · op:encadeamento-buscar</code></p>
+<pre class="ah-code"><code>static int enc_buscar(const TabEnc *t, const char *chave, int *valor) {
+    size_t b = hash_str(chave) % t-&gt;m;
+    for (const No *p = t-&gt;baldes[b]; p; p = p-&gt;prox)
+        if (strcmp(p-&gt;chave, chave) == 0) {
+            *valor = p-&gt;valor;
+            return 1;
+        }
+    return 0;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: encadeamento com colisão</h3>
+  <p class="ah-lead text-sm mb-4">Função didática: soma dos códigos dos caracteres mod 5. Observe a colisão no balde 2 entre <em>caio</em> e <em>dani</em>, e a busca final.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvHash" style="height:300px"></canvas></div>
+  <div id="ctlHash" class="mt-4"></div>
+  <div id="capHash" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="sondagem" data-toc="Operação 3: sondagem linear" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right text-amber-400 mr-2"></i>Operação 3 · Endereçamento aberto com sondagem linear</h2>
+  <div class="ah-prose">
+    <p>
+      Em vez de listas, todas as chaves ficam dentro da própria tabela. Se a posição <code>h(k)</code> está ocupada, testamos a seguinte, e
+      assim por diante, dando a volta. A busca segue a mesma sequência e para ao achar a chave ou uma posição vazia. Como não há ponteiros,
+      a tabela é mais compacta e amigável ao cache, mas remover exige cuidado: é preciso marcar posições como “apagadas”, para não quebrar
+      as sequências de sondagem. Aglomerados de posições ocupadas tornam as sondagens cada vez mais longas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · op:sondagem-inserir</code></p>
+<pre class="ah-code"><code>static int sondagem_inserir(TabAberta *t, int chave, int valor) {
+    if (t-&gt;n == t-&gt;cap) return 0;                       /* cheia */
+    size_t i = (size_t)chave % t-&gt;cap;
+    while (t-&gt;chaves[i] != VAZIO &amp;&amp; t-&gt;chaves[i] != chave)
+        i = (i + 1) % t-&gt;cap;                           /* sondagem linear */
+    if (t-&gt;chaves[i] == VAZIO) t-&gt;n++;
+    t-&gt;chaves[i] = chave;
+    t-&gt;vals[i] = valor;
+    return 1;
+}</code></pre>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · op:sondagem-buscar</code></p>
+<pre class="ah-code"><code>static int sondagem_buscar(const TabAberta *t, int chave, int *valor) {
+    size_t i = (size_t)chave % t-&gt;cap;
+    for (size_t k = 0; k &lt; t-&gt;cap; k++) {
+        if (t-&gt;chaves[i] == VAZIO) return 0;            /* achou vazio: não está */
+        if (t-&gt;chaves[i] == chave) {
+            *valor = t-&gt;vals[i];
+            return 1;
+        }
+        i = (i + 1) % t-&gt;cap;
+    }
+    return 0;
+}</code></pre>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: sondagem linear</h3>
+  <div class="ah-stage" style="height:220px"><canvas id="cvSonda" style="height:220px"></canvas></div>
+  <div id="ctlSonda" class="mt-4"></div>
+  <div id="capSonda" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="redimensionar" data-toc="Operação 4: redimensionar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-expand text-amber-400 mr-2"></i>Operação 4 · Redimensionar (rehash)</h2>
+  <div class="ah-prose">
+    <p>
+      Quando o fator de carga cresce demais, criamos uma tabela com o dobro da capacidade e reinserimos todas as chaves, porque <code>h(k) mod M</code>
+      muda quando M muda. O custo da reconstrução é O(n), mas é raro: como a capacidade dobra, o custo é amortizado em O(1) por inserção,
+      o mesmo princípio do vetor dinâmico (página 2).
+    </p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · op:redimensionar</code></p>
+<pre class="ah-code"><code>static int aberta_redimensionar(TabAberta *t) {
+    TabAberta nova;
+    if (!aberta_criar(&amp;nova, t-&gt;cap * 2)) return 0;
+    for (size_t i = 0; i &lt; t-&gt;cap; i++)
+        if (t-&gt;chaves[i] != VAZIO) sondagem_inserir(&amp;nova, t-&gt;chaves[i], t-&gt;vals[i]);
+    aberta_liberar(t);
+    *t = nova;
+    return 1;
+}</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/08-tabelas-hash.c">08-tabelas-hash.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>hash_str("ana") % 5 = 2
+encadeamento (5 baldes, 6 chaves):
+  balde 1: bia=2
+  balde 2: fabio=6 eva=5 ana=1
+  balde 3: caio=3
+  balde 4: dani=4
+buscar dani: achou
+buscar zeca: não achou
+frequências:
+  balde 1: mar=1
+  balde 3: lua=2
+  balde 5: sol=3
+sondagem linear, cap=4 n=3
+  chave 10 -&gt; achou
+  chave 14 -&gt; achou
+  chave  3 -&gt; achou
+após redimensionar: cap=8 n=3
+dois somas para 9: índices 0 e 1</code></pre>
+</section>
+
+<section id="padroes" data-toc="Padrões com hash" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-amber-400 mr-2"></i>Padrões de resolução com hash</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Memorizar o que já vi</div>
+      <p class="text-xs text-slate-400">Ao percorrer uma sequência, guarde o que já passou no hash. Cada elemento pergunta “o complemento que preciso já apareceu?” em O(1) (exercício 1).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Contar frequências</div>
+      <p class="text-xs text-slate-400">Mapear chave → contagem resolve moda, duplicados, anagramas e agrupamentos (exercício 2).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Troca de tempo por espaço</div>
+      <p class="text-xs text-slate-400">Um hash usa O(n) de memória para transformar buscas O(n) em O(1). Vale quando as buscas se repetem.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-1">Cuidado com o caso ruim</div>
+      <p class="text-xs text-slate-400">O O(1) é médio. Em entradas adversárias, com chaves escolhidas para colidir, o custo vira O(n). Sistemas expostos a entradas externas usam funções com semente aleatória.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: dois somas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Dado um vetor de inteiros não negativos e um alvo, encontre dois índices distintos cujos valores somam o alvo.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Padrão:</strong> memorizar o que já vi. Para cada valor <code>a[j]</code>, calculamos o complemento <code>alvo − a[j]</code>. Se ele já foi visto, a resposta é o par (índice guardado, j). Senão, guardamos <code>a[j]</code> com seu índice. A força bruta testaria os n² pares; o hash troca essa busca por uma consulta O(1).</p>
+      <p><strong>Complexidade:</strong> O(n) médio, O(n) de espaço.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · ex:dois-somas</code></p>
+<pre class="ah-code"><code>static int dois_somas(const int a[], size_t n, int alvo, size_t *i_out, size_t *j_out) {
+    TabAberta t;
+    if (!aberta_criar(&amp;t, 2 * n + 1)) return 0;
+    int achou = 0;
+    for (size_t j = 0; j &lt; n &amp;&amp; !achou; j++) {
+        int i = 0;
+        int falta = alvo - a[j];                      /* o complemento que falta */
+        if (falta &gt;= 0 &amp;&amp; sondagem_buscar(&amp;t, falta, &amp;i)) {
+            *i_out = (size_t)i;
+            *j_out = j;
+            achou = 1;
+        } else {
+            sondagem_inserir(&amp;t, a[j], (int)j);      /* guarda valor -&gt; índice */
+        }
+    }
+    aberta_liberar(&amp;t);
+    return achou;
+}</code></pre>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: contagem de palavras</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Conte quantas vezes cada palavra aparece numa lista.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Ideia.</strong> Mapeie palavra → contagem. Para cada palavra, leia a contagem atual (0 se não existe) e grave a contagem + 1. Com encadeamento, a tabela aceita chaves de tamanho variável. Esse é o núcleo de contadores de frequência, de palavras-chave e de histogramas.</p>
+      <p><strong>Complexidade:</strong> O(n) médio sobre n palavras; O(k) de espaço para k palavras distintas.</p>
+    </div>
+    <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>08-tabelas-hash.c · ex:frequencias</code></p>
+<pre class="ah-code"><code>static void contar_palavras(TabEnc *t, const char *const palavras[], size_t n) {
+    for (size_t i = 0; i &lt; n; i++) {
+        int c = 0;
+        enc_buscar(t, palavras[i], &amp;c);
+        enc_inserir(t, palavras[i], c + 1);
+    }
+}</code></pre>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Dado um fluxo de números, descubra o primeiro que aparece uma única vez, com duas passagens e O(n) de espaço.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> primeira passagem conta as frequências no hash; segunda passagem, na ordem de chegada, devolve o primeiro com contagem 1. Como o fluxo é lido de novo, o fluxo precisa estar guardado ou ser reproduzível.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que chaves como ponteiros, usadas em tabelas hash, costumam usar o endereço como hash?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o endereço é único enquanto o objeto existe, então dispensa comparação de conteúdo. Mas os bits baixos do endereço costumam ser alinhados (múltiplos de 8 ou 16); é preciso misturá-los antes do módulo para não concentrar colisões.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="3">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que é uma colisão em uma tabela hash?</p>
+      <button class="ah-quiz-opt">Uma chave que não existe na tabela</button>
+      <button class="ah-quiz-opt">Um erro de acesso à memória</button>
+      <button class="ah-quiz-opt">Uma busca que devolve falso</button>
+      <button class="ah-quiz-opt">Duas chaves diferentes que caem na mesma posição</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Como há mais chaves possíveis que posições, colisões são inevitáveis; o encadeamento e a sondagem as resolvem.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a sondagem linear precisa de cuidado especial para remover elementos?</p>
+      <button class="ah-quiz-opt">Porque remover um elemento pode quebrar a sequência de sondagem de outras chaves, que passam por aquela posição</button>
+      <button class="ah-quiz-opt">Porque a remoção sempre é O(n)</button>
+      <button class="ah-quiz-opt">Porque a tabela não guarda valores</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Uma posição vazia encerra a busca. Se uma chave saiu no meio de uma sequência, outra chave pode parecer ausente. Usa-se uma marca de “apagado”.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o redimensionamento é O(1) amortizado por inserção?</p>
+      <button class="ah-quiz-opt">Porque nunca copia elementos</button>
+      <button class="ah-quiz-opt">Porque a tabela cresce uma posição por vez</button>
+      <button class="ah-quiz-opt">Porque a capacidade dobra, então as reconstruções são raras e o custo total se distribui pelas inserções</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. É o mesmo argumento do vetor dinâmico: n inserções custam O(n) no total, incluindo as reconstruções.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Hash transforma chave em índice; a busca média é O(1), mas o pior caso é O(n).</li>
+    <li>Colisões são inevitáveis: resolva com encadeamento (listas) ou sondagem (posições dentro da tabela).</li>
+    <li>O fator de carga controla o desempenho; redimensione antes de encher.</li>
+    <li>Memorizar o que já passou e contar frequências são os dois padrões mais úteis.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CORMEN, T. H. <em>et al.</em> <em>Introduction to Algorithms</em>. 4. ed. Cambridge, MA: MIT Press, 2022. Cap. 11 (tabelas hash).</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988. Cap. 6 (estruturas).</li>
+    <li>KNUTH, D. E. <em>The Art of Computer Programming</em>, v. 3: <em>Sorting and Searching</em>. 2. ed. Reading, MA: Addison-Wesley, 1998. Seção 6.4 (espalhamento).</li>
+    <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011. Cap. 3.4 (tabelas de espalhamento).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvHash', ctl: 'ctlHash', cap: 'capHash',
+    desenha: ED.desenhaHash, gera: ED.geraHash, velocidade: 1900
+  });
+  ED.criaAnimacao({
+    canvas: 'cvSonda', ctl: 'ctlSonda', cap: 'capSonda',
+    desenha: ED.desenhaSondagem, gera: ED.geraSondagem, velocidade: 1300
+  });
+
+})();
+</script>
+</body>
+</html>
