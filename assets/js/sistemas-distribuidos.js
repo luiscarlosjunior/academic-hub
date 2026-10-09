@@ -351,11 +351,156 @@
     });
   }
 
+  /* ===================================================================
+     0c. ELEIÇÃO EM ANEL (CHANG E ROBERTS)
+     Cada nó envia o próprio id no sentido horário. Quem recebe um id maior
+     repassa; um id menor é descartado. O id que volta ao próprio dono
+     elege o líder. Os quadros são rodadas da simulação.
+     =================================================================== */
+  const IDS_ANEL = [3, 7, 1, 5, 2];
+
+  function simulaChangRoberts(ids) {
+    const n = ids.length;
+    let msgs = ids.map((id, i) => ({ de: i, para: (i + 1) % n, id }));
+    const rodadas = [];
+    let lider = null;
+    while (msgs.length && lider === null) {
+      const prox = [], descartes = [], repassa = [];
+      msgs.forEach(m => {
+        if (m.id === ids[m.para]) {
+          lider = m.para;
+        } else if (m.id > ids[m.para]) {
+          prox.push({ de: m.para, para: (m.para + 1) % n, id: m.id });
+          repassa.push(m);
+        } else {
+          descartes.push(m.para);
+        }
+      });
+      rodadas.push({ msgs, repassa, descartes, lider: null });
+      msgs = prox;
+    }
+    return { rodadas, lider };
+  }
+
+  function geraEleicao() {
+    const { rodadas, lider } = simulaChangRoberts(IDS_ANEL);
+    const quadros = rodadas.map((r, k) => ({
+      ids: IDS_ANEL,
+      msgs: r.msgs,
+      descartes: r.descartes,
+      lider: null,
+      t: r.repassa.length === 0 && r.descartes.length === 0
+        ? 'Rodada ' + (k + 1) + ': a mensagem com o id ' + r.msgs[0].id + ' chegou ao próprio dono.'
+        : 'Rodada ' + (k + 1) + ': ' + r.repassa.length + ' mensagem(ns) é(são) repassada(s) porque o id é maior que o do vizinho; ' +
+          r.descartes.length + ' é(são) descartada(s) porque o id é menor.'
+    }));
+    quadros.push({
+      ids: IDS_ANEL, msgs: [], descartes: [], lider,
+      t: 'O id ' + IDS_ANEL[lider] + ' voltou ao próprio dono: ele é o maior e está eleito. Um anúncio final avisa os demais.'
+    });
+    return quadros;
+  }
+
+  function desenhaEleicao(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const cx = w / 2, cy = h / 2 + 4, r = Math.min(w, h) * 0.32;
+    const n = q.ids.length;
+    const pos = i => {
+      const a = (-Math.PI / 2) + (i / n) * Math.PI * 2;
+      return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+    };
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(148,163,184,.25)';
+    ctx.stroke();
+
+    q.ids.forEach((id, i) => {
+      const p = pos(i);
+      const lider = q.msgs.length === 0 && i === (q.lider !== undefined && q.lider !== null ? q.lider : -1);
+      const borda = q.descartes.indexOf(i) >= 0 ? CORES.rosa : (lider ? CORES.verde : CORES.azul);
+      bolha(ctx, p.x, p.y, 22, borda, String(id));
+    });
+
+    q.msgs.forEach(m => {
+      const a = pos(m.de), b = pos(m.para);
+      const x = a.x + (b.x - a.x) * 0.55, y = a.y + (b.y - a.y) * 0.55;
+      ctx.beginPath();
+      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.fillStyle = CORES.amarelo;
+      ctx.fill();
+      ctx.fillStyle = '#020617';
+      ctx.font = '700 11px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(m.id), x, y);
+    });
+
+    rotulo(ctx, 'anel · sentido horário · mensagens em amarelo', 16, h - 16, CORES.mudo);
+  }
+
+  /* ===================================================================
+     0d. EXCLUSÃO MÚTUA COM TOKEN
+     Um token circula no anel. Só quem tem o token entra na seção crítica.
+     Quem quer entrar marca o pedido e espera a sua vez.
+     =================================================================== */
+  const NOS_TOKEN = ['P0', 'P1', 'P2', 'P3'];
+
+  function geraToken() {
+    return [
+      { token: 0, sc: null, quer: [], t: 'O token começa com P0. Ninguém quer entrar na seção crítica, então P0 repassa o token a P1.' },
+      { token: 1, sc: null, quer: [1], t: 'P1 quer entrar. Ele espera o token chegar: é o único jeito de ter exclusão mútua sem coordenador.' },
+      { token: 1, sc: 1, quer: [], t: 'P1 tem o token e entra na seção crítica. Nenhum outro processo pode entrar enquanto ele estiver lá.' },
+      { token: 2, sc: null, quer: [3], t: 'P1 sai e repassa o token a P2. P3 pede a seção crítica enquanto o token viaja.' },
+      { token: 3, sc: 3, quer: [], t: 'O token chega a P3, que estava na fila. P3 entra e P1 espera a sua próxima vez.' },
+      { token: 0, sc: null, quer: [], t: 'P3 sai e passa o token a P0. A ordem de acesso é justa: cada pedido é atendido em uma volta do anel.' }
+    ];
+  }
+
+  function desenhaToken(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const cx = w / 2, cy = h / 2 + 4, r = Math.min(w, h) * 0.3;
+    const pos = i => {
+      const a = (-Math.PI / 2) + (i / NOS_TOKEN.length) * Math.PI * 2;
+      return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+    };
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(148,163,184,.25)';
+    ctx.stroke();
+
+    NOS_TOKEN.forEach((nome, i) => {
+      const p = pos(i);
+      let borda = CORES.azul;
+      if (q.sc === i) borda = CORES.verde;
+      else if (q.quer.indexOf(i) >= 0) borda = CORES.rosa;
+      bolha(ctx, p.x, p.y, 24, borda, nome);
+      if (q.quer.indexOf(i) >= 0) rotulo(ctx, 'pede a seção', p.x, p.y + 40, CORES.rosa, 'center');
+      if (q.sc === i) rotulo(ctx, 'na seção crítica', p.x, p.y + 40, CORES.verde, 'center');
+    });
+
+    const tp = pos(q.token);
+    ctx.beginPath();
+    ctx.arc(tp.x + 30, tp.y - 26, 9, 0, Math.PI * 2);
+    ctx.fillStyle = CORES.amarelo;
+    ctx.fill();
+    rotulo(ctx, 'token', tp.x + 44, tp.y - 26, CORES.amarelo);
+
+    rotulo(ctx, 'verde: dentro da seção crítica · rosa: pedindo entrada', 16, h - 16, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraEleicao,
+    desenhaEleicao,
+    geraToken,
+    desenhaToken,
     geraLamport,
     desenhaLamport,
     SERVIDORES,
