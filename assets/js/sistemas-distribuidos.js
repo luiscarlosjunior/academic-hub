@@ -60,8 +60,27 @@
     { p: 0, col: 3, L: 3, t: 'P1 executa outro evento local: L = 2 + 1 = 3. Ele não tem relação causal com o recebimento de P2 (também L = 3): os carimbos não dizem qual veio antes.' }
   ];
 
-  function geraLamport() {
-    return EVENTOS.map((e, k) => ({ k, t: e.t }));
+  /* Relógios vetoriais sobre os mesmos sete eventos: um vetor [P1, P2, P3] por evento */
+  const VETORES = ['[1,0,0]', '[2,0,0]', '[2,1,0]', '[0,0,1]', '[2,2,0]', '[2,2,2]', '[3,0,0]'];
+  const TEXTO_VETORIAL = [
+    'P1 executa um evento local. Seu vetor passa de [0,0,0] para [1,0,0]: só a posição de P1 muda.',
+    'P1 envia m para P2. O vetor de P1 vira [2,0,0], e esse vetor viaja com a mensagem.',
+    'P2 recebe m. Cada posição recebe o máximo: [2,0,0]. Depois P2 incrementa a sua: [2,1,0].',
+    'P3 executa um evento local independente. Seu vetor vira [0,0,1].',
+    'P2 envia m\' com o vetor [2,2,0].',
+    'P3 recebe m\': o máximo de [0,0,1] e [2,2,0] é [2,2,1]. P3 incrementa a sua posição: [2,2,2].',
+    'P1 executa outro evento local: [3,0,0]. Compare com [2,1,0], de P2: nenhum é menor ou igual ao outro. São concorrentes, e o relógio vetorial mostra isso.'
+  ];
+
+  /* modo: 'lamport' mostra o carimbo L; 'vetorial' mostra o vetor completo */
+  function geraLamport(modo) {
+    const vet = modo === 'vetorial';
+    return EVENTOS.map((e, k) => ({
+      k,
+      modo: vet ? 'vetorial' : 'lamport',
+      rots: EVENTOS.map((f, j) => (vet ? VETORES[j] : 'L' + f.L)),
+      t: vet ? TEXTO_VETORIAL[k] : e.t
+    }));
   }
 
   function desenhaLamport(ctx, w, h, q) {
@@ -93,7 +112,23 @@
     EVENTOS.forEach((e, k) => {
       if (k > q.k) return;
       const atual = k === q.k;
-      bolha(ctx, xDe(e.col), ys[e.p], 17, atual ? CORES.amarelo : CORES.verde, 'L' + e.L);
+      const borda = atual ? CORES.amarelo : CORES.verde;
+      if (q.modo === 'vetorial') {
+        /* Vetor completo não cabe num círculo: usa uma caixa */
+        global.AH.roundRect(ctx, xDe(e.col) - 38, ys[e.p] - 13, 76, 26, 8);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = borda;
+        ctx.stroke();
+        ctx.fillStyle = CORES.txt;
+        ctx.font = '600 12px "Fira Code", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(q.rots[k], xDe(e.col), ys[e.p]);
+      } else {
+        bolha(ctx, xDe(e.col), ys[e.p], 17, borda, q.rots[k]);
+      }
     });
   }
 
