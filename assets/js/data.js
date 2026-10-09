@@ -221,6 +221,22 @@ const AH_DATA = {
           resumo: 'Roteiro de seis passos e os padrões dois ponteiros, janela, prefixos, backtracking, divisão e conquista, guloso e programação dinâmica.',
           tags: ['Padrões', 'Estratégia', 'Programação dinâmica'], nivel: 'Avançado', minutos: 70 }
       ]
+    },
+    {
+      id: 'sd',
+      slug: 'sistemas-distribuidos-cloud',
+      nome: 'Sistemas Distribuídos e em Cloud',
+      curto: 'Sistemas Distribuídos',
+      icone: 'fa-cloud',
+      cor: 'sky',
+      corHex: '#0ea5e9',
+      descricao:
+        'Como vários computadores trabalham como um único sistema: tempo e ordem de eventos, consistência, falhas, escalabilidade e a infraestrutura de cloud que sustenta os serviços do dia a dia.',
+      topicos: [
+        { id: '01-sistemas-distribuidos', titulo: 'Sistemas Distribuídos: tempo, consistência e escala na cloud', icone: 'fa-network-wired',
+          resumo: 'Por que a ordem dos eventos é difícil em rede, relógios de Lamport, hash consistente, o teorema CAP e o que a cloud oferece.',
+          tags: ['Distribuído', 'Lamport', 'CAP', 'Cloud'], nivel: 'Introdutório', minutos: 45 }
+      ]
     }
   ]
 };
