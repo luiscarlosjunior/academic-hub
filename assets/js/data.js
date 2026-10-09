@@ -175,6 +175,22 @@ const AH_DATA = {
           trilha: 'java',
           tags: ['SOLID', 'Design', 'Qualidade'], nivel: 'Avançado', minutos: 22 }
       ]
+    },
+    {
+      id: 'ed',
+      slug: 'estrutura-dados',
+      nome: 'Estrutura de Dados',
+      curto: 'Estrutura de Dados',
+      icone: 'fa-table-cells',
+      cor: 'amber',
+      corHex: '#f59e0b',
+      descricao:
+        'Como organizar dados na memória para que as operações sejam rápidas: vetores, matrizes, ordenação e busca, filas, pilhas, tabelas hash, árvores e grafos.',
+      topicos: [
+        { id: '01-estruturas-de-dados-fundamentais', titulo: 'Estruturas de Dados Fundamentais', icone: 'fa-table-cells',
+          resumo: 'Vetores, matrizes, ordenação, busca binária, filas, pilhas, tabelas hash, árvores e grafos — cada um com animação passo a passo e referências.',
+          tags: ['Vetores', 'Ordenação', 'Árvores', 'Grafos'], nivel: 'Fundamental', minutos: 75 }
+      ]
     }
   ]
 };

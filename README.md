@@ -67,6 +67,12 @@ A disciplina é dividida em duas trilhas, selecionáveis por abas na página da 
 | 15 | Do Diagrama ao Código | Tradutor UML → Java / C# / Python |
 | 16 | Princípios de Projeto (SOLID) | Antes e depois de cada princípio |
 
+**Disciplina — Estrutura de Dados (1 aula, 9 temas)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 01 | Estruturas de Dados Fundamentais | Vetores, matrizes, três algoritmos de ordenação, busca binária, fila, pilha, tabela hash, árvore BST e BFS × DFS, cada um com animação passo a passo e referências |
+
 ---
 
 ## Como publicar no GitHub Pages
@@ -96,9 +102,12 @@ academic-hub/
 │   ├── inteligencia-artificial/
 │   │   ├── index.html
 │   │   └── topicos/01-….html … 16-….html
-│   └── modelagem-poo/
+│   ├── modelagem-poo/
+│   │   ├── index.html
+│   │   └── topicos/01-….html … 16-….html
+│   └── estrutura-dados/
 │       ├── index.html
-│       └── topicos/01-….html … 16-….html
+│       └── topicos/01-estruturas-de-dados-fundamentais.html
 └── simuladores/
     ├── busca-cega-visual.html       # laboratório BFS × DFS em tela cheia
     └── busca-heuristica-visual.html # laboratório gulosa × A* em tela cheia
