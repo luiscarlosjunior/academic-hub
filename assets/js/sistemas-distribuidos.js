@@ -169,6 +169,73 @@
     rotulo(ctx, 'anel de hash · sentido horário', 16, h - 16, CORES.mudo);
   }
 
+  /* ===================================================================
+     0. ENTREGA DE MENSAGENS EM REDE ASSÍNCRONA
+     Três mensagens de A para B. A rede atrasa cada uma de um jeito:
+     m2 chega antes de m1, e m3 nunca chega.
+     Cada quadro tem o instante (tempo) e a legenda (t).
+     =================================================================== */
+  const MENSAGENS = [
+    { id: 'm1', envio: 0, chegada: 4 },
+    { id: 'm2', envio: 1, chegada: 2 },
+    { id: 'm3', envio: 2, chegada: null }
+  ];
+
+  function geraEntregas() {
+    return [
+      { tempo: 0, t: 'A envia m1 para B. Quanto tempo ela levará é decidido pela rede, e A não sabe.' },
+      { tempo: 1, t: 'A envia m2 logo depois. Enquanto m1 ainda viaja, m2 já está a caminho.' },
+      { tempo: 2, t: 'm2 chega antes de m1: a rede não preserva a ordem entre mensagens diferentes. A envia m3.' },
+      { tempo: 3, t: 'm3 ainda não chegou. A espera, sem saber se ela foi perdida ou se está atrasada.' },
+      { tempo: 4, t: 'm1 chega. m3 nunca chega. Sem confirmação, A só pode usar timeout e retransmitir: a ausência de resposta é ambígua.' }
+    ];
+  }
+
+  function desenhaEntregas(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const xA = 90, xB = w - 90;
+    const yTopo = 56, yFim = h - 36, horizonte = 5;
+    const yDe = t => yTopo + (t / horizonte) * (yFim - yTopo);
+
+    ctx.strokeStyle = 'rgba(148,163,184,.35)';
+    ctx.lineWidth = 2;
+    [xA, xB].forEach(x => {
+      ctx.beginPath();
+      ctx.moveTo(x, yTopo);
+      ctx.lineTo(x, yFim);
+      ctx.stroke();
+    });
+    rotulo(ctx, 'A', xA, yTopo - 22, CORES.txt, 'center');
+    rotulo(ctx, 'B', xB, yTopo - 22, CORES.txt, 'center');
+    rotulo(ctx, 'tempo', 12, yTopo, CORES.mudo);
+    rotulo(ctx, String(q.tempo), 12, yDe(q.tempo), CORES.amarelo);
+
+    MENSAGENS.forEach(m => {
+      if (q.tempo < m.envio) return;
+      const y0 = yDe(m.envio);
+      const cor = m.chegada === null ? CORES.rosa : CORES.azul;
+      if (m.chegada !== null && q.tempo >= m.chegada) {
+        global.AH.arrow(ctx, xA, y0, xB, yDe(m.chegada), CORES.verde, true);
+        rotulo(ctx, m.id, (xA + xB) / 2, (y0 + yDe(m.chegada)) / 2 - 12, CORES.verde, 'center');
+        return;
+      }
+      /* Em trânsito: a ponta avança até o instante atual; a perdida para em 60% do caminho */
+      const fim = m.chegada === null ? 0.6 : (q.tempo - m.envio) / (m.chegada - m.envio);
+      const yAtual = m.chegada === null ? y0 + 0.6 * (yDe(m.envio + 4) - y0) : y0 + fim * (yDe(m.chegada) - y0);
+      const xAtual = xA + (xB - xA) * (m.chegada === null ? 0.6 : fim);
+      ctx.strokeStyle = cor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash(m.chegada === null ? [6, 5] : []);
+      ctx.beginPath();
+      ctx.moveTo(xA, y0);
+      ctx.lineTo(xAtual, yAtual);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      rotulo(ctx, m.id, xAtual + 10, yAtual - 10, cor);
+      if (m.chegada === null && q.tempo >= m.envio + 3) rotulo(ctx, 'perdida?', xAtual + 10, yAtual + 12, CORES.rosa);
+    });
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
@@ -178,6 +245,9 @@
     CHAVES,
     dono,
     geraAnel,
-    desenhaAnel
+    desenhaAnel,
+    MENSAGENS,
+    geraEntregas,
+    desenhaEntregas
   };
 })(window);
