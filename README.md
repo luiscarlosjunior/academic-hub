@@ -71,7 +71,7 @@ A disciplina é dividida em duas trilhas, selecionáveis por abas na página da 
 
 | # | Tópico | Laboratório interativo |
 |---|--------|------------------------|
-| 01 | Estruturas de Dados Fundamentais | Vetores, matrizes, três algoritmos de ordenação, busca binária, fila, pilha, tabela hash, árvore BST e BFS × DFS, cada um com animação passo a passo e referências |
+| 01 | Estruturas de Dados Fundamentais | Big-O (tempo e espaço), vetores, matrizes, ordenação, busca binária, fila, pilha, tabela hash, árvore BST e BFS × DFS, com animações, exemplos completos em C e referências |
 
 ---
 

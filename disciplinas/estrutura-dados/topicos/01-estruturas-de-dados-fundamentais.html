@@ -96,6 +96,190 @@
   <p class="ah-diagram-cap">Resumo de custos no caso típico. <code>h</code> é a altura da árvore; <code>V</code> e <code>E</code>, o número de vértices e arestas.</p>
 </section>
 
+
+<!-- ============================ 0. COMPLEXIDADE (BIG-O) ============================ -->
+<section id="bigo" data-toc="0. Complexidade: Big-O" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-amber-400 mr-2"></i>0. Complexidade: o crescimento medido com Big-O</h2>
+  <div class="ah-prose">
+    <p>
+      Medir um algoritmo em segundos é frágil: o resultado depende do computador, do compilador e da carga do sistema.
+      A análise de <strong>complexidade</strong> conta, em vez disso, quantas operações elementares o algoritmo executa em
+      função do tamanho da entrada <code>n</code>. Essa contagem independe da máquina e mostra como o custo <em>cresce</em>.
+    </p>
+    <p>
+      A notação <strong>O</strong> (“O grande”) dá um limite superior assintótico. Dizemos que <code>f(n) = O(g(n))</code>
+      quando existem constantes <code>c</code> e <code>n₀</code> tais que <code>f(n) ≤ c · g(n)</code> para todo
+      <code>n ≥ n₀</code>. Em palavras: para entradas grandes, <code>f</code> cresce no máximo na proporção de <code>g</code>.
+      Constantes e termos menores são descartados, porque o que domina o crescimento é o termo de maior ordem
+      (CORMEN <em>et al.</em>, 2022, cap. 3). A notação foi popularizada na computação por Knuth (1976), que também
+      definiu as notações irmãs Ω (limite inferior) e Θ (limite justo).
+    </p>
+    <p>
+      Há duas medidas. A <strong>complexidade temporal</strong> conta operações; a <strong>complexidade espacial</strong>
+      conta a memória extra usada além da própria entrada. Um algoritmo pode ser rápido e gastar muita memória, ou o contrário.
+      Quando nada é dito, a complexidade de uma aula como esta é a do <em>pior caso</em>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-2">Regras para calcular</div>
+      <ul class="text-xs text-slate-300 space-y-1.5 leading-relaxed">
+        <li><strong>Constantes saem:</strong> O(3n) = O(n).</li>
+        <li><strong>Fica o termo dominante:</strong> O(n² + n + 10) = O(n²).</li>
+        <li><strong>Laços em sequência somam:</strong> O(n) + O(n²) = O(n²).</li>
+        <li><strong>Laços aninhados multiplicam:</strong> um laço de n dentro de outro de n é O(n²).</li>
+        <li><strong>Laço que divide por 2</strong> executa O(log n) vezes.</li>
+      </ul>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-amber-400">
+      <div class="text-xs font-bold text-amber-300 mb-2">Três perguntas diferentes</div>
+      <ul class="text-xs text-slate-300 space-y-1.5 leading-relaxed">
+        <li><strong>Pior caso:</strong> o máximo de operações para qualquer entrada de tamanho n. É a garantia usada na prática.</li>
+        <li><strong>Caso médio:</strong> o valor esperado sob uma distribuição de entradas. Exige hipóteses sobre os dados.</li>
+        <li><strong>Amortizado:</strong> a média de uma sequência de operações, mesmo que uma delas seja cara (como o <code>realloc</code>).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Ordens de crescimento</h3>
+  <p class="ah-lead text-sm mb-2">Quanto custa cada classe quando n vale um milhão? Os valores são aproximados e ilustram a escala.</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Classe</th><th>Nome</th><th>Exemplo típico</th><th>Operações para n = 1 000 000</th></tr></thead>
+      <tbody>
+        <tr><td>O(1)</td><td>constante</td><td>acessar <code>a[i]</code>, <code>push</code>, <code>pop</code></td><td>1</td></tr>
+        <tr><td>O(log n)</td><td>logarítmica</td><td>busca binária</td><td>cerca de 20</td></tr>
+        <tr><td>O(n)</td><td>linear</td><td>somar um vetor, busca linear</td><td>1 000 000</td></tr>
+        <tr><td>O(n log n)</td><td>linearítmica</td><td>quicksort, merge sort</td><td>cerca de 20 milhões</td></tr>
+        <tr><td>O(n²)</td><td>quadrática</td><td>bolha, comparar todos os pares</td><td>10<sup>12</sup> (cerca de 17 minutos a 10<sup>9</sup> operações por segundo)</td></tr>
+        <tr><td>O(2ⁿ)</td><td>exponencial</td><td>testar todos os subconjuntos</td><td>inviável: 2<sup>1 000 000</sup> ≈ 10<sup>301 030</sup></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação 1: quem cresce mais rápido?</h3>
+  <p class="ah-lead text-sm mb-4">Cada barra é uma classe de complexidade. Como os valores chegam a 10<sup>77</sup>, a altura é proporcional ao <strong>logaritmo</strong> do número de operações. Avance e observe o que acontece quando n dobra.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvBigO" style="height:300px"></canvas></div>
+  <div id="ctlBigO" class="mt-4"></div>
+  <div id="capBigO" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação 2: contando operações no código</h3>
+  <p class="ah-lead text-sm mb-4">Cada cenário é um trecho de código com um contador. A caixa destacada é o que o laço está lendo naquele instante. Compare como o contador cresce com n.</p>
+  <div class="ah-stage" style="height:240px"><canvas id="cvContagem" style="height:240px"></canvas></div>
+  <div id="ctlContagem" class="mt-4"></div>
+  <div id="capContagem" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Complexidade espacial: quanta memória extra?</h3>
+  <p class="ah-prose">
+    A complexidade espacial conta a memória <em>auxiliar</em>. Uma função que calcula o fatorial de forma iterativa usa
+    duas variáveis, sempre, qualquer que seja n: O(1). A versão recursiva, porém, cria um quadro na pilha de execução para
+    cada chamada pendente, e a pilha chega a n quadros: O(n). Ambas levam tempo O(n), mas só uma delas gasta memória
+    proporcional a n.
+  </p>
+  <div class="ah-stage mt-4" style="height:300px"><canvas id="cvEspaco" style="height:300px"></canvas></div>
+  <div id="ctlEspaco" class="mt-4"></div>
+  <div id="capEspaco" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <div class="ah-prose mt-6">
+    <h4 class="font-semibold text-white mt-2 mb-2">Temporal × espacial: resumo</h4>
+  </div>
+  <div class="overflow-x-auto ah-card mt-3">
+    <table class="ah-table">
+      <thead><tr><th>Dimensão</th><th>Pergunta</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Temporal</td><td>Quantas operações?</td><td>somar n números: O(n)</td></tr>
+        <tr><td>Espacial</td><td>Quanta memória extra?</td><td>fatorial iterativo: O(1); recursivo: O(n)</td></tr>
+        <tr><td>Pior caso</td><td>Qual o máximo de operações?</td><td>quicksort com pivô ruim: O(n²)</td></tr>
+        <tr><td>Caso médio</td><td>Qual o valor esperado?</td><td>quicksort com pivô aleatório: O(n log n)</td></tr>
+        <tr><td>Amortizado</td><td>Qual a média de uma sequência?</td><td>inserção no fim de um vetor dinâmico: O(1)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-prose mt-6">
+    <p>Os dois programas abaixo medem as operações e a memória na prática. O primeiro conta operações para vários valores de n; o segundo compara as duas versões do fatorial.</p>
+  </div>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>bigo.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+
+/* Contador global de operações elementares, para medir o custo na prática */
+static long ops = 0;
+
+static int primeiro(const int a[]) {                       /* O(1) */
+    ops++;
+    return a[0];
+}
+
+static long soma(const int a[], int n) {                   /* O(n) */
+    long s = 0;
+    for (int i = 0; i &lt; n; i++) { ops++; s += a[i]; }
+    return s;
+}
+
+static int pares_iguais(const int a[], int n) {            /* O(n²) */
+    int c = 0;
+    for (int i = 0; i &lt; n; i++)
+        for (int j = 0; j &lt; n; j++) { ops++; if (a[i] == a[j]) c++; }
+    return c;
+}
+
+static int halvings(int n) {                               /* O(log n) */
+    int k = 0;
+    for (int m = n; m &gt; 1; m /= 2) { ops++; k++; }
+    return k;
+}
+
+int main(void) {
+    static int a[1024];
+    for (int i = 0; i &lt; 1024; i++) a[i] = i;
+
+    printf("%6s %6s %9s %8s %10s\n", "n", "O(1)", "O(log n)", "O(n)", "O(n^2)");
+    for (int n = 8; n &lt;= 1024; n *= 2) {
+        ops = 0; primeiro(a);            long c1 = ops;
+        ops = 0; halvings(n);            long cl = ops;
+        ops = 0; soma(a, n);             long cn = ops;
+        ops = 0; pares_iguais(a, n);     long cq = ops;
+        printf("%6d %6ld %9ld %8ld %10ld\n", n, c1, cl, cn, cq);
+    }
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: uma tabela em que a coluna de <code>O(1)</code> fica constante, a de <code>O(log n)</code> cresce uma unidade por dobra de n, e as de <code>O(n)</code> e <code>O(n²)</code> dobram e quadruplicam, respectivamente.</p>
+  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>espaco.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+
+/* Recursivo: cada chamada ocupa um quadro na pilha de execução.
+   Espaço auxiliar O(n), além do tempo O(n). */
+unsigned long long fat_rec(unsigned n) {
+    return n &lt;= 1 ? 1 : n * fat_rec(n - 1);
+}
+
+/* Iterativo: apenas duas variáveis locais, espaço auxiliar O(1). */
+unsigned long long fat_it(unsigned n) {
+    unsigned long long r = 1;
+    for (unsigned i = 2; i &lt;= n; i++) r *= i;
+    return r;
+}
+
+int main(void) {
+    printf("10! recursivo = %llu\n", fat_rec(10));
+    printf("10! iterativo = %llu\n", fat_it(10));
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>10! recursivo = 3628800</code> e <code>10! iterativo = 3628800</code>. Mesmo resultado, memória auxiliar diferente.</p>
+
+  <div class="ah-callout ah-callout-tip mt-6">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Big-O não é tudo.</strong> Para n pequeno, uma constante grande pode fazer um O(n log n) perder de um O(n²)
+      com constante minúscula. Big-O responde ao crescimento; o tempo real também depende do cache, da localidade de memória
+      e do custo de cada operação, como vimos com matrizes.
+    </div>
+  </div>
+</section>
+
 <!-- ============================ 1. VETORES ============================ -->
 <section id="vetores" data-toc="1. Vetores" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-amber-400 mr-2"></i>1. Vetores: memória contígua e acesso direto</h2>
@@ -118,12 +302,36 @@
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Java: vetor de tamanho fixo</span>
-int[] arr = {4, 8, 15, 16, 23, 42};
-int x = arr[3];                          <span class="cm">// O(1): endereço base + 3 × tamanho</span>
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Por dentro da memória</h4><p>Em C, um vetor é um endereço (o do primeiro elemento) somado a um deslocamento. Por definição, <code>arr[i]</code> é o mesmo que <code>*(arr + i)</code>: o compilador multiplica <code>i</code> pelo tamanho do tipo e soma ao endereço base. Não há busca nenhuma, por isso o acesso é O(1) (KERNIGHAN; RITCHIE, 1988, cap. 5).</p><p>Três cuidados nascem daí. C <strong>não verifica limites</strong>: <code>arr[10]</code> em um vetor de seis posições é comportamento indefinido, e o programa pode falhar ou corromper dados em silêncio (ISO/IEC, 2018). O tamanho precisa ser guardado pelo programador. Depois, <code>realloc</code> pode <strong>mover</strong> o bloco inteiro, por isso devolve um ponteiro que deve substituir o antigo. Por fim, inserir no meio exige deslocar elementos, e esse custo é O(n).</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead><tbody><tr><td>Acessar <code>arr[i]</code></td><td>O(1)</td><td>O(1)</td></tr><tr><td>Buscar um valor (não ordenado)</td><td>O(n)</td><td>O(1)</td></tr><tr><td>Buscar um valor (ordenado, busca binária)</td><td>O(log n)</td><td>O(1)</td></tr><tr><td>Inserir no fim, com capacidade livre</td><td>O(1)</td><td>O(1)</td></tr><tr><td>Inserir ou remover no meio</td><td>O(n)</td><td>O(1)</td></tr><tr><td>Guardar n elementos</td><td>—</td><td>O(n) (o próprio vetor)</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>vetor.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
 
-<span class="cm">// Crescer exige realocar: um novo vetor e cópia dos valores</span>
-arr = java.util.Arrays.copyOf(arr, arr.length + 1);</code></pre>
+int main(void) {
+    int n = 6;
+    int *arr = malloc(n * sizeof *arr);          /* bloco contíguo de 6 inteiros */
+    if (!arr) return 1;
+
+    int valores[] = {4, 8, 15, 16, 23, 42};
+    for (int i = 0; i &lt; n; i++) arr[i] = valores[i];
+
+    /* Acesso O(1): endereço = base + 3 * sizeof(int) */
+    printf("arr[3] = %d\n", arr[3]);
+
+    /* Inserir 10 na posição 2: realoca e desloca à direita, O(n) */
+    arr = realloc(arr, (n + 1) * sizeof *arr);
+    if (!arr) return 1;
+    for (int j = n; j &gt; 2; j--) arr[j] = arr[j - 1];
+    arr[2] = 10;
+    n++;
+
+    for (int i = 0; i &lt; n; i++) printf("%d ", arr[i]);
+    printf("\n");
+
+    free(arr);
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: arr[3] = 16 e, em seguida, <code>4 8 10 15 16 23 42</code>.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: acesso, inserção e remoção</h3>
   <p class="ah-lead text-sm mb-4">Escolha a operação. Use <em>Passo</em> para avançar devagar, ou <em>Reproduzir</em> para ver tudo de uma vez. Cada passo traz a explicação do que está acontecendo.</p>
@@ -157,18 +365,36 @@ arr = java.util.Arrays.copyOf(arr, arr.length + 1);</code></pre>
       modos dão o mesmo resultado lógico, mas <strong>custos físicos diferentes</strong>: percorrer na ordem da memória é
       mais rápido, porque aproveita a localidade (HENNESSY; PATTERSON, 2017, cap. 2).
     </p>
-    <p>
-      Em Java, <code>int[][]</code> é, de fato, um vetor de vetores. As linhas são objetos separados e podem não ser
-      contíguas entre si, mas dentro de cada linha a localidade continua valendo. Na prática, o padrão “percorra
-      por linhas” ainda é o recomendado.
-    </p>
+    <p>Como já foi dito, a convenção linha-maior não é só teórica: em C ela é garantida pela linguagem. Em linguagens que representam matrizes como vetores de vetores, como Java, as linhas podem ocupar regiões separadas, mas a recomendação de percorrer por linhas continua valendo.</p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Percurso por linhas: boa localidade</span>
-int[][] m = new int[3][4];
-for (int i = 0; i &lt; m.length; i++)
-    for (int j = 0; j &lt; m[i].length; j++)
-        m[i][j] = i * 4 + j;</code></pre>
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Matriz em C é um bloco contínuo</h4><p>Em C, uma matriz declarada como <code>int m[3][4]</code> é um único bloco de 12 inteiros em memória, na ordem linha-maior. Essa garantia faz parte da linguagem, por isso o programa pode tratar a matriz como um vetor plano, como mostra o exemplo. Os índices <code>m[i][j]</code> são apenas uma forma cômoda de calcular a posição <code>i × COLUNAS + j</code>.</p><p>O custo de acesso é O(1), e o espaço é O(n·m), pois a matriz ocupa todas as suas células. Percorrer tudo custa O(n·m), e isso não pode ser evitado, porque cada célula precisa ser lida. A diferença entre percorrer por linhas e por colunas aparece no <em>tempo real</em>, não no Big-O: o cache favorece o acesso sequencial (HENNESSY; PATTERSON, 2017, cap. 2).</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead><tbody><tr><td>Acessar <code>m[i][j]</code></td><td>O(1)</td><td>O(1)</td></tr><tr><td>Percorrer todas as células</td><td>O(n·m)</td><td>O(1)</td></tr><tr><td>Somar duas matrizes n × m</td><td>O(n·m)</td><td>O(n·m) se o resultado for nova matriz</td></tr><tr><td>Guardar a matriz</td><td>—</td><td>O(n·m)</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>matriz.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+
+#define LINHAS  3
+#define COLUNAS 4
+
+int main(void) {
+    int m[LINHAS][COLUNAS];
+
+    /* Percurso por linhas: a ordem de visita coincide com a da memória */
+    for (int i = 0; i &lt; LINHAS; i++)
+        for (int j = 0; j &lt; COLUNAS; j++)
+            m[i][j] = i * COLUNAS + j;
+
+    /* Em C, a matriz é um bloco contíguo de 12 inteiros, em linha-maior */
+    const int *plano = &amp;m[0][0];
+    for (int k = 0; k &lt; LINHAS * COLUNAS; k++)
+        printf("%d ", plano[k]);
+    printf("\n");
+
+    /* m[i][j] está na posição linear k = i * COLUNAS + j */
+    printf("m[2][1] = %d, plano[2 * %d + 1] = %d\n",
+           m[2][1], COLUNAS, plano[2 * COLUNAS + 1]);
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>0 1 2 … 11</code>, seguido de <code>m[2][1] = 9</code> e <code>plano[9] = 9</code>.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: como a matriz vira uma linha na memória</h3>
   <p class="ah-lead text-sm mb-4">A grade é a matriz; a faixa de baixo é a memória. Escolha a ordem de percurso e veja como os saltos mudam.</p>
@@ -215,19 +441,102 @@ for (int i = 0; i &lt; m.length; i++)
   <p class="ah-diagram-cap">“Estável” significa manter a ordem relativa de elementos iguais. Classificação de Knuth (1998, v. 3) e Sedgewick e Wayne (2011).</p>
 
   <div class="ah-prose mt-6">
-    <p><strong>Código de referência: inserção.</strong> Repare que o laço interno é o mesmo “deslocamento” da seção de vetores.</p>
+    <p><strong>Exemplo em C: bolha, inserção e quicksort, com contador de comparações. Repare que o laço da inserção é o mesmo “deslocamento” da seção de vetores.</p>
   </div>
-<pre class="ah-code"><code><span class="cm">// Inserção: a parte a[0..i-1] já está ordenada</span>
-static void insercao(int[] a) {
-    for (int i = 1; i &lt; a.length; i++) {
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Por que O(n²) e por que O(n log n)?</h4><p>Na bolha, a passagem <code>p</code> percorre <code>n − 1 − p</code> pares. Somando todas as passagens, obtemos (n − 1) + (n − 2) + … + 1 = n(n − 1)/2, que é O(n²). Na inserção, cada elemento pode atravessar toda a parte ordenada, o que também dá O(n²) no pior caso. Mas, se o vetor já está ordenado, a inserção faz uma comparação por elemento e custa O(n). A bolha, com a parada antecipada da variável <code>trocou</code>, também é O(n) nesse caso.</p><p>No quicksort, cada partição custa O(n) e divide o problema em duas partes. Se o pivô cai perto da mediana, a árvore de chamadas tem altura O(log n) e o total é O(n log n). Se o pivô é sempre o extremo (por exemplo, um vetor já ordenado com o último elemento como pivô), a altura vira n e o custo sobe para O(n²). Esse é o pior caso (SEDGEWICK; WAYNE, 2011, cap. 2).</p><p>O <strong>espaço</strong> da bolha e da inserção é O(1), pois ordenam <em>in place</em>. O quicksort usa O(log n) de pilha de recursão, no caso médio. O merge sort é O(n log n) em tempo, mas exige O(n) de memória auxiliar.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Algoritmo</th><th>Tempo (melhor / médio / pior)</th><th>Espaço extra</th></tr></thead><tbody><tr><td>Bolha</td><td>O(n) / O(n²) / O(n²)</td><td>O(1)</td></tr><tr><td>Inserção</td><td>O(n) / O(n²) / O(n²)</td><td>O(1)</td></tr><tr><td>Quicksort</td><td>O(n log n) / O(n log n) / O(n²)</td><td>O(log n)</td></tr><tr><td>Merge sort</td><td>O(n log n) em todos os casos</td><td>O(n)</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>ordenacao.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+static long comparacoes = 0;
+
+static void trocar(int *x, int *y) {
+    int t = *x; *x = *y; *y = t;
+}
+
+/* Bolha: troca vizinhos fora de ordem; para cedo se não houve troca */
+static void bolha(int a[], int n) {
+    for (int p = 0; p &lt; n - 1; p++) {
+        int trocou = 0;
+        for (int j = 0; j &lt; n - 1 - p; j++) {
+            comparacoes++;
+            if (a[j] &gt; a[j + 1]) {
+                trocar(&amp;a[j], &amp;a[j + 1]);
+                trocou = 1;
+            }
+        }
+        if (!trocou) break;
+    }
+}
+
+/* Inserção: a[0..i-1] já está ordenado */
+static void insercao(int a[], int n) {
+    for (int i = 1; i &lt; n; i++) {
         int chave = a[i], j = i - 1;
-        while (j &gt;= 0 &amp;&amp; a[j] &gt; chave) {   <span class="cm">// desloca os maiores</span>
+        while (j &gt;= 0) {
+            comparacoes++;
+            if (a[j] &lt;= chave) break;
             a[j + 1] = a[j];
             j--;
         }
-        a[j + 1] = chave;                 <span class="cm">// encaixa a chave</span>
+        a[j + 1] = chave;
     }
-}</code></pre>
+}
+
+/* Quicksort com partição de Lomuto */
+static void quicksort(int a[], int lo, int hi) {
+    if (lo &gt;= hi) return;
+    int pivo = a[hi], i = lo;
+    for (int j = lo; j &lt; hi; j++) {
+        comparacoes++;
+        if (a[j] &lt; pivo) {
+            trocar(&amp;a[i], &amp;a[j]);
+            i++;
+        }
+    }
+    trocar(&amp;a[i], &amp;a[hi]);
+    quicksort(a, lo, i - 1);
+    quicksort(a, i + 1, hi);
+}
+
+static int comparar_int(const void *x, const void *y) {
+    int a = *(const int *)x, b = *(const int *)y;
+    return (a &gt; b) - (a &lt; b);
+}
+
+static void mostrar(const char *nome, const int a[], int n) {
+    printf("%-10s comparações=%2ld -&gt;", nome, comparacoes);
+    for (int i = 0; i &lt; n; i++) printf(" %d", a[i]);
+    printf("\n");
+}
+
+int main(void) {
+    const int base[] = {29, 10, 14, 37, 13, 5, 42, 8};
+    const int n = (int)(sizeof base / sizeof base[0]);
+    int a[8];
+
+    memcpy(a, base, sizeof base);
+    comparacoes = 0; bolha(a, n);
+    mostrar("bolha", a, n);
+
+    memcpy(a, base, sizeof base);
+    comparacoes = 0; insercao(a, n);
+    mostrar("inserção", a, n);
+
+    memcpy(a, base, sizeof base);
+    comparacoes = 0; quicksort(a, 0, n - 1);
+    mostrar("quicksort", a, n);
+
+    /* Biblioteca padrão: qsort (o algoritmo interno depende da libc) */
+    memcpy(a, base, sizeof base);
+    qsort(a, n, sizeof a[0], comparar_int);
+    printf("%-10s (sem contador) -&gt;", "qsort");
+    for (int i = 0; i &lt; n; i++) printf(" %d", a[i]);
+    printf("\n");
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>bolha</code> com 28 comparações; <code>inserção</code> com 21; <code>quicksort</code> com 18; e o <code>qsort</code> da biblioteca, que não contamos.</p>
 
   <div class="ah-callout ah-callout-tip mt-5">
     <i class="fa-solid fa-lightbulb"></i>
@@ -261,17 +570,40 @@ static void insercao(int[] a) {
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Busca binária iterativa: devolve o índice ou -1</span>
-static int buscaBinaria(int[] a, int alvo) {
-    int lo = 0, hi = a.length - 1;
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Quantas comparações, afinal?</h4><p>Cada passo corta o intervalo ao meio: n, n/2, n/4, … até restar um elemento. O número de passos é o menor k tal que n / 2<sup>k</sup> ≤ 1, ou seja, k = log₂ n. Isso explica o tempo O(log n): para um bilhão de elementos, bastam cerca de 30 comparações.</p><p>O <strong>espaço</strong> depende da implementação. A versão iterativa, mostrada aqui, usa poucas variáveis: O(1). A versão recursiva cria um quadro por nível de recursão, e o espaço vira O(log n). Por isso, em C, a forma iterativa costuma ser preferida.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Busca</th><th>Tempo</th><th>Espaço extra</th></tr></thead><tbody><tr><td>Linear, em vetor não ordenado</td><td>O(n)</td><td>O(1)</td></tr><tr><td>Binária, iterativa</td><td>O(log n)</td><td>O(1)</td></tr><tr><td>Binária, recursiva</td><td>O(log n)</td><td>O(log n)</td></tr><tr><td>Ordenar antes, para poder buscar com a binária</td><td>O(n log n)</td><td>depende do algoritmo de ordenação</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>busca_binaria.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+
+/* Devolve o índice de alvo em a[0..n-1], ou -1; conta as comparações feitas */
+static int busca_binaria(const int a[], int n, int alvo, int *comparacoes) {
+    int lo = 0, hi = n - 1;
+    *comparacoes = 0;
     while (lo &lt;= hi) {
-        int mid = lo + (hi - lo) / 2;      <span class="cm">// evita estouro de inteiro</span>
+        int mid = lo + (hi - lo) / 2;      /* evita estouro de int */
+        (*comparacoes)++;
         if (a[mid] == alvo) return mid;
-        if (a[mid] &lt; alvo) lo = mid + 1; <span class="cm">// descarta a metade esquerda</span>
-        else hi = mid - 1;                 <span class="cm">// descarta a metade direita</span>
+        if (a[mid] &lt; alvo) lo = mid + 1;   /* descarta a metade esquerda */
+        else hi = mid - 1;                 /* descarta a metade direita */
     }
     return -1;
-}</code></pre>
+}
+
+int main(void) {
+    const int a[] = {3, 7, 11, 15, 19, 24, 28, 33, 41, 47, 52, 60};
+    const int n = (int)(sizeof a / sizeof a[0]);
+    const int alvos[] = {24, 40, 3};
+
+    for (int k = 0; k &lt; 3; k++) {
+        int cmp;
+        int idx = busca_binaria(a, n, alvos[k], &amp;cmp);
+        if (idx &gt;= 0)
+            printf("%2d: índice %d, %d comparação(ões)\n", alvos[k], idx, cmp);
+        else
+            printf("%2d: não encontrado, %d comparação(ões)\n", alvos[k], cmp);
+    }
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>24</code> no índice 5, com 1 comparação; <code>40</code> não encontrado, com 4 comparações; <code>3</code> no índice 0, com 3 comparações.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: encontrar e não encontrar</h3>
   <p class="ah-lead text-sm mb-4">O vetor é ordenado e tem 12 elementos. <code>lo</code> e <code>hi</code> delimitam o intervalo ativo; os elementos apagados já foram descartados. Teste um valor presente e um ausente.</p>
@@ -299,11 +631,50 @@ static int buscaBinaria(int[] a, int alvo) {
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Java: ArrayDeque implementa a fila com O(1) nas duas pontas</span>
-Queue&lt;String&gt; fila = new ArrayDeque&lt;&gt;();
-fila.offer("A");           <span class="cm">// enqueue: entra no fim</span>
-fila.offer("B");
-String saiu = fila.poll(); <span class="cm">// dequeue: sai da frente, devolve "A"</span></code></pre>
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Por que um buffer circular?</h4><p>Um vetor comum, com <code>enqueue</code> no fim e <code>dequeue</code> no início, custaria O(n) a cada remoção, porque todos os elementos precisariam andar uma casa. O truque é usar o índice módulo a capacidade: a frente avança e o fim dá a volta quando chega ao final do vetor. Cada operação vira uma aritmética de tempo constante.</p><p>O <strong>espaço</strong> é O(C), a capacidade fixa. Se a fila encher, é preciso reconstruir o buffer com o dobro do tamanho, copiando tudo. Essa cópia custa O(n) naquele momento, mas, espalhada pelas inserções anteriores, resulta em O(1) amortizado por operação (CORMEN <em>et al.</em>, 2022, cap. 17).</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead><tbody><tr><td><code>enqueue</code></td><td>O(1)</td><td>O(1)</td></tr><tr><td><code>dequeue</code></td><td>O(1)</td><td>O(1)</td></tr><tr><td>Buscar um elemento</td><td>O(n)</td><td>O(1)</td></tr><tr><td>Guardar n elementos</td><td>—</td><td>O(C), com C ≥ n</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>fila.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+
+#define CAP 4   /* capacidade fixa do buffer circular */
+
+typedef struct {
+    char dados[CAP];
+    int frente;     /* índice do primeiro elemento */
+    int tamanho;    /* quantos elementos estão na fila */
+} Fila;
+
+/* enqueue: insere no fim, O(1) */
+static int enqueue(Fila *f, char c) {
+    if (f-&gt;tamanho == CAP) return 0;                 /* cheia */
+    int fim = (f-&gt;frente + f-&gt;tamanho) % CAP;        /* índice circular */
+    f-&gt;dados[fim] = c;
+    f-&gt;tamanho++;
+    return 1;
+}
+
+/* dequeue: remove da frente, O(1) */
+static int dequeue(Fila *f, char *c) {
+    if (f-&gt;tamanho == 0) return 0;                   /* vazia */
+    *c = f-&gt;dados[f-&gt;frente];
+    f-&gt;frente = (f-&gt;frente + 1) % CAP;
+    f-&gt;tamanho--;
+    return 1;
+}
+
+int main(void) {
+    Fila f = {{0}, 0, 0};
+    char c;
+
+    enqueue(&amp;f, 'A');
+    enqueue(&amp;f, 'B');
+    enqueue(&amp;f, 'C');
+    if (dequeue(&amp;f, &amp;c)) printf("saiu %c\n", c);   /* A */
+    enqueue(&amp;f, 'D');                               /* reaproveita a posição livre */
+    while (dequeue(&amp;f, &amp;c)) printf("saiu %c\n", c); /* B, C, D */
+    printf("fila vazia: %s\n", f.tamanho == 0 ? "sim" : "não");
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>saiu A</code>, <code>saiu B</code>, <code>saiu C</code>, <code>saiu D</code> e, por fim, <code>fila vazia: sim</code>.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: enfileirar e desenfileirar</h3>
   <p class="ah-lead text-sm mb-4">A sequência de operações é fixa: três entradas, uma saída, outra entrada e outra saída.</p>
@@ -331,10 +702,48 @@ String saiu = fila.poll(); <span class="cm">// dequeue: sai da frente, devolve "
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Java: prefira Deque (ArrayDeque) à classe legada Stack</span>
-Deque&lt;Character&gt; pilha = new ArrayDeque&lt;&gt;();
-pilha.push('(');          <span class="cm">// push: entra no topo</span>
-char topo = pilha.pop();  <span class="cm">// pop: sai do topo</span></code></pre>
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Pilha com vetor, em C</h4><p>A pilha usa um vetor e um índice <code>topo</code>. <code>push</code> incrementa o índice e grava; <code>pop</code> lê e decrementa. Não há laço, por isso ambas custam O(1). Note que <code>pop</code> em pilha vazia é um erro: o exemplo evita isso testando <code>vazia()</code> antes.</p><p>A verificação de parênteses percorre a expressão uma vez, com no máximo um <code>push</code> ou <code>pop</code> por caractere. Logo, o tempo é O(n). No pior caso, a pilha guarda todas as aberturas, e o espaço é O(n). Repare que o tipo de cada abertura importa: <code>{(})</code> tem a mesma quantidade de aberturas e fechamentos, mas não é válida. Um simples contador não resolve o problema; a pilha resolve.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead><tbody><tr><td><code>push</code></td><td>O(1)</td><td>O(1)</td></tr><tr><td><code>pop</code></td><td>O(1)</td><td>O(1)</td></tr><tr><td>Verificar parênteses de n caracteres</td><td>O(n)</td><td>O(n) no pior caso</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>pilha.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+
+#define MAX 64
+
+typedef struct {
+    char dados[MAX];
+    int topo;                 /* índice do topo; -1 significa vazia */
+} Pilha;
+
+static void push(Pilha *p, char c) { p-&gt;dados[++p-&gt;topo] = c; }
+static char pop(Pilha *p)          { return p-&gt;dados[p-&gt;topo--]; }
+static int  vazia(const Pilha *p)  { return p-&gt;topo &lt; 0; }
+
+/* Devolve 1 se os parênteses, colchetes e chaves estão balanceados */
+static int balanceada(const char *expr) {
+    Pilha p = { .topo = -1 };
+    for (const char *s = expr; *s; s++) {
+        char c = *s;
+        if (c == '(' || c == '[' || c == '{') {
+            push(&amp;p, c);
+        } else if (c == ')' || c == ']' || c == '}') {
+            if (vazia(&amp;p)) return 0;            /* fechamento sem abertura */
+            char abre = pop(&amp;p);
+            if ((c == ')' &amp;&amp; abre != '(') ||
+                (c == ']' &amp;&amp; abre != '[') ||
+                (c == '}' &amp;&amp; abre != '{'))
+                return 0;                       /* pares não casam */
+        }
+    }
+    return vazia(&amp;p);                           /* sobrou abertura? */
+}
+
+int main(void) {
+    const char *testes[] = {"{[()]}", "{[(])}", "((()"};
+    for (int i = 0; i &lt; 3; i++)
+        printf("%-8s -&gt; %s\n", testes[i],
+               balanceada(testes[i]) ? "balanceada" : "não balanceada");
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>{[()]}</code> é balanceada; <code>{[(])}</code> e <code>((()</code> não são.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: validar parênteses</h3>
   <p class="ah-lead text-sm mb-4">A faixa de cima é a expressão, e o caractere atual fica destacado. À direita, a pilha com o topo em destaque. Compare as duas expressões.</p>
@@ -368,10 +777,77 @@ char topo = pilha.pop();  <span class="cm">// pop: sai do topo</span></code></pr
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Java: put e get são O(1) em média</span>
-Map&lt;String, Integer&gt; idades = new HashMap&lt;&gt;();
-idades.put("ana", 21);              <span class="cm">// calcula hash("ana") e vai ao balde</span>
-int i = idades.get("ana");          <span class="cm">// mesmo caminho para a leitura</span></code></pre>
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Caso médio, caso ruim</h4><p>No caso médio, com um bom espalhamento, cada balde tem cerca de α = n / M elementos. Buscar custa O(1 + α), e como α é mantido limitado, isso é O(1). No pior caso, todas as chaves caem no mesmo balde: a lista vira uma lista encadeada de tamanho n, e a busca custa O(n). Por isso a qualidade da função <code>h</code> importa. A função didática desta aula (soma dos códigos) é ruim: anagramas como <code>ab</code> e <code>ba</code> sempre colidem.</p><p>O <strong>espaço</strong> é O(M + n): o vetor de baldes mais um nó para cada chave. Quando α passa de um limite (por exemplo, 0,75), a tabela cresce e é reconstruída, o que custa O(n) naquele momento. Amortizado por inserção, o custo continua O(1) (CORMEN <em>et al.</em>, 2022, cap. 11; KNUTH, 1998, v. 3, seção 6.4).</p><p>A inserção do exemplo acrescenta no início da lista do balde, por isso a chave mais recente aparece primeiro.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Caso médio</th><th>Pior caso</th><th>Espaço</th></tr></thead><tbody><tr><td>Inserir</td><td>O(1)</td><td>O(n)</td><td>O(1) por chave</td></tr><tr><td>Buscar</td><td>O(1)</td><td>O(n)</td><td>—</td></tr><tr><td>Remover</td><td>O(1)</td><td>O(n)</td><td>—</td></tr><tr><td>Tabela inteira</td><td>—</td><td>—</td><td>O(M + n)</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>hash.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+#define M 5   /* número de baldes */
+
+typedef struct No {
+    char chave[16];
+    struct No *prox;      /* encadeamento: lista de colisões do balde */
+} No;
+
+/* Função didática: soma dos códigos dos caracteres, módulo M */
+static unsigned h(const char *s) {
+    unsigned soma = 0;
+    for (; *s; s++) soma += (unsigned char)*s;
+    return soma % M;
+}
+
+/* Inserção no início da lista do balde: O(1) */
+static void inserir(No *tab[], const char *chave) {
+    No *novo = malloc(sizeof *novo);
+    if (!novo) exit(1);
+    strcpy(novo-&gt;chave, chave);
+    unsigned b = h(chave);
+    novo-&gt;prox = tab[b];
+    tab[b] = novo;
+}
+
+/* Busca: custo médio O(1), mais o tamanho da lista do balde */
+static int buscar(No *tab[], const char *chave) {
+    for (No *p = tab[h(chave)]; p != NULL; p = p-&gt;prox)
+        if (strcmp(p-&gt;chave, chave) == 0) return 1;
+    return 0;
+}
+
+static void liberar(No *tab[]) {
+    for (int b = 0; b &lt; M; b++) {
+        No *p = tab[b];
+        while (p) {
+            No *seguinte = p-&gt;prox;
+            free(p);
+            p = seguinte;
+        }
+        tab[b] = NULL;
+    }
+}
+
+int main(void) {
+    No *tab[M] = {NULL};
+    const char *chaves[] = {"ana", "bia", "caio", "dani", "eva", "fabio"};
+
+    for (int i = 0; i &lt; 6; i++) {
+        inserir(tab, chaves[i]);
+        printf("h(\"%s\") = %u\n", chaves[i], h(chaves[i]));
+    }
+
+    printf("\nBaldes:\n");
+    for (int b = 0; b &lt; M; b++) {
+        printf("  %d:", b);
+        for (No *p = tab[b]; p; p = p-&gt;prox) printf(" %s", p-&gt;chave);
+        printf("\n");
+    }
+
+    printf("\nbusca \"dani\": %s\n", buscar(tab, "dani") ? "encontrada" : "não encontrada");
+    printf("busca \"zeca\": %s\n", buscar(tab, "zeca") ? "encontrada" : "não encontrada");
+    liberar(tab);
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>h("ana") = 4</code>, <code>h("caio") = 2</code>, <code>h("dani") = 2</code> e os baldes <code>0: bia · 1: eva · 2: dani caio · 3: fabio · 4: ana</code>. A busca de <code>dani</code> encontra; a de <code>zeca</code> não.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: inserir, colidir e buscar</h3>
   <p class="ah-lead text-sm mb-4">A função didática soma os códigos ASCII das letras e tira o resto da divisão por 5. Observe a colisão no balde 2 e a busca de <em>dani</em>.</p>
@@ -403,15 +879,73 @@ int i = idades.get("ana");          <span class="cm">// mesmo caminho para a lei
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Java: inserção recursiva em uma BST</span>
-class No { int v; No esq, dir; No(int v) { this.v = v; } }
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Recursão, altura e espaço</h4><p>A inserção desce um nível por chamada recursiva, então o tempo é proporcional à altura <code>h</code>. Em uma árvore razoavelmente balanceada, <code>h</code> é O(log n). Em uma árvore degenerada, como a da segunda parte do exemplo (valores de 1 a 5 inseridos em ordem), <code>h</code> é n − 1 e o tempo é O(n).</p><p>O <strong>espaço</strong> dos nós é O(n). A recursão também usa pilha de execução, de tamanho O(h): O(log n) no caso balanceado e O(n) no degenerado. Esse é um motivo prático para escrever a inserção de forma iterativa em árvores muito profundas. Percorrer a árvore inteira, em qualquer ordem, custa O(n), pois cada nó é visitado uma vez.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Tempo</th><th>Espaço extra</th></tr></thead><tbody><tr><td>Buscar, inserir ou remover</td><td>O(h): O(log n) balanceada; O(n) degenerada</td><td>O(h) de pilha (recursiva)</td></tr><tr><td>Percurso completo (em-ordem, pré-ordem, pós-ordem)</td><td>O(n)</td><td>O(h) de pilha (recursiva)</td></tr><tr><td>Guardar n nós</td><td>—</td><td>O(n)</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>arvore.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
 
-No inserir(No raiz, int v) {
-    if (raiz == null) return new No(v);
-    if (v &lt; raiz.v) raiz.esq = inserir(raiz.esq, v);
-    else if (v &gt; raiz.v) raiz.dir = inserir(raiz.dir, v);
-    return raiz;                      <span class="cm">// valores repetidos são ignorados</span>
-}</code></pre>
+typedef struct No {
+    int v;
+    struct No *esq, *dir;
+} No;
+
+static No *novo_no(int v) {
+    No *n = malloc(sizeof *n);
+    if (!n) exit(1);
+    n-&gt;v = v;
+    n-&gt;esq = n-&gt;dir = NULL;
+    return n;
+}
+
+/* Inserção recursiva: custo O(h), com h a altura da árvore */
+static No *inserir(No *raiz, int v) {
+    if (raiz == NULL) return novo_no(v);
+    if (v &lt; raiz-&gt;v)      raiz-&gt;esq = inserir(raiz-&gt;esq, v);
+    else if (v &gt; raiz-&gt;v) raiz-&gt;dir = inserir(raiz-&gt;dir, v);
+    return raiz;                                  /* repetidos são ignorados */
+}
+
+/* Percurso em-ordem: esquerda, raiz, direita */
+static void em_ordem(const No *raiz) {
+    if (raiz == NULL) return;
+    em_ordem(raiz-&gt;esq);
+    printf("%d ", raiz-&gt;v);
+    em_ordem(raiz-&gt;dir);
+}
+
+/* Número de níveis; a altura em arestas é este valor menos 1 */
+static int niveis(const No *raiz) {
+    if (raiz == NULL) return 0;
+    int e = niveis(raiz-&gt;esq), d = niveis(raiz-&gt;dir);
+    return 1 + (e &gt; d ? e : d);
+}
+
+static void liberar(No *raiz) {
+    if (raiz == NULL) return;
+    liberar(raiz-&gt;esq);
+    liberar(raiz-&gt;dir);
+    free(raiz);
+}
+
+int main(void) {
+    int seq[] = {50, 30, 70, 20, 40, 60, 80, 35};
+    No *raiz = NULL;
+    for (int i = 0; i &lt; 8; i++) raiz = inserir(raiz, seq[i]);
+
+    printf("em-ordem: ");
+    em_ordem(raiz);
+    printf("\naltura: %d arestas\n", niveis(raiz) - 1);
+
+    /* Caso ruim: valores já ordenados formam uma "lista" */
+    No *ruim = NULL;
+    for (int v = 1; v &lt;= 5; v++) ruim = inserir(ruim, v);
+    printf("inserindo 1..5 em ordem: altura %d arestas\n", niveis(ruim) - 1);
+
+    liberar(raiz);
+    liberar(ruim);
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>em-ordem: 20 30 35 40 50 60 70 80</code>, altura de 3 arestas; com valores de 1 a 5 em ordem, a altura sobe para 4 arestas.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: inserir oito valores e percorrer em-ordem</h3>
   <p class="ah-lead text-sm mb-4">Inserimos 50, 30, 70, 20, 40, 60, 80 e 35. Em cada inserção, o caminho percorrido fica destacado. Ao final, o percurso em-ordem revela a sequência ordenada.</p>
@@ -442,22 +976,84 @@ No inserir(No raiz, int v) {
     </p>
   </div>
 
-<pre class="ah-code"><code><span class="cm">// Java: lista de adjacências + BFS</span>
-Map&lt;String, List&lt;String&gt;&gt; adj = new HashMap&lt;&gt;();
-adj.computeIfAbsent("A", k -&gt; new ArrayList&lt;&gt;()).add("B");
+<div class="ah-prose mt-5"><h4 class="font-semibold text-white mt-2 mb-2">Quanto custa percorrer um grafo?</h4><p>Na BFS e na DFS, cada vértice entra uma vez na fila ou na pilha, e cada aresta é examinada uma vez (duas vezes no caso não dirigido, uma de cada lado). O tempo é O(V + E). Note que V + E não é sempre O(V²): em um grafo esparso, E é muito menor que V².</p><p>O <strong>espaço</strong> depende da representação. A lista de adjacências ocupa O(V + E). A matriz de adjacências ocupa O(V²), mesmo que o grafo tenha poucas arestas. O vetor <code>visitado</code> usa O(V), e a fila ou a pilha auxiliar usa O(V) no pior caso (CORMEN <em>et al.</em>, 2022, cap. 22). Na prática, a lista domina em grafos esparsos, que são o caso típico de redes e mapas.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Operação</th><th>Lista de adjacências</th><th>Matriz de adjacências</th></tr></thead><tbody><tr><td>Verificar se existe a aresta u–v</td><td>O(grau de u)</td><td>O(1)</td></tr><tr><td>Percorrer os vizinhos de u</td><td>O(grau de u)</td><td>O(V)</td></tr><tr><td>BFS ou DFS completa</td><td>O(V + E)</td><td>O(V²)</td></tr><tr><td>Espaço</td><td>O(V + E)</td><td>O(V²)</td></tr></tbody></table></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Exemplo prático em C · <code>grafo.c</code></p>
+<pre class="ah-code"><code>#include &lt;stdio.h&gt;
 
-void bfs(Map&lt;String, List&lt;String&gt;&gt; adj, String origem) {
-    Queue&lt;String&gt; fila = new ArrayDeque&lt;&gt;();
-    Set&lt;String&gt; marcados = new HashSet&lt;&gt;();
-    fila.offer(origem);
-    marcados.add(origem);
-    while (!fila.isEmpty()) {
-        String u = fila.poll();
-        System.out.println("visita " + u);
-        for (String v : adj.getOrDefault(u, List.of()))
-            if (marcados.add(v)) fila.offer(v);  <span class="cm">// add devolve false se já existia</span>
+#define V     7    /* vértices A..G, numerados 0..6 */
+#define GRAU  4    /* grau máximo usado nos exemplos */
+#define TAM   64   /* capacidade das filas e pilhas auxiliares */
+
+typedef struct {
+    int vizinhos[GRAU];
+    int n;         /* quantos vizinhos esse vértice tem */
+} Lista;
+
+/* Grafo não dirigido: cada aresta entra nas duas listas */
+static void aresta(Lista g[], int u, int v) {
+    g[u].vizinhos[g[u].n++] = v;
+    g[v].vizinhos[g[v].n++] = u;
+}
+
+/* BFS com fila: visita em camadas */
+static void bfs(const Lista g[], int origem) {
+    int visitado[V] = {0};
+    int fila[TAM], ini = 0, fim = 0;
+
+    fila[fim++] = origem;
+    visitado[origem] = 1;
+    while (ini &lt; fim) {
+        int u = fila[ini++];
+        printf("%c ", 'A' + u);
+        for (int k = 0; k &lt; g[u].n; k++) {
+            int v = g[u].vizinhos[k];
+            if (!visitado[v]) {
+                visitado[v] = 1;
+                fila[fim++] = v;
+            }
+        }
     }
-}</code></pre>
+    printf("\n");
+}
+
+/* DFS iterativa com pilha: empilha os vizinhos na ordem inversa */
+static void dfs(const Lista g[], int origem) {
+    int visitado[V] = {0};
+    int pilha[TAM], topo = 0;
+
+    pilha[topo++] = origem;
+    while (topo &gt; 0) {
+        int u = pilha[--topo];
+        if (visitado[u]) continue;
+        visitado[u] = 1;
+        printf("%c ", 'A' + u);
+        for (int k = g[u].n - 1; k &gt;= 0; k--) {
+            int v = g[u].vizinhos[k];
+            if (!visitado[v]) pilha[topo++] = v;
+        }
+    }
+    printf("\n");
+}
+
+int main(void) {
+    Lista g[V] = {{{0}, 0}};
+
+    /* Arestas: A-B, A-C, B-D, B-E, C-F, E-G, F-G */
+    aresta(g, 0, 1);
+    aresta(g, 0, 2);
+    aresta(g, 1, 3);
+    aresta(g, 1, 4);
+    aresta(g, 2, 5);
+    aresta(g, 4, 6);
+    aresta(g, 5, 6);
+
+    printf("BFS a partir de A: ");
+    bfs(g, 0);
+    printf("DFS a partir de A: ");
+    dfs(g, 0);
+    return 0;
+}
+</code></pre>
+<p class="ah-diagram-cap">Saída: <code>BFS a partir de A: A B C D E F G</code> e <code>DFS a partir de A: A B D E G F C</code>.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Animação: BFS e DFS no mesmo grafo</h3>
   <p class="ah-lead text-sm mb-4">O grafo tem sete vértices, todos alcançáveis a partir de <strong>A</strong>. Os vértices verdes já foram visitados; o âmbar é o vértice atual. A faixa de baixo mostra a estrutura auxiliar: fila na BFS, pilha na DFS.</p>
@@ -537,6 +1133,23 @@ void bfs(Map&lt;String, List&lt;String&gt;&gt; adj, String origem) {
       <button class="ah-quiz-opt">Tabela hash</button>
       <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A fila (FIFO) faz com que os vizinhos da origem sejam visitados antes dos vizinhos dos vizinhos.</p>
     </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um laço percorre o vetor e, dentro dele, outro laço percorre o vetor inteiro de novo. Qual é a complexidade temporal?</p>
+      <button class="ah-quiz-opt">O(n)</button>
+      <button class="ah-quiz-opt">O(n²)</button>
+      <button class="ah-quiz-opt">O(log n)</button>
+      <button class="ah-quiz-opt">O(2n)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Laços aninhados multiplicam: n passos externos, cada um com n internos, dão n² operações. A constante 2 seria descartada.</p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o fatorial iterativo tem complexidade espacial O(1), enquanto a versão recursiva tem O(n)?</p>
+      <button class="ah-quiz-opt">A iterativa usa um número fixo de variáveis; a recursiva cria um quadro na pilha para cada chamada pendente</button>
+      <button class="ah-quiz-opt">A recursiva não usa memória, apenas tempo</button>
+      <button class="ah-quiz-opt">As duas usam a mesma quantidade de memória</button>
+      <button class="ah-quiz-opt">A iterativa precisa de um vetor com n posições</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O espaço auxiliar cresce com a profundidade da recursão. Ambas executam O(n) passos, mas só a recursiva guarda n quadros ao mesmo tempo.</p>
+    </div>
   </div>
 </section>
 
@@ -552,6 +1165,9 @@ void bfs(Map&lt;String, List&lt;String&gt;&gt; adj, String origem) {
     <li>Tabelas hash dão acesso médio O(1) ao custo de tratar colisões e de redimensionar quando o fator de carga cresce.</li>
     <li>Árvores binárias de busca mantêm a ordem, com custo O(h). Balancear a árvore é o que garante O(log n).</li>
     <li>Grafos modelam relações arbitrárias. BFS (fila) dá caminhos mais curtos em grafos sem peso; DFS (pilha) serve para explorar e detectar ciclos.</li>
+    <li>Big-O descreve o <strong>crescimento</strong> do custo no pior caso, descartando constantes e termos menores. Compare O(log n), O(n), O(n log n) e O(n²) pela escala, não por um valor isolado.</li>
+    <li>A complexidade <strong>espacial</strong> conta a memória auxiliar. Recursão custa O(profundidade) em pilha de execução; estruturas auxiliares custam conforme o seu tamanho.</li>
+    <li>Em C, toda estimativa de custo precisa considerar o que o programador controla: tamanho de buffers, <code>malloc</code>/<code>free</code> e a recursão.</li>
   </ul>
 </section>
 
@@ -574,6 +1190,10 @@ void bfs(Map&lt;String, List&lt;String&gt;&gt; adj, String origem) {
     <li>ORACLE. <em>Java SE API Documentation</em>: classes <code>HashMap</code>, <code>ArrayDeque</code> e <code>PriorityQueue</code>. Disponível em: https://docs.oracle.com/en/java/javase/. Acesso em: out. 2026.</li>
     <li>SEDGEWICK, R.; WAYNE, K. <em>Algorithms</em>. 4. ed. Boston: Addison-Wesley, 2011.</li>
     <li>TARJAN, R. E. Depth-first search and linear graph algorithms. <em>SIAM Journal on Computing</em>, v. 1, n. 2, p. 146–160, 1972.</li>
+    <li>ISO/IEC. <em>ISO/IEC 9899:2018: Programming languages — C</em>. Genebra: ISO, 2018.</li>
+    <li>KERNIGHAN, B. W.; RITCHIE, D. M. <em>The C Programming Language</em>. 2. ed. Englewood Cliffs: Prentice Hall, 1988.</li>
+    <li>KNUTH, D. E. Big omicron and big omega and big theta. <em>SIGACT News</em>, v. 8, n. 2, p. 18–24, 1976.</li>
+    <li>KNUTH, D. E. <em>The Art of Computer Programming</em>, v. 1: <em>Fundamental Algorithms</em>. 3. ed. Reading, MA: Addison-Wesley, 1997.</li>
   </ul>
   <div class="ah-callout ah-callout-info mt-6">
     <i class="fa-solid fa-circle-info"></i>
@@ -751,7 +1371,7 @@ void bfs(Map&lt;String, List&lt;String&gt;&gt; adj, String origem) {
     } else if (op === 'insercao') {
       Q.push(fr(base, { t: 'Vamos inserir o valor <code>10</code> na posição 2. Os elementos a partir do índice 2 precisam andar uma casa para a direita, para abrir espaço.' }));
       const s = base.slice(); s.push(null);
-      Q.push(fr(s, { hl: [6], est: ESTILO.azul, t: 'Primeiro, criamos uma posição livre no fim (em Java, isso exige realocar o vetor se ele estiver cheio).' }));
+      Q.push(fr(s, { hl: [6], est: ESTILO.azul, t: 'Primeiro, criamos uma posição livre no fim (em C, isso exige <code>realloc</code> se o vetor estiver cheio).' }));
       for (let j = s.length - 1; j > 2; j--) {
         s[j] = s[j - 1];
         Q.push(fr(s, { hl: [j], est: ESTILO.azul, t: `Copia <code>${s[j]}</code> do índice ${j - 1} para o índice ${j}. Trabalhamos de trás para frente, para não sobrescrever valores.` }));
@@ -1283,6 +1903,180 @@ void bfs(Map&lt;String, List&lt;String&gt;&gt; adj, String origem) {
     if (!q.est.length) rotulo(ctx, 'vazia', 14, h - 24);
     q.est.forEach((v, k) => caixa(ctx, 14 + k * 44, h - 40, 38, 30, ESTILO.azul, v));
   }
+
+  /* ===================================================================
+     0. COMPLEXIDADE (BIG-O) E ESPAÇO
+     =================================================================== */
+  const CLASSES_BIGO = [
+    { nome: 'O(1)', f: n => 1, cor: '#34d399' },
+    { nome: 'O(log n)', f: n => Math.log2(n), cor: '#38bdf8' },
+    { nome: 'O(n)', f: n => n, cor: '#a3e635' },
+    { nome: 'O(n log n)', f: n => n * Math.log2(n), cor: '#fbbf24' },
+    { nome: 'O(n²)', f: n => n * n, cor: '#fb923c' },
+    { nome: 'O(2ⁿ)', f: n => Math.pow(2, n), cor: '#f43f5e' }
+  ];
+  const LOG_MAX = Math.log10(Math.pow(2, 256));
+
+  function fmtOps(v) {
+    if (v < 1e6) return String(Math.round(v));
+    return '10^' + Math.round(Math.log10(v));
+  }
+
+  function geraBigO() {
+    const Q = [];
+    const dicas = {
+      8: 'Com n = 8, O(n²) já vale 64 e O(2ⁿ) vale 256: a exponencial começa a se separar.',
+      32: 'Com n = 32, O(2ⁿ) passa de um bilhão, e O(n²) ainda vale só 1024. O logaritmo quase não se move.',
+      256: 'Com n = 256, O(2ⁿ) tem 78 dígitos. Um computador de 10⁹ operações por segundo levaria mais tempo que a idade do universo.'
+    };
+    [2, 4, 8, 16, 32, 64, 128, 256].forEach((n, k) => {
+      const resumo = CLASSES_BIGO.map(c => c.nome + ': ' + fmtOps(c.f(n))).join(' · ');
+      const dica = dicas[n] ? ' ' + dicas[n] : '';
+      Q.push({ n, t: (k === 0 ? 'Cada barra mostra quantas operações cada classe executa para um n. A altura é proporcional ao logaritmo do valor, porque a escala vai de 1 a 10⁷⁷. ' : '') + '<strong>n = ' + n + '</strong>. ' + resumo + '.' + dica });
+    });
+    Q.push({ n: 256, t: 'Resumo ao dobrar n: O(log n) ganha uma unidade; O(n) dobra; O(n log n) quase dobra; O(n²) quadruplica; e O(2ⁿ) passa a ser o quadrado do valor anterior, pois 2²ⁿ = (2ⁿ)².' });
+    return Q;
+  }
+
+  function desenhaBigO(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const base = h - 46, topo = 30;
+    const bw = (w - 40) / CLASSES_BIGO.length;
+    CLASSES_BIGO.forEach((c, k) => {
+      const v = c.f(q.n);
+      const bh = (base - topo) * (Math.log10(v) + 1) / (LOG_MAX + 1);
+      const x = 20 + k * bw + bw * 0.18, larg = bw * 0.64;
+      AH.roundRect(ctx, x, base - bh, larg, bh, 4);
+      ctx.globalAlpha = 0.8; ctx.fillStyle = c.cor; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = CORES.txt;
+      ctx.font = '600 11px "Fira Code", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(fmtOps(v), x + larg / 2, base - bh - 4);
+      ctx.fillStyle = CORES.mudo; ctx.textBaseline = 'top';
+      ctx.font = '600 11px Inter, system-ui, sans-serif';
+      ctx.fillText(c.nome, x + larg / 2, base + 8);
+    });
+    rotulo(ctx, 'n = ' + q.n + ' · escala logarítmica', 16, 14, CORES.azulBorda);
+  }
+
+  function geraContagem(tipo) {
+    const Q = [];
+    const n = tipo === 'log' ? 16 : 8;
+    const a = Array.from({ length: n }, (_, k) => k + 1);
+    const intervalo = m => Array.from({ length: m }, (_, k) => k);
+    let ops = 0;
+    const fr = (hl, t) => Q.push({ a, n, hl, ops, t });
+
+    if (tipo === 'const') {
+      fr([], 'Ler o primeiro elemento: <code>a[0]</code>. É uma operação, <strong>O(1)</strong>, qualquer que seja o tamanho do vetor (aqui n = ' + n + ').');
+      ops = 1;
+      fr([0], 'Operações: ' + ops + '. O custo não depende de n.');
+    } else if (tipo === 'linear') {
+      fr([], 'Somar todos os elementos: <code>for (i = 0; i &lt; n; i++)</code>. Cada volta custa uma operação, então o total é <strong>O(n)</strong>.');
+      for (let i = 0; i < n; i++) {
+        ops++;
+        fr([i], 'i = ' + i + ': somamos a[' + i + '] = ' + a[i] + '. Operações até agora: ' + ops + '.');
+      }
+      fr([], 'Fim: ' + ops + ' operações para n = ' + n + '. Dobrar n dobra o trabalho.');
+    } else if (tipo === 'quad') {
+      fr([], 'Comparar todos os pares: um laço dentro de outro. Para cada i, o interno percorre todos os j. São <strong>n × n</strong> operações: <strong>O(n²)</strong>.');
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          ops++;
+          fr([i, j], 'i = ' + i + ', j = ' + j + ': comparamos a[i] com a[j]. Operações: ' + ops + '.');
+        }
+      }
+      fr([], 'Fim: ' + ops + ' = ' + n + '² operações. Dobrar n quadruplica o trabalho.');
+    } else {
+      fr(intervalo(n), 'Dividir ao meio: a janela começa com ' + n + ' elementos. Quantas vezes dá para dividir ' + n + ' por 2 até chegar a 1? É log₂ n: <strong>O(log n)</strong>.');
+      let m = n;
+      while (m > 1) {
+        ops++;
+        m = Math.floor(m / 2);
+        fr(intervalo(m), 'Divide ao meio: a janela tem ' + m + ' elementos. Operações: ' + ops + '.');
+      }
+      fr([], 'Fim: ' + ops + ' operações = log₂ ' + n + '. Dobrar n acrescenta apenas uma operação.');
+    }
+    return Q;
+  }
+
+  function desenhaContagem(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const cw = Math.min(64, (w - 40) / q.n), x0 = (w - cw * q.n) / 2, y = h * 0.34, ch = 52;
+    q.a.forEach((v, k) => {
+      const s = q.hl.includes(k) ? ESTILO.hl : ESTILO.normal;
+      caixa(ctx, x0 + k * cw + 3, y, cw - 6, ch, s, String(v), k);
+    });
+    rotulo(ctx, 'operações: ' + q.ops, 16, 14, CORES.azulBorda);
+  }
+
+  function geraEspaco(tipo) {
+    const Q = [], n = 5;
+    if (tipo === 'rec') {
+      const pilha = [];
+      Q.push({ pilha: [], t: '<strong>fat(n) recursivo</strong>, com n = ' + n + '. Cada chamada espera o resultado da próxima, então cada uma continua <em>viva</em> num quadro próprio da pilha de execução.' });
+      for (let k = n; k >= 1; k--) {
+        pilha.push('fat(' + k + ')');
+        Q.push({ pilha: [...pilha], t: 'Chamada fat(' + k + ') empilhada. Quadros em uso: ' + pilha.length + '. ' + (k > 1 ? 'Ela chama fat(' + (k - 1) + ') e espera o resultado.' : 'Caso base: devolve 1.') });
+      }
+      while (pilha.length) {
+        const topo = pilha.pop();
+        Q.push({ pilha: [...pilha], t: topo + ' devolve seu valor e o quadro é liberado. Quadros restantes: ' + pilha.length + '.' });
+      }
+      Q.push({ pilha: [], t: 'Espaço auxiliar: <strong>O(n)</strong>, pois o pico foi de ' + n + ' quadros ao mesmo tempo. O tempo também é O(n).' });
+    } else {
+      Q.push({ r: 1, i: 1, t: '<strong>fat(n) iterativo</strong>, com n = ' + n + '. Usamos só duas variáveis, <code>r</code> e <code>i</code>, quaisquer que sejam os valores de n.' });
+      let r = 1;
+      for (let i = 2; i <= n; i++) {
+        r *= i;
+        Q.push({ r, i, t: 'i = ' + i + ': r = r × i = ' + r + '. As mesmas duas variáveis são reaproveitadas.' });
+      }
+      Q.push({ r, i: n, t: 'Resultado ' + r + '. Espaço auxiliar: <strong>O(1)</strong>. O tempo continua O(n), porque o laço dá n voltas.' });
+    }
+    return Q;
+  }
+
+  function desenhaEspaco(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    if (q.pilha) {
+      const bw = Math.min(200, w * 0.4), x = (w - bw) / 2, ch = 34, base = h - 16;
+      rotulo(ctx, 'pilha de execução (memória)', 16, 14);
+      q.pilha.forEach((nome, k) => {
+        const y = base - (k + 1) * (ch + 6);
+        caixa(ctx, x, y, bw, ch, k === q.pilha.length - 1 ? ESTILO.azul : ESTILO.normal, nome);
+      });
+      if (!q.pilha.length) rotulo(ctx, 'pilha vazia', x, base - ch / 2, CORES.mudo, 'left');
+    } else {
+      rotulo(ctx, 'variáveis locais (tamanho fixo)', 16, 14);
+      caixa(ctx, w / 2 - 130, h / 2 - 30, 110, 60, ESTILO.azul, 'r = ' + q.r);
+      caixa(ctx, w / 2 + 20, h / 2 - 30, 110, 60, ESTILO.hl, 'i = ' + q.i);
+    }
+  }
+
+  criaAnimacao({
+    canvas: 'cvBigO', ctl: 'ctlBigO', cap: 'capBigO',
+    desenha: desenhaBigO, gera: geraBigO, velocidade: 1600
+  });
+
+  criaAnimacao({
+    canvas: 'cvContagem', ctl: 'ctlContagem', cap: 'capContagem',
+    desenha: desenhaContagem, gera: geraContagem, velocidade: 650,
+    opcoes: [
+      { v: 'const', rotulo: 'O(1): ler a[0]' },
+      { v: 'linear', rotulo: 'O(n): somar o vetor' },
+      { v: 'log', rotulo: 'O(log n): dividir ao meio' },
+      { v: 'quad', rotulo: 'O(n²): comparar pares' }
+    ]
+  });
+
+  criaAnimacao({
+    canvas: 'cvEspaco', ctl: 'ctlEspaco', cap: 'capEspaco',
+    desenha: desenhaEspaco, gera: geraEspaco, velocidade: 1100,
+    opcoes: [
+      { v: 'rec', rotulo: 'Recursivo: O(n) de pilha' },
+      { v: 'it', rotulo: 'Iterativo: O(1) de memória extra' }
+    ]
+  });
 
   /* ===================================================================
      Instâncias das animações (uma por seção)

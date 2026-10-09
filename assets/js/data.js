@@ -188,8 +188,8 @@ const AH_DATA = {
         'Como organizar dados na memória para que as operações sejam rápidas: vetores, matrizes, ordenação e busca, filas, pilhas, tabelas hash, árvores e grafos.',
       topicos: [
         { id: '01-estruturas-de-dados-fundamentais', titulo: 'Estruturas de Dados Fundamentais', icone: 'fa-table-cells',
-          resumo: 'Vetores, matrizes, ordenação, busca binária, filas, pilhas, tabelas hash, árvores e grafos — cada um com animação passo a passo e referências.',
-          tags: ['Vetores', 'Ordenação', 'Árvores', 'Grafos'], nivel: 'Fundamental', minutos: 75 }
+          resumo: 'Big-O (tempo e espaço), vetores, matrizes, ordenação, busca binária, filas, pilhas, tabelas hash, árvores e grafos — com animações, código em C e referências.',
+          tags: ['Big-O', 'Vetores', 'Ordenação', 'Árvores', 'Grafos', 'C'], nivel: 'Fundamental', minutos: 100 }
       ]
     }
   ]
