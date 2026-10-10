@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificação Formal de Modelos (Model Checking) · AcademicHub</title>
+<meta name="description" content="Explorar todos os estados alcançáveis de um sistema para provar invariantes, obter contraexemplos mínimos e entender por que a engenharia de sistemas de grande escala usa métodos formais.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/verificacao-modelos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="ideia" data-toc="Testar não basta: verificar todo o espaço" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Testar não basta: verificar todo o espaço</h2>
+  <div class="ah-prose">
+
+<p>Testes exploram alguns caminhos. Um <strong>model checker</strong> explora <em>todos</em> os estados alcançáveis de um modelo finito e verifica uma propriedade em cada um. Se a propriedade falha, devolve um <strong>contraexemplo</strong>: a sequência de ações que leva ao problema.</p>
+<p>Edmund Clarke, E. Allen Emerson e Joseph Sifakis receberam o Prêmio Turing de 2007 por essa técnica, desenvolvida a partir do trabalho de 1981 sobre lógica temporal de árvore de computação (CTL).</p>
+
+  </div>
+</section>
+
+<section id="formal" data-toc="Segurança e vivacidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Segurança e vivacidade</h2>
+  <div class="ah-prose">
+
+<p>Propriedades se dividem em duas classes:</p>
+<ul>
+<li><strong>Segurança (safety):</strong> “nada ruim acontece”. Ex.: o saldo nunca fica negativo. Um estado proibido é alcançado? Se sim, há um contraexemplo finito.</li>
+<li><strong>Vivacidade (liveness):</strong> “algo bom acontece eventualmente”. Ex.: toda assinatura suspensa é regularizada ou cancelada. Exige analisar caminhos infinitos.</li>
+</ul>
+<p>O projeto verifica segurança: a busca em largura (BFS) explora os estados e, se acha uma violação, o caminho encontrado é o mais curto possível, porque a BFS visita por distância.</p>
+
+  </div>
+</section>
+
+<section id="modelo" data-toc="O modelo verificado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>O modelo verificado</h2>
+  <div class="ah-prose">
+
+<div class="ah-diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; ATIVA
+    ATIVA --&gt; SUSPENSA : cobrança sem saldo
+    SUSPENSA --&gt; ATIVA : regularizar
+    ATIVA --&gt; CANCELADA : cancelar
+    SUSPENSA --&gt; CANCELADA : cancelar
+    CANCELADA --&gt; [*]
+</pre>
+</div>
+<p class="ah-diagram-cap">O modelo do exemplo acrescenta o saldo como variável de estado (0 a 2 unidades). O checker verifica duas propriedades: saldo dentro dos limites, e <code>CANCELADA</code> como estado final (regra R4).</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>O projeto explora o espaço de estados com BFS e verifica os invariantes. No modelo correto, as duas propriedades valem em todos os 9 estados alcançáveis. No modelo com o defeito de reativação, o checker encontra a violação com o caminho <code>depositar, cancelar</code>, que é o mais curto possível.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/model-checking/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/model-checking/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/model-checking
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== Modelo correto ===
+  [saldo entre 0 e 2] estados alcançáveis: 9
+OK: saldo entre 0 e 2 em todo estado
+  [cancelada é final] estados alcançáveis: 9
+OK: cancelada é final em todo estado
+
+=== Modelo com defeito (reativação de cancelada) ===
+VIOLADO em Estado[status=CANCELADA, saldo=1] após [depositar, cancelar]</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * Verificação de modelos por exploração explícita de estados (model checking, BFS).
+ * Modelamos a assinatura como um sistema de transições e verificamos invariantes em TODOS
+ * os estados alcançáveis. Se uma propriedade falha, o checker devolve um contraexemplo.
+ */
+public class Main {
+
+    enum Status { ATIVA, SUSPENSA, CANCELADA }
+
+    /** Estado abstrato: status + saldo em &quot;unidades de cobrança&quot; (0..2). */
+    record Estado(Status status, int saldo) {}
+
+    /** Um passo do sistema: nome da ação e o estado resultante. */
+    record Passo(String acao, Estado para) {}
+
+    /** Transições. O parâmetro &#x27;bugReativacao&#x27; liga um defeito deliberado para o checker encontrar. */
+    static List&lt;Passo&gt; sucessores(Estado e, boolean bugReativacao) {
+        List&lt;Passo&gt; out = new ArrayList&lt;&gt;();
+        // cobrança mensal: se houver saldo, cobra; se não, suspende (R3)
+        if (e.status() != Status.CANCELADA) {
+            if (e.saldo() &gt;= 1) out.add(new Passo(&quot;cobrar&quot;, new Estado(Status.ATIVA, e.saldo() - 1)));
+            else                out.add(new Passo(&quot;cobrar&quot;, new Estado(Status.SUSPENSA, e.saldo())));
+        }
+        // depósito: até 2 unidades
+        if (e.saldo() &lt; 2) out.add(new Passo(&quot;depositar&quot;, new Estado(e.status(), e.saldo() + 1)));
+        // regularizar pagamento: suspensa volta a ativa (com saldo)
+        if (e.status() == Status.SUSPENSA &amp;&amp; e.saldo() &gt;= 1)
+            out.add(new Passo(&quot;regularizar&quot;, new Estado(Status.ATIVA, e.saldo())));
+        // cancelar: a partir de ATIVA ou SUSPENSA
+        if (e.status() != Status.CANCELADA)
+            out.add(new Passo(&quot;cancelar&quot;, new Estado(Status.CANCELADA, e.saldo())));
+        // BUG deliberado: reativar uma cancelada (R4 violada)
+        if (bugReativacao &amp;&amp; e.status() == Status.CANCELADA &amp;&amp; e.saldo() &gt;= 1)
+            out.add(new Passo(&quot;reativar(bug)&quot;, new Estado(Status.ATIVA, e.saldo())));
+        return out;
+    }
+
+    /** Resultado: invariante violado com o caminho até ele, ou vazio se vale em todo o espaço. */
+    record Violacao(Estado estado, List&lt;String&gt; caminho) {}
+
+    interface Invariante { boolean vale(Estado e); }
+
+    static Optional&lt;Violacao&gt; verificar(Estado inicial, boolean bug, Invariante inv, String nome) {
+        Set&lt;Estado&gt; visitados = new HashSet&lt;&gt;();
+        // a fila guarda (estado, caminho até ele): BFS garante o contraexemplo mais curto
+        ArrayDeque&lt;Object[]&gt; fila = new ArrayDeque&lt;&gt;();
+        fila.add(new Object[]{inicial, new ArrayList&lt;String&gt;()});
+        visitados.add(inicial);
+        while (!fila.isEmpty()) {
+            Object[] item = fila.poll();
+            Estado atual = (Estado) item[0];
+            @SuppressWarnings(&quot;unchecked&quot;) List&lt;String&gt; caminho = (List&lt;String&gt;) item[1];
+            if (!inv.vale(atual)) return Optional.of(new Violacao(atual, caminho));
+            for (Passo p : sucessores(atual, bug)) {
+                if (visitados.add(p.para())) {
+                    List&lt;String&gt; novo = new ArrayList&lt;&gt;(caminho);
+                    novo.add(p.acao());
+                    fila.add(new Object[]{p.para(), novo});
+                }
+            }
+        }
+        System.out.println(&quot;  [&quot; + nome + &quot;] estados alcançáveis: &quot; + visitados.size());
+        return Optional.empty();
+    }
+
+    public static void main(String[] args) {
+        Estado inicio = new Estado(Status.ATIVA, 0);
+
+        Invariante saldoNaoNegativo = e -&gt; e.saldo() &gt;= 0 &amp;&amp; e.saldo() &lt;= 2;
+        Invariante canceladaEhFinal = e -&gt; e.status() != Status.CANCELADA || sucessores(e, false).stream()
+                .allMatch(p -&gt; p.para().status() == Status.CANCELADA);   // nada sai de CANCELADA
+
+        System.out.println(&quot;=== Modelo correto ===&quot;);
+        System.out.println(verificar(inicio, false, saldoNaoNegativo, &quot;saldo entre 0 e 2&quot;)
+                .map(v -&gt; &quot;VIOLADO &quot; + v).orElse(&quot;OK: saldo entre 0 e 2 em todo estado&quot;));
+        System.out.println(verificar(inicio, false, canceladaEhFinal, &quot;cancelada é final&quot;)
+                .map(v -&gt; &quot;VIOLADO &quot; + v).orElse(&quot;OK: cancelada é final em todo estado&quot;));
+
+        System.out.println(&quot;\n=== Modelo com defeito (reativação de cancelada) ===&quot;);
+        // Para o defeito, a propriedade é checada sobre os sucessores do modelo buggy
+        Invariante canceladaEhFinalBug = e -&gt; e.status() != Status.CANCELADA
+                || sucessores(e, true).stream().allMatch(p -&gt; p.para().status() == Status.CANCELADA);
+        System.out.println(verificar(inicio, true, canceladaEhFinalBug, &quot;cancelada é final&quot;)
+                .map(v -&gt; &quot;VIOLADO em &quot; + v.estado() + &quot; após &quot; + v.caminho())
+                .orElse(&quot;OK&quot;));
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="ferramentas" data-toc="Ferramentas da indústria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Ferramentas da indústria</h2>
+  <div class="ah-prose">
+
+<p>Modelos reais usam linguagens dedicadas: <strong>TLA+</strong> (Lamport), usado para desenhar protocolos de sistemas distribuídos; <strong>Alloy</strong> (Jackson), para modelos relacionais; <strong>SPIN</strong> (Holzmann), para protocolos concorrentes. Newcombe et al. (2015) relatam o uso de métodos formais pela Amazon Web Services para encontrar falhas de projeto em serviços críticos antes de chegarem à produção. A lição para a modelagem: um modelo precisa de propriedades escritas explicitamente, senão não há o que verificar.</p>
+
+  </div>
+</section>
+
+<section id="limites" data-toc="Limites: explosão de estados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Limites: explosão de estados</h2>
+  <div class="ah-prose">
+
+<p>O número de estados cresce exponencialmente com o número de variáveis. Por isso, o checker explícito deste exemplo serve para modelos pequenos, e ferramentas reais usam técnicas como abstração, redução por simetria e representações simbólicas (BDDs). Um modelo bem abstraído é o que torna a verificação viável: a arte está em escolher o que modelar.</p>
+
+  </div>
+</section>
+
+<section id="cenario" data-toc="Cenário real: cobrança recorrente com retentativas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Cenário real: cobrança recorrente com retentativas</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um serviço de assinatura cobra o cliente mensalmente por meio de um gateway externo. Quando a resposta demora demais, o sistema reenvia a cobrança. O gateway pode ter processado a primeira tentativa mesmo sem responder.</p><h3 class="ah-h3 mt-6 mb-2">O defeito que o modelo encontra</h3>
+<p>O checker explora todas as combinações de respostas: aprovação, recusa e timeout, nessa ordem e em qualquer ordem possível. O caminho mínimo que viola a regra “nunca cobrar duas vezes” é <code>enviar, recusar, enviar</code> (o modelo supõe que o gateway registra a primeira tentativa mesmo quando a resposta não chega ao sistema; o caso real mais comum é o timeout, que segue o mesmo caminho). Esse é o tipo de defeito que testes de caminho feliz não encontram.</p><h3 class="ah-h3 mt-6 mb-2">A correção: idempotência</h3>
+<p>Cada cobrança recebe uma <strong>chave de idempotência</strong> gerada uma vez. As retentativas reenviam a mesma chave, e o gateway devolve o resultado da primeira em vez de cobrar de novo. No modelo, isso corresponde a reutilizar a mesma cobrança. O checker verifica que, com a correção, nenhum estado alcançável tem duas cobranças.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Modele os estados e as respostas possíveis do sistema externo, inclusive as que você não controla.</li>
+<li>Escreva as propriedades de segurança (“nunca duas cobranças”) explicitamente, antes de implementar.</li>
+<li>Rode o checker sobre o modelo a cada mudança de fluxo, e use o caminho mínimo como caso de teste de regressão.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Modelar só o caminho feliz. Um modelo que não tem timeout nunca vai encontrar o defeito, porque o timeout é exatamente a situação em que o sistema não sabe o que aconteceu.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Ferramentas como TLA+ e Alloy exigem um investimento de aprendizado. O checker deste exemplo serve para modelos pequenos. Em sistemas grandes, o valor está em modelar a parte crítica (pagamento, estoque, identidade), e não o sistema inteiro.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/model-checking-cobranca/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/model-checking-cobranca/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/model-checking-cobranca
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== Sem chave de idempotência ===
+VIOLADO. Caminho mínimo: [enviar, recusar, enviar]
+
+=== Com chave de idempotência (retentativas reutilizam a mesma cobrança) ===
+  estados alcançáveis: 5
+OK: nenhuma cobrança duplicada em todo o espaço de estados</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: cobrança de assinatura com retentativas.
+ * Uma requisição pode dar timeout DEPOIS de o gateway já ter cobrado. Sem chave de idempotência,
+ * a retentativa cobra de novo: o cliente paga duas vezes. Este checker encontra o caminho
+ * que leva a essa situação, e verifica a versão com idempotência.
+ */
+public class Main {
+
+    enum Status { NOVO, PROCESSANDO, APROVADO, RECUSADO, TIMEOUT }
+
+    /** cobrancas = quantas cobranças reais o gateway registrou (limitado a 2 para tornar o espaço finito). */
+    record Estado(Status status, int cobrancas) {}
+    record Passo(String acao, Estado para) {}
+
+    static List&lt;Passo&gt; sucessores(Estado e, boolean comIdempotencia) {
+        List&lt;Passo&gt; out = new ArrayList&lt;&gt;();
+        // Enviar: novo envio ou retentativa após timeout/recusa
+        if (e.status() == Status.NOVO || e.status() == Status.TIMEOUT || e.status() == Status.RECUSADO) {
+            int cob = comIdempotencia ? Math.max(1, e.cobrancas()) : Math.min(e.cobrancas() + 1, 2);
+            out.add(new Passo(&quot;enviar&quot;, new Estado(Status.PROCESSANDO, cob)));
+        }
+        if (e.status() == Status.PROCESSANDO) {
+            out.add(new Passo(&quot;aprovar&quot;, new Estado(Status.APROVADO, e.cobrancas())));
+            out.add(new Passo(&quot;recusar&quot;, new Estado(Status.RECUSADO, e.cobrancas())));
+            out.add(new Passo(&quot;timeout&quot;, new Estado(Status.TIMEOUT, e.cobrancas())));
+        }
+        return out;
+    }
+
+    /** Verifica um invariante em todo estado alcançável (BFS). Devolve o caminho até a violação. */
+    static Optional&lt;List&lt;String&gt;&gt; verificar(boolean comIdempotencia, java.util.function.Predicate&lt;Estado&gt; inv) {
+        Estado inicio = new Estado(Status.NOVO, 0);
+        Set&lt;Estado&gt; visitados = new HashSet&lt;&gt;(Set.of(inicio));
+        ArrayDeque&lt;Map.Entry&lt;Estado, List&lt;String&gt;&gt;&gt; fila = new ArrayDeque&lt;&gt;();
+        fila.add(Map.entry(inicio, List.of()));
+        while (!fila.isEmpty()) {
+            var item = fila.poll();
+            if (!inv.test(item.getKey())) return Optional.of(item.getValue());
+            for (Passo p : sucessores(item.getKey(), comIdempotencia)) {
+                if (visitados.add(p.para())) {
+                    List&lt;String&gt; caminho = new ArrayList&lt;&gt;(item.getValue());
+                    caminho.add(p.acao());
+                    fila.add(Map.entry(p.para(), caminho));
+                }
+            }
+        }
+        System.out.println(&quot;  estados alcançáveis: &quot; + visitados.size());
+        return Optional.empty();
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        // Propriedade de segurança: nunca cobrar o cliente duas vezes pelo mesmo pedido
+        java.util.function.Predicate&lt;Estado&gt; cobradoUmaVez = e -&gt; e.cobrancas() &lt;= 1;
+
+        System.out.println(&quot;=== Sem chave de idempotência ===&quot;);
+        verificar(false, cobradoUmaVez).ifPresentOrElse(
+                caminho -&gt; System.out.println(&quot;VIOLADO. Caminho mínimo: &quot; + caminho),
+                () -&gt; System.out.println(&quot;OK&quot;));
+
+        System.out.println(&quot;\n=== Com chave de idempotência (retentativas reutilizam a mesma cobrança) ===&quot;);
+        verificar(true, cobradoUmaVez).ifPresentOrElse(
+                caminho -&gt; System.out.println(&quot;VIOLADO: &quot; + caminho),
+                () -&gt; System.out.println(&quot;OK: nenhuma cobrança duplicada em todo o espaço de estados&quot;));
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Adicione a propriedade “o saldo nunca passa de 2”. Ela já é garantida pelo modelo? Como provar?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> sim, pela guarda do depósito (<code>saldo &lt; 2</code>). O checker confirma: a propriedade é verificada em todos os estados alcançáveis. Escreva o invariante explicitamente no código, para que mudanças futuras no modelo a derrubem.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Mostre por que “toda assinatura suspensa eventualmente volta a ativa” é uma propriedade de vivacidade, e não de segurança.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> ela fala de um futuro indefinido (“eventualmente”). Um estado não basta como evidência, porque a violação seria um ciclo infinito de suspensão sem saída. Verificá-la exige análise de caminhos infinitos (por exemplo, com lógica temporal LTL), não de uma busca finita.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>CLARKE, E.; EMERSON, E.; SIFAKIS, J. Prêmio Turing de 2007 e artigos de referência sobre model checking.</li>
+<li>LAMPORT, Leslie. <em>Specifying Systems: The TLA+ Language and Tools</em>. Addison-Wesley, 2002.</li>
+<li>NEWCOMBE, C. et al. “How Amazon Web Services Uses Formal Methods”, <em>Communications of the ACM</em>, 2015.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

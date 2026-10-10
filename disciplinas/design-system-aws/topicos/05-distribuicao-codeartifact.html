@@ -156,6 +156,85 @@ Migração: troque `tamanho="sm"` por `size="sm"` em todos os usos.</code></pre>
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos mostram quais versões um intervalo aceita, como consultar o histórico de publicações, como depreciar uma versão com problema e como um changeset cobre dois pacotes de uma vez.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Quais versões cada intervalo aceita?</h3>
+  <div class="ah-prose">
+    <p>
+      O intervalo de versão decide o que o gerenciador instala quando alguém roda <code>npm install</code>. Considere um conjunto de
+      versões publicadas: 1.4.1, 1.4.2, 1.4.9, 1.5.0 e 2.0.0. A tabela mostra o que cada intervalo escolhe.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Intervalo</th><th>Escolhe</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><code>1.4.2</code> (exato)</td><td>1.4.2</td><td>Só aceita a versão indicada</td></tr>
+        <tr><td><code>~1.4.2</code></td><td>1.4.9</td><td>Aceita patches: mesmo minor, versão de patch igual ou maior</td></tr>
+        <tr><td><code>^1.4.2</code></td><td>1.5.0</td><td>Aceita minor e patch: qualquer versão 1.x igual ou acima de 1.4.2</td></tr>
+        <tr><td><code>^0.4.2</code></td><td>0.4.x apenas</td><td>Em versões 0.x, o minor já é tratado como quebra; o intervalo fica preso ao 0.4</td></tr>
+        <tr><td><code>&gt;=1.4.2 &lt;2.0.0</code></td><td>1.5.0</td><td>Equivalente a ^1.4.2, escrito de forma explícita</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o intervalo é uma promessa do consumidor. <code>^1.4.2</code> diz “aceito qualquer 1.x a partir da
+      1.4.2”, e isso só é seguro se o time do design system respeitar o SemVer. Por isso o caso <code>^0.4.2</code> merece atenção: a
+      convenção é que, antes da 1.0.0, qualquer versão pode quebrar. Se o design system ainda estiver em 0.x, o consumidor precisa ser
+      avisado de que o minor também é potencialmente quebra.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Consultando e depreciando versões</h3>
+  <div class="ah-prose">
+    <p>
+      Depois de publicar, duas perguntas são comuns: quais versões existem e como avisar quem usa uma delas com problema. O npm responde
+      às duas com comandos simples. A depreciação não remove a versão; ela exibe um aviso no instalador.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · consulta e depreciação</p>
+<pre class="ah-code"><code># lista todas as versões publicadas no repositório configurado
+npm view @sua-org/design-system versions --json
+
+# marca a 1.4.2 como depreciada, com a versão a usar
+npm deprecate "@sua-org/design-system@1.4.2" "Problema de foco no Safari. Use 1.4.3 ou superior."</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a depreciação é reversível e não quebra instalações existentes, porque a versão continua disponível.
+      Quem tem a 1.4.2 no lockfile recebe o aviso no próximo <code>npm install</code> e migra quando puder. Remover a versão seria pior: quebra
+      builds que já dependem dela.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Um changeset para dois pacotes</h3>
+  <div class="ah-prose">
+    <p>
+      Num monorepo, uma mudança pode tocar mais de um pacote. O changeset declara o tipo de mudança para cada um. Assim, o pacote de tokens
+      recebe um patch enquanto o de componentes recebe um minor, e o changelog de cada um mostra apenas o que lhe diz respeito.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Markdown · <code>.changeset/foco-e-variante.md</code></p>
+<pre class="ah-code"><code>---
+"@sua-org/design-system": minor
+"@sua-org/design-tokens": patch
+---
+
+Nova variante `fantasma` no Button. Correção do token de cor de foco,
+que estava abaixo de 3:1 contra o fundo claro.</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o changesets calcula a versão de cada pacote separadamente e atualiza as dependências internas. Se o
+      componente depende dos tokens, o pacote de componentes sobe junto quando necessário. Escreva a descrição pensando no consumidor: ela
+      vai para o changelog, e é ela que o time de produto lê.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

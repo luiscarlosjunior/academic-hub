@@ -108,6 +108,14 @@
   <div id="capAnel" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="carga-animacao" data-toc="Animação: carga com nós virtuais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-sky-400 mr-2"></i>Animação · Quem recebe as 600 chaves</h2>
+  <p class="ah-lead text-sm mb-4">600 chaves são distribuídas entre quatro servidores, e depois entra um quinto. Em "Um ponto por servidor", a carga fica desigual. Em "40 pontos por servidor", ela se acomoda perto da média. Cada barra é a quantidade de chaves de um servidor.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvCarga" style="height:320px"></canvas></div>
+  <div id="ctlCarga" class="mt-4"></div>
+  <div id="capCarga" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: balanceamento e movimento" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Balanceamento, movimento e CAP</h2>
   <div class="ah-prose">
@@ -211,6 +219,72 @@
       <div class="text-xs font-bold text-sky-300 mb-1">Rede social</div>
       <p class="text-xs text-slate-400">Se o contador de curtidas está atrasado em uma região, o usuário ainda vê a página. Disponibilidade é prioridade, e a consistência é eventual: é AP com EL.</p>
     </div>
+  </div>
+</section>
+
+<section id="rebalanceamento" data-toc="Aprofundamento: rebalanceamento e limites de carga" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-sky-400 mr-2"></i>Aprofundamento · Rebalanceamento, réplicas e hot spots</h2>
+  <div class="ah-prose">
+    <p>
+      Hash consistente resolve o movimento de chaves, mas não resolve sozinho a carga. Mesmo com nós virtuais, a carga é uniforme em média, e não em cada
+      instante. Uma chave muito acessada, ou um conjunto de chaves de um mesmo cliente, continua concentrado em um servidor. Por isso, sistemas maduros medem a
+      carga real de cada partição e rebalanceiam explicitamente, movendo partições inteiras, e não só o hash.
+    </p>
+    <p>
+      O rebalanceamento tem custo: copiar dados pela rede, e atender às consultas enquanto a cópia acontece. Por isso, o número de partições costuma ser fixo e
+      maior que o número de servidores. Mover uma partição inteira de um servidor a outro é uma operação de metadados, e não um novo hash de cada chave. Esse é o
+      desenho adotado por sistemas como o Riak e o Cassandra com vnodes, e por muitos bancos de dados distribuídos.
+    </p>
+    <p>
+      Réplicas também entram no anel. No Dynamo, cada chave é gravada no servidor responsável e nos N − 1 servidores seguintes no sentido horário, o que dá
+      tolerância a falhas sem uma tabela central. Uma consequência prática: a perda de um servidor redistribui a sua carga entre os vizinhos, e essa carga extra
+      pode derrubar um vizinho já próximo do limite, em cascata.
+    </p>
+    <p>
+      Uma variante recente limita explicitamente a carga de cada servidor. Mirrokni, Thorup e Zadimoghaddam (2018) propõem o <em>hash consistente com limite de
+      carga</em>: cada servidor aceita no máximo um valor c vezes a média, e as chaves excedentes são repassadas ao próximo servidor livre no anel. Com c pequeno
+      (por exemplo 1,25), a carga máxima fica limitada, ao custo de algumas chaves irem a um servidor que não é o primeiro da sequência. É a troca entre
+      uniformidade e localidade que aparece em todo o tópico.
+    </p>
+    <p>
+      Para hot spots de chave única, nenhuma distribuição resolve o problema: a chave inteira mora em um único lugar. A alternativa é dividir a chave em sub-chaves
+      (um contador com vários sub-contadores somados na leitura), ou limitar a taxa de acesso àquela chave na camada de entrada.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Particionamento e CAP são decisões de arquitetura com custo de operação. Os participantes são fictícios; os sistemas citados são públicos.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Anel de hash na Uber (Ringpop)</div>
+    <p class="text-sm text-slate-300 mb-3">A Uber publicou e liberou como código aberto o Ringpop, uma biblioteca de hash consistente para aplicações que precisam distribuir entidades entre instâncias, como viagens ou motoristas. Cada instância conhece o anel por um protocolo de gossip, e a posse de uma entidade muda quando uma instância entra ou sai.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de backend:</strong> "Com hash consistente, a entrada de uma instância move poucas entidades. O resto continua onde estava, sem cache frio."</p>
+      <p><strong>Pessoa de SRE:</strong> "Mas a visão do anel pode divergir por alguns segundos entre instâncias. Durante esse tempo, duas instâncias podem achar que são donas da mesma entidade."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> o que a aplicação deve fazer quando duas instâncias acham que são donas da mesma viagem? Relacione com o fencing do tópico 4.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Um usuário famoso derrubou a fila de notificações (fan-out)</div>
+    <p class="text-sm text-slate-300 mb-3">Redes sociais precisam escrever um post na linha do tempo de cada seguidor. Para quem tem milhões de seguidores, esse fan-out é um hot spot de escrita. Empresas como o Twitter, em relatos públicos de engenharia, combinaram escrita antecipada para seguidores comuns com leitura sob demanda para contas muito seguidas.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de produto:</strong> "O mesmo evento gera uma escrita para cada seguidor. Com cem milhões, isso é uma avalanche."</p>
+      <p><strong>Pessoa de arquitetura:</strong> "Por isso a estratégia muda com o tamanho da conta. Uma regra só para todos sempre falha para alguém."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> onde está o limiar que separa a escrita antecipada da leitura sob demanda? Quem decide esse número?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Escolher CP ou AP por operação (DynamoDB e Cosmos DB)</div>
+    <p class="text-sm text-slate-300 mb-3">Serviços gerenciados como o DynamoDB e o Cosmos DB, da Microsoft, oferecem níveis de consistência de leitura configuráveis, com custos e latências diferentes. A escolha entre leitura forte e eventual é feita na chamada, não no banco inteiro, o que aproxima a teoria de CAP e PACELC da prática de uma API.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa desenvolvedora:</strong> "Leitura forte custa o dobro em capacidade. Para o painel de métricas, a eventual serve. Para o saldo, não."</p>
+      <p><strong>Pessoa de custos:</strong> "E quem escolhe o padrão? Se o padrão for o mais caro, todo time paga sem perceber."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> qual deve ser o padrão de leitura de um serviço novo: forte ou eventual? Justifique considerando custo e risco.</p>
   </div>
 </section>
 
@@ -322,6 +396,15 @@
   ED.criaAnimacao({
     canvas: 'cvAnel', ctl: 'ctlAnel', cap: 'capAnel',
     desenha: SD.desenhaAnel, gera: SD.geraAnel, velocidade: 2600
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvCarga', ctl: 'ctlCarga', cap: 'capCarga',
+    desenha: SD.desenhaCargaVirtuais, gera: SD.geraCargaVirtuais, velocidade: 2600,
+    opcoes: [
+      { v: 'poucos', rotulo: 'Um ponto por servidor' },
+      { v: 'virtuais', rotulo: '40 pontos por servidor' }
+    ]
   });
 
 })();

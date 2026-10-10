@@ -229,6 +229,137 @@
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos aplicam proteções em três níveis: a organização inteira (SCP), o bucket (política com TLS obrigatório) e a operação (alarme de erros no CloudFront). Em cada um, a explicação mostra o que a proteção impede e o que ela não cobre.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Uma SCP que protege a trilha de auditoria</h3>
+  <div class="ah-prose">
+    <p>
+      Uma <em>service control policy</em> define o limite máximo de ações de todas as contas de uma unidade organizacional. Ela não concede
+      permissão; apenas remove. Mesmo um administrador local não consegue desligar o CloudTrail se a SCP estiver ativa, o que protege a
+      trilha que investigações de incidente dependem.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · SCP aplicada à unidade de produção</p>
+<pre class="ah-code"><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ProtegerTrilhaDeAuditoria",
+      "Effect": "Deny",
+      "Action": [
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:UpdateTrail"
+      ],
+      "Resource": "*"
+    }
+  ]
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o <code>Deny</code> vence qualquer <code>Allow</code>, então nenhum papel dentro da conta consegue
+      contornar a regra. Dois limites precisam ser lembrados. Primeiro, a SCP não se aplica à conta de gerenciamento da organização, por
+      isso a conta de gerenciamento deve ter pouquíssimos acessos. Segundo, a SCP não substitui a política de leitura: ela restringe o que
+      pode existir, mas não concede nada.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Recusando conexões sem TLS</h3>
+  <div class="ah-prose">
+    <p>
+      Mesmo com o bucket privado, uma conexão sem criptografia expõe o conteúdo na rede. A condição <code>aws:SecureTransport</code> é
+      verdadeira quando a requisição usa HTTPS. A política abaixo nega qualquer acesso que chegue sem TLS, inclusive de quem tem permissão.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · política do bucket de produção</p>
+<pre class="ah-code"><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "NegarSemTLS",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::ds-docs-producao",
+        "arn:aws:s3:::ds-docs-producao/*"
+      ],
+      "Condition": {
+        "Bool": { "aws:SecureTransport": "false" }
+      }
+    }
+  ]
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a negação é total, porque <code>Principal "*"</code> alcança todos, e a condição só dispara quando a
+      conexão não é TLS. Quem usa a AWS CLI ou o SDK com HTTPS nunca é afetado. O CloudFront também acessa a origem por HTTPS, então a
+      distribuição continua funcionando. Esse é um exemplo de política que reduz risco sem exigir mudança no fluxo normal.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Alarme de erros 5xx no CloudFront</h3>
+  <div class="ah-prose">
+    <p>
+      Um pico de erros 5xx indica que a origem está falhando ou que uma configuração quebrou. As métricas do CloudFront são publicadas na
+      região <strong>us-east-1</strong>, com a dimensão <code>Region=Global</code>, e não na região do bucket. Esse detalhe faz muitos alarmes
+      nunca dispararem: o alarme foi criado na região errada.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · criação do alarme</p>
+<pre class="ah-code"><code>aws cloudwatch put-metric-alarm \
+  --region us-east-1 \
+  --alarm-name docs-5xx-alto \
+  --namespace AWS/CloudFront \
+  --metric-name 5xxErrorRate \
+  --dimensions Name=DistributionId,Value=EDFDVBD6EXAMPLE Name=Region,Value=Global \
+  --statistic Average \
+  --period 300 \
+  --evaluation-periods 2 \
+  --threshold 5 \
+  --comparison-operator GreaterThanThreshold \
+  --treat-missing-data notBreaching</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a métrica <code>5xxErrorRate</code> é um percentual. O alarme exige duas janelas de cinco minutos
+      acima de 5%, o que evita disparos por um erro isolado. <code>notBreaching</code> trata a ausência de dados como normal, porque um site
+      sem visitas não deve gerar alerta. Ajuste o limite com o histórico real, e não com um número arbitrário.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 4 · Calculando o custo com o cache</h3>
+  <div class="ah-prose">
+    <p>
+      O custo de transferência depende do volume servido pela borda, e o custo de requisições depende de quantas chegam à origem. O cálculo
+      abaixo mostra como a taxa de cache hit muda a conta. Os preços exatos variam por região e faixa, então use a calculadora oficial. A
+      lógica é a que importa.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Passo</th><th>Cálculo com 50 mil visitas e 2 MB por visita</th></tr></thead>
+      <tbody>
+        <tr><td>Volume total servido</td><td>50.000 × 2 MB = 100 GB, independentemente do cache</td></tr>
+        <tr><td>Requisições totais</td><td>Assuma 20 arquivos por visita: 1 milhão de requisições</td></tr>
+        <tr><td>Cache hit de 50%</td><td>Metade das requisições chega ao S3: 500 mil requisições de origem</td></tr>
+        <tr><td>Cache hit de 95%</td><td>Apenas 50 mil requisições chegam ao S3: dez vezes menos</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o volume de transferência não muda com o cache, porque o usuário sempre recebe o arquivo. O que o
+      cache reduz é a carga na origem e o número de requisições ao S3, que é cobrado por requisição. Por isso, a métrica de cache hit
+      (tópico 4) é um indicador de custo, e não apenas de desempenho. Uma queda nessa taxa após uma mudança de configuração deve gerar alerta
+      tanto quanto um aumento de latência.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

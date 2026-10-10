@@ -160,6 +160,14 @@
   <div id="capEntregas" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="detector" data-toc="Animação: detector de falhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-heart-pulse text-sky-400 mr-2"></i>Animação · Detector de falhas por timeout</h2>
+  <p class="ah-lead text-sm mb-4">B envia um heartbeat a cada 2 unidades de tempo. A suspeita de B começa quando passam 3 unidades sem nenhum heartbeat. Escolha o cenário: em "Heartbeat atrasado", B está vivo; em "B cai", a suspeita é verdadeira.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvDetector" style="height:300px"></canvas></div>
+  <div id="ctlDetector" class="mt-4"></div>
+  <div id="capDetector" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: simulação de uma rede" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Simulando uma rede assíncrona</h2>
   <div class="ah-prose">
@@ -236,6 +244,79 @@ Pares fora de ordem na chegada: 2</code></pre>
       <div class="text-xs font-bold text-sky-300 mb-1">Meça, não suponha</div>
       <p class="text-xs text-slate-400">Latência, perda e disponibilidade devem ser medidas em produção. A intuição sobre rede costuma errar por ordens de grandeza.</p>
     </div>
+  </div>
+</section>
+
+<section id="aprofundamento" data-toc="Aprofundamento: detecção de falhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Aprofundamento · Detectar falhas sem ter certeza</h2>
+  <div class="ah-prose">
+    <p>
+      Se a rede é assíncrona, não há como saber, de dentro de um processo, se outro processo caiu. O melhor que se pode fazer é <strong>suspeitar</strong>.
+      Um <strong>detector de falhas</strong> é um componente local que mantém, para cada processo monitorado, uma lista de suspeitos. Chandra e Toueg (1996) classificaram
+      os detectores por duas propriedades: <em>completude</em> (todo processo que caiu é eventualmente suspeito por algum correto) e <em>precisão</em>
+      (nenhum processo correto é suspeito). Um detector perfeito tem as duas sempre; um eventualmente perfeito, só depois de um instante desconhecido.
+    </p>
+    <p>
+      O mecanismo mais simples é o <strong>heartbeat com timeout</strong>. B envia um sinal de vida a cada <em>h</em> unidades, e A suspeita de B se passarem
+      <em>T</em> unidades sem sinal. A escolha de <em>T</em> é o trade-off central: um T pequeno detecta quedas rápido, mas gera falsas suspeitas quando a rede
+      atrasa; um T grande evita falsas suspeitas, mas demora a reagir a uma queda real. Em rede assíncrona, nenhum valor fixo de T é correto para todos os casos.
+    </p>
+    <p>
+      Há duas saídas práticas. Os <strong>timeouts adaptativos</strong> ajustam T com base na média e na variância dos atrasos recentes, como faz o TCP com o
+      RTO. Os <strong>detectores acumulativos</strong>, como o φ-accrual de Hayashibara e colaboradores (2004), não respondem com sim ou não: devolvem um
+      nível contínuo de suspeita, calculado a partir da distribuição observada dos intervalos entre heartbeats. Quem usa decide o limiar conforme o custo de
+      uma falsa suspeita. Cassandra e Akka usam variantes desse modelo.
+    </p>
+    <p>
+      Consequência para o projeto: a suspeita é uma <em>dica</em>, não um fato. Uma ação destrutiva baseada só em suspeita (remover um nó do cluster, por exemplo)
+      deve exigir confirmação por quórum, ou ser reversível. O tópico 6 mostra como algoritmos de consenso usam o detector sem depender da sua precisão para
+      manter a segurança.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Classe de detector</th><th>Completude</th><th>Precisão</th><th>Realizável em rede assíncrona?</th></tr></thead>
+      <tbody>
+        <tr><td>Perfeito</td><td>sempre</td><td>sempre</td><td>não</td></tr>
+        <tr><td>Eventualmente perfeito</td><td>sempre</td><td>eventualmente</td><td>sim, com sincronia parcial</td></tr>
+        <tr><td>Eventualmente forte</td><td>sempre</td><td>apenas um correto eventualmente não suspeito</td><td>sim, suficiente para consenso</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Imagine uma reunião de engenharia depois de um incidente. Os participantes são fictícios, mas os casos são públicos. Leia a conversa e responda às perguntas no fim de cada caso.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Uma configuração que derrubou tudo (Meta, 4 de outubro de 2021)</div>
+    <p class="text-sm text-slate-300 mb-3">Em 2021, uma alteração de configuração na rede de backbone da Meta retirou os anúncios de rota que deixavam os data centers acessíveis pela Internet. Segundo o relato público da empresa, os servidores de DNS também ficaram inacessíveis, porque dependiam da mesma rede para se anunciar. Os próprios engenheiros não conseguiam acessar as ferramentas de correção remotamente.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa engenheira de SRE:</strong> "O sistema estava correto em todos os servidores. A falha foi o plano de controle depender do próprio caminho que estava quebrando."</p>
+      <p><strong>Pessoa arquiteta:</strong> "Isso é a falácia 'a topologia não muda', mas em outra camada. Quem projetou a recuperação assumiu que a rede de gerenciamento sempre estaria de pé."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> que dependências de um sistema de recuperação precisam ficar fora do caminho de falha? Como você testaria isso sem derrubar produção?</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Falhar de propósito (Netflix e o Chaos Monkey)</div>
+    <p class="text-sm text-slate-300 mb-3">A Netflix publicou, a partir de 2011, a prática de engenharia do caos: uma ferramenta que desliga instâncias de produção em horário comercial, para forçar as equipes a projetar serviços que sobrevivam à perda de qualquer máquina. A ideia virou um conjunto de ferramentas e um livro (<em>Chaos Engineering</em>, Rosenthal e Jones, O'Reilly, 2017).</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa gerente de produto:</strong> "Desligar máquinas de propósito soa como pedir problema para o cliente."</p>
+      <p><strong>Pessoa engenheira de plataforma:</strong> "A falha vai acontecer de qualquer jeito, no sábado de madrugada. O experimento só garante que ela aconteça com a equipe acordada e com um plano de volta."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> como você escolheria o escopo de um experimento de falha? Qual hipótese precisa ser verificada antes de começar?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Uma expressão regular que consumiu os servidores (Cloudflare, julho de 2019)</div>
+    <p class="text-sm text-slate-300 mb-3">Uma regra nova do firewall de aplicação da Cloudflare continha uma expressão regular com retrocesso catastrófico. Em poucos minutos, a CPU de todos os servidores de borda chegou ao limite. Segundo o relato público, o problema não foi a rede, mas um processamento de texto em um nó que parecia independente.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de engenharia de confiabilidade:</strong> "Cada máquina era saudável sozinha. O problema era uma entrada que todas processavam igual, ao mesmo tempo."</p>
+      <p><strong>Pessoa de qualidade:</strong> "Por isso precisamos de um caminho de implantação gradual, com canário. Uma regra global sem canário é uma falha global."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> relacione este caso com a implantação em canário do tópico 10. Que métrica você usaria para parar a propagação?</p>
   </div>
 </section>
 
@@ -348,6 +429,15 @@ Pares fora de ordem na chegada: 2</code></pre>
   ED.criaAnimacao({
     canvas: 'cvEntregas', ctl: 'ctlEntregas', cap: 'capEntregas',
     desenha: SD.desenhaEntregas, gera: SD.geraEntregas, velocidade: 2200
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvDetector', ctl: 'ctlDetector', cap: 'capDetector',
+    desenha: SD.desenhaDetector, gera: SD.geraDetector, velocidade: 1800,
+    opcoes: [
+      { v: 'atraso', rotulo: 'Heartbeat atrasado (B vivo)' },
+      { v: 'queda', rotulo: 'B cai' }
+    ]
   });
 
 })();

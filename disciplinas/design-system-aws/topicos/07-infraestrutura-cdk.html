@@ -187,6 +187,146 @@ npx cdk deploy DocsStaging --require-approval broadening</code></pre>
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos mostram como testar a infraestrutura antes do deploy, como escolher entre L1 e L2, como trocar parâmetros por ambiente e como ler o resultado do <code>cdk diff</code>.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Testando a pilha sem criar nada na AWS</h3>
+  <div class="ah-prose">
+    <p>
+      Como a pilha é código, ela pode ter testes. O módulo <code>assertions</code> do CDK gera o template em memória e verifica suas
+      propriedades. O teste roda em segundos, sem credenciais, e pega erros como um bucket público criado por engano antes de qualquer
+      deploy.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>test/docs-stack.test.ts</code></p>
+<pre class="ah-code"><code>import { App } from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { DocsStack } from '../lib/docs-stack';
+
+test('bucket de documentação bloqueia acesso público', () => {
+  const app = new App();
+  const stack = new DocsStack(app, 'Teste', {
+    dominio: 'design.exemplo.com.br',
+    certificadoArn: 'arn:aws:acm:us-east-1:123456789012:certificate/EXEMPLO',
+    zonaId: 'Z0EXEMPLO',
+    zonaNome: 'exemplo.com.br',
+  });
+
+  const template = Template.fromStack(stack);
+
+  template.hasResourceProperties('AWS::S3::Bucket', {
+    PublicAccessBlockConfiguration: {
+      BlockPublicAcls: true,
+      BlockPublicPolicy: true,
+      IgnorePublicAcls: true,
+      RestrictPublicBuckets: true,
+    },
+  });
+  template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> <code>hasResourceProperties</code> verifica que as propriedades informadas existem no recurso, sem
+      exigir que o template seja idêntico ao esperado. Isso deixa o teste resistente a mudanças inofensivas, como a ordem das chaves. Em
+      compensação, ele falha se alguém remover o bloqueio de acesso público, que é justamente o risco a evitar.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · L1 e L2 lado a lado</h3>
+  <div class="ah-prose">
+    <p>
+      A mesma necessidade pode ser escrita nos dois níveis. No L1, você informa cada propriedade do recurso CloudFormation e não ganha
+      nenhum padrão. No L2, o construto aplica padrões seguros e oferece métodos de alto nível. O código abaixo mostra as duas formas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · comparação dentro de uma Stack</p>
+<pre class="ah-code"><code>// L1: tradução direta do CloudFormation. Esquecer uma propriedade passa despercebido.
+const bucketL1 = new s3.CfnBucket(this, 'BucketL1', {
+  publicAccessBlockConfiguration: {
+    blockPublicAcls: true,
+    blockPublicPolicy: true,
+    ignorePublicAcls: true,
+    restrictPublicBuckets: true,
+  },
+});
+
+// L2: padrões seguros e métodos de permissão prontos.
+const bucketL2 = new s3.Bucket(this, 'BucketL2', {
+  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+  enforceSSL: true,
+});
+bucketL2.grantRead(new iam.ServicePrincipal('cloudfront.amazonaws.com'));</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o L2 inclui <code>enforceSSL</code>, que o L1 não traz por padrão, e o <code>grantRead</code> cria a
+      permissão correta sem o desenvolvedor escrever o JSON. Use L1 apenas quando precisar de uma propriedade que o L2 ainda não expõe,
+      como ocorre com recursos muito novos. Mesmo nesse caso, costuma valer envolver o L1 num construto próprio, para que o restante da
+      equipe use a versão segura.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Um código, dois ambientes</h3>
+  <div class="ah-prose">
+    <p>
+      A pilha deve ser a mesma em staging e produção, mudando apenas os valores. O parâmetro de contexto do CDK recebe o ambiente na linha de
+      comando, e o <code>app</code> escolhe os valores correspondentes. Assim, nenhum arquivo precisa ser editado para trocar de ambiente.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>bin/app.ts</code></p>
+<pre class="ah-code"><code>const app = new cdk.App();
+const ambiente = app.node.tryGetContext('ambiente') ?? 'staging';
+
+const configs = {
+  staging: { dominio: 'staging.design.sua-org.com.br', removalPolicy: 'DESTROY' },
+  producao: { dominio: 'design.sua-org.com.br', removalPolicy: 'RETAIN' },
+} as const;
+
+const cfg = configs[ambiente as keyof typeof configs];
+new DocsStack(app, 'DocsStack-' + ambiente, {
+  env: { account: '123456789012', region: 'sa-east-1' },
+  dominio: cfg.dominio,
+  certificadoArn: 'arn:aws:acm:us-east-1:123456789012:certificate/EXEMPLO',
+  zonaId: 'Z0EXEMPLO',
+  zonaNome: 'sua-org.com.br',
+});</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · escolhendo o ambiente</p>
+<pre class="ah-code"><code>npx cdk diff -c ambiente=staging
+npx cdk deploy -c ambiente=producao --require-approval broadening</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o nome da stack inclui o ambiente, então staging e produção são pilhas separadas, sem risco de uma
+      sobrescrever a outra. A política de remoção fica associada ao ambiente, e não espalhada pelo código. O exemplo mostra a
+      <code>removalPolicy</code> como dado de configuração, o que permite revisá-la num único lugar.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 4 · Lendo a saída do cdk diff</h3>
+  <div class="ah-prose">
+    <p>
+      O <code>cdk diff</code> usa três marcas: <code>[+]</code> para criação, <code>[-]</code> para remoção e <code>[~]</code> para alteração.
+      Remoções pedem atenção especial, porque em recursos com dados podem significar perda. O bloco abaixo é um exemplo ilustrativo de saída.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída ilustrativa · <code>cdk diff DocsStaging</code></p>
+<pre class="ah-code"><code>Stack DocsStaging
+Resources
+[~] AWS::CloudFront::Distribution DocsDistributionYYYY
+ └─ [~] DistributionConfig
+     └─ [~] CacheBehaviors
+[+] AWS::CloudFront::CachePolicy NovaPoliticaCache
+[-] AWS::S3::Bucket DocsBucketXXXX destroy</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a linha <code>[-] ... destroy</code> é o alerta mais importante da saída. Ela aparece quando um
+      recurso será removido, e recursos com dados precisam de <code>RETAIN</code> ou de uma migração antes do deploy. Se essa linha aparecer
+      num diff que deveria só alterar uma política de cache, pare e investigue o identificador lógico que mudou.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

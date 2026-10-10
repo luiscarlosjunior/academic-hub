@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Sourcing e CQRS · AcademicHub</title>
+<meta name="description" content="Guardar fatos em vez de estados, reconstruir o presente por dobragem do histórico e separar a escrita da leitura, com os custos de consistência eventual e evolução de eventos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/event-sourcing-cqrs">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="ideia" data-toc="A mudança de paradigma" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>A mudança de paradigma</h2>
+  <div class="ah-prose">
+
+<p>Um sistema tradicional guarda o <strong>estado atual</strong>: a linha da conta com <code>saldo = 10,20</code>. O histórico se perde a cada <code>UPDATE</code>. Em <strong>event sourcing</strong>, guarda-se a sequência de <strong>fatos</strong> (<code>Depositado</code>, <code>Sacado</code>), e o estado é uma função desse histórico:</p>
+<pre class="ah-code"><code>estado = fold(aplicar, estadoInicial, eventos)</code></pre>
+<p>O log é <em>append-only</em>: eventos não se editam nem se apagam. Erros são corrigidos com novos eventos de compensação, o que preserva a auditoria. Esse padrão é descrito por Greg Young desde 2010, e é comum em sistemas financeiros e de reservas, onde a pergunta “como chegamos aqui?” é tão importante quanto o estado.</p>
+
+  </div>
+</section>
+
+<section id="cqrs" data-toc="CQRS: separar comando de consulta no nível do modelo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>CQRS: separar comando de consulta no nível do modelo</h2>
+  <div class="ah-prose">
+
+<p><strong>CQRS</strong> (Command Query Responsibility Segregation) separa o caminho de escrita, que valida comandos e produz eventos, do caminho de leitura, que consome <strong>projeções</strong>. Uma projeção é um modelo de leitura derivado dos eventos, otimizado para a consulta: um extrato, um painel, um índice de busca.</p>
+<div class="ah-diagram">
+<pre class="mermaid">
+flowchart LR
+    C["Comando: sacar(15,00)"] --&gt; A["Agregado Conta&lt;br/&gt;valida contra o estado reconstruído"]
+    A --&gt; E[("Event store&lt;br/&gt;append-only")]
+    E --&gt; P1["Projeção: extrato"]
+    E --&gt; P2["Projeção: saldo para o app"]
+    P1 --&gt; Q["Consulta do usuário"]
+    P2 --&gt; Q
+</pre>
+</div>
+<p class="ah-diagram-cap">A escrita passa pelo agregado; a leitura nunca toca o log diretamente. As projeções estão atrasadas por design: é a consistência eventual.</p>
+
+  </div>
+</section>
+
+<section id="custos" data-toc="Custos que o diagrama não mostra" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Custos que o diagrama não mostra</h2>
+  <div class="ah-prose">
+
+<ul>
+<li><strong>Consistência eventual:</strong> a projeção pode estar um instante atrás do log. A interface precisa tolerar isso, ou ler do agregado quando o caso exigir.</li>
+<li><strong>Evolução de eventos:</strong> o log vive por anos. Mudar o formato de <code>Sacado</code> exige <em>upcasting</em> (converter eventos antigos na leitura), não migração destrutiva.</li>
+<li><strong>Snapshots:</strong> reconstruir 10 milhões de eventos a cada comando é inviável. Um snapshot guarda o estado em uma versão e o histórico passa a ser lido a partir dali.</li>
+<li><strong>Esquecimento:</strong> dados pessoais em eventos conflitam com leis de privacidade. Guarde o dado sensível fora do log e referencie-o por id.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>O projeto implementa o agregado reconstruído a partir do log, um comando que valida contra o estado e produz um evento, e uma projeção de extrato. Também mostra a “viagem no tempo”: o saldo após o primeiro evento.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/event-sourcing/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/event-sourcing/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/event-sourcing
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>saldo reconstruído: 1020 centavos, versão 2
+comando recusado: saldo insuficiente
+extrato (projeção): [+ 3010, - 1990]
+saldo no passado (após o depósito): 3010</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Event Sourcing e CQRS.
+ * O estado NÃO é guardado: é o resultado de dobrar (fold) a sequência de eventos.
+ * Os comandos validam contra o estado reconstruído; a leitura usa uma projeção separada.
+ */
+public class Main {
+
+    sealed interface Evento permits Depositado, Sacado {}
+    record Depositado(long centavos) implements Evento {}
+    record Sacado(long centavos) implements Evento {}
+
+    /** Agregado reconstruído a partir do histórico. */
+    static final class Conta {
+        private long saldo = 0;
+        private int versao = 0;
+
+        /** Função de evolução: aplica um evento ao estado. Não valida, porque o evento já aconteceu. */
+        void aplicar(Evento e) {
+            if (e instanceof Depositado d) saldo += d.centavos();
+            else if (e instanceof Sacado s) saldo -= s.centavos();
+            versao++;
+        }
+
+        /** Comando: decide com base no estado atual e devolve o NOVO evento (não altera o estado direto). */
+        Evento sacar(long centavos) {
+            if (centavos &lt;= 0) throw new IllegalArgumentException(&quot;valor deve ser positivo&quot;);
+            if (centavos &gt; saldo) throw new IllegalStateException(&quot;saldo insuficiente&quot;);
+            return new Sacado(centavos);
+        }
+
+        long saldo() { return saldo; }
+        int versao() { return versao; }
+    }
+
+    /** Event store: append-only. Nunca se apaga nem se edita um evento. */
+    static final class EventStore {
+        private final List&lt;Evento&gt; log = new ArrayList&lt;&gt;();
+        void anexar(Evento e) { log.add(e); }
+        List&lt;Evento&gt; historico() { return List.copyOf(log); }
+    }
+
+    /** Projeção (lado de leitura do CQRS): modelo otimizado para consulta. */
+    static final class ExtratoProjetado {
+        private final List&lt;String&gt; linhas = new ArrayList&lt;&gt;();
+        void processar(Evento e) {
+            if (e instanceof Depositado d) linhas.add(&quot;+ &quot; + d.centavos());
+            else if (e instanceof Sacado s) linhas.add(&quot;- &quot; + s.centavos());
+        }
+        List&lt;String&gt; linhas() { return List.copyOf(linhas); }
+    }
+
+    /** Reconstrói o agregado a partir do histórico (fold). */
+    static Conta reconstruir(EventStore store) {
+        Conta c = new Conta();
+        store.historico().forEach(c::aplicar);
+        return c;
+    }
+
+    public static void main(String[] args) {
+        EventStore store = new EventStore();
+        store.anexar(new Depositado(3010));          // R$ 30,10
+        store.anexar(new Sacado(1990));              // assinatura R$ 19,90
+
+        Conta conta = reconstruir(store);
+        System.out.println(&quot;saldo reconstruído: &quot; + conta.saldo() + &quot; centavos, versão &quot; + conta.versao());
+
+        // Comando: sacar R$ 15,00 é permitido (saldo 10,20 &lt; 15,00 -&gt; recusado)
+        try {
+            Evento novo = conta.sacar(1500);
+            store.anexar(novo);
+        } catch (IllegalStateException e) {
+            System.out.println(&quot;comando recusado: &quot; + e.getMessage());
+        }
+
+        // Projeção: o extrato é derivado do mesmo log, sem tocar no agregado
+        ExtratoProjetado extrato = new ExtratoProjetado();
+        store.historico().forEach(extrato::processar);
+        System.out.println(&quot;extrato (projeção): &quot; + extrato.linhas());
+
+        // Viagem no tempo: o estado após o primeiro evento
+        Conta noPassado = new Conta();
+        store.historico().subList(0, 1).forEach(noPassado::aplicar);
+        System.out.println(&quot;saldo no passado (após o depósito): &quot; + noPassado.saldo());
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="cenario" data-toc="Cenário real: carteira digital com extrato auditável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Cenário real: carteira digital com extrato auditável</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Uma carteira digital precisa responder “quanto eu tinha em 15 de março?” para atendimento, disputas e auditoria. Além disso, o aplicativo quer um painel de gastos por categoria. Guardar só o saldo atual não responde a nenhuma das duas perguntas.</p><h3 class="ah-h3 mt-6 mb-2">Decisão de modelagem</h3>
+<p>O log de eventos é a fonte da verdade: <code>Creditado</code>, <code>DebitadoV1</code> e <code>DebitadoV2</code>. O saldo é derivado por dobra, e a projeção de gastos por categoria é um modelo separado de leitura. Quando o formato do débito mudou em 2026, os eventos antigos não foram reescritos: um <strong>upcaster</strong> converte o formato antigo na leitura.</p><h3 class="ah-h3 mt-6 mb-2">Snapshots e reconciliação</h3>
+<p>Reler dez anos de eventos a cada consulta é caro. Um snapshot guarda o saldo e a versão, e a reconstrução começa dele. A reconciliação compara a projeção com o log: se o painel de gastos e o saldo derivado não batem, há um bug de projeção, e ele é detectado automaticamente. O exemplo mostra a reconciliação passando.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Nomeie os eventos no passado (<code>Debitado</code>, não <code>DebitarSaldo</code>) e não os edite nunca.</li>
+<li>Crie um upcaster por mudança de formato, com teste que converte cada versão antiga.</li>
+<li>Crie um teste de reconciliação que roda em produção, em amostra, e alerta quando diverge.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Guardar dados pessoais dentro dos eventos. Quando a lei exige remoção, o log fica em conflito com a obrigação. A solução é guardar o dado sensível em outro lugar e referenciá-lo por id no evento.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Event sourcing aumenta o custo de evolução (versões, upcasters) e exige que a equipe pense em consistência eventual. Em troca, a auditoria é completa e a reconstrução de qualquer ponto no tempo é natural. Não use para tudo: um cadastro de cores de produto não precisa dessa complexidade.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/event-sourcing-carteira/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/event-sourcing-carteira/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/event-sourcing-carteira
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>saldo (fold completo): R$ 266.00, versão 5
+saldo (snapshot + 2 eventos): R$ 266.00
+snapshots são equivalentes ao fold: true
+gasto por categoria (projeção): {ALIMENTACAO=4500, NAO_CLASSIFICADO=12000, TRANSPORTE=9900}
+reconciliação: OK</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: carteira digital com extrato auditável.
+ * Em 2026 o evento Debitado passou a exigir categoria. Eventos antigos NÃO são reescritos:
+ * um upcaster converte o formato antigo na leitura. Snapshots evitam reler o histórico inteiro.
+ * Uma projeção de saldo por categoria atende o app. Reconciliação compara a projeção com o log.
+ */
+public class Main {
+
+    sealed interface Evento permits Creditado, DebitadoV1, DebitadoV2 {}
+    record Creditado(long centavos) implements Evento {}
+    record DebitadoV1(long centavos) implements Evento {}              // formato de 2024
+    record DebitadoV2(long centavos, String categoria) implements Evento {}  // formato de 2026
+
+    /** Upcaster: converte o formato antigo para o atual, sem mexer no log. */
+    static Evento atualizar(Evento e) {
+        if (e instanceof DebitadoV1 v1) return new DebitadoV2(v1.centavos(), &quot;NAO_CLASSIFICADO&quot;);
+        return e;
+    }
+
+    record Snapshot(long saldo, int versao) {}
+
+    static final class Carteira {
+        private long saldo;
+        private int versao;
+
+        void aplicar(Evento e) {
+            Evento atual = atualizar(e);
+            if (atual instanceof Creditado c) saldo += c.centavos();
+            else if (atual instanceof DebitadoV2 d) saldo -= d.centavos();
+            versao++;
+        }
+        Snapshot snapshot() { return new Snapshot(saldo, versao); }
+        long saldo() { return saldo; }
+        int versao() { return versao; }
+    }
+
+    /** Reconstrói a partir do último snapshot e aplica só o que veio depois. */
+    static Carteira reconstruir(List&lt;Evento&gt; log, Snapshot s) {
+        Carteira c = new Carteira();
+        if (s != null) { c.saldo = s.saldo(); c.versao = s.versao(); }
+        log.subList(s == null ? 0 : s.versao(), log.size()).forEach(c::aplicar);
+        return c;
+    }
+
+    /** Projeção de leitura: saldo gasto por categoria, para o app. */
+    static Map&lt;String, Long&gt; gastoPorCategoria(List&lt;Evento&gt; log) {
+        Map&lt;String, Long&gt; gasto = new TreeMap&lt;&gt;();
+        for (Evento e : log) {
+            Evento atual = atualizar(e);
+            if (atual instanceof DebitadoV2 d) gasto.merge(d.categoria(), d.centavos(), Long::sum);
+        }
+        return gasto;
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        List&lt;Evento&gt; log = new ArrayList&lt;&gt;(List.of(
+                new Creditado(50_000),           // R$ 500,00
+                new DebitadoV1(12_000),          // histórico de 2024, sem categoria
+                new Creditado(3_000)));
+        // Novos eventos de 2026 já com categoria
+        log.add(new DebitadoV2(4_500, &quot;ALIMENTACAO&quot;));
+        log.add(new DebitadoV2(9_900, &quot;TRANSPORTE&quot;));
+
+        Carteira completa = reconstruir(log, null);
+        System.out.printf(&quot;saldo (fold completo): R$ %.2f, versão %d%n&quot;, completa.saldo() / 100.0, completa.versao());
+
+        Carteira ate = new Carteira();
+        log.subList(0, 3).forEach(ate::aplicar);
+        Snapshot tomado = ate.snapshot();
+        Carteira viaSnapshot = reconstruir(log, tomado);
+        System.out.printf(&quot;saldo (snapshot + 2 eventos): R$ %.2f%n&quot;, viaSnapshot.saldo() / 100.0);
+        System.out.println(&quot;snapshots são equivalentes ao fold: &quot; + (viaSnapshot.saldo() == completa.saldo()));
+
+        System.out.println(&quot;gasto por categoria (projeção): &quot; + gastoPorCategoria(log));
+
+        // Reconciliação: o saldo derivado do log (créditos - débitos) deve bater com o fold.
+        long creditos = 0;
+        for (Evento e : log) if (e instanceof Creditado c) creditos += c.centavos();
+        long projetado = creditos - gastoPorCategoria(log).values().stream().mapToLong(Long::longValue).sum();
+        System.out.println(&quot;reconciliação: &quot; + (projetado == completa.saldo() ? &quot;OK&quot; : &quot;DIVERGÊNCIA&quot;));
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Adicione um snapshot a cada 100 eventos. Como garantir que ele coincide com o fold completo?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o snapshot guarda o estado e a versão. Na reconstrução, carrega-se o snapshot e aplica-se apenas os eventos com versão maior. Um teste deve comparar o estado obtido por snapshot com o fold completo, para todas as versões: é uma propriedade verificável.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Um evento <code>Sacado</code> precisa passar a guardar também a categoria da despesa. Como fazer sem reescrever o log?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> crie <code>SacadoV2</code> com o campo novo e um upcaster que converte <code>Sacado</code> em <code>SacadoV2</code> com categoria padrão na leitura. Eventos antigos permanecem intactos; o código novo entende os dois formatos.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>YOUNG, Greg. Materiais sobre CQRS e Event Sourcing (2010 em diante).</li>
+<li>FOWLER, Martin. “Event Sourcing”, artigo em martinfowler.com.</li>
+<li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. O'Reilly. Logs, projeções e consistência.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

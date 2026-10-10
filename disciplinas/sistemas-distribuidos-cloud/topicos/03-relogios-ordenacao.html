@@ -179,6 +179,14 @@ def compara(a, b):
   <div id="capRelogios" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="snapshot-animacao" data-toc="Animação: snapshot de Chandy e Lamport" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-camera text-sky-400 mr-2"></i>Animação · Um snapshot consistente, passo a passo</h2>
+  <p class="ah-lead text-sm mb-4">P1 inicia o snapshot. O marcador percorre os canais, e cada processo grava seu estado na primeira vez que recebe um marcador. O canal C32 guarda a mensagem m, que estava em trânsito quando o snapshot começou.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvSnapshot" style="height:340px"></canvas></div>
+  <div id="ctlSnapshot" class="mt-4"></div>
+  <div id="capSnapshot" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: Lamport e vetor no mesmo traço" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Calculando os dois relógios</h2>
   <div class="ah-prose">
@@ -247,6 +255,67 @@ Com Lamport, a comparação L(e2)=3 e L(e6)=3 não diz nada:
       <div class="text-xs font-bold text-sky-300 mb-1">Logs de sistema de vários servidores</div>
       <p class="text-xs text-slate-400">Ao juntar logs de dez servidores para investigar um incidente, o horário de cada linha pode estar errado por milissegundos. A ordem real exige carimbos causais, como os que os sistemas de rastreamento distribuído propagam entre chamadas.</p>
     </div>
+  </div>
+</section>
+
+<section id="entrega-causal" data-toc="Aprofundamento: snapshots e entrega causal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Aprofundamento · Snapshots e entrega causal</h2>
+  <div class="ah-prose">
+    <p>
+      O algoritmo de Chandy e Lamport (1985) depende de uma hipótese que costuma ser esquecida: os canais precisam ser <strong>FIFO</strong>, ou seja, mensagens
+      entre o mesmo par de processos chegam na ordem em que foram enviadas. Sem essa propriedade, o marcador poderia ultrapassar uma mensagem anterior, e o
+      canal gravado estaria incompleto. Protocolos como o TCP oferecem FIFO por conexão, e é por isso que o algoritmo é implementado sobre eles.
+    </p>
+    <p>
+      Um <strong>corte</strong> é consistente quando, para cada mensagem registrada como recebida, a mensagem de envio também está registrada. O conjunto dos
+      estados locais e das mensagens em trânsito forma um corte consistente se, e somente se, não existe mensagem recebida antes do corte cujo envio é posterior ao corte.
+      Essa é a definição que torna o snapshot útil: um estado que nunca existiu, em que um pagamento foi recebido mas nunca enviado, é inútil para diagnóstico
+      e para recuperação.
+    </p>
+    <p>
+      A entrega causal generaliza a ideia para comunicação: uma mensagem só é entregue a um processo depois de todas as mensagens que a precederam causalmente.
+      Birman e Joseph (1987) propuseram protocolos de comunicação em grupo com essa garantia, usando relógios vetoriais para decidir quando segurar uma
+      mensagem que chegou antes da sua causa. Sistemas de chat e de edição colaborativa usam esse mecanismo para que uma resposta nunca apareça antes da pergunta.
+    </p>
+    <p>
+      O custo da entrega causal é a espera: uma mensagem pode ficar retida enquanto uma causa não chega, e o atraso pode crescer se a causa se perder. Por isso,
+      a maioria dos sistemas de grande escala usa causalidade apenas por chave ou por sessão, e não globalmente.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Três conversas sobre tempo e ordem em produção. Os participantes são fictícios; os sistemas citados são públicos.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Relógios atômicos em data centers (Google Spanner)</div>
+    <p class="text-sm text-slate-300 mb-3">O Spanner, banco distribuído do Google, descrito publicamente em 2012, expõe um intervalo de incerteza do relógio chamado TrueTime, mantido com relógios de GPS e atômicos em cada data center. Uma transação espera o tempo de incerteza terminar antes de confirmar, para garantir que sua ordem respeite o tempo real.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa engenheira de bancos de dados:</strong> "O Spanner troca ordem lógica por um relógio com erro conhecido e limitado. O custo é uma espera curta em cada commit."</p>
+      <p><strong>Pessoa de SRE:</strong> "E se o intervalo de incerteza crescer? A transação espera mais, e a latência do sistema inteiro sobe. Precisamos monitorar isso como um sinal de saúde."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> por que um relógio com erro conhecido pode ser melhor que um relógio lógico em algumas situações? Relacione com o teorema de Lamport.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Edição colaborativa em tempo real (Figma)</div>
+    <p class="text-sm text-slate-300 mb-3">O Figma descreveu publicamente, em 2019, que suas edições passam por um servidor central que define a ordem final, enquanto os clientes aplicam uma previsão local imediata. Quando as edições conflitam, o servidor decide e os clientes se reconciliam. Esse é um exemplo de ordem total imposta por um ponto central, em vez de um relógio vetorial.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de produto:</strong> "Dois designers mexem no mesmo objeto. Quem ganha? Não queremos que o trabalho de um deles suma."</p>
+      <p><strong>Pessoa de engenharia:</strong> "A ordem vem do servidor. Cada operação tem um identificador, e a edição conflitante é reaplicada sobre o estado que o servidor já confirmou."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> quais são as vantagens e os riscos de centralizar a ordem em um servidor? O que muda se o servidor cair no meio de uma edição?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Depurar um incidente com logs de dez serviços</div>
+    <p class="text-sm text-slate-300 mb-3">Uma equipe investiga um pedido que falhou. Os logs mostram que o serviço de pagamento registrou a confirmação antes do serviço de pedidos registrar a criação. Os relógios das máquinas diferem em dezenas de milissegundos. Sem carimbos causais, a equipe não sabe se houve uma inversão real.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de SRE:</strong> "Primeiro, comparamos o desvio dos relógios com o NTP. Se o desvio é maior que a diferença entre os eventos, o log não prova nada sobre a ordem."</p>
+      <p><strong>Pessoa de observabilidade:</strong> "Por isso o rastreamento distribuído propaga um identificador de traço. A ordem causal sai da árvore de chamadas, não do relógio."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> como você reconstruiria a ordem real do pedido usando apenas o identificador de traço e as relações de causa entre chamadas?</p>
   </div>
 </section>
 
@@ -366,6 +435,11 @@ Com Lamport, a comparação L(e2)=3 e L(e6)=3 não diz nada:
       { v: 'lamport', rotulo: 'Relógio de Lamport (L)' },
       { v: 'vetorial', rotulo: 'Relógio vetorial ([P1,P2,P3])' }
     ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvSnapshot', ctl: 'ctlSnapshot', cap: 'capSnapshot',
+    desenha: SD.desenhaSnapshot, gera: SD.geraSnapshot, velocidade: 2000
   });
 
 })();

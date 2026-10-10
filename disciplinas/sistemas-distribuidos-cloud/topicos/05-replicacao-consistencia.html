@@ -177,6 +177,14 @@
   </div>
 </section>
 
+<section id="failover-animacao" data-toc="Animação: failover e perda de escrita" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-sky-400 mr-2"></i>Animação · O líder cai logo depois de confirmar</h2>
+  <p class="ah-lead text-sm mb-4">Um cliente escreve w1 no líder L. Com replicação assíncrona, L confirma antes de copiar para o seguidor S. Com replicação síncrona, a confirmação espera a cópia. Compare o que sobrevive quando L cai.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvFailover" style="height:340px"></canvas></div>
+  <div id="ctlFailover" class="mt-4"></div>
+  <div id="capFailover" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: leituras desatualizadas em Python" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Medindo leituras desatualizadas</h2>
   <div class="ah-prose">
@@ -223,6 +231,68 @@ Com W + R &gt; N, a sobreposição garante leitura atual. Sem ela, a leitura pod
       <div class="text-xs font-bold text-sky-300 mb-1">Carrinho de compras</div>
       <p class="text-xs text-slate-400">O Dynamo nasceu desse caso. Um carrinho nunca deve ser recusado por indisponibilidade, mesmo que duas versões divergentes apareçam. Ao fim, a fusão preserva os itens de ambas, e no pior caso um item extra é removido no checkout.</p>
     </div>
+  </div>
+</section>
+
+<section id="lag-failover" data-toc="Aprofundamento: lag, failover e split brain" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Aprofundamento · Lag, failover e split brain</h2>
+  <div class="ah-prose">
+    <p>
+      Na replicação assíncrona, o <strong>lag</strong> é a diferença entre o último registro gravado no líder e o último que chegou ao seguidor. O lag é
+      variável: sobe com a carga, com a rede e com a presença de consultas longas no seguidor. Duas consequências práticas aparecem no failover. A primeira é a
+      perda de escritas confirmadas, como na animação: o líder confirmou ao cliente, e a cópia não chegou. A segunda é a leitura que volta no tempo: um usuário
+      escreve, recarrega a página em outra réplica atrasada e não vê a própria mudança.
+    </p>
+    <p>
+      O failover, a promoção de um seguidor a líder, precisa decidir quem é o novo líder sem ambiguidade. Se o antigo líder apenas parecia morto (uma pausa longa,
+      uma partição), ele pode continuar aceitando escritas. Com dois líderes ativos, ocorre o <strong>split brain</strong>: duas linhas do tempo de escrita divergem,
+      e a reconciliação depois é cara ou impossível. As defesas usuais são a eleição por quórum (tópico 6), o <em>fencing</em> (tópico 4), que impede o líder antigo
+      de escrever no armazenamento, e a escolha de um seguidor com o maior registro replicado, para perder o menor número de escritas.
+    </p>
+    <p>
+      A replicação <strong>semissíncrona</strong> é um meio-termo muito usado: um seguidor é síncrono, e os demais são assíncronos. Assim, a confirmação ao cliente
+      espera apenas uma cópia extra, e sempre existe um candidato atualizado para o failover. O custo é a latência de cada escrita, que cresce com a distância
+      até esse seguidor síncrono. Sistemas relacionais como PostgreSQL e MySQL oferecem esse modo, com configuração explícita do conjunto de seguidores síncronos.
+    </p>
+    <p>
+      Uma regra prática: a durabilidade que o cliente recebe é a de sua confirmação, e não a de sua intenção. Se a aplicação aceita "confirmado" sem uma cópia
+      durável, o contrato é mais fraco do que parece, e a animação mostra exatamente essa diferença.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Replicação e consistência viram decisões de produto. Os participantes são fictícios; os casos citados são públicos.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Uma inconsistência após failover (GitHub, outubro de 2018)</div>
+    <p class="text-sm text-slate-300 mb-3">Segundo o relato público do GitHub, uma partição de rede de cerca de 43 segundos entre data centers levou a um failover automático de bancos MySQL. Escritas aceitas em um lado ficaram sem correspondência no outro, e a empresa precisou reconciliar os dados manualmente para algumas funcionalidades.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de SRE:</strong> "A promoção automática era segura se a partição durasse segundos. Ela não distinguiu uma partição curta de uma longa."</p>
+      <p><strong>Pessoa de arquitetura:</strong> "Esse é o trade-off CAP em produção. Escolher disponibilidade significou aceitar escritas que não podiam ser comparadas depois."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> que critério você usaria para decidir promover um seguidor automaticamente? Quem deve ter autoridade para decidir isso sem intervenção humana?</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Carrinho que nunca recusa um item (Amazon Dynamo)</div>
+    <p class="text-sm text-slate-300 mb-3">O artigo do Dynamo, de 2007, descreve a decisão de aceitar escritas mesmo com réplicas indisponíveis. Se duas versões divergem, o sistema as mantém e a aplicação funde os dois carrinhos. A escolha foi tratar a indisponibilidade como o erro mais caro para o negócio.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de produto:</strong> "Um item que some do carrinho é uma venda perdida. Um item extra, que o cliente remove no checkout, é só um incômodo."</p>
+      <p><strong>Pessoa de engenharia:</strong> "Então a consistência é uma regra de negócio, não uma propriedade do banco. Escolhemos a versão de cada dado por caso."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> para quais dados do seu sistema um "item extra" é aceitável, e para quais não é? Dê um exemplo de dado em que a fusão automática seria perigosa.</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Consistência ajustável por operação (Cassandra)</div>
+    <p class="text-sm text-slate-300 mb-3">O Cassandra permite escolher o nível de consistência por consulta, dentro do mesmo cluster. Uma leitura de saldo pode exigir quórum, enquanto a leitura de um contador de visualizações usa um único nó. A configuração é uma decisão de cada time, documentada junto com o modelo de dados.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa desenvolvedora:</strong> "Quórum em toda leitura deixa o sistema lento. Um nível baixo demais deixa o saldo errado. Precisa ser por operação."</p>
+      <p><strong>Pessoa de revisão de código:</strong> "E toda exceção a essa regra precisa de justificativa escrita, senão o padrão vira copiar o último exemplo que funcionou."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> liste três operações do seu projeto e escolha, para cada uma, um nível de consistência e a justificativa.</p>
   </div>
 </section>
 
@@ -338,6 +408,15 @@ Com W + R &gt; N, a sobreposição garante leitura atual. Sem ela, a leitura pod
     opcoes: [
       { v: 'r1', rotulo: 'Leitura com R = 1' },
       { v: 'r2', rotulo: 'Leitura com R = 2' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvFailover', ctl: 'ctlFailover', cap: 'capFailover',
+    desenha: SD.desenhaFailover, gera: SD.geraFailover, velocidade: 2000,
+    opcoes: [
+      { v: 'assincrona', rotulo: 'Replicação assíncrona' },
+      { v: 'sincrona', rotulo: 'Replicação síncrona' }
     ]
   });
 

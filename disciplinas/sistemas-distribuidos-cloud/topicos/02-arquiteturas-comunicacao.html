@@ -189,6 +189,14 @@
   <div id="capRPC" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="pipeline" data-toc="Animação: caminho de uma chamada remota" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-sky-400 mr-2"></i>Animação · Oito etapas de uma chamada remota</h2>
+  <p class="ah-lead text-sm mb-4">Uma chamada que parece local atravessa oito etapas. Escolha "Versão incompatível" para ver o skeleton recusar o pedido antes de qualquer execução.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvPipeline" style="height:300px"></canvas></div>
+  <div id="ctlPipeline" class="mt-4"></div>
+  <div id="capPipeline" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: efeito da idempotência" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Reenvio sem e com identificador</h2>
   <div class="ah-prose">
@@ -257,6 +265,69 @@ com identificador (idempotente):
       <div class="text-xs font-bold text-sky-300 mb-1">Mensagem de correção (dead letter)</div>
       <p class="text-xs text-slate-400">Mensagens que falham repetidamente são desviadas para uma fila separada, para análise. Evita que uma mensagem envenenada trave o consumidor.</p>
     </div>
+  </div>
+</section>
+
+<section id="contratos" data-toc="Aprofundamento: contratos e evolução" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-contract text-sky-400 mr-2"></i>Aprofundamento · Contratos, serialização e evolução</h2>
+  <div class="ah-prose">
+    <p>
+      Um sistema distribuído tem componentes que são implantados em tempos diferentes. Um cliente antigo continua chamando um servidor novo, e o inverso
+      também acontece durante uma implantação em etapas. Por isso, a interface entre eles precisa ser um <strong>contrato</strong>, descrito em uma linguagem
+      neutra (IDL, como o Protocol Buffers ou o OpenAPI), e não só em código. O contrato gera os stubs e skeletons em cada linguagem, e garante que ambos os lados
+      falam o mesmo formato de fio.
+    </p>
+    <p>
+      A evolução do contrato é a parte mais delicada. No Protocol Buffers, cada campo tem um número fixo. Adicionar um campo opcional é compatível para os dois
+      sentidos: um leitor antigo ignora o campo novo, e um leitor novo recebe o valor ausente com um padrão. Remover um campo, ou reutilizar um número para outro
+      significado, quebra a compatibilidade e pode corromper dados em silêncio. As regras que ajudam: nunca reutilizar um número, marcar campos removidos como
+      reservados, e tratar tipos e obrigatoriedade como parte da interface pública.
+    </p>
+    <p>
+      A escolha do formato também tem custo. JSON é legível e tolerante, mas grande e lento de analisar. Formatos binários, como o Protocol Buffers e o Avro, são
+      compactos e rápidos, mas exigem o esquema para ler os dados. Kleppmann (2017, cap. 4) analisa a codificação de dados em armazenamento e em rede, e mostra que
+      a compatibilidade "para trás" (novo lê antigo) e "para frente" (antigo lê novo) são propriedades separadas, que devem ser testadas.
+    </p>
+    <p>
+      Há ainda os padrões de interação. Além do request-reply, existem o <strong>streaming</strong>, em que um lado envia uma sequência de mensagens, e o
+      <strong>publish-subscribe</strong>, em que o produtor não conhece os consumidores. Cada um altera o que pode dar errado: num stream, a interrupção no meio
+      deixa o consumidor com dados parciais; num pub-sub, um consumidor lento pode acumular uma fila enorme. O tópico 11 volta a esse ponto.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Uma equipe de pagamentos discute como expor uma API e como evitar cobranças em dobro. Os participantes são fictícios; as práticas são públicas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Chaves de idempotência em APIs de pagamento (Stripe)</div>
+    <p class="text-sm text-slate-300 mb-3">A Stripe documenta publicamente que suas APIs aceitam um cabeçalho de chave de idempotência. Se o cliente repete a mesma requisição com a mesma chave, recebe a resposta original, sem nova cobrança. A documentação também define o que acontece se os parâmetros da repetição forem diferentes: a chamada é recusada.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa desenvolvedora backend:</strong> "Por que não basta o cliente não clicar duas vezes? A rede pode repetir a requisição sozinha, depois de um timeout."</p>
+      <p><strong>Pessoa de arquitetura:</strong> "Exato. A chave move a responsabilidade do 'não repetir' para o servidor, que sabe o que já processou."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> por quanto tempo o servidor deve guardar a chave? O que acontece se a chave expira e o cliente repete a requisição depois?</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Contratos que evoluem sem quebrar clientes (Protocol Buffers e Schema Registry)</div>
+    <p class="text-sm text-slate-300 mb-3">Empresas com muitos serviços, como as que usam Kafka em larga escala, mantêm um registro central de esquemas. Antes de publicar uma mudança, a ferramenta verifica se ela é compatível com as versões anteriores. Protocol Buffers, usado também pela gRPC, reforça a regra de nunca reutilizar um número de campo.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de plataforma de dados:</strong> "Um campo renomeado não dá erro de compilação. Ele some em silêncio, no consumidor que ninguém conhecia."</p>
+      <p><strong>Pessoa desenvolvedora de cliente móvel:</strong> "E o app antigo continua instalado por meses. A compatibilidade para trás é uma promessa de meses, não de dias."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> como você descobriria, antes de publicar, quais consumidores dependem de um campo?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Streaming ou request-reply? (escolha de padrão numa integração)</div>
+    <p class="text-sm text-slate-300 mb-3">Uma equipe precisa atualizar o status de uma entrega em tempo real na tela do cliente. Há três opções: consultar a API a cada poucos segundos, manter uma conexão de streaming, ou publicar eventos. Cada uma muda o custo de servidor, a latência e o que acontece quando o cliente se desconecta.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de produto:</strong> "Consultar a cada 5 segundos é simples, mas são milhões de requisições vazias."</p>
+      <p><strong>Pessoa de infraestrutura:</strong> "Streaming reduz as requisições, mas cada conexão aberta ocupa recursos no servidor. E quem reconecta depois de uma queda perde os eventos do intervalo."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> qual padrão você escolheria, e como garantiria que o cliente não perca nenhuma atualização após reconectar?</p>
   </div>
 </section>
 
@@ -373,6 +444,15 @@ com identificador (idempotente):
     opcoes: [
       { v: 'sem', rotulo: 'Sem identificador' },
       { v: 'com', rotulo: 'Com identificador (idempotente)' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvPipeline', ctl: 'ctlPipeline', cap: 'capPipeline',
+    desenha: SD.desenhaPipelineRPC, gera: SD.geraPipelineRPC, velocidade: 1500,
+    opcoes: [
+      { v: 'ok', rotulo: 'Chamada normal' },
+      { v: 'versao', rotulo: 'Versão incompatível' }
     ]
   });
 

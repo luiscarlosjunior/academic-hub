@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Double Dispatch, Visitor e o Expression Problem · AcademicHub</title>
+<meta name="description" content="Por que adicionar uma operação é fácil e adicionar um tipo é difícil, como o Visitor inverte essa troca e como tipos selados mudam a conta.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/visitor-expression-problem">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="problema" data-toc="O problema: uma matriz de tipos e operações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>O problema: uma matriz de tipos e operações</h2>
+  <div class="ah-prose">
+
+<p>Imagine uma hierarquia de expressões de preço: <code>Preco</code>, <code>Desconto</code> e <code>Soma</code>. Você quer calcular o valor, e depois imprimir a fórmula, e talvez exportá-la. Cada <strong>operação</strong> é uma coluna; cada <strong>tipo</strong> é uma linha.</p>
+<p>O <strong>expression problem</strong>, formulado por Philip Wadler (1998), é a tensão entre duas extensões:</p>
+<ul>
+<li><strong>Adicionar operação</strong> (nova coluna): com métodos nas classes, exige editar todas as classes.</li>
+<li><strong>Adicionar tipo</strong> (nova linha): com um <code>switch</code> central por tipo, exige editar todas as operações.</li>
+</ul>
+<p>Nenhuma organização simples torna as duas fáceis ao mesmo tempo. Cada solução escolhe qual extensão favorecer.</p>
+
+  </div>
+</section>
+
+<section id="dupla" data-toc="Double dispatch: duas escolhas dinâmicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>Double dispatch: duas escolhas dinâmicas</h2>
+  <div class="ah-prose">
+
+<p>O despacho simples escolhe um método pelo tipo do <em>receptor</em>. O <strong>double dispatch</strong> escolhe pelo tipo de <em>dois</em> objetos: o elemento e o visitante. No Visitor, <code>aceitar(v)</code> escolhe a classe do elemento, e dentro dela <code>v.visitar...(this)</code> escolhe a operação. São duas ligações dinâmicas encadeadas.</p>
+<p>Esse é o mecanismo que torna possível separar operações dos tipos sem <code>instanceof</code> espalhado pelo código.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>Os tipos são <code>sealed</code> (Java 17), então o compilador conhece todos os casos. Cada operação é um visitante: <code>Avaliador</code> calcula o total e <code>Impressor</code> monta a fórmula, sem alterar as classes de expressão.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/visitor/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/visitor/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/visitor
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>fórmula: ((R$19,90 - 10.0%) + R$2,00)
+total:   R$ 19,91
+
+Sealed: o compilador sabe que os casos são Preco, Desconto e Soma.</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>/**
+ * Double dispatch e o Visitor, com o &quot;expression problem&quot; de Wadler (1998):
+ * - Adicionar uma OPERAÇÃO nova é fácil: crie um novo Visitor.
+ * - Adicionar um TIPO novo é difícil: todos os visitors precisam mudar.
+ */
+public class Main {
+
+    // Hierarquia fechada (sealed): o compilador conhece todos os casos.
+    sealed interface Valor permits Preco, Desconto, Soma { &lt;R&gt; R aceitar(Visitor&lt;R&gt; v); }
+
+    record Preco(double valor) implements Valor {
+        public &lt;R&gt; R aceitar(Visitor&lt;R&gt; v) { return v.visitarPreco(this); }
+    }
+    record Desconto(Valor base, double percentual) implements Valor {
+        public &lt;R&gt; R aceitar(Visitor&lt;R&gt; v) { return v.visitarDesconto(this); }
+    }
+    record Soma(Valor esquerda, Valor direita) implements Valor {
+        public &lt;R&gt; R aceitar(Visitor&lt;R&gt; v) { return v.visitarSoma(this); }
+    }
+
+    interface Visitor&lt;R&gt; {
+        R visitarPreco(Preco p);
+        R visitarDesconto(Desconto d);
+        R visitarSoma(Soma s);
+    }
+
+    // Operação 1: calcular o valor (um visitor)
+    static final class Avaliador implements Visitor&lt;Double&gt; {
+        public Double visitarPreco(Preco p) { return p.valor(); }
+        public Double visitarDesconto(Desconto d) {
+            return d.base().aceitar(this) * (1 - d.percentual() / 100.0);
+        }
+        public Double visitarSoma(Soma s) {
+            return s.esquerda().aceitar(this) + s.direita().aceitar(this);
+        }
+    }
+
+    // Operação 2: imprimir a fórmula (outro visitor, sem tocar nas classes acima)
+    static final class Impressor implements Visitor&lt;String&gt; {
+        public String visitarPreco(Preco p) { return String.format(&quot;R$%.2f&quot;, p.valor()); }
+        public String visitarDesconto(Desconto d) {
+            return &quot;(&quot; + d.base().aceitar(this) + &quot; - &quot; + d.percentual() + &quot;%)&quot;;
+        }
+        public String visitarSoma(Soma s) {
+            return &quot;(&quot; + s.esquerda().aceitar(this) + &quot; + &quot; + s.direita().aceitar(this) + &quot;)&quot;;
+        }
+    }
+
+    public static void main(String[] args) {
+        // Assinatura Premium com cupom de 10% + taxa de R$ 2,00
+        Valor total = new Soma(new Desconto(new Preco(19.90), 10), new Preco(2.00));
+
+        System.out.println(&quot;fórmula: &quot; + total.aceitar(new Impressor()));
+        System.out.printf(&quot;total:   R$ %.2f%n&quot;, total.aceitar(new Avaliador()));
+
+        // Double dispatch: a chamada &#x27;aceitar&#x27; escolhe o método pelo tipo do elemento;
+        // &#x27;visitar...&#x27; escolhe a operação pelo tipo do visitor. Duas escolhas dinâmicas.
+        System.out.println(&quot;\nSealed: o compilador sabe que os casos são Preco, Desconto e Soma.&quot;);
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="big" data-toc="Onde isso aparece na prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>Onde isso aparece na prática</h2>
+  <div class="ah-prose">
+
+<p>O javac expõe a árvore sintática por meio de visitantes (<code>com.sun.source.util.TreeVisitor</code>). Ferramentas de análise estática e formatadores de código percorrem ASTs da mesma forma: a árvore é estável, e as operações variam. É o caso típico em que o expression problem favorece adicionar operações.</p>
+<p>Já sistemas com tipos de evento que crescem com o produto favorecem o outro lado. Aí, a escolha costuma ser um tipo selado com <code>switch</code> exaustivo, para que um tipo novo quebre a compilação em todos os pontos que precisam tratá-lo.</p>
+
+  </div>
+</section>
+
+<section id="cenario" data-toc="Cenário real: motor de descontos de um e-commerce" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>Cenário real: motor de descontos de um e-commerce</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>O time de marketing cria campanhas como “10% na primeira compra” ou “R$ 5 de desconto, depois 10% no restante”. As campanhas são <strong>dados</strong>: ficam guardadas em configuração, e o sistema as interpreta no checkout, na tela de carrinho, na auditoria fiscal e na validação antes de publicar.</p><h3 class="ah-h3 mt-6 mb-2">O problema que aparece no código</h3>
+<p>A primeira versão colocava um método <code>calcular()</code> em cada tipo de regra. Quando a equipe de compliance pediu uma explicação textual para o cliente, foi preciso mexer em todas as classes de regra. A mesma situação se repetiu com a validação e com a auditoria.</p><h3 class="ah-h3 mt-6 mb-2">Como o Visitor resolve</h3>
+<p>Cada operação virou um visitante: <code>Calculadora</code>, <code>Explicador</code>, <code>Validador</code> e <code>Auditor</code>. A hierarquia de regras é selada, então o compilador conhece todos os tipos. Adicionar a auditoria não exigiu tocar em nenhuma regra. Esse é o lado do expression problem que favorece operações novas.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Modele a parte que muda pouco (os tipos de regra) como uma hierarquia selada.</li>
+<li>Escreva cada operação como um visitante com um tipo de retorno próprio (<code>Visitor&lt;Long&gt;</code>, <code>Visitor&lt;List&lt;String&gt;&gt;</code>).</li>
+<li>Quando surgir um tipo novo (por exemplo, “frete grátis”), o compilador aponta todos os visitantes que precisam tratá-lo. Esse é o custo consciente.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Visitantes que chamam regras que chamam visitantes sem limite, criando recursão difícil de depurar. Mantenha a recursão restrita às combinações (como <code>Cumulativa</code>), e trate a validação antes do cálculo.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Com <code>switch</code> sobre tipos selados (Java 21 em diante, com padrões), a mesma solução fica mais curta, e a exaustividade continua garantida. O visitante continua útil quando as operações são muitas e são desenvolvidas por equipes diferentes.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/visitor-regras/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/visitor-regras/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/visitor-regras
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>10% de desconto                               desconto R$ 20.00 | total R$ 180.00
+R$ 5.00 de desconto                           desconto R$ 5.00 | total R$ 195.00
+10% de desconto, depois R$ 5.00 de desconto   desconto R$ 25.00 | total R$ 175.00
+campanha rejeitada: [percentual fora de 1..100: 150]
+folhas da regra cumulativa (visitante Auditor): 2</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: motor de descontos de um e-commerce.
+ * As regras são configuradas pelo time de marketing e guardadas como dados.
+ * Cada nova operação (calcular, explicar, validar, auditar) é um novo visitante;
+ * o modelo de regras não muda.
+ */
+public class Main {
+
+    sealed interface Regra permits Percentual, ValorFixo, Cumulativa {
+        &lt;R&gt; R aceitar(Visitor&lt;R&gt; v);
+    }
+    record Percentual(int pct) implements Regra {
+        public &lt;R&gt; R aceitar(Visitor&lt;R&gt; v) { return v.percentual(this); }
+    }
+    record ValorFixo(long centavos) implements Regra {
+        public &lt;R&gt; R aceitar(Visitor&lt;R&gt; v) { return v.valorFixo(this); }
+    }
+    /** Aplica a primeira regra e depois a segunda sobre o que sobrou. */
+    record Cumulativa(Regra primeira, Regra segunda) implements Regra {
+        public &lt;R&gt; R aceitar(Visitor&lt;R&gt; v) { return v.cumulativa(this); }
+    }
+
+    interface Visitor&lt;R&gt; {
+        R percentual(Percentual p);
+        R valorFixo(ValorFixo v);
+        R cumulativa(Cumulativa c);
+    }
+
+    /** Operação 1: quanto a regra desconta, dado um subtotal. */
+    static final class Calculadora implements Visitor&lt;Long&gt; {
+        private final long subtotal;
+        Calculadora(long subtotal) { this.subtotal = subtotal; }
+        public Long percentual(Percentual p) { return subtotal * p.pct() / 100; }
+        public Long valorFixo(ValorFixo v) { return Math.min(v.centavos(), subtotal); }
+        public Long cumulativa(Cumulativa c) {
+            long d1 = c.primeira().aceitar(new Calculadora(subtotal));
+            long d2 = c.segunda().aceitar(new Calculadora(subtotal - d1));  // o segundo desconto usa o restante
+            return d1 + d2;
+        }
+    }
+
+    /** Operação 2: texto que o checkout mostra ao cliente. */
+    static final class Explicador implements Visitor&lt;String&gt; {
+        public String percentual(Percentual p) { return p.pct() + &quot;% de desconto&quot;; }
+        public String valorFixo(ValorFixo v) { return String.format(&quot;R$ %.2f de desconto&quot;, v.centavos() / 100.0); }
+        public String cumulativa(Cumulativa c) {
+            return c.primeira().aceitar(this) + &quot;, depois &quot; + c.segunda().aceitar(this);
+        }
+    }
+
+    /** Operação 3: validação antes de publicar a campanha. */
+    static final class Validador implements Visitor&lt;List&lt;String&gt;&gt; {
+        public List&lt;String&gt; percentual(Percentual p) {
+            return (p.pct() &lt; 1 || p.pct() &gt; 100) ? List.of(&quot;percentual fora de 1..100: &quot; + p.pct()) : List.of();
+        }
+        public List&lt;String&gt; valorFixo(ValorFixo v) {
+            return v.centavos() &lt;= 0 ? List.of(&quot;valor fixo deve ser positivo&quot;) : List.of();
+        }
+        public List&lt;String&gt; cumulativa(Cumulativa c) {
+            List&lt;String&gt; erros = new ArrayList&lt;&gt;(c.primeira().aceitar(this));
+            erros.addAll(c.segunda().aceitar(this));
+            return erros;
+        }
+    }
+
+    /** Operação 4 (adicionada depois, sem tocar nas regras): trilha de auditoria. */
+    static final class Auditor implements Visitor&lt;Integer&gt; {
+        public Integer percentual(Percentual p) { return 1; }
+        public Integer valorFixo(ValorFixo v) { return 1; }
+        public Integer cumulativa(Cumulativa c) {
+            return c.primeira().aceitar(this) + c.segunda().aceitar(this);
+        }
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        long subtotal = 20_000;   // R$ 200,00
+        List&lt;Regra&gt; campanhas = List.of(
+                new Percentual(10),
+                new ValorFixo(500),
+                new Cumulativa(new Percentual(10), new ValorFixo(500)),
+                new Percentual(150)                       // erro de cadastro
+        );
+
+        for (Regra r : campanhas) {
+            List&lt;String&gt; erros = r.aceitar(new Validador());
+            if (!erros.isEmpty()) {
+                System.out.println(&quot;campanha rejeitada: &quot; + erros);
+                continue;
+            }
+            long desconto = r.aceitar(new Calculadora(subtotal));
+            System.out.printf(&quot;%-45s desconto R$ %.2f | total R$ %.2f%n&quot;,
+                    r.aceitar(new Explicador()), desconto / 100.0, (subtotal - desconto) / 100.0);
+        }
+        System.out.println(&quot;folhas da regra cumulativa (visitante Auditor): &quot;
+                + campanhas.get(2).aceitar(new Auditor()));
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Adicione um tipo <code>Gratuito</code> ao exemplo. Quantos arquivos e métodos você precisou tocar?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a interface <code>Visitor</code> ganha um método (o compilador aponta todos os visitantes que faltam), e cada visitante implementa esse método. As classes de expressão ganham o <code>aceitar</code>. Esse é o custo do expression problem na forma Visitor: adicionar tipo espalha mudanças.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Reescreva <code>Avaliador</code> com <code>switch</code> sobre o tipo selado, sem visitor. Qual extensão ficou mais fácil?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> adicionar operação fica fácil (um novo método com <code>switch</code>), e adicionar tipo fica verificado: o <code>switch</code> sobre tipo selado sem o caso novo não compila. Ganhou-se segurança para tipos, e perdeu-se a separação de operações nas classes.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>WADLER, Philip. “The Expression Problem”, mensagem à lista java-genericity, 1998.</li>
+<li>GAMMA, E. et al. <em>Padrões de Projeto</em>. Bookman. Padrão Visitor.</li>
+<li>JEP 409 (Sealed Classes), OpenJDK: definição de hierarquias fechadas.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

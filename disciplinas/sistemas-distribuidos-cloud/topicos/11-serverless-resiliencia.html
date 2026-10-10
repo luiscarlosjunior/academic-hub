@@ -176,6 +176,14 @@ proxima[i] = t + (rng.randint(1, espera) if jitter else espera)</code></pre>
   </div>
 </section>
 
+<section id="fila-animacao" data-toc="Animação: fila, contrapressão e DLQ" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-inbox text-sky-400 mr-2"></i>Animação · Fila com mensagem venenosa</h2>
+  <p class="ah-lead text-sm mb-4">Mensagens chegam em rajadas. O consumidor processa um número fixo por intervalo. A mensagem "veneno" falha sempre: volta ao fim da fila duas vezes e, na terceira falha, vai para a fila de mensagens mortas. Compare o consumidor normal e o lento.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvFila" style="height:320px"></canvas></div>
+  <div id="ctlFila" class="mt-4"></div>
+  <div id="capFila" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: disjuntor e tempestade de reenvio" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Disjuntor e reenvio com jitter</h2>
   <div class="ah-prose">
@@ -229,6 +237,72 @@ Reenvio de 1000 clientes após uma queda de 10 instantes (capacidade 200 por ins
       <div class="text-xs font-bold text-sky-300 mb-1">Previsão do tempo em um app</div>
       <p class="text-xs text-slate-400">Se o serviço de clima falha, o app mostra a última previsão em cache, com a data. É degradação graciosa: o usuário perde o dado mais recente, mas não perde a tela.</p>
     </div>
+  </div>
+</section>
+
+<section id="contrapressao" data-toc="Aprofundamento: contrapressão e entrega" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-water text-sky-400 mr-2"></i>Aprofundamento · Contrapressão, ordem e concorrência</h2>
+  <div class="ah-prose">
+    <p>
+      Uma fila sem limite transforma uma lentidão em um problema de memória e de atraso. Se os produtores enviam mais do que os consumidores processam, a
+      fila cresce sem fim, e as mensagens mais antigas chegam tarde demais para ter valor (um alerta de temperatura lido uma hora depois não serve). A
+      <strong>contrapressão</strong> (backpressure) é o mecanismo que devolve esse sinal ao produtor: uma fila com capacidade máxima que recusa mensagens quando
+      cheia, ou um protocolo em que o consumidor pede lotes do tamanho que consegue processar. A alternativa é descartar com critério, mantendo as mensagens mais recentes.
+    </p>
+    <p>
+      A <strong>concorrência</strong> do consumidor define a ordem. Processar em paralelo acelera, mas pode inverter a ordem entre mensagens do mesmo cliente. Muitos
+      sistemas oferecem ordem apenas por chave: mensagens com a mesma chave (o mesmo pedido, o mesmo cliente) são processadas em sequência, e as demais em paralelo.
+      Isso preserva a causalidade relevante (tópico 3) sem exigir ordem global, que seria um gargalo.
+    </p>
+    <p>
+      Para serverless, a concorrência também tem limite: a plataforma pode impor um teto de execuções simultâneas por função. Quando o teto é atingido, novas
+      invocações ficam na fila ou falham, dependendo do tipo de gatilho. Limitar a concorrência é a forma de proteger o banco de dados que a função usa, e
+      evita que um pico de eventos derrube um serviço que não foi projetado para essa carga.
+    </p>
+    <p>
+      O início a frio pode ser mitigado mantendo instâncias pré-aquecidas, com um custo fixo por instância ociosa. Vale a pena quando a latência inicial é
+      visível para o usuário, e não quando a função é executada em segundo plano. Essa é a mesma troca entre custo fixo e variável do tópico 9, agora em termos de latência.
+    </p>
+    <p>
+      Por fim, o consumidor precisa ser idempotente e ter um limite de tentativas. Uma mensagem que falha por erro transitório deve ser repetida com backoff,
+      enquanto uma que falha por erro permanente (dado inválido, regra de negócio) deve ir logo para a fila de mensagens mortas. Distinguir os dois casos é a
+      parte mais difícil do desenho, e a fonte mais comum de filas de mensagens mortas cheias e ignoradas.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Resiliência e serverless em produção: como equipes reais aprenderam a proteger serviços. Os participantes são fictícios; os sistemas citados são públicos.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Disjuntores e isolamento na Netflix (Hystrix)</div>
+    <p class="text-sm text-slate-300 mb-3">A Netflix liberou como código aberto, em 2012, a biblioteca Hystrix, que implementa disjuntores, isolamento por pool de threads e degradação com valores de contingência para chamadas a serviços remotos. Segundo a própria equipe, a biblioteca foi pensada depois de falhas em cascata em que um serviço lento derrubava os chamadores.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de backend:</strong> "Sem disjuntor, cada chamada espera o timeout. Com cem threads presas, o serviço inteiro para por causa de um vizinho lento."</p>
+      <p><strong>Pessoa de produto:</strong> "E o valor de contingência? Mostramos recomendações genéricas em vez de nada. O usuário percebe menos a falha."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> para cada chamada do seu sistema, qual valor de contingência é aceitável? Qual é inaceitável?</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Contenção de custo e de carga em funções sem servidor</div>
+    <p class="text-sm text-slate-300 mb-3">Plataformas como o AWS Lambda permitem limitar a concorrência de uma função. Equipes usam esse limite para proteger um banco de dados compartilhado: um pico de eventos não pode abrir mil conexões ao mesmo tempo. Em contrapartida, eventos excedentes ficam na fila ou falham, dependendo do gatilho.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de plataforma de dados:</strong> "O banco aguenta 200 conexões. Sem o limite de concorrência, uma rajada de eventos derrubava o banco para todos os serviços."</p>
+      <p><strong>Pessoa de produto:</strong> "E quem paga o atraso? Um pedido que espera dez minutos na fila não é um pedido perdido, mas o cliente percebe."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> como você escolheria o limite de concorrência de uma função que grava em um banco compartilhado?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Pagamento recusado por retentativa agressiva</div>
+    <p class="text-sm text-slate-300 mb-3">Uma integração com um adquirente retenta cada transação cinco vezes, sem espera entre as tentativas, quando recebe um erro transitório. Num dia de instabilidade do adquirente, o volume de retentativas triplica a carga e o adquirente passa a recusar mais transações, alimentando o próprio ciclo.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de SRE:</strong> "A retentativa tinha a intenção certa, mas nenhum limite. Virou uma tempestade de reenvios sincronizada."</p>
+      <p><strong>Pessoa de pagamentos:</strong> "Além disso, retentamos erros de validação, que nunca passariam. Erro permanente não deve ser retentado."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> monte uma política de retentativa para essa integração: quais erros retentar, com que backoff, com que jitter e com que limite.</p>
   </div>
 </section>
 
@@ -343,6 +417,15 @@ Reenvio de 1000 clientes após uma queda de 10 instantes (capacidade 200 por ins
     opcoes: [
       { v: 'recupera', rotulo: 'Teste dá certo' },
       { v: 'reabre', rotulo: 'Teste falha' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvFila', ctl: 'ctlFila', cap: 'capFila',
+    desenha: SD.desenhaFilaDLQ, gera: SD.geraFilaDLQ, velocidade: 1700,
+    opcoes: [
+      { v: 'normal', rotulo: 'Consumidor normal (3 por intervalo)' },
+      { v: 'lento', rotulo: 'Consumidor lento (2 por intervalo)' }
     ]
   });
 

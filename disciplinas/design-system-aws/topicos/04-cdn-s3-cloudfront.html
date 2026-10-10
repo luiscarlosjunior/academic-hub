@@ -173,6 +173,116 @@ aws cloudfront create-invalidation \
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos seguintes resolvem três problemas reais de um site estático: URLs de pasta que não abrem, a confirmação de cache pelo terminal e o diagnóstico de erros 403 e 404.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · URLs de pasta com uma CloudFront Function</h3>
+  <div class="ah-prose">
+    <p>
+      O S3 não sabe que <code>/docs/botao/</code> significa <code>/docs/botao/index.html</code>. Sem ajuste, a página dá erro 404 ou
+      <code>AccessDenied</code>, dependendo da configuração. Uma <em>CloudFront Function</em> corrige o caminho na borda, antes de a
+      requisição chegar à origem. Ela roda em JavaScript leve e custa menos que uma função Lambda@Edge.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JavaScript (cloudfront-js-2.0) · <code>reescrever-index.js</code></p>
+<pre class="ah-code"><code>function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+
+  if (uri.endsWith('/')) {
+    request.uri = uri + 'index.html';
+  } else if (!uri.includes('.')) {
+    request.uri = uri + '/index.html';
+  }
+
+  return request;
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a função só mexe em caminhos sem extensão. Um arquivo como <code>/assets/app.3f9c1a.js</code>
+      passa sem alteração, o que mantém o cache dos assets intacto. Caminhos terminados em barra recebem <code>index.html</code>, e os
+      demais recebem a barra e o arquivo. Com a função associada ao comportamento padrão, a documentação funciona com URLs bonitas.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Confirmando o cache pelo terminal</h3>
+  <div class="ah-prose">
+    <p>
+      Antes de dizer que “está em cache”, meça. O CloudFront informa o resultado de cada requisição no cabeçalho <code>X-Cache</code>. A
+      primeira chamada traz <em>Miss</em>, porque a borda busca na origem. A segunda, feita dentro do TTL, traz <em>Hit</em>.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · medindo o cache</p>
+<pre class="ah-code"><code># primeira chamada: a borda busca na origem
+curl -sI https://design.sua-org.com.br/index.html | grep -i -E "^x-cache|^cache-control|^age"
+# X-Cache: Miss from cloudfront
+
+# segunda chamada, dentro do TTL: a borda responde sozinha
+curl -sI https://design.sua-org.com.br/index.html | grep -i -E "^x-cache|^age"
+# X-Cache: Hit from cloudfront
+# Age: 12</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o cabeçalho <code>Age</code> mostra há quantos segundos o objeto está guardado na borda. Se o
+      <code>index.html</code> sempre responder <em>Hit</em> com idade alta depois de um deploy, a configuração <code>no-cache</code> ou a
+      invalidação não está sendo aplicada, e esse é o primeiro ponto a investigar.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Publicando duas versões lado a lado</h3>
+  <div class="ah-prose">
+    <p>
+      Quando um consumidor ainda usa a versão 1 do design system, a documentação antiga precisa continuar no ar. A solução é um prefixo
+      por versão no bucket. A raiz aponta para a versão mais recente, e cada prefixo fica estável.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · publicação de uma nova major</p>
+<pre class="ah-code"><code># a versão 2 vai para o próprio prefixo, sem tocar na 1
+aws s3 sync ./storybook-v2 "s3://ds-docs-producao/v2/" \
+  --cache-control "public, max-age=31536000, immutable" \
+  --exclude "index.html"
+aws s3 cp ./storybook-v2/index.html "s3://ds-docs-producao/v2/index.html" \
+  --cache-control "no-cache"
+
+# a raiz passa a apontar para a 2 (cópia do index, com revalidação)
+aws s3 cp ./storybook-v2/index.html "s3://ds-docs-producao/index.html" \
+  --cache-control "no-cache"</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> cada prefixo é um site completo, e o sync nunca usa <code>--delete</code> na raiz. Assim, uma
+      publicação não remove nada da versão anterior. A cópia do index na raiz é o único ponto que muda de destino, e por isso recebe
+      revalidação.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 4 · Diagnosticando 403 e 404</h3>
+  <div class="ah-prose">
+    <p>
+      Os dois erros mais comuns têm causas diferentes, e confundi-las faz perder tempo. A tabela resume o diagnóstico.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>Verificação</th></tr></thead>
+      <tbody>
+        <tr><td>403 AccessDenied em todos os arquivos</td><td>Política do bucket sem o <code>AWS:SourceArn</code> correto, ou OAC não associado à origem</td><td>Conferir o ARN da distribuição na política e no comportamento</td></tr>
+        <tr><td>403 apenas em um arquivo</td><td>O arquivo não existe no bucket, e o S3 responde 403 para objetos ausentes sem permissão de listagem</td><td>Listar o objeto com o caminho exato</td></tr>
+        <tr><td>404 em <code>/docs/botao/</code></td><td>Falta a reescrita de URL de pasta para <code>index.html</code></td><td>Associar a CloudFront Function do exemplo 1</td></tr>
+        <tr><td>Versão antiga após o deploy</td><td>Index com cache longo, sem invalidação</td><td><code>X-Cache: Hit</code> com <code>Age</code> alta no index</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela separa o que é permissão do que é caminho. Um 403 em todos os arquivos quase sempre é
+      política; um 404 em pastas quase sempre é reescrita de URL. Começar pela causa certa economiza a leitura de logs sem fim.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

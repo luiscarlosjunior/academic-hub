@@ -205,6 +205,76 @@
   </div>
 </section>
 
+<section id="saga-animacao" data-toc="Animação: saga com compensação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate-left text-sky-400 mr-2"></i>Animação · Saga: falhar e desfazer em ordem inversa</h2>
+  <p class="ah-lead text-sm mb-4">Um pedido tem três passos locais. Escolha onde a falha acontece. Repare em como a compensação desfaz apenas o que já foi concluído, na ordem inversa.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvSaga" style="height:300px"></canvas></div>
+  <div id="ctlSaga" class="mt-4"></div>
+  <div id="capSaga" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="isolamento-sagas" data-toc="Aprofundamento: isolamento em sagas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-shield text-sky-400 mr-2"></i>Aprofundamento · Anomalias do isolamento em sagas</h2>
+  <div class="ah-prose">
+    <p>
+      Como uma saga confirma cada passo imediatamente, outras transações podem ler estados intermediários. Garcia-Molina e Salem (1987) chamam essas situações de
+      <strong>leituras sujas</strong> da saga. Um exemplo: o estoque aparece reservado para o pedido 42, e outro pedido vê o estoque baixo e recusa uma compra
+      legítima. Quando o pedido 42 é cancelado, a recusa já foi dada ao cliente. A anomalia não corrompe dados, mas quebra a expectativa de quem lê.
+    </p>
+    <p>
+      Há contramedidas conhecidas, e a escolha depende da tolerância do negócio. A primeira é o <strong>estado pendente</strong>: a reserva é gravada com um
+      status "pendente", que outras transações tratam como indisponível de forma explícita, e não como ocupada. A segunda é o <strong>bloqueio semântico</strong>:
+      o registro fica marcado pela saga, e outras operações sobre ele esperam ou falham de forma previsível. A terceira é a <strong>releitura</strong>: antes de
+      um passo final, a saga verifica de novo a condição que justificou os passos anteriores.
+    </p>
+    <p>
+      A literatura também separa os passos em três tipos. Os passos <strong>compensáveis</strong> podem ser desfeitos. O <strong>pivô</strong> é o passo que decide o
+      resultado: depois dele, a saga só avança. Os passos <strong>repetíveis</strong> vêm depois do pivô e precisam ser tentados até dar certo. Esse desenho
+      permite escolher o pivô de propósito, por exemplo colocando a cobrança depois de tudo que pode falhar e é compensável, e antes do envio, que nunca é desfeito.
+    </p>
+    <p>
+      Por fim, é preciso projetar o próprio orquestrador. Ele precisa guardar o estado de cada saga em um registro durável, antes de disparar cada passo. Se
+      ele cai no meio, retoma de onde parou, e as compensações precisam ser idempotentes, pois podem ser reexecutadas. Esse é o mesmo problema de confiabilidade
+      do tópico 2, agora em um nível acima.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Como transações que atravessam sistemas são resolvidas em empresas reais. Os participantes são fictícios; as práticas são públicas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Workflows duráveis (Uber Cadence e Temporal)</div>
+    <p class="text-sm text-slate-300 mb-3">Engenheiros da Uber criaram o Cadence, um orquestrador de workflows que guarda o estado de cada execução e retoma o processo do ponto em que parou, depois de uma falha. Depois, ex-integrantes do projeto fundaram o Temporal, que segue a mesma ideia. A equipe escreve o fluxo como código comum, e a plataforma cuida das retentativas e das compensações.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de backend:</strong> "Antes, o orquestrador era uma tabela de estados que eu mesmo mantinha. Cada falha virava um caso especial."</p>
+      <p><strong>Pessoa de plataforma:</strong> "Agora o fluxo é código, e a plataforma guarda o histórico. Mas o código do fluxo ainda precisa ser idempotente, porque pode ser reexecutado."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> o que muda quando a lógica de compensação fica dentro do código do fluxo, em vez de espalhada em serviços? Que risco isso cria?</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Estorno e disputa em pagamentos instantâneos (Pix)</div>
+    <p class="text-sm text-slate-300 mb-3">No Pix, uma transferência é liquidada em segundos, mas o sistema prevê o Mecanismo Especial de Devolução (MED), para casos de fraude ou erro, regulado pelo Banco Central. Um estorno é, na prática, uma nova transação em sentido contrário, com seu próprio registro, e não o desfazer de uma operação anterior.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de produto:</strong> "O cliente pensa 'cancelar'. O sistema faz 'devolver'. Na tela, são coisas diferentes, e o prazo também."</p>
+      <p><strong>Pessoa de compliance:</strong> "Por isso a devolução precisa ser rastreável ligada à transação original. Não pode ser um ajuste silencioso no saldo."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> a devolução de um pagamento é uma compensação no sentido do tópico 7? Em que ela se parece e em que ela difere?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Publicar evento e gravar no banco sem perder nada (padrão outbox)</div>
+    <p class="text-sm text-slate-300 mb-3">Muitas equipes publicam eventos no Kafka depois de gravar um pedido no banco. Quando o processo cai entre as duas operações, o evento se perde ou se duplica. O padrão outbox, usado por ferramentas como o Debezium, lê o log de transações do banco e publica os eventos a partir dele.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de backend:</strong> "Antes, a gente tinha um job que reenviava eventos 'que pareciam perdidos'. Às vezes reenviava algo que já tinha chegado."</p>
+      <p><strong>Pessoa de dados:</strong> "Com o log de transações, o evento sai exatamente do que foi confirmado. O consumidor continua precisando ser idempotente."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> o que acontece se o conector de captura de mudanças do banco ficar atrasado por horas? Como a equipe percebe e recupera?</p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
 
@@ -318,6 +388,16 @@
       { v: 'sucesso', rotulo: 'Todos confirmam' },
       { v: 'aborta', rotulo: 'Um recusa' },
       { v: 'bloqueio', rotulo: 'Coordenador cai' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvSaga', ctl: 'ctlSaga', cap: 'capSaga',
+    desenha: SD.desenhaSaga, gera: SD.geraSaga, velocidade: 1900,
+    opcoes: [
+      { v: 'ok', rotulo: 'Tudo certo' },
+      { v: 'falha-cobranca', rotulo: 'Falha na cobrança' },
+      { v: 'falha-envio', rotulo: 'Falha no envio' }
     ]
   });
 

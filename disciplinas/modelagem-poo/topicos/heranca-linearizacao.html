@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herança Múltipla, Mixins e Linearização (C3) · AcademicHub</title>
+<meta name="description" content="O problema do diamante, o algoritmo C3 que define a ordem de resolução de métodos e como Java resolve o mesmo conflito com interfaces default.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/heranca-linearizacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="diamante" data-toc="O problema do diamante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>O problema do diamante</h2>
+  <div class="ah-prose">
+
+<p>Se <code>D</code> herda de <code>B</code> e <code>C</code>, e ambos herdam de <code>A</code>, qual implementação de um método definido em <code>A</code> e sobrescrito em <code>B</code> e <code>C</code> vence em <code>D</code>? A pergunta não tem resposta única sem uma regra. Essa regra é a <strong>ordem de resolução de métodos</strong> (MRO).</p>
+
+  </div>
+</section>
+
+<section id="c3" data-toc="O algoritmo C3" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>O algoritmo C3</h2>
+  <div class="ah-prose">
+
+<p>O C3, proposto por Barrett et al. (1996) para o Dylan e adotado pelo Python 2.3 em diante, calcula a MRO de forma <strong>monotônica</strong>: a ordem relativa das superclasses é preservada em toda subclasse. Definição recursiva:</p>
+<pre class="ah-code"><code>MRO(C) = C + merge( MRO(B1), ..., MRO(Bn), [B1, ..., Bn] )</code></pre>
+<p>A função <code>merge</code> pega, em ordem, a primeira cabeça de uma lista que <em>não aparece na cauda de nenhuma outra</em>. Se não houver candidato, a hierarquia é inconsistente e o C3 falha, o que é uma propriedade desejável: a ordem não existe.</p>
+
+  </div>
+</section>
+
+<section id="java" data-toc="Como Java resolve isso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Como Java resolve isso</h2>
+  <div class="ah-prose">
+
+<p>Java proíbe herança múltipla de <em>classes</em>, mas permite várias <em>interfaces</em> com métodos <code>default</code>. Se duas interfaces definem o mesmo <code>default</code>, a classe <strong>é obrigada</strong> a sobrescrever e escolher explicitamente (<code>Esquerda.super.m()</code>). É uma escolha mais conservadora que a MRO: Java não aplica uma ordem automática, e falha em tempo de compilação quando a ambiguidade existe (JLS 9.4.1.3).</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>O código implementa o C3 em Java para um dicionário de bases e calcula a MRO do diamante. Também mostra a resolução explícita de conflito entre interfaces.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/linearizacao/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/linearizacao/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/linearizacao
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>MRO de D (C3): [D, B, C, A]
+
+Java exige resolver o conflito explicitamente:
+esquerda + direita</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Herança múltipla e linearização (algoritmo C3, usado por Python e Dylan).
+ * Em Java, classes têm uma superclasse, mas interfaces com default criam o mesmo problema
+ * de ordem de resolução. Aqui calculamos a MRO (Method Resolution Order) do diamante.
+ */
+public class Main {
+
+    /** C3: a MRO de C é C seguido da mesclagem das MROs das bases, preservando a ordem local. */
+    static List&lt;String&gt; c3(String classe, Map&lt;String, List&lt;String&gt;&gt; bases) {
+        List&lt;String&gt; basesDaClasse = bases.getOrDefault(classe, List.of());
+        if (basesDaClasse.isEmpty()) return new ArrayList&lt;&gt;(List.of(classe));
+
+        List&lt;List&lt;String&gt;&gt; seqs = new ArrayList&lt;&gt;();
+        for (String b : basesDaClasse) seqs.add(c3(b, bases));
+        seqs.add(new ArrayList&lt;&gt;(basesDaClasse));          // a lista das bases, na ordem declarada
+
+        List&lt;String&gt; resultado = new ArrayList&lt;&gt;();
+        resultado.add(classe);
+        while (true) {
+            seqs.removeIf(List::isEmpty);
+            if (seqs.isEmpty()) return resultado;
+            String candidato = null;
+            for (List&lt;String&gt; s : seqs) {
+                String cabeca = s.get(0);
+                boolean naCauda = seqs.stream().anyMatch(t -&gt; t.indexOf(cabeca) &gt; 0);
+                if (!naCauda) { candidato = cabeca; break; }
+            }
+            if (candidato == null) throw new IllegalStateException(&quot;hierarquia inconsistente&quot;);
+            resultado.add(candidato);
+            final String c = candidato;
+            seqs.forEach(s -&gt; s.remove(c));
+        }
+    }
+
+    public static void main(String[] args) {
+        // Diamante:      A
+        //               / \
+        //              B   C
+        //               \ /
+        //                D
+        Map&lt;String, List&lt;String&gt;&gt; bases = new LinkedHashMap&lt;&gt;();
+        bases.put(&quot;D&quot;, List.of(&quot;B&quot;, &quot;C&quot;));
+        bases.put(&quot;B&quot;, List.of(&quot;A&quot;));
+        bases.put(&quot;C&quot;, List.of(&quot;A&quot;));
+        bases.put(&quot;A&quot;, List.of());
+
+        System.out.println(&quot;MRO de D (C3): &quot; + c3(&quot;D&quot;, bases));
+
+        // Mesma situação em Java: duas interfaces com default de mesmo nome.
+        System.out.println(&quot;\nJava exige resolver o conflito explicitamente:&quot;);
+        System.out.println(new Dois().oi());
+    }
+
+    interface Esquerda { default String oi() { return &quot;esquerda&quot;; } }
+    interface Direita  { default String oi() { return &quot;direita&quot;; } }
+    static class Dois implements Esquerda, Direita {
+        @Override public String oi() { return Esquerda.super.oi() + &quot; + &quot; + Direita.super.oi(); }
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="mixins" data-toc="Mixins e traits: composição de comportamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Mixins e traits: composição de comportamento</h2>
+  <div class="ah-prose">
+
+<p>Traits (Schärli et al., 2003) são unidades de comportamento que se compõem sem formar hierarquia. Um mixin é uma classe parametrizada pela superclasse. Os dois resolvem o problema de reuso sem o acoplamento da herança clássica. Em Java, o equivalente mais próximo é a composição com interfaces default; em Scala e Kotlin, traits e delegação (<code>by</code>) são usados no lugar de herança múltipla.</p>
+
+  </div>
+</section>
+
+<section id="cenario" data-toc="Cenário real: pipeline de exportação com mixins" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Cenário real: pipeline de exportação com mixins</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um sistema de relatórios exporta dados para PDF e planilha. Três comportamentos são transversais a todos os relatórios: <strong>validar</strong> os dados, <strong>cachear</strong> o resultado e <strong>auditar</strong> a exportação. Cada tipo de relatório combina esses comportamentos de um jeito diferente.</p><h3 class="ah-h3 mt-6 mb-2">O problema que aparece em produção</h3>
+<p>Um relatório inválido (sem dados) foi servido do cache por dias. A causa não estava em nenhuma das etapas, e sim na <strong>ordem</strong>: uma mudança de configuração colocou o cache antes da validação, e a validação ficou sem efeito sobre o que já estava guardado.</p><h3 class="ah-h3 mt-6 mb-2">Como a linearização explica o comportamento</h3>
+<p>Em linguagens com herança múltipla cooperativa (Python, Dylan, Scala com traits), a ordem de execução é a <strong>MRO</strong>, calculada pelo algoritmo C3. A ordem das bases declaradas define a ordem das etapas, e isso é verificável antes de rodar: o exemplo calcula a MRO e mostra o efeito de inverter a ordem. Em Java, o equivalente é a composição explícita de etapas, mas o raciocínio é o mesmo.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Calcule a MRO de cada tipo de relatório e registre-a no código ou em um teste.</li>
+<li>Coloque a validação sempre antes de qualquer cache ou efeito colateral. Um teste que checa a ordem evita o defeito.</li>
+<li>Prefira etapas com curto-circuito explícito (como <code>Optional.empty()</code>) em vez de exceções para o fluxo normal.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Herança de implementação para reuso (“RelatorioBase” com cinco ganchos) cria uma hierarquia que ninguém consegue prever. Composição de etapas, como no exemplo, é mais fácil de testar e de reordenar.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>C3 torna a ordem previsível, mas as bases precisam ser consistentes: se duas classes exigem ordens opostas, o algoritmo falha, e isso é desejável. A alternativa de mixins com ordem fixa em código é mais simples de ler, mas esconde a ordem em um lugar que o time pode não olhar.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/mixins-pipeline/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/mixins-pipeline/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/mixins-pipeline
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>MRO calculada: [RelatorioPDF, Auditavel, Cacheavel, Validavel]
+
+Relatório válido, ordem da MRO:
+  -&gt; Auditavel
+    auditoria: &#x27;vendas-2026-09&#x27;
+  -&gt; Cacheavel
+  -&gt; Validavel
+  resultado: OK: vendas-2026-09
+
+Segunda vez, mesmo relatório: cache responde
+  -&gt; Auditavel
+    auditoria: &#x27;vendas-2026-09&#x27;
+  -&gt; Cacheavel
+    cache: hit
+  -&gt; Validavel
+  resultado: OK: vendas-2026-09
+
+Relatório vazio, ordem da MRO (validação protege o cache):
+  -&gt; Auditavel
+    auditoria: &#x27;&#x27;
+  -&gt; Cacheavel
+  -&gt; Validavel
+  recusado em Validavel
+  resultado: recusado
+
+Defeito de configuração: cache ANTES da validação
+  -&gt; Cacheavel
+  -&gt; Validavel
+  recusado em Validavel
+  itens no cache após a falha: [&#x27;&#x27;]</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: exportação de relatórios com três comportamentos transversais:
+ * Validável, Cacheável e Auditável. Na plataforma, a ORDEM dessas etapas muda o resultado.
+ * Cache antes da validação serve relatório inválido. Este exemplo calcula a ordem
+ * de execução com C3 (a mesma lógica da MRO de Python) e mostra o efeito.
+ */
+public class Main {
+
+    /** C3: MRO = C + merge(MRO das bases, lista das bases). */
+    static List&lt;String&gt; c3(String classe, Map&lt;String, List&lt;String&gt;&gt; bases) {
+        List&lt;String&gt; bs = bases.getOrDefault(classe, List.of());
+        if (bs.isEmpty()) return new ArrayList&lt;&gt;(List.of(classe));
+        List&lt;List&lt;String&gt;&gt; seqs = new ArrayList&lt;&gt;();
+        for (String b : bs) seqs.add(c3(b, bases));
+        seqs.add(new ArrayList&lt;&gt;(bs));
+        List&lt;String&gt; out = new ArrayList&lt;&gt;(List.of(classe));
+        while (true) {
+            seqs.removeIf(List::isEmpty);
+            if (seqs.isEmpty()) return out;
+            String cand = null;
+            for (List&lt;String&gt; s : seqs) {
+                String h = s.get(0);
+                if (seqs.stream().noneMatch(t -&gt; t.indexOf(h) &gt; 0)) { cand = h; break; }
+            }
+            if (cand == null) throw new IllegalStateException(&quot;ordem inconsistente&quot;);
+            out.add(cand);
+            final String c = cand;
+            seqs.forEach(s -&gt; s.remove(c));
+        }
+    }
+
+    /** Cada etapa transforma o dado e pode decidir não continuar (curto-circuito). */
+    interface Etapa { Optional&lt;String&gt; executar(String dado, Set&lt;String&gt; cache); }
+
+    static Etapa validavel = (dado, cache) -&gt; dado.isBlank() ? Optional.empty() : Optional.of(dado);
+    static Etapa cacheavel = (dado, cache) -&gt; {
+        if (cache.contains(dado)) System.out.println(&quot;    cache: hit&quot;);
+        cache.add(dado);
+        return Optional.of(dado);
+    };
+    static Etapa auditavel = (dado, cache) -&gt; {
+        System.out.println(&quot;    auditoria: &#x27;&quot; + dado + &quot;&#x27;&quot;);
+        return Optional.of(dado);
+    };
+
+    static Optional&lt;String&gt; rodar(List&lt;String&gt; ordem, Map&lt;String, Etapa&gt; etapas, String entrada, Set&lt;String&gt; cache) {
+        String dado = entrada;
+        for (String nome : ordem) {
+            System.out.println(&quot;  -&gt; &quot; + nome);
+            Optional&lt;String&gt; saida = etapas.get(nome).executar(dado, cache);
+            if (saida.isEmpty()) {
+                System.out.println(&quot;  recusado em &quot; + nome);
+                return Optional.empty();
+            }
+            dado = saida.get();
+        }
+        return Optional.of(dado);
+    }
+
+    static String mostrar(Optional&lt;String&gt; r) { return r.map(x -&gt; &quot;OK: &quot; + x).orElse(&quot;recusado&quot;); }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        // Hierarquia: RelatorioPDF herda dos três mixins, na ordem declarada
+        Map&lt;String, List&lt;String&gt;&gt; bases = new LinkedHashMap&lt;&gt;();
+        bases.put(&quot;RelatorioPDF&quot;, List.of(&quot;Auditavel&quot;, &quot;Cacheavel&quot;, &quot;Validavel&quot;));
+        bases.put(&quot;Auditavel&quot;, List.of());
+        bases.put(&quot;Cacheavel&quot;, List.of());
+        bases.put(&quot;Validavel&quot;, List.of());
+
+        Map&lt;String, Etapa&gt; etapas = Map.of(&quot;Validavel&quot;, validavel, &quot;Cacheavel&quot;, cacheavel, &quot;Auditavel&quot;, auditavel);
+        List&lt;String&gt; mro = c3(&quot;RelatorioPDF&quot;, bases);
+        List&lt;String&gt; ordemDeExecucao = mro.subList(1, mro.size());
+        System.out.println(&quot;MRO calculada: &quot; + mro);
+
+        System.out.println(&quot;\nRelatório válido, ordem da MRO:&quot;);
+        Set&lt;String&gt; cache = new HashSet&lt;&gt;();
+        System.out.println(&quot;  resultado: &quot; + mostrar(rodar(ordemDeExecucao, etapas, &quot;vendas-2026-09&quot;, cache)));
+
+        System.out.println(&quot;\nSegunda vez, mesmo relatório: cache responde&quot;);
+        System.out.println(&quot;  resultado: &quot; + mostrar(rodar(ordemDeExecucao, etapas, &quot;vendas-2026-09&quot;, cache)));
+
+        System.out.println(&quot;\nRelatório vazio, ordem da MRO (validação protege o cache):&quot;);
+        System.out.println(&quot;  resultado: &quot; + mostrar(rodar(ordemDeExecucao, etapas, &quot;&quot;, new HashSet&lt;&gt;())));
+
+        System.out.println(&quot;\nDefeito de configuração: cache ANTES da validação&quot;);
+        List&lt;String&gt; ordemErrada = List.of(&quot;Cacheavel&quot;, &quot;Validavel&quot;, &quot;Auditavel&quot;);
+        Set&lt;String&gt; cacheErrado = new HashSet&lt;&gt;();
+        rodar(ordemErrada, etapas, &quot;&quot;, cacheErrado);
+        System.out.println(&quot;  itens no cache após a falha: &quot; + cacheErrado.stream().map(x -&gt; &quot;&#x27;&quot; + x + &quot;&#x27;&quot;).toList());
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Calcule a MRO de <code>D(C, B)</code> com <code>B(A)</code> e <code>C(A)</code>. A ordem das bases importa?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> MRO = D, C, B, A. Sim, a ordem das bases importa: <code>D</code> prefere a primeira base declarada quando ambas oferecem o método.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Monte uma hierarquia para a qual o C3 falha. Por que a falha é desejável?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>class X(A, B)</code> e <code>class Y(B, A)</code>, depois <code>class Z(X, Y)</code>. As restrições pedem A antes de B e B antes de A: não há ordem. Falhar cedo é melhor que escolher uma ordem arbitrária em silêncio.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>BARRETT, K. et al. “A Monotonic Superclass Linearization for Dylan”, OOPSLA, 1996.</li>
+<li>SCHÄRLI, N. et al. “Traits: Composable Units of Behaviour”, ECOOP, 2003.</li>
+<li>GOSLING, J. et al. <em>The Java Language Specification</em>, seção 9.4.1 (herança de métodos default).</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variância e Genéricos: PECS e Substituição de Tipos · AcademicHub</title>
+<meta name="description" content="Por que List&lt;Musica&gt; não é List&lt;Reproduzivel&gt;, como wildcards resolvem isso e o que significa substituição de tipos em teoria.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/variancia-genericos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="porque" data-toc="Por que genéricos são invariantes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Por que genéricos são invariantes</h2>
+  <div class="ah-prose">
+
+<p>Em Java, <code>Musica</code> é subtipo de <code>Reproduzivel</code>. Mesmo assim, <code>List&lt;Musica&gt;</code> <strong>não</strong> é subtipo de <code>List&lt;Reproduzivel&gt;</code>. Isso parece contraintuitivo, e é a pergunta central deste tópico.</p>
+<p>A razão é a segurança de escrita. Se <code>List&lt;Musica&gt;</code> fosse aceito como <code>List&lt;Reproduzivel&gt;</code>, o código abaixo compilaria, e falharia em tempo de execução:</p>
+<pre class="ah-code"><code>List&lt;Musica&gt; musicas = new ArrayList&lt;&gt;();
+List&lt;Reproduzivel&gt; alias = musicas;   // suposição: isto compilaria
+alias.add(new Podcast("P", 600));       // aceito como Reproduzivel...
+Musica m = musicas.get(0);              // ...mas aqui seria um Podcast dentro de List&lt;Musica&gt;!</code></pre>
+<p>Genéricos são <strong>invariantes</strong> justamente para impedir esse caso. Os wildcards existem para recuperar flexibilidade sem perder a segurança.</p>
+
+  </div>
+</section>
+
+<section id="formal" data-toc="Definição formal: subtipagem e variância" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Definição formal: subtipagem e variância</h2>
+  <div class="ah-prose">
+
+<p>Seja <code>S &lt;: T</code> a relação “S é subtipo de T”. Um construtor de tipo <code>F</code> é:</p>
+<ul>
+<li><strong>covariante</strong> se <code>S &lt;: T</code> implica <code>F&lt;S&gt; &lt;: F&lt;T&gt;</code> (ex.: produtores, como leitura de uma coleção);</li>
+<li><strong>contravariante</strong> se <code>S &lt;: T</code> implica <code>F&lt;T&gt; &lt;: F&lt;S&gt;</code> (ex.: consumidores, como um <code>Comparator</code>);</li>
+<li><strong>invariante</strong> quando nenhuma das duas vale (o padrão de <code>List&lt;T&gt;</code> em Java).</li>
+</ul>
+<p>Em Java, a variância pode ser declarada no <em>uso</em>, com <code>? extends T</code> (covariância de leitura) e <code>? super T</code> (contravariância de escrita). Linguagens como Kotlin (<code>out</code>/<code>in</code>) e C# (<code>out</code>/<code>in</code> em interfaces) declaram a variância na <em>definição</em> do tipo.</p>
+<p>A relação de subtipagem usada em projeto é mais forte que a sintática. Liskov e Wing (1994) exigem <strong>subtipagem comportamental</strong>: o subtipo deve preservar as pré e pós-condições e os invariantes do tipo base. Um compilador verifica só a assinatura; a teoria exige também o comportamento.</p>
+<div class="ah-callout ah-callout-tip mt-4"><i class="fa-solid fa-lightbulb"></i><div><strong>PECS:</strong> <em>Producer Extends, Consumer Super</em>. Se a coleção produz valores para você, use <code>? extends</code>. Se ela consome valores que você fornece, use <code>? super</code> (Bloch, <em>Effective Java</em>, item 31).</div></div>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>O código completo está no pacote <code>exemplos/avancado/variancia</code>. Os trechos abaixo mostram o que cada parte prova, e a saída é a execução real.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/variancia/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/variancia/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/variancia
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== 1. Covariância de leitura (? extends) ===
+soma (Musica): 350
+soma (misto):  950
+
+=== 2. Contravariância de escrita (? super) ===
+destino: [Musica[titulo=faixa 1, duracao=180], Musica[titulo=faixa 2, duracao=180]]
+
+=== 3. PECS em um método genérico ===
+fila após copiar: 2 itens
+
+=== 4. Armadilha da covariância de arrays (por que genéricos são invariantes) ===
+ArrayStoreException: java.lang.Integer
+
+=== 5. F-bounded: ordenação de tipos que se comparam a si mesmos ===
+[faixa#1, faixa#2, faixa#3]</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Variância e substituição de tipos genéricos.
+ * Pergunta central: se Musica é um Reproduzivel, List&lt;Musica&gt; é um List&lt;Reproduzivel&gt;?
+ */
+public class Main {
+
+    interface Reproduzivel { int duracao(); }
+    record Musica(String titulo, int duracao) implements Reproduzivel {}
+    record Podcast(String titulo, int duracao) implements Reproduzivel {}
+
+    // Produtor (só lê): ? extends T  -&gt; covariância segura para leitura
+    static int somarDuracoes(List&lt;? extends Reproduzivel&gt; itens) {
+        int total = 0;
+        for (Reproduzivel r : itens) total += r.duracao();   // leitura: seguro
+        return total;
+    }
+
+    // Consumidor (só escreve): ? super T  -&gt; contravariância segura para escrita
+    static void adicionarMusicas(List&lt;? super Musica&gt; destino, int n) {
+        for (int i = 1; i &lt;= n; i++) destino.add(new Musica(&quot;faixa &quot; + i, 180));  // escrita: seguro
+    }
+
+    // PECS: Producer Extends, Consumer Super (Joshua Bloch, Effective Java)
+    static &lt;T&gt; void copiar(List&lt;? super T&gt; destino, List&lt;? extends T&gt; origem) {
+        destino.addAll(origem);
+    }
+
+    // F-bounded polymorphism: o tipo se compara consigo mesmo
+    static abstract class Entidade&lt;T extends Entidade&lt;T&gt;&gt; implements Comparable&lt;T&gt; {
+        abstract int chave();
+        @Override public int compareTo(T outra) { return Integer.compare(chave(), outra.chave()); }
+    }
+    static final class Faixa extends Entidade&lt;Faixa&gt; {
+        private final int ordem;
+        Faixa(int ordem) { this.ordem = ordem; }
+        @Override int chave() { return ordem; }
+        @Override public String toString() { return &quot;faixa#&quot; + ordem; }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(&quot;=== 1. Covariância de leitura (? extends) ===&quot;);
+        List&lt;Musica&gt; musicas = new ArrayList&lt;&gt;(List.of(new Musica(&quot;A&quot;, 200), new Musica(&quot;B&quot;, 150)));
+        // List&lt;Musica&gt; NÃO é um List&lt;Reproduzivel&gt; (invariância), mas ? extends aceita as duas:
+        List&lt;Reproduzivel&gt; mistos = new ArrayList&lt;&gt;(musicas);
+        mistos.add(new Podcast(&quot;P&quot;, 600));
+        System.out.println(&quot;soma (Musica): &quot; + somarDuracoes(musicas));
+        System.out.println(&quot;soma (misto):  &quot; + somarDuracoes(mistos));
+
+        System.out.println(&quot;\n=== 2. Contravariância de escrita (? super) ===&quot;);
+        List&lt;Object&gt; destino = new ArrayList&lt;&gt;();
+        adicionarMusicas(destino, 2);
+        System.out.println(&quot;destino: &quot; + destino);
+
+        System.out.println(&quot;\n=== 3. PECS em um método genérico ===&quot;);
+        List&lt;Reproduzivel&gt; fila = new ArrayList&lt;&gt;();
+        copiar(fila, musicas);
+        System.out.println(&quot;fila após copiar: &quot; + fila.size() + &quot; itens&quot;);
+
+        System.out.println(&quot;\n=== 4. Armadilha da covariância de arrays (por que genéricos são invariantes) ===&quot;);
+        Object[] arr = new String[1];          // arrays SÃO covariantes em Java
+        try {
+            arr[0] = Integer.valueOf(42);      // compila, mas falha em execução
+        } catch (ArrayStoreException e) {
+            System.out.println(&quot;ArrayStoreException: &quot; + e.getMessage());
+        }
+        // List&lt;Object&gt; lista = new ArrayList&lt;String&gt;();  // NÃO compila: genéricos são invariantes
+
+        System.out.println(&quot;\n=== 5. F-bounded: ordenação de tipos que se comparam a si mesmos ===&quot;);
+        List&lt;Faixa&gt; ordem = new ArrayList&lt;&gt;(List.of(new Faixa(3), new Faixa(1), new Faixa(2)));
+        java.util.Collections.sort(ordem);
+        System.out.println(ordem);
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="armadilhas" data-toc="Armadilhas clássicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Armadilhas clássicas</h2>
+  <div class="ah-prose">
+
+<ul>
+<li><strong>Covariância de arrays:</strong> arrays em Java <em>são</em> covariantes, por isso a falha só aparece em execução (<code>ArrayStoreException</code>, caso 4 do exemplo). Genéricos foram projetados para evitar exatamente isso.</li>
+<li><strong>Tipos brutos (raw types):</strong> <code>List</code> sem parâmetro desliga a verificação. Compile sempre com <code>-Xlint:unchecked</code>.</li>
+<li><strong>Captura de wildcard:</strong> um método que recebe <code>List&lt;?&gt;</code> não pode adicionar nada (exceto <code>null</code>). A saída é um método auxiliar genérico, como o <code>copiar</code> do exemplo.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="cenario" data-toc="Cenário real: barramento de eventos de um marketplace" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Cenário real: barramento de eventos de um marketplace</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um marketplace publica eventos de domínio: <code>PedidoPago</code>, <code>PagamentoRecusado</code> e outros. Três consumidores precisam deles: a <strong>auditoria</strong> quer todos, o <strong>financeiro</strong> só quer pagamentos aprovados, e um <strong>painel de métricas</strong> conta eventos por tipo.</p><h3 class="ah-h3 mt-6 mb-2">O problema que aparece no código</h3>
+<p>A primeira versão do barramento recebia um <code>Consumer&lt;PedidoPago&gt;</code> genérico e exigia um <code>cast</code> em cada consumidor. Quando a auditoria tentou se inscrever como <code>Consumer&lt;Evento&gt;</code>, o compilador recusou, porque a assinatura não aceitava um supertipo. A equipe colocou <code>Object</code> em todo lugar, e perdeu a checagem de tipos.</p><h3 class="ah-h3 mt-6 mb-2">Como a variância resolve</h3>
+<p>A assinatura <code>assinar(Class&lt;T&gt;, Consumer&lt;? super T&gt;)</code> diz exatamente o que o assinante precisa: aceitar <code>T</code> ou um supertipo. Assim, um <code>Consumer&lt;Evento&gt;</code> serve para <code>PedidoPago</code> sem cast, e o compilador garante a compatibilidade. Do outro lado, <code>contarPorTipo(Collection&lt;? extends Evento&gt;)</code> aceita listas de qualquer subtipo, porque só lê.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Em parâmetros que <strong>consomem</strong> valores (assinantes, comparadores, validadores), use <code>? super T</code>.</li>
+<li>Em parâmetros que <strong>produzem</strong> valores (listas de leitura, fontes), use <code>? extends T</code>.</li>
+<li>Se a mesma API precisa ler e escrever, troque o wildcard por um parâmetro de tipo nomeado, como em <code>copiar</code> do exemplo.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Usar <code>List&lt;Object&gt;</code> “para ser flexível”. Isso desliga a verificação de tipos, e os erros voltam a aparecer em produção, como <code>ClassCastException</code> no meio de um lote de pagamentos.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Wildcards deixam as assinaturas mais difíceis de ler. Em APIs públicas, vale a pena documentar o porquê de cada wildcard. Linguagens como Kotlin e C# evitam parte desse custo ao declarar a variância no tipo, mas o princípio é o mesmo.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/variancia-eventos/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/variancia-eventos/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/variancia-eventos
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>financeiro: creditar R$ 199.90 do pedido PED-1
+financeiro: creditar R$ 45.00 do pedido PED-3
+auditoria recebeu 3 eventos
+contagem: {PagamentoRecusado=1, PedidoPago=2}
+contagem de só pagamentos: {PedidoPago=1}</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+import java.util.function.Consumer;
+
+/**
+ * CENÁRIO: barramento de eventos de um marketplace.
+ * Auditoria quer ver TODOS os eventos; o módulo financeiro só quer PedidoPago.
+ * O uso correto de wildcards deixa um único barramento servir aos dois sem cast.
+ */
+public class Main {
+
+    interface Evento { String tipo(); }
+    record PedidoPago(String pedidoId, long centavos) implements Evento {
+        public String tipo() { return &quot;PedidoPago&quot;; }
+    }
+    record PagamentoRecusado(String pedidoId, String motivo) implements Evento {
+        public String tipo() { return &quot;PagamentoRecusado&quot;; }
+    }
+
+    static final class BarramentoDeEventos {
+        private final List&lt;Consumer&lt;Evento&gt;&gt; roteadores = new ArrayList&lt;&gt;();
+
+        // Consumer&lt;? super T&gt;: o assinante aceita T ou qualquer supertipo (contravariância).
+        // Por isso, um auditor que recebe Evento pode se inscrever em PedidoPago.
+        &lt;T extends Evento&gt; void assinar(Class&lt;T&gt; tipo, Consumer&lt;? super T&gt; handler) {
+            roteadores.add(e -&gt; {
+                if (tipo.isInstance(e)) handler.accept(tipo.cast(e));
+            });
+        }
+
+        void publicar(Evento e) { roteadores.forEach(r -&gt; r.accept(e)); }
+    }
+
+    // Produtor de leitura: ? extends Evento aceita listas de qualquer subtipo (covariância).
+    static Map&lt;String, Integer&gt; contarPorTipo(Collection&lt;? extends Evento&gt; eventos) {
+        Map&lt;String, Integer&gt; contagem = new TreeMap&lt;&gt;();
+        for (Evento e : eventos) contagem.merge(e.tipo(), 1, Integer::sum);
+        return contagem;
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        BarramentoDeEventos barramento = new BarramentoDeEventos();
+        List&lt;Evento&gt; registro = new ArrayList&lt;&gt;();
+
+        // Auditoria: recebe qualquer Evento (Consumer&lt;Evento&gt; serve para Consumer&lt;? super PedidoPago&gt;)
+        Consumer&lt;Evento&gt; auditoria = registro::add;
+        barramento.assinar(Evento.class, auditoria);
+
+        // Financeiro: só pagamentos aprovados
+        barramento.assinar(PedidoPago.class, p -&gt;
+                System.out.printf(&quot;financeiro: creditar R$ %.2f do pedido %s%n&quot;, p.centavos() / 100.0, p.pedidoId()));
+
+        barramento.publicar(new PedidoPago(&quot;PED-1&quot;, 19990));
+        barramento.publicar(new PagamentoRecusado(&quot;PED-2&quot;, &quot;cartão sem limite&quot;));
+        barramento.publicar(new PedidoPago(&quot;PED-3&quot;, 4500));
+
+        System.out.println(&quot;auditoria recebeu &quot; + registro.size() + &quot; eventos&quot;);
+        System.out.println(&quot;contagem: &quot; + contarPorTipo(registro));
+        System.out.println(&quot;contagem de só pagamentos: &quot; + contarPorTipo(List.of(new PedidoPago(&quot;X&quot;, 1))));
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Por que <code>Comparator&lt;? super T&gt;</code> é a assinatura correta de <code>sort</code>?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o método <em>consome</em> elementos (compara-os). Um comparador de <code>Reproduzivel</code> serve para ordenar <code>Musica</code>, então precisamos de <code>? super Musica</code>: o comparador aceita o tipo ou um supertipo.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Declare, em Kotlin ou C#, uma interface <code>Fonte&lt;out T&gt;</code>. O que o compilador impede?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> impede que <code>T</code> apareça em posição de entrada (parâmetro de método). Assim <code>Fonte&lt;Musica&gt;</code> é seguro como <code>Fonte&lt;Reproduzivel&gt;</code>. É a variância verificada na definição, não no uso.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>BLOCH, Joshua. <em>Effective Java</em>, 3ª ed. Itens 28 a 31 (genéricos e PECS).</li>
+<li>LISKOV, Barbara; WING, Jeannette. “A Behavioral Notion of Subtyping”, <em>ACM TOPLAS</em>, 1994.</li>
+<li>KOTLIN. Documentação sobre <em>variance</em> (<code>out</code> e <code>in</code>), para comparar com a variância de uso do Java.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

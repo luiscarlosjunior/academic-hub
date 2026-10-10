@@ -210,6 +210,14 @@
     return votos &gt;= self.maioria</code></pre>
 </section>
 
+<section id="paxos-animacao" data-toc="Animação: Paxos e o valor preservado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scroll text-sky-400 mr-2"></i>Animação · Paxos: o valor decidido não muda</h2>
+  <p class="ah-lead text-sm mb-4">Três aceitadores. P1 decide A com número 1. No cenário "Proposta conflitante", P2 chega depois com um número maior e quer propor B. A regra de Paxos o obriga a propor A.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvPaxos" style="height:320px"></canvas></div>
+  <div id="ctlPaxos" class="mt-4"></div>
+  <div id="capPaxos" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: eleição com partição" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Maioria em partições aleatórias</h2>
   <div class="ah-prose">
@@ -257,6 +265,69 @@ Simulação com 5000 cenários aleatórios (partição e até duas falhas):
       <div class="text-xs font-bold text-sky-300 mb-1">Eleição de líder e split brain</div>
       <p class="text-xs text-slate-400">Um sistema com dois primários, cada um com metade dos clientes, é o split brain. A maioria existe justamente para impedi-lo: um lado sem quórum se cala, em vez de aceitar escritas conflitantes.</p>
     </div>
+  </div>
+</section>
+
+<section id="multi-paxos" data-toc="Aprofundamento: do Paxos ao log replicado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Aprofundamento · Do consenso único ao log replicado</h2>
+  <div class="ah-prose">
+    <p>
+      Paxos, como descrito acima, decide um único valor. Um sistema real precisa decidir uma sequência de comandos, um log. A extensão natural é o
+      <strong>Multi-Paxos</strong>: cada posição do log é uma instância de Paxos, e um líder estável pode pular a fase de preparação para todas as posições
+      seguintes, enquanto ninguém mais disputa a liderança. Assim, cada comando custa uma única ida e volta à maioria no caso comum. A parte difícil fica
+      nas trocas de líder: o novo líder precisa completar as posições pendentes do antigo, sem deixar buracos no log.
+    </p>
+    <p>
+      O Raft foi projetado para tornar essa parte compreensível. Ele impõe que um log só cresce a partir do líder, e que um candidato só vence a eleição se
+      seu log for pelo menos tão atualizado quanto o de uma maioria (a restrição de votação). Assim, o líder eleito sempre contém todas as entradas já
+      confirmadas, e não precisa buscá-las de outros nós antes de começar. Ongaro e Ousterhout (2014) provam essa propriedade de segurança e mostram que ela
+      vale mesmo com reinícios de servidores, desde que o estado de votação seja persistido antes de responder.
+    </p>
+    <p>
+      A vivacidade depende de detalhes de temporização. Se os timeouts de eleição forem iguais em todos os nós, dois candidatos podem se enfrentar
+      indefinidamente. O Raft usa timeouts aleatórios para quebrar esse empate, em linha com a ideia de aleatoriedade que contorna FLP. Os parâmetros
+      de tempo precisam refletir a latência real da rede: um timeout menor que o tempo de ida e volta gera eleições em série.
+    </p>
+    <p>
+      Por fim, a <strong>reconfiguração</strong> (trocar os membros do cluster) é uma fonte clássica de erros. Trocar todos os nós de uma vez pode criar duas
+      maiorias disjuntas. O Raft resolve com configurações conjuntas, em que a decisão exige maioria nas duas configurações durante a transição. É um lembrete de
+      que a propriedade de maioria é um invariante, e que qualquer operação que o viole, mesmo temporariamente, destrói a segurança.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Consenso aparece em sistemas que ninguém vê, mas que todo mundo usa. Os participantes são fictícios; os sistemas são públicos.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · O plano de controle do Kubernetes depende de etcd</div>
+    <p class="text-sm text-slate-300 mb-3">O etcd guarda o estado de todo cluster Kubernetes e usa Raft. Quando um cluster perde a maioria das réplicas do etcd, o plano de controle para de aceitar mudanças, mas os containers que já rodam continuam. A documentação oficial recomenda números ímpares de membros pelo mesmo motivo do tópico 6.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de plataforma:</strong> "Ninguém pensa no etcd até ele cair. Por isso ele tem monitoramento próprio e backup separado."</p>
+      <p><strong>Pessoa de SRE:</strong> "Num cluster de dois nós, uma falha já é perda de quórum. O custo de um terceiro nó é pequeno comparado a uma parada do plano de controle."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> o que continua funcionando quando o etcd perde o quórum? O que deixa de funcionar?</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Bancos distribuídos com Raft e Paxos (CockroachDB e Spanner)</div>
+    <p class="text-sm text-slate-300 mb-3">O CockroachDB replica cada faixa de dados com Raft, e o Spanner usa Paxos para o mesmo papel. Ambos publicam que uma escrita só é confirmada depois que a maioria da faixa a gravou. Para o time de aplicação, isso significa que a perda de uma região inteira não perde dados confirmados.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de backend:</strong> "A latência de uma escrita passa a incluir a ida e volta até a maioria. Se as réplicas estão em continentes diferentes, isso aparece no tempo de resposta."</p>
+      <p><strong>Pessoa de arquitetura:</strong> "Por isso o desenho de localização de réplicas é uma decisão de produto: quais usuários aceitam a latência extra em troca de sobreviver a uma região fora do ar?"</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> onde você colocaria as cinco réplicas de um banco que atende clientes no Brasil, na Europa e nos Estados Unidos? Justifique pela maioria.</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Consenso para além de bancos: eleição de líder em serviços internos</div>
+    <p class="text-sm text-slate-300 mb-3">Muitas equipes usam o etcd, o ZooKeeper ou o Consul apenas para eleger um líder entre instâncias de um serviço, como um processo que envia lembretes ou um agregador de métricas. Um serviço que não usa consenso para isso pode ter dois líderes ao mesmo tempo, depois de uma partição.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de confiabilidade:</strong> "Dois líderes em um processo de cobrança recorrente é o pior bug possível. A cobrança sai duas vezes."</p>
+      <p><strong>Pessoa de desenvolvimento:</strong> "Então o líder precisa de uma sessão renovada no serviço de consenso, e a tarefa só roda enquanto ela existir."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> em um serviço de cobrança recorrente, o que deve acontecer se o líder perde a sessão no meio de um lote?</p>
   </div>
 </section>
 
@@ -373,6 +444,15 @@ Simulação com 5000 cenários aleatórios (partição e até duas falhas):
     opcoes: [
       { v: 'maioria', rotulo: 'Falhas de servidores' },
       { v: 'particao', rotulo: 'Partição de rede' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvPaxos', ctl: 'ctlPaxos', cap: 'capPaxos',
+    desenha: SD.desenhaPaxos, gera: SD.geraPaxos, velocidade: 2000,
+    opcoes: [
+      { v: 'simples', rotulo: 'Uma proposta' },
+      { v: 'conflito', rotulo: 'Proposta conflitante' }
     ]
   });
 

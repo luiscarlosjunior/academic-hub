@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invariantes sob Concorrência · AcademicHub</title>
+<meta name="description" content="Por que a regra “saldo nunca negativo” quebra com duas threads, o que é atomicidade, visibilidade e linearizabilidade, e como o modelo de memória do Java garante os invariantes.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/concorrencia-invariantes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="bug" data-toc="O bug check-then-act" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>O bug check-then-act</h2>
+  <div class="ah-prose">
+
+<p>Um invariante é uma propriedade que vale sempre. Com uma thread, o código que verifica e o código que age rodam em sequência, então o invariante é preservado. Com duas, a verificação pode ficar <strong>obsoleta</strong> antes da ação. Esse é o padrão <em>check-then-act</em>, e é a causa mais comum de violação de invariantes em sistemas reais.</p>
+<p>O exemplo do projeto força o pior caso com uma barreira: as duas threads verificam o saldo antes de qualquer saque. Resultado determinístico: <code>-100</code>.</p>
+
+  </div>
+</section>
+
+<section id="atomicidade" data-toc="Atomicidade, visibilidade e ordem" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Atomicidade, visibilidade e ordem</h2>
+  <div class="ah-prose">
+
+<p>Três propriedades diferentes, que se confundem com facilidade:</p>
+<ul>
+<li><strong>Atomicidade:</strong> a operação inteira acontece ou não acontece, sem estado intermediário observável. <code>check + act</code> não é atômico sem sincronização.</li>
+<li><strong>Visibilidade:</strong> uma escrita feita por uma thread pode não ser vista por outra, por causa de caches e reordenação do compilador e do processador. O modelo de memória do Java (JLS 17.4) define a relação <em>happens-before</em>, que garante visibilidade quando há sincronização.</li>
+<li><strong>Ordem:</strong> a ordem de execução observada entre threads pode diferir da ordem do código.</li>
+</ul>
+<p>Um <code>synchronized</code> dá as três propriedades para o bloco inteiro. Um <code>AtomicLong</code> dá as três para <em>uma</em> variável, o que é suficiente no caso 4 do projeto e insuficiente para regras com duas variáveis.</p>
+
+  </div>
+</section>
+
+<section id="linear" data-toc="Linearizabilidade: o critério de correção" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Linearizabilidade: o critério de correção</h2>
+  <div class="ah-prose">
+
+<p>Herlihy e Wing (1990) definem <strong>linearizabilidade</strong>: cada operação parece acontecer em um ponto único entre seu início e seu fim, e a sequência desses pontos respeita a ordem real. É a garantia que um sistema concorrente oferece a quem usa, e é a forma correta de especificar um objeto concorrente. Um cache ou uma réplica pode ser não linearizável e ainda assim útil, desde que a especificação diga isso.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>As quatro partes do projeto mostram: o bug (1), a correção com monitor (2), a contagem com lock em alta concorrência (3) e a variável atômica (4). A saída é determinística, então o resultado pode ser comparado a cada execução.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/concorrencia/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/concorrencia/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/concorrencia
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== 1. Check-then-act: dois saques de 100 com saldo 100 ===
+saldo final = -100  (invariante saldo &gt;= 0 VIOLADO)
+
+=== 2. Mesma regra com monitor (sincronizado) ===
+saldo final = 0 (invariante mantido)
+
+=== 3. Contagem em 4 threads x 100.000 incrementos ===
+esperado 400000, obtido 400000
+
+=== 4. Variável atômica: sem lock, mas só para uma operação ===
+contador = 400000</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Invariantes sob concorrência.
+ * Parte 1: check-then-act (bug): a verificação e a ação não são atômicas.
+ * Parte 2: a mesma regra protegida por sincronização.
+ * Parte 3: contador sem lock (AtomicLong): atomicidade de uma única variável.
+ */
+public class Main {
+
+    /** Versão ingênua: verifica e age em momentos separados. */
+    static final class ContaIngenua {
+        long saldo;
+        /** A barreira força o pior escalonamento: os dois checks acontecem antes de qualquer ACT. */
+        void sacar(long v, CyclicBarrier depoisDoCheck) throws Exception {
+            boolean podeSacar = saldo &gt;= v;     // CHECK
+            depoisDoCheck.await();              // ambas as threads já verificaram o saldo
+            if (podeSacar) saldo -= v;          // ACT, baseado em um check possivelmente antigo
+        }
+    }
+
+    /** Versão correta: check e act são uma operação atômica (monitor). */
+    static final class ContaSegura {
+        private long saldo;
+        synchronized void depositar(long v) { saldo += v; }
+        synchronized boolean sacar(long v) {
+            if (saldo &lt; v) return false;
+            saldo -= v;
+            return true;
+        }
+        synchronized long saldo() { return saldo; }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        System.out.println(&quot;=== 1. Check-then-act: dois saques de 100 com saldo 100 ===&quot;);
+        ContaIngenua ingenua = new ContaIngenua();
+        ingenua.saldo = 100;
+        CyclicBarrier barreira = new CyclicBarrier(2);
+        Thread t1 = new Thread(() -&gt; { try { ingenua.sacar(100, barreira); } catch (Exception e) {} });
+        Thread t2 = new Thread(() -&gt; { try { ingenua.sacar(100, barreira); } catch (Exception e) {} });
+        t1.start(); t2.start(); t1.join(); t2.join();
+        System.out.println(&quot;saldo final = &quot; + ingenua.saldo + &quot;  (invariante saldo &gt;= 0 &quot; +
+                (ingenua.saldo &gt;= 0 ? &quot;mantido)&quot; : &quot;VIOLADO)&quot;));
+
+        System.out.println(&quot;\n=== 2. Mesma regra com monitor (sincronizado) ===&quot;);
+        ContaSegura segura = new ContaSegura();
+        segura.depositar(100);
+        Thread s1 = new Thread(() -&gt; segura.sacar(100));
+        Thread s2 = new Thread(() -&gt; segura.sacar(100));
+        s1.start(); s2.start(); s1.join(); s2.join();
+        System.out.println(&quot;saldo final = &quot; + segura.saldo() + &quot; (invariante mantido)&quot;);
+
+        System.out.println(&quot;\n=== 3. Contagem em 4 threads x 100.000 incrementos ===&quot;);
+        ContaSegura depositos = new ContaSegura();
+        Thread[] ts = new Thread[4];
+        for (int i = 0; i &lt; ts.length; i++) {
+            ts[i] = new Thread(() -&gt; { for (int k = 0; k &lt; 100_000; k++) depositos.depositar(1); });
+            ts[i].start();
+        }
+        for (Thread t : ts) t.join();
+        System.out.println(&quot;esperado 400000, obtido &quot; + depositos.saldo());
+
+        System.out.println(&quot;\n=== 4. Variável atômica: sem lock, mas só para uma operação ===&quot;);
+        AtomicLong contador = new AtomicLong();
+        Thread[] as = new Thread[4];
+        for (int i = 0; i &lt; as.length; i++) {
+            as[i] = new Thread(() -&gt; { for (int k = 0; k &lt; 100_000; k++) contador.incrementAndGet(); });
+            as[i].start();
+        }
+        for (Thread t : as) t.join();
+        System.out.println(&quot;contador = &quot; + contador.get());
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="armadilhas" data-toc="Armadilhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Armadilhas</h2>
+  <div class="ah-prose">
+
+<ul>
+<li><strong>Sincronizar só o escritor:</strong> o leitor também precisa de sincronização (ou de <code>volatile</code>), senão pode ver valores antigos.</li>
+<li><strong>Deadlock por ordem de locks:</strong> transferir entre duas contas, cada uma com seu lock, deadlocka se duas transferências pegam os locks em ordens opostas. A correção é sempre travar na mesma ordem (por id).</li>
+<li><strong>Double-checked locking sem <code>volatile</code>:</strong> o padrão é quebrado no modelo de memória anterior ao Java 5, e exige <code>volatile</code> para funcionar.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="cenario" data-toc="Cenário real: venda do último lote de ingressos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Cenário real: venda do último lote de ingressos</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um evento com lotação limitada abre a venda. Milhares de compradores clicam ao mesmo tempo, e o sistema roda em várias instâncias. O requisito é simples e inegociável: <strong>nunca vender mais ingressos do que existem</strong>.</p><h3 class="ah-h3 mt-6 mb-2">O problema que aparece na venda</h3>
+<p>A primeira versão verificava a disponibilidade e depois decrementava. Em um teste de carga, o sistema vendeu mais ingressos que a lotação: a verificação de cada compra era verdadeira no mesmo instante, e todas as vendas passaram. Este é o padrão check-then-act: a regra é violada no intervalo entre o teste e a ação.</p><h3 class="ah-h3 mt-6 mb-2">Como resolver</h3>
+<p>Duas soluções corretas, com custos diferentes. O <strong>monitor</strong> (<code>synchronized</code>) torna check e venda uma operação atômica dentro de uma instância. A <strong>comparação e troca</strong> (<code>compareAndSet</code>) faz o mesmo sem bloquear, tentando de novo quando perde a corrida. Em um cluster com várias máquinas, nenhuma das duas basta: a regra precisa ser imposta no banco de dados (uma restrição ou uma atualização condicional).</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Identifique cada invariante e o lugar onde ela é lida e escrita.</li>
+<li>Escolha o escopo da proteção: uma instância (monitor), um processo (CAS) ou o banco (condição atômica no UPDATE).</li>
+<li>Teste com barreira, como no exemplo, para reproduzir o pior escalonamento sem depender de sorte.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Sincronizar só a escrita. Uma leitura sem sincronização pode devolver um valor antigo, e a interface mostra “ingresso disponível” para quem já comprou o último.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Monitores são simples e corretos, mas serializam as vendas: sob carga extrema, a fila de threads pode virar gargalo. CAS escala melhor com pouca contenção e piora com muita. A decisão deve ser tomada com medição, não por preferência.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/concorrencia-ingressos/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/concorrencia-ingressos/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/concorrencia-ingressos
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== Versão ingênua (check-then-act) ===
+ingressos vendidos: 10 de 5 existentes
+
+=== Monitor (synchronized) ===
+vendidos: 5, restantes: 0
+
+=== Compare-and-set (sem bloqueio) ===
+vendidos: 5, restantes: 0</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * CENÁRIO: venda do último lote de ingressos de um evento.
+ * 10 compradores tentam pegar um dos 5 ingressos restantes ao mesmo tempo.
+ * A versão ingênua vende mais ingressos do que existem (oversell).
+ * Versões corretas: monitor (synchronized) ou CAS (compareAndSet), sem perder vendas.
+ */
+public class Main {
+
+    static final int COMPRADORES = 10;
+    static final int INGRESSOS = 5;
+
+    /** Ingênua: verifica e vende em momentos distintos. A barreira força o pior escalonamento. */
+    static int venderIngenuo() throws Exception {
+        AtomicInteger disponiveis = new AtomicInteger(INGRESSOS);
+        AtomicInteger vendidos = new AtomicInteger();
+        CyclicBarrier barreira = new CyclicBarrier(COMPRADORES);
+        Thread[] ts = new Thread[COMPRADORES];
+        for (int i = 0; i &lt; COMPRADORES; i++) {
+            ts[i] = new Thread(() -&gt; {
+                try {
+                    boolean viu = disponiveis.get() &gt; 0;     // CHECK
+                    barreira.await();                        // todos já viram &quot;há ingresso&quot;
+                    if (viu) {
+                        disponiveis.decrementAndGet();      // ACT sobre um check obsoleto
+                        vendidos.incrementAndGet();
+                    }
+                } catch (Exception e) { throw new RuntimeException(e); }
+            });
+            ts[i].start();
+        }
+        for (Thread t : ts) t.join();
+        return vendidos.get();
+    }
+
+    /** Correta com monitor: check e venda são uma operação. */
+    static final class Bilheteria {
+        private int disponiveis = INGRESSOS;
+        synchronized boolean vender() {
+            if (disponiveis == 0) return false;
+            disponiveis--;
+            return true;
+        }
+        synchronized int disponiveis() { return disponiveis; }
+    }
+
+    /** Correta sem bloqueio: laço de compareAndSet. */
+    static final class BilheteriaCAS {
+        private final AtomicInteger disponiveis = new AtomicInteger(INGRESSOS);
+        boolean vender() {
+            while (true) {
+                int atual = disponiveis.get();
+                if (atual == 0) return false;
+                if (disponiveis.compareAndSet(atual, atual - 1)) return true;   // tenta de novo se perdeu a corrida
+            }
+        }
+        int disponiveis() { return disponiveis.get(); }
+    }
+
+    static int venderComBilheteria(java.util.function.BooleanSupplier venda) throws InterruptedException {
+        AtomicInteger vendidos = new AtomicInteger();
+        Thread[] ts = new Thread[COMPRADORES];
+        for (int i = 0; i &lt; COMPRADORES; i++) {
+            ts[i] = new Thread(() -&gt; { if (venda.getAsBoolean()) vendidos.incrementAndGet(); });
+            ts[i].start();
+        }
+        for (Thread t : ts) t.join();
+        return vendidos.get();
+    }
+
+    public static void main(String[] args) throws Exception {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        System.out.println(&quot;=== Versão ingênua (check-then-act) ===&quot;);
+        System.out.println(&quot;ingressos vendidos: &quot; + venderIngenuo() + &quot; de &quot; + INGRESSOS + &quot; existentes&quot;);
+
+        System.out.println(&quot;\n=== Monitor (synchronized) ===&quot;);
+        Bilheteria bilheteria = new Bilheteria();
+        int v1 = venderComBilheteria(bilheteria::vender);
+        System.out.println(&quot;vendidos: &quot; + v1 + &quot;, restantes: &quot; + bilheteria.disponiveis());
+
+        System.out.println(&quot;\n=== Compare-and-set (sem bloqueio) ===&quot;);
+        BilheteriaCAS cas = new BilheteriaCAS();
+        int v2 = venderComBilheteria(cas::vender);
+        System.out.println(&quot;vendidos: &quot; + v2 + &quot;, restantes: &quot; + cas.disponiveis());
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Implemente <code>transferir(a, b, valor)</code> com dois locks sem deadlock. Qual regra você usou?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> sempre adquirir os locks na ordem crescente do id das contas, independentemente da ordem da transferência. Com ordem global, não há ciclo de espera, e o deadlock é impossível.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Um <code>AtomicLong</code> garante o invariante “saldo &gt;= 0” no saque?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> não. O saque é <em>ler, comparar e subtrair</em>, três passos. Um <code>compareAndSet</code> em loop pode resolver para uma variável, mas a regra é melhor expressa com o monitor, que protege o bloco inteiro.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>HERLIHY, M.; WING, J. “Linearizability: A Correctness Condition for Concurrent Objects”, <em>ACM TOPLAS</em>, 1990.</li>
+<li>GOETZ, Brian et al. <em>Java Concurrency in Practice</em>. Addison-Wesley, 2006.</li>
+<li>SHAVIT, N.; HERLIHY, M. <em>The Art of Multiprocessor Programming</em>. Morgan Kaufmann.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
