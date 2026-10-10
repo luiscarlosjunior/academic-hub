@@ -130,6 +130,14 @@
   <div id="capReconcilia" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="rolling-animacao" data-toc="Animação: atualização contínua" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-spin text-sky-400 mr-2"></i>Animação · Trocar v1 por v2 sem derrubar o serviço</h2>
+  <p class="ah-lead text-sm mb-4">Quatro pods em v1 precisam virar v2. No cenário "Criar antes de remover", a capacidade nunca cai. No cenário "Remover antes de criar", o serviço fica mais fraco durante a troca.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvRolling" style="height:300px"></canvas></div>
+  <div id="ctlRolling" class="mt-4"></div>
+  <div id="capRolling" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: convergência com falhas" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Reconciliação com falhas aleatórias</h2>
   <div class="ah-prose">
@@ -232,6 +240,38 @@ Efeito do atraso de inicialização (desejado = 3, capacidade plena):
       <div class="text-xs font-bold text-sky-300 mb-1">Container que não sobe</div>
       <p class="text-xs text-slate-400">Um pod em estado "CrashLoopBackOff" reinicia repetidamente, com intervalos crescentes. O orquestrador continua tentando, o que é o laço de reconciliação funcionando. Para o operador, é um sinal de que a aplicação falha no início, e os logs mostram o motivo.</p>
     </div>
+  </div>
+</section>
+
+<section id="prontidao" data-toc="Aprofundamento: prontidão, sondas e desligamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-heart-circle-check text-sky-400 mr-2"></i>Aprofundamento · Sondas, desligamento e redes de serviço</h2>
+  <div class="ah-prose">
+    <p>
+      O orquestrador só sabe que um pod está pronto porque alguém diz. As <strong>sondas</strong> (probes) são essa informação. A sonda de <em>prontidão</em> (readiness)
+      decide se o pod recebe tráfego: um pod que ainda carrega caches ou conecta no banco não deve atender. A sonda de <em>vivacidade</em> (liveness) decide
+      se o processo deve ser reiniciado: um processo travado, que não responde mais, precisa ser recriado. Confundir as duas causa reinicializações em cascata
+      durante picos, porque um pod sobrecarregado é reiniciado e a carga se concentra nos restantes.
+    </p>
+    <p>
+      O <strong>desligamento gracioso</strong> é a outra metade. Ao remover um pod, o orquestrador envia um sinal de término, espera um prazo, e só então mata o
+      processo. A aplicação deve parar de aceitar novas conexões, terminar as requisições em curso e liberar recursos nesse intervalo. Sem isso, a atualização
+      contínua corta conexões no meio de uma operação, e o cliente recebe erros que não existiam antes da troca.
+    </p>
+    <p>
+      Para manter capacidade durante manutenções, orquestradores oferecem um <strong>orçamento de interrupção</strong> (PodDisruptionBudget): o número mínimo de
+      pods que devem continuar disponíveis quando uma remoção voluntária é feita, por exemplo drenagem de um nó. Isso protege o serviço de uma manutenção
+      mal planejada, que removeria a maioria das réplicas de uma vez.
+    </p>
+    <p>
+      Quando há muitos serviços, a comunicação entre eles passa a exigir mecanismos comuns, como criptografia mútua, retentativas e medição de latência. Uma
+      <strong>malha de serviços</strong> (service mesh) coloca um proxy ao lado de cada pod, e cuida dessas funções fora do código da aplicação. O custo é mais um
+      salto em cada chamada e mais componentes para operar. Por isso, a malha costuma compensar só quando há dezenas de serviços com exigências parecidas.
+    </p>
+    <p>
+      Estratégias de implantação mais cuidadosas vão além da atualização contínua. Na implantação <strong>canário</strong>, uma pequena fração do tráfego vai à
+      versão nova, e a promoção depende de métricas de erro e latência. Na implantação <strong>azul-verde</strong>, duas cópias completas do ambiente existem, e
+      a troca é feita no balanceador, com volta imediata se algo der errado.
+    </p>
   </div>
 </section>
 
@@ -348,6 +388,15 @@ Efeito do atraso de inicialização (desejado = 3, capacidade plena):
     opcoes: [
       { v: 'falha', rotulo: 'Falha de um pod' },
       { v: 'escala', rotulo: 'Escala de 3 para 5' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvRolling', ctl: 'ctlRolling', cap: 'capRolling',
+    desenha: SD.desenhaRollingUpdate, gera: SD.geraRollingUpdate, velocidade: 1600,
+    opcoes: [
+      { v: 'seguro', rotulo: 'Criar antes de remover' },
+      { v: 'agressivo', rotulo: 'Remover antes de criar' }
     ]
   });
 
