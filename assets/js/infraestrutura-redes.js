@@ -455,6 +455,94 @@
     return { gera, desenha };
   }
 
+  /* ===================================================================
+     MOTOR LEAF-SPINE — ECMP entre dois spines.
+     Os caminhos de cada fluxo são os da saída de 11-sdn-datacenter.py
+     (hash crc32 do 5-tupla, módulo 2). spine-1 = índice 0, spine-2 = índice 1.
+     Cenário 'falha': o spine-2 cai depois do quarto fluxo; o ECMP passa a ter
+     um caminho só, e os fluxos seguem pelo spine-1.
+     =================================================================== */
+  const LS_FLUXOS = [
+    { s: 'L1:10.1.1.10', d: 'L2:10.2.1.20', porta: 443, spine: 0 },
+    { s: 'L1:10.1.1.10', d: 'L2:10.2.1.20', porta: 443, spine: 1 },
+    { s: 'L1:10.1.1.11', d: 'L2:10.2.1.20', porta: 443, spine: 0 },
+    { s: 'L1:10.1.1.11', d: 'L2:10.2.1.21', porta: 80, spine: 0 },
+    { s: 'L1:10.1.1.12', d: 'L2:10.2.1.22', porta: 443, spine: 0 },
+    { s: 'L1:10.1.1.12', d: 'L2:10.2.1.22', porta: 22, spine: 0 },
+    { s: 'L1:10.1.1.13', d: 'L2:10.2.1.23', porta: 443, spine: 0 },
+    { s: 'L1:10.1.1.13', d: 'L2:10.2.1.23', porta: 3306, spine: 1 }
+  ];
+  const LS_NOMES_SPINE = ['spine-1', 'spine-2'];
+  const LS_COR_FLUXO = ['#38bdf8', '#f59e0b', '#a855f7', '#10b981', '#f43f5e', '#e879f9', '#22d3ee', '#fb923c'];
+
+  function criaLeafSpine() {
+    function gera(opcao) {
+      const falha = opcao === 'falha';
+      const q = [{ n: 0, ativos: [], falhou: false, t: 'Fabric leaf-spine: cada leaf se liga a todos os spines. Entre L1 e L2 há dois caminhos de igual custo, e o ECMP escolhe um por fluxo, pelo hash do 5-tupla.' }];
+      const ativos = [];
+      LS_FLUXOS.forEach((f, i) => {
+        let spine = f.spine;
+        if (falha && i >= 4) spine = 0;
+        ativos.push({ idx: i, spine, movido: false });
+        let t = 'Fluxo ' + (i + 1) + ': ' + f.s.split(':')[1] + ' → ' + f.d.split(':')[1] + ':' + f.porta +
+          ' cai no ' + LS_NOMES_SPINE[spine] + '. Hash do 5-tupla módulo 2.';
+        if (falha && i >= 4) t = 'Fluxo ' + (i + 1) + ' com o spine-2 fora: só resta o spine-1 como caminho. ' +
+          'Hash módulo 1 leva ao spine-1.';
+        q.push({ n: i + 1, ativos: ativos.slice(), falhou: falha && i >= 4, t });
+        if (falha && i === 3) {
+          q.push({ n: i + 1, ativos: ativos.slice().map(a => (a.spine === 1 ? Object.assign({}, a, { spine: 0, movido: true }) : a)), falhou: true,
+            t: 'O spine-2 falha. O ECMP recalcula o módulo com um caminho só: os fluxos que estavam nele são redistribuídos, e a ordem de seus pacotes pode ser perturbada.' });
+          ativos.splice(0, ativos.length, ...ativos.map(a => (a.spine === 1 ? Object.assign({}, a, { spine: 0, movido: true }) : a)));
+        }
+      });
+      return q;
+    }
+
+    function desenha(ctx, w, h, q) {
+      limpa(ctx, w, h);
+      const sp = [[0.3, 0.24], [0.7, 0.24]];
+      const lf = [[0.12, 0.8], [0.37, 0.8], [0.63, 0.8], [0.88, 0.8]];
+      const P = ([x, y]) => [x * w, y * h];
+
+      /* Fabric: cada leaf se liga aos dois spines */
+      lf.forEach(l => sp.forEach(s => {
+        const [x1, y1] = P(l), [x2, y2] = P(s);
+        ctx.strokeStyle = CORES.grade;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }));
+
+      /* Fluxos ativos: leaf 1 → spine escolhido → leaf 2 */
+      q.ativos.forEach(a => {
+        const f = LS_FLUXOS[a.idx];
+        const [x1, y1] = P(lf[0]), [xs, ys] = P(sp[a.spine]), [x2, y2] = P(lf[1]);
+        ctx.strokeStyle = LS_COR_FLUXO[a.idx];
+        ctx.lineWidth = a.movido ? 2.5 : 2;
+        ctx.setLineDash(a.movido ? [6, 4] : []);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(xs, ys); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.setLineDash([]);
+        rotulo(ctx, 'f' + (a.idx + 1) + ' :' + f.porta, xs + (a.spine === 0 ? -6 : 6), ys + 14 + a.idx * 12,
+          LS_COR_FLUXO[a.idx], a.spine === 0 ? 'right' : 'left', 10);
+      });
+
+      sp.forEach((s, j) => {
+        const [x, y] = P(s);
+        const carga = q.ativos.filter(a => a.spine === j).length;
+        const caiu = q.falhou && j === 1;
+        caixa(ctx, x - 52, y - 16, 104, 32, caiu ? CORES.rosa : CORES.azul, LS_NOMES_SPINE[j], 11);
+        rotulo(ctx, 'fluxos: ' + carga, x, y - 26, caiu ? CORES.rosa : CORES.mudo, 'center', 11);
+      });
+      lf.forEach((l, j) => {
+        const [x, y] = P(l);
+        caixa(ctx, x - 40, y - 14, 80, 28, CORES.verde, 'leaf ' + (j + 1), 11);
+      });
+      rotulo(ctx, 'origem: 10.1.1.x', lf[0][0] * w, lf[0][1] * h + 26, CORES.mudo, 'center', 10);
+      rotulo(ctx, 'destino: 10.2.1.x', lf[1][0] * w, lf[1][1] * h + 26, CORES.mudo, 'center', 10);
+    }
+
+    return { gera, desenha };
+  }
+
   global.IR = {
     CORES,
     limpa,
@@ -465,6 +553,7 @@
     criaPilha,
     criaRoteamento,
     criaCongestionamento,
+    criaLeafSpine,
     liga
   };
 })(window);

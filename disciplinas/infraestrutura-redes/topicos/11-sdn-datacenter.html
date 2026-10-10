@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redes avançadas: SDN, NFV e fabric leaf-spine em datacenters · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Separação entre plano de controle e plano de dados, SDN e OpenFlow, virtualização de funções de rede, a topologia leaf-spine de datacenter, ECMP e o efeito de uma falha sobre os fluxos, com animação, exemplo em Python e citações das RFCs.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/11-sdn-datacenter">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Tópico 11 · Redes avançadas: SDN, NFV e datacenter</h2>
+  <div class="ah-prose">
+    <p>
+      Os tópicos anteriores descreveram redes em que cada roteador e switch decide sozinho, com base em tabelas que ele mesmo calcula. Em um
+      datacenter com dezenas de milhares de servidores, esse modelo é difícil de operar. Duas ideias mudaram o projeto dessas redes: separar o
+      que decide (o <strong>plano de controle</strong>) do que encaminha (o <strong>plano de dados</strong>), e organizar a topologia em uma
+      estrutura previsível, o <strong>leaf-spine</strong>.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>distinguir plano de controle e plano de dados, e explicar o que SDN muda nessa separação;</li>
+      <li>descrever a função de uma tabela de fluxos e a ordem de casamento por prioridade;</li>
+      <li>explicar NFV e o que é virtualizado nela;</li>
+      <li>desenhar uma topologia leaf-spine e calcular os caminhos entre dois leafs;</li>
+      <li>explicar o ECMP e por que uma falha pode perturbar a ordem dos pacotes de um fluxo.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Em 1953, Charles Clos publicou o artigo <em>A Study of Non-Blocking Switching Networks</em>, que descreve redes de comutação em múltiplos
+      estágios em que qualquer entrada pode se conectar a qualquer saída sem bloqueio, com um número razoável de elementos. A ideia reaparece hoje
+      como a topologia Clos, base dos datacenters modernos.
+    </p>
+    <p>
+      Em 2008, McKeown e colegas propuseram o OpenFlow, uma interface padrão entre um controlador e a tabela de encaminhamento de um switch, para que
+      pesquisadores pudessem experimentar protocolos em redes de produção. O termo SDN ganhou força a partir daí, e a RFC 7426 (2015) organizou a
+      terminologia e as camadas da arquitetura. A virtualização de funções de rede (NFV), padronizada pelo ETSI a partir de 2012, levou firewalls,
+      balanceadores e roteadores para software executado em servidores comuns.
+    </p>
+  </div>
+</section>
+
+<section id="planos" data-toc="Teoria: planos de controle e de dados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Teoria · Plano de controle e plano de dados</h2>
+  <div class="ah-prose">
+    <p>
+      Em um roteador tradicional, os dois planos estão no mesmo equipamento. Os protocolos de roteamento (OSPF, BGP) calculam as rotas, e o hardware
+      encaminha cada pacote consultando a tabela resultante. Qualquer mudança exige atualizar o software do equipamento.
+    </p>
+    <p>
+      Na SDN, o plano de controle migra para um controlador centralizado (ou distribuído, mas logicamente único). Ele enxerga a topologia inteira,
+      calcula caminhos com a visão global e instala regras nos switches. Os switches ficam com o plano de dados: casar pacotes com regras e agir. A
+      RFC 7426 define a SDN nestes termos:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "Software-Defined Networking (SDN) refers to a new approach for network programmability, that is, the capacity to initialize, control, change, and manage network behavior dynamically via open interfaces."
+    </blockquote>
+    <p class="text-xs text-slate-500">HALEPLIDIS, E. et al. RFC 7426 (2015), resumo. Tradução nossa: Software-Defined Networking (SDN) refere-se a uma nova abordagem para a programabilidade de redes, ou seja, a capacidade de inicializar, controlar, alterar e gerenciar o comportamento da rede de forma dinâmica, por meio de interfaces abertas.</p>
+    <p>
+      O preço dessa centralização é um novo ponto de falha e uma nova dependência: se o controlador cai, os switches precisam de um comportamento de
+      reserva bem definido, ou a rede para. Controladores são, por isso, replicados, e as regras já instaladas continuam valendo por um tempo.
+    </p>
+  </div>
+</section>
+
+<section id="fluxos" data-toc="Teoria: tabela de fluxos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-list text-emerald-400 mr-2"></i>Teoria · Tabela de fluxos e prioridade</h2>
+  <div class="ah-prose">
+    <p>
+      Um switch SDN tem uma tabela de fluxos. Cada entrada tem uma prioridade, uma condição sobre campos do cabeçalho (porta de destino, endereço,
+      protocolo) e uma ação (encaminhar por uma porta, descartar, enviar ao controlador). Um pacote recebe a ação da entrada de maior prioridade que
+      casa com ele. Se nenhuma casa, o caso padrão é enviar ao controlador, em um <em>packet-in</em>.
+    </p>
+    <p>
+      Esse modelo é poderoso porque a política vira dados: uma regra nova é uma entrada, sem reiniciar o switch. Também é perigoso: uma regra de
+      prioridade alta mal escrita pode bloquear tudo, e a ordem das regras é parte da política.
+    </p>
+  </div>
+</section>
+
+<section id="nfv" data-toc="Teoria: NFV" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-emerald-400 mr-2"></i>Teoria · Virtualização de funções de rede (NFV)</h2>
+  <div class="ah-prose">
+    <p>
+      Uma função de rede é um serviço como firewall, NAT, balanceador de carga ou IDS. Tradicionalmente, cada uma é um equipamento dedicado. NFV
+      executa essas funções como software em servidores padronizados, em máquinas virtuais ou contêineres, e as encadeia (service chaining) para
+      formar um caminho de serviço. O tráfego de um cliente pode passar por firewall, depois por NAT, depois por IDS, todos virtuais.
+    </p>
+    <p>
+      O ganho é a elasticidade: uma função pode ser replicada quando a carga cresce, e removida quando não é mais necessária. O custo é que o
+      desempenho passa a depender do servidor, do hipervisor e da rede entre as funções, e é preciso medir cada elo da cadeia.
+    </p>
+  </div>
+</section>
+
+<section id="leafspine" data-toc="Teoria: leaf-spine e Clos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-emerald-400 mr-2"></i>Teoria · Topologia leaf-spine</h2>
+  <div class="ah-prose">
+    <p>
+      Em um datacenter, o tráfego é majoritariamente leste-oeste: servidor para servidor, dentro do próprio datacenter. Uma árvore tradicional, com
+      um núcleo que concentra tudo, sofre com gargalos e com o protocolo de árvore de expansão, que bloqueia caminhos redundantes (tópico 3).
+    </p>
+    <p>
+      A topologia leaf-spine resolve isso com dois níveis. Os <strong>leafs</strong> são os switches de acesso, onde se ligam os servidores. Os
+      <strong>spines</strong> são os switches de agregação, e cada leaf se liga a todos eles. Assim, qualquer par de leafs está a dois saltos um do
+      outro, e há tantos caminhos quanto spines. Com quatro spines, por exemplo, há quatro caminhos de igual custo entre dois leafs.
+    </p>
+    <p>
+      Essa é a topologia Clos aplicada a redes de pacotes. A escala se obtém acrescentando spines (mais caminhos) e leafs (mais portas), sem
+      redesenhar a rede. A conta de capacidade é a <strong>razão de oversubscription</strong>: a banda total que os servidores de um leaf podem
+      gerar, dividida pela banda de uplink para os spines. Razão 1:1 significa que não há gargalo; razões maiores são comuns para reduzir custo.
+    </p>
+  </div>
+</section>
+
+<section id="ecmp" data-toc="Teoria: ECMP e ordem dos pacotes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-emerald-400 mr-2"></i>Teoria · ECMP: distribuir sem reordenar</h2>
+  <div class="ah-prose">
+    <p>
+      O ECMP (<em>equal-cost multipath</em>) distribui o tráfego entre caminhos de igual custo. A forma mais comum calcula um hash sobre o 5-tupla
+      (endereços de origem e destino, portas e protocolo) e escolhe o caminho pelo resto da divisão pelo número de caminhos. Hopps descreveu a análise
+      desse algoritmo na RFC 2992 (2000).
+    </p>
+    <p>
+      Há um motivo para o hash ser sobre o fluxo, e não sobre cada pacote: pacotes de um mesmo fluxo devem chegar na ordem, e o TCP sofre com
+      reordenação, que parece perda. Por isso, todos os pacotes de um fluxo vão pelo mesmo caminho. A consequência é que a distribuição é só
+      estatisticamente equilibrada: com poucos fluxos grandes, um caminho pode ficar com a maior parte da carga.
+    </p>
+    <p>
+      Uma falha muda o número de caminhos. Quando isso acontece, o módulo muda, e muitos fluxos são redistribuídos, não só os que estavam no caminho
+      que caiu. Esse é um efeito conhecido, e a solução usual é o hash consistente, que move apenas uma fração dos fluxos (tópico 8 de sistemas
+      distribuídos).
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: ECMP e uma falha" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Fluxos em leaf-spine</h2>
+  <p class="ah-lead text-sm mb-4">Cada fluxo sai do leaf de origem, sobe para um spine escolhido pelo hash e desce para o leaf de destino. No cenário de falha, o spine-2 cai depois do quarto fluxo: os fluxos que estavam nele são redistribuídos, e os seguintes seguem pelo spine-1. Avance um fluxo de cada vez.</p>
+  <div class="ah-stage" style="height:400px"><canvas id="cvLS" style="height:400px"></canvas></div>
+  <div id="ctlLS" class="mt-4"></div>
+  <div id="capLS" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: ECMP e tabela de fluxos em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Hash do fluxo e regras de prioridade</h2>
+  <div class="ah-prose">
+    <p>
+      O programa calcula o caminho de oito fluxos entre dois leafs, com o hash crc32 do 5-tupla e módulo 2, e mostra que o mesmo fluxo sempre cai no
+      mesmo spine. A distribuição resultante, de seis fluxos para um spine e dois para o outro, é justamente o efeito estatístico da seção anterior.
+      A segunda parte simula um switch SDN: regras de prioridade decidem bloquear telnet, encaminhar HTTPS e DNS, e enviar o restante ao controlador.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>11-sdn-datacenter.py · escolhe_spine</code></p>
+<pre class="ah-code"><code>def escolhe_spine(src, dst, sport, dport, proto="tcp"):
+    chave = f"{src}|{dst}|{sport}|{dport}|{proto}".encode()
+    return SPINES[zlib.crc32(chave) % len(SPINES)]</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: ECMP entre dois spines
+  10.1.1.10:50001 -&gt; 10.2.1.20:443  -&gt;  spine-1
+  10.1.1.10:50002 -&gt; 10.2.1.20:443  -&gt;  spine-2
+  10.1.1.11:50003 -&gt; 10.2.1.20:443  -&gt;  spine-1
+  10.1.1.11:50004 -&gt; 10.2.1.21:80  -&gt;  spine-1
+  10.1.1.12:50005 -&gt; 10.2.1.22:443  -&gt;  spine-1
+  10.1.1.12:50006 -&gt; 10.2.1.22:22  -&gt;  spine-1
+  10.1.1.13:50007 -&gt; 10.2.1.23:443  -&gt;  spine-1
+  10.1.1.13:50008 -&gt; 10.2.1.23:3306  -&gt;  spine-2
+  distribuição: {'spine-1': 6, 'spine-2': 2}
+  mesmo fluxo, duas vezes: spine-1 e spine-1 (determinístico: True)
+
+Parte 2: SDN, regras instaladas pelo controlador
+  {'proto': 'tcp', 'dst_port': 23} -&gt; descarta
+  {'proto': 'tcp', 'dst_port': 443} -&gt; porta 2
+  {'proto': 'udp', 'dst_port': 53} -&gt; porta 3
+  {'proto': 'tcp', 'dst_port': 8080} -&gt; envia ao controlador (packet-in)</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Na parte 2, a regra de telnet tem a maior prioridade, e por isso vence a regra geral de HTTPS quando ambas casariam. Note que a porta 8080 não
+      tem regra: o switch não sabe o que fazer e pergunta ao controlador. Uma política de negar por padrão, em SDN, é uma regra final que descarta tudo
+      o que não casou antes, em vez de consultar o controlador.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Um serviço de vídeo "travando" só em horário de pico</div>
+      <p class="text-xs text-slate-400">Com ECMP e poucos fluxos grandes, dois fluxos podem cair no mesmo spine e saturá-lo, enquanto o outro fica ocioso. A solução é aumentar o número de fluxos, espalhar as origens ou usar balanceamento por pacote, com cuidado para a ordem.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Firewall que vira um gargalo</div>
+      <p class="text-xs text-slate-400">Em uma cadeia de funções virtuais, o firewall virtual é o elo mais lento, porque processa pacote por pacote em software. A medição de cada elo mostra onde escalar.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Mudança de política sem visita ao equipamento</div>
+      <p class="text-xs text-slate-400">Em uma rede SDN, bloquear uma porta usada num ataque é uma regra enviada pelo controlador, aplicada em todos os switches em segundos. Em uma rede tradicional, o mesmo exige configurar equipamento por equipamento.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Nuvem pública por dentro</div>
+      <p class="text-xs text-slate-400">As redes virtuais de provedores de nuvem são, em essência, um plano de controle centralizado que programa tabelas nos hosts e nos switches físicos. Você configura sub-redes e regras; o provedor traduz isso em fluxos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conte os caminhos</div>
+      <p class="text-xs text-slate-400">Em leaf-spine, o número de caminhos entre dois leafs é o número de spines. Esse número define a capacidade e também a sensibilidade a falhas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Ordene as regras pela prioridade</div>
+      <p class="text-xs text-slate-400">Ao escrever uma política em tabela de fluxos, comece pelas exceções de maior prioridade e termine com a regra padrão. A ordem é a política.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Preserve a ordem do fluxo</div>
+      <p class="text-xs text-slate-400">Ao espalhar tráfego, mantenha o hash sobre o fluxo. Reordenação de pacotes do TCP parece perda e reduz a vazão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Planeje a falha do controlador</div>
+      <p class="text-xs text-slate-400">Antes de centralizar, defina o que o switch faz sem controlador: manter as regras, usar um modo de reserva, ou parar. Essa decisão é arquitetural.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: oversubscription</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um leaf tem 48 portas de servidor de 10 Gb/s e 4 uplinks de 40 Gb/s, um para cada spine. Qual a razão de oversubscription?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Banda dos servidores: 48 × 10 = 480 Gb/s. Banda de uplink: 4 × 40 = 160 Gb/s. Razão: 480 / 160 = 3:1. Se todos os servidores transmitirem ao mesmo tempo para fora do leaf, cada um recebe cerca de um terço da sua banda nominal.</p>
+      <p><strong>Lição.</strong> A razão mostra o gargalo de projeto. Tráfego que fica dentro do leaf não passa pelos uplinks e não sofre essa limitação.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quantos caminhos?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Numa leaf-spine com 4 spines, quantos caminhos de igual custo existem entre dois leafs? E se um spine cai?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Cada spine oferece um caminho entre os dois leafs, então há 4. Com a queda de um spine, restam 3. O ECMP com módulo 3 redistribui os fluxos entre os três restantes, e os que estavam no spine caído migram.</p>
+      <p><strong>Lição.</strong> A perda de capacidade é proporcional ao número de spines, mas a redistribuição de fluxos é total, não proporcional.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um leaf de 32 portas de 25 Gb/s tem 8 uplinks de 100 Gb/s. Qual a razão de oversubscription? Ela é aceitável para um cluster de treinamento de IA com tráfego all-to-all?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> 32 × 25 = 800 Gb/s de servidores; 8 × 100 = 800 Gb/s de uplink. A razão é 1:1. Para all-to-all, que concentra tráfego entre todos os nós, 1:1 é a escolha mais segura, porque qualquer razão acima de 1:1 vira gargalo quando todos transmitem ao mesmo tempo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Escreva a tabela de fluxos mínima para: bloquear UDP 1900, permitir TCP 443, e negar o restante por padrão.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> prioridade 100: proto udp, dst_port 1900, ação descarta; prioridade 50: proto tcp, dst_port 443, ação encaminha; prioridade 0: qualquer pacote, ação descarta. A regra de prioridade 0 sem condição é a política padrão, e impede que pacotes não casados cheguem ao controlador.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Por que o ECMP com módulo n não é ideal quando um spine cai, e que alternativa reduz a redistribuição?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> com módulo n, a mudança de n para n−1 altera o resultado do módulo para quase todos os hashes, então quase todos os fluxos migram, inclusive os que não estavam no caminho caído. O hash consistente posiciona os caminhos num anel: a queda de um caminho move só os fluxos que estavam nele, em torno de 1/n do total.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em SDN, o que é o plano de controle?</p>
+      <button class="ah-quiz-opt">O hardware que encaminha os pacotes</button>
+      <button class="ah-quiz-opt">O cabo que liga os switches</button>
+      <button class="ah-quiz-opt">A lógica que decide as regras e as instala nos switches</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O controlador decide; os switches executam o plano de dados, casando pacotes com as regras instaladas.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o ECMP usa hash sobre o fluxo, e não sobre cada pacote?</p>
+      <button class="ah-quiz-opt">Para que os pacotes de um fluxo sigam o mesmo caminho e não sejam reordenados</button>
+      <button class="ah-quiz-opt">Para aumentar a velocidade do hash</button>
+      <button class="ah-quiz-opt">Porque o IP não permite caminhos múltiplos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A reordenação faz o TCP acionar retransmissões desnecessárias. Manter o fluxo num caminho preserva a ordem.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em uma leaf-spine com 2 spines, quantos saltos há entre dois leafs?</p>
+      <button class="ah-quiz-opt">1</button>
+      <button class="ah-quiz-opt">2</button>
+      <button class="ah-quiz-opt">4</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Leaf → spine → leaf: dois saltos, qualquer que seja o par de leafs.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>SDN separa o plano de controle, centralizado, do plano de dados, que casa pacotes com regras.</li>
+    <li>A tabela de fluxos decide pela maior prioridade que casa; a regra padrão é parte da política.</li>
+    <li>NFV executa funções de rede como software e as encadeia em caminhos de serviço.</li>
+    <li>Leaf-spine dá caminhos previsíveis; a razão de oversubscription define o gargalo.</li>
+    <li>ECMP distribui por fluxo e preserva a ordem; uma falha redistribui fluxos, e o hash consistente reduz esse efeito.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CLOS, C. A study of non-blocking switching networks. <em>Bell System Technical Journal</em>, v. 32, n. 2, p. 406–424, 1953.</li>
+    <li>MCKEOWN, N. et al. OpenFlow: enabling innovation in campus networks. <em>ACM SIGCOMM Computer Communication Review</em>, v. 38, n. 2, p. 69–74, 2008.</li>
+    <li>HALEPLIDIS, E. et al. <em>RFC 7426: Software-Defined Networking (SDN): Layers and Architecture Terminology</em>. IETF, 2015.</li>
+    <li>HOPPS, C. <em>RFC 2992: Analysis of an Equal-Cost Multi-Path Algorithm</em>. IETF, 2000.</li>
+    <li>MAHALINGAM, M. et al. <em>RFC 7348: Virtual eXtensible Local Area Network (VXLAN)</em>. IETF, 2014.</li>
+    <li>ETSI. <em>Network Functions Virtualisation (NFV): White Paper</em>. 2012.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 4 (plano de controle e SDN).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Leaf-spine: caminhos do ECMP da saída do exemplo, com ou sem a queda do spine-2 */
+  IR.liga(IR.criaLeafSpine(), {
+    canvas: 'cvLS', ctl: 'ctlLS', cap: 'capLS', velocidade: 1600,
+    cenarios: { normal: {}, falha: {} },
+    rotulos: { normal: 'ECMP normal', falha: 'Queda do spine-2' }
+  });
+
+})();
+</script>
+</body>
+</html>

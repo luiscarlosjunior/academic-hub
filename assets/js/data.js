@@ -348,7 +348,10 @@ const AH_DATA = {
           tags: ['TLS', 'Criptografia', 'Firewall'], nivel: 'Avançado', minutos: 70 },
         { id: '10-nat-dhcp-ipv6', titulo: 'NAT, DHCP e IPv6: escassez de endereços e a transição', icone: 'fa-network-wired',
           resumo: 'NAPT e a tabela de tradução, as quatro mensagens do DHCP, endereçamento IPv6 com compressão e EUI-64, e os problemas do NAT para protocolos.',
-          tags: ['NAT', 'DHCP', 'IPv6'], nivel: 'Intermediário', minutos: 60 }
+          tags: ['NAT', 'DHCP', 'IPv6'], nivel: 'Intermediário', minutos: 60 },
+        { id: '11-sdn-datacenter', titulo: 'Redes avançadas: SDN, NFV e fabric leaf-spine em datacenters', icone: 'fa-diagram-project',
+          resumo: 'Plano de controle e plano de dados, tabelas de fluxos com prioridade, NFV, topologia leaf-spine e oversubscription, e o ECMP com seus efeitos sobre falhas.',
+          tags: ['SDN', 'Leaf-spine', 'ECMP'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]
