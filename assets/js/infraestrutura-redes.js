@@ -131,16 +131,111 @@
     return { gera, desenha };
   }
 
-  /* Liga um diagrama de sequência ao motor de controles da estrutura-dados.js.
-     cfg: { canvas, ctl, cap, participantes, mensagens | cenarios, intro, cenario?, velocidade? } */
-  function anima(cfg) {
-    const seq = criaSequencia(cfg);
+  /* ===================================================================
+     MOTOR DE PILHA — duas pilhas de camadas com um quadro viajando entre elas.
+     cfg.camadas: nomes de cima para baixo, ex.: ['Aplicação', 'Transporte', ...]
+     cfg.pdu: nome da unidade de dados em cada camada, mesma ordem.
+     cfg.cabecalhos: [{ nivel, rotulo, cauda?, cor }]: cabeçalho que a camada de
+       índice nivel acrescenta ao descer (e remove ao subir). Ex.: TCP na camada 1.
+       cauda: texto acrescentado ao fim do quadro, como o FCS do Ethernet.
+     cfg.legendas: { desce: [...], meio, sobe: [...], intro } (textos dos quadros)
+     =================================================================== */
+  function criaPilha(cfg) {
+    const n = cfg.camadas.length;
+
+    function gera() {
+      const q = [{ fase: 'intro', k: -1, t: cfg.legendas.intro }];
+      for (let k = 0; k < n; k++) q.push({ fase: 'desce', k, t: cfg.legendas.desce[k] });
+      q.push({ fase: 'meio', k: n - 1, t: cfg.legendas.meio });
+      for (let k = n - 1; k >= 0; k--) q.push({ fase: 'sobe', k, t: cfg.legendas.sobe[k] });
+      return q;
+    }
+
+    /* Cabeçalhos presentes no quadro em cada fase: os que a camada já adicionou */
+    function presentes(q) {
+      const ativos = [];
+      cfg.cabecalhos.forEach(c => {
+        const subiu = q.fase === 'desce' ? q.k >= c.nivel : q.fase === 'meio' ? true
+          : q.fase === 'sobe' ? q.k > c.nivel : false;
+        if (subiu) ativos.push(c);
+      });
+      return ativos;
+    }
+
+    function desenhaPilha(ctx, x, topo, w, h, rotuloCol, ativa) {
+      rotulo(ctx, rotuloCol, x + w / 2, topo - 16, CORES.txt, 'center', 12);
+      const passo = (h - topo - 10) / n;
+      cfg.camadas.forEach((nome, k) => {
+        const y = topo + k * passo;
+        const cor = k === ativa ? CORES.azul : CORES.mudo;
+        caixa(ctx, x, y + 4, w, passo - 8, cor, nome + ' · ' + cfg.pdu[k], 10);
+      });
+    }
+
+    function desenha(ctx, w, h, q) {
+      limpa(ctx, w, h);
+      const largura = Math.min(170, w * 0.26);
+      const xA = 16, xB = w - largura - 16;
+      const topo = 46;
+
+      /* Pilha do emissor (A) e do receptor (B); a camada ativa fica destacada */
+      desenhaPilha(ctx, xA, topo, largura, h - 6, 'Host A (emissor)',
+        q.fase === 'desce' || q.fase === 'intro' ? q.k : -1);
+      desenhaPilha(ctx, xB, topo, largura, h - 6, 'Host B (receptor)', q.fase === 'sobe' ? q.k : -1);
+
+      /* Quadro no meio: faixa de blocos, do cabeçalho mais externo (à esquerda)
+         ao dado, seguido das caudas (como o FCS do Ethernet) */
+      const ativos = presentes(q);
+      const cx = w / 2;
+      const cy = topo + (h - topo) / 2;
+      const meioX = xA + largura + 40;
+      const meioW = xB - meioX - 40;
+      const cabs = [...ativos].reverse();
+      const caudas = ativos.filter(c => c.cauda);
+      const unidade = Math.max(40, Math.min(60, (meioW - 80) / (cabs.length + caudas.length * 0.7 + 1)));
+      const larguraDado = Math.max(44, unidade * 1.2);
+      const total = cabs.length * unidade + larguraDado + caudas.length * unidade * 0.7;
+      let x = cx - total / 2;
+      const yFaixa = cy - 22, alt = 44;
+      cabs.forEach(c => {
+        caixa(ctx, x, yFaixa, unidade - 3, alt, c.cor, c.rotulo, 10);
+        x += unidade;
+      });
+      caixa(ctx, x, yFaixa, larguraDado - 3, alt, CORES.verde, cfg.dado || 'dados', 10);
+      x += larguraDado;
+      caudas.forEach(c => {
+        caixa(ctx, x, yFaixa, unidade * 0.7 - 3, alt, c.cor, c.cauda, 10);
+        x += unidade * 0.7;
+      });
+
+      /* Setas do emissor para o quadro e do quadro para o receptor */
+      if (q.fase === 'meio') {
+        AH.arrow(ctx, xA + largura + 6, cy, meioX - 2, cy, CORES.amarelo, 9);
+        AH.arrow(ctx, meioX + meioW + 2, cy, xB - 8, cy, CORES.amarelo, 9);
+        rotulo(ctx, 'bits no meio físico', cx, cy + 74, CORES.amarelo, 'center', 11);
+      }
+      if (q.fase === 'desce') {
+        AH.arrow(ctx, xA + largura + 6, cy, meioX - 2, cy, CORES.mudo, 9);
+      }
+      if (q.fase === 'sobe') {
+        AH.arrow(ctx, meioX + meioW + 2, cy, xB - 8, cy, CORES.mudo, 9);
+      }
+      rotulo(ctx, 'cabeçalhos no quadro: ' + (ativos.length ? ativos.map(c => c.rotulo).join(' + ') : 'nenhum'),
+        cx, h - 8, CORES.mudo, 'center', 11);
+    }
+
+    return { gera, desenha };
+  }
+
+  /* Liga um motor (criaSequencia ou criaPilha) aos controles da estrutura-dados.js.
+     cfg: { canvas, ctl, cap, velocidade?, cenarios?, rotulos?, ...config do motor } */
+  function liga(motor, cfg) {
     const opcoes = cfg.cenarios
       ? Object.keys(cfg.cenarios).map(v => ({ v, rotulo: cfg.rotulos ? cfg.rotulos[v] : v }))
       : null;
     return ED.criaAnimacao({
       canvas: cfg.canvas, ctl: cfg.ctl, cap: cfg.cap,
-      desenha: seq.desenha, gera: seq.gera,
+      desenha: motor.desenha, gera: motor.gera,
       opcoes: opcoes, velocidade: cfg.velocidade || 1800
     });
   }
@@ -152,6 +247,7 @@
     caixa,
     linhaTracejada,
     criaSequencia,
-    anima
+    criaPilha,
+    liga
   };
 })(window);

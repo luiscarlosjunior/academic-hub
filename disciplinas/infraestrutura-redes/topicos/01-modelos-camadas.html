@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelos em camadas: OSI, TCP/IP e encapsulamento · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Por que as redes são organizadas em camadas, o modelo OSI de sete camadas e o modelo TCP/IP, o encapsulamento de uma requisição HTTP e a animação de uma mensagem que desce e sobe a pilha, com exemplo em Python e citações de RFCs.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/01-modelos-camadas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Tópico 1 · Modelos em camadas</h2>
+  <div class="ah-prose">
+    <p>
+      Quando você abre uma página, uma mensagem de texto de algumas dezenas de bytes precisa atravessar Wi-Fi, roteadores de operadoras,
+      cabos submarinos e data centers, e voltar com a resposta. Nenhum desses equipamentos sabe tudo sobre a conversa. O roteador de sua casa
+      não entende o HTTP; o servidor não se importa com o tipo de cabo que você usa. Como cada parte cuida só de uma tarefa, a rede inteira
+      é organizada em <strong>camadas</strong>: cada uma oferece um serviço à camada de cima e usa o serviço da camada de baixo.
+    </p>
+    <p>
+      Esta página é a porta de entrada da disciplina. Ela apresenta os dois modelos de camadas que você vai ouvir em todo lugar, o OSI e o
+      TCP/IP, explica o <strong>encapsulamento</strong> que faz uma mensagem descer a pilha e subir do outro lado, e mostra por que os
+      nomes das unidades de dados (mensagem, segmento, pacote, quadro) importam para diagnosticar problemas.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar por que a rede é dividida em camadas e qual é a vantagem de cada camada conversar só com as vizinhas;</li>
+      <li>nomear as sete camadas do OSI e as quatro camadas do TCP/IP, e associar cada protocolo comum à camada certa;</li>
+      <li>descrever o encapsulamento e o desencapsulamento, com as unidades de dados de cada camada;</li>
+      <li>calcular a sobrecarga de cabeçalhos de uma mensagem e explicar por que ela importa;</li>
+      <li>usar o modelo de camadas para decidir em que ponto procurar uma falha.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Nos anos 1970, cada fabricante tinha sua própria rede, e nenhuma conversava com as outras. Vinton Cerf e Robert Kahn publicaram em 1974
+      a proposta de um protocolo para interligar redes de comutação de pacotes, base do que se tornou o TCP/IP. Ao mesmo tempo, a
+      Organização Internacional de Normalização (ISO) trabalhava num modelo de referência de arquitetura aberta, que serviria de linguagem comum
+      para descrever qualquer rede. O modelo OSI foi publicado como padrão no fim dos anos 1970 e formalizado em 1984, na norma ISO 7498.
+    </p>
+    <p>
+      O resultado foi uma disputa curiosa. O OSI era mais completo e conceitualmente mais limpo, mas os protocolos que o implementavam chegaram
+      tarde e pesados. O TCP/IP, feito em protocolos que já rodavam na ARPANET e depois na Internet, se espalhou primeiro. Hoje o modelo OSI é
+      a referência didática universal, e o TCP/IP é a pilha que de fato roda na Internet. Os dois coexistem: aprender um é aprender a linguagem
+      do outro.
+    </p>
+  </div>
+</section>
+
+<section id="osi" data-toc="Teoria: modelo OSI" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Teoria · O modelo OSI de sete camadas</h2>
+  <div class="ah-prose">
+    <p>
+      O modelo OSI divide a comunicação em sete camadas. A regra mais importante é que cada camada <strong>usa os serviços da camada
+      de baixo e oferece serviços à camada de cima</strong>, sem conhecer detalhes internos das outras. Por isso você pode trocar o cabo
+      (física) sem reescrever o navegador (aplicação).
+    </p>
+    <p>
+      Numere de baixo para cima: física (1), enlace (2), rede (3), transporte (4), sessão (5), apresentação (6) e aplicação (7). Um
+      truque de memória que os professores usam é a frase "Please Do Not Throw Sausage Pizza Away", em inglês. Em português, a ordem vale
+      do mesmo jeito, e o que importa é reconhecer a função de cada camada.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Nº</th><th>Camada</th><th>Pergunta que responde</th><th>Exemplos de protocolo</th><th>Unidade de dados</th></tr></thead>
+      <tbody>
+        <tr><td>7</td><td>Aplicação</td><td>Que serviço o usuário quer?</td><td>HTTP, DNS, SMTP, SSH</td><td>mensagem</td></tr>
+        <tr><td>6</td><td>Apresentação</td><td>Em que formato os dados estão?</td><td>TLS (em parte), codificações como UTF-8 e JSON</td><td>mensagem</td></tr>
+        <tr><td>5</td><td>Sessão</td><td>Como manter e encerrar um diálogo?</td><td>RPC, sessões de aplicação</td><td>mensagem</td></tr>
+        <tr><td>4</td><td>Transporte</td><td>Para qual processo, e com que confiabilidade?</td><td>TCP, UDP, QUIC</td><td>segmento (TCP) / datagrama (UDP)</td></tr>
+        <tr><td>3</td><td>Rede</td><td>Por qual caminho entre redes diferentes?</td><td>IPv4, IPv6, ICMP, roteamento</td><td>pacote</td></tr>
+        <tr><td>2</td><td>Enlace</td><td>Como entregar entre dispositivos vizinhos?</td><td>Ethernet, Wi-Fi (802.11), PPP</td><td>quadro</td></tr>
+        <tr><td>1</td><td>Física</td><td>Como transformar bits em sinal?</td><td>cabos, fibra, rádio, padrões de sinalização</td><td>bits</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info mt-6">
+    <p class="text-sm"><strong>Atenção à numeração.</strong> Quando alguém diz "switch de camada 2" ou "roteamento na camada 3", a referência é a
+    numeração OSI. O TCP/IP não tem sessão nem apresentação como camadas separadas, por isso esses termos aparecem com menos frequência fora do OSI.</p>
+  </div>
+</section>
+
+<section id="tcpip" data-toc="Teoria: modelo TCP/IP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Teoria · O modelo TCP/IP</h2>
+  <div class="ah-prose">
+    <p>
+      O TCP/IP organiza a pilha em quatro camadas. Ele é o modelo que a Internet realmente usa. A correspondência com o OSI é direta, mas
+      não exata: o TCP/IP agrupa as três camadas de cima do OSI em uma só (aplicação) e junta física e enlace em "acesso à rede".
+    </p>
+    <ul>
+      <li><strong>Acesso à rede</strong> (OSI 1 e 2): entrega de quadros entre dispositivos vizinhos, como Ethernet e Wi-Fi.</li>
+      <li><strong>Internet</strong> (OSI 3): endereçamento e roteamento de pacotes entre redes distintas, com o protocolo IP.</li>
+      <li><strong>Transporte</strong> (OSI 4): comunicação fim a fim entre processos, com TCP ou UDP.</li>
+      <li><strong>Aplicação</strong> (OSI 5 a 7): protocolos que o usuário ou o programa usa, como HTTP, DNS e SMTP.</li>
+    </ul>
+    <p>
+      Kurose e Ross, no livro <em>Redes de Computadores e a Internet</em>, adotam uma versão de cinco camadas, com a física separada do enlace.
+      É a versão mais usada nas aulas de redes, e você deve reconhecê-la também. A diferença é de organização didática, não de comportamento.
+    </p>
+  </div>
+</section>
+
+<section id="principios" data-toc="Teoria: princípios de projeto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Teoria · Princípios por trás das camadas</h2>
+  <div class="ah-prose">
+    <p>
+      Além da divisão em camadas, a Internet foi construída sobre alguns princípios de projeto que explicam muitas decisões. Três deles
+      aparecem em praticamente toda discussão séria sobre redes.
+    </p>
+    <p>
+      <strong>Argumento fim a fim.</strong> Saltzer, Reed e Clark, no artigo de 1984 <em>End-to-End Arguments in System Design</em>, argumentam que
+      uma função só pode ser implementada de forma completa e correta com a ajuda da aplicação nas pontas. Eles dizem:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "The function in question can completely and correctly be implemented only with the knowledge and help of the application standing at the end points of the communication system."
+    </blockquote>
+    <p class="text-xs text-slate-500">Tradução nossa. Fonte: SALTZER, J. H.; REED, D. P.; CLARK, D. D. <em>ACM Transactions on Computer Systems</em>, 1984.</p>
+    <p>
+      Na prática, isso explica por que a entrega confiável não fica só na rede: o TCP e a aplicação precisam confirmar o que foi recebido,
+      porque a rede pode perder pacotes sem avisar. Garantir a entrega em cada salto seria insuficiente.
+    </p>
+    <p>
+      <strong>Robustez.</strong> O RFC 791, que define o IP, diz que uma implementação deve ser conservadora no que envia e liberal no que
+      recebe. O RFC 1122 chama isso de <em>Robustness Principle</em> e o formula assim:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "Be liberal in what you accept, and conservative in what you send"
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 1122 (Braden, 1989), seção 1.2.2. Tradução nossa: seja liberal no que aceita e conservador no que envia.</p>
+    <p>
+      Esse princípio foi muito útil para a expansão da Internet, porque permitiu que implementações diferentes convivessem. Mas há quem o
+      critique: aceitar tudo pode esconder erros e criar incompatibilidades. Pense nisso quando for projetar um protocolo.
+    </p>
+    <p>
+      <strong>Simplicidade.</strong> O RFC 1925, de 1996, é um documento informativo escrito com humor, publicado em 1º de abril. Mesmo assim
+      ele reúne princípios úteis. Sobre projeto de protocolos, ele afirma:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "In protocol design, perfection has been reached not when there is nothing left to add, but when there is nothing left to take away."
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 1925, regra 12. Tradução nossa: num projeto de protocolo, a perfeição não está em não haver mais o que acrescentar, mas em não haver mais o que tirar.</p>
+  </div>
+</section>
+
+<section id="encapsulamento" data-toc="Teoria: encapsulamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box-open text-emerald-400 mr-2"></i>Teoria · Encapsulamento e desencapsulamento</h2>
+  <div class="ah-prose">
+    <p>
+      Cada camada recebe um dado da camada de cima e o trata como um conteúdo opaco. Ela acrescenta o próprio cabeçalho, com as
+      informações que só ela entende, e entrega o conjunto para a camada de baixo. Esse processo se chama <strong>encapsulamento</strong>.
+      No receptor, o caminho é inverso: cada camada lê e remove o cabeçalho que lhe pertence e entrega o resto para cima. É o
+      <strong>desencapsulamento</strong>.
+    </p>
+    <p>
+      Um exemplo concreto: o navegador produz a mensagem HTTP <code>GET / HTTP/1.1</code>. A camada de transporte acrescenta um cabeçalho TCP
+      com as portas de origem e destino, formando um <strong>segmento</strong>. A rede acrescenta um cabeçalho IP com os endereços, formando um
+      <strong>pacote</strong>. O enlace acrescenta um cabeçalho Ethernet com os endereços MAC e um campo de verificação no fim, formando um
+      <strong>quadro</strong>. A física transforma o quadro em sinal.
+    </p>
+    <p>
+      Note que cada cabeçalho tem tamanho fixo ou mínimo, e isso custa bytes. Uma mensagem de 56 bytes de dados, no exemplo do código
+      logo abaixo, vira um quadro de 114 bytes. Quase metade do quadro é controle. Em mensagens pequenas, a sobrecarga domina; em transferências
+      grandes, ela cai para uma fração pequena do total.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-6">
+    <p class="text-sm"><strong>Regra de leitura.</strong> Ao ver uma mensagem num analisador como o Wireshark, identifique a camada pelo que aparece
+    no cabeçalho: um cabeçalho Ethernet com MAC, um IP com endereços, um TCP com portas, e só então o conteúdo da aplicação.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: a pilha em ação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Uma requisição desce e sobe a pilha</h2>
+  <p class="ah-lead text-sm mb-4">Avance um passo de cada vez. No host A, a mensagem ganha um cabeçalho a cada camada descendo. Ela cruza o meio físico e, no host B, cada camada subindo remove o cabeçalho que lhe pertence.</p>
+  <div class="ah-stage" style="height:360px"><canvas id="cvPilha" style="height:360px"></canvas></div>
+  <div id="ctlPilha" class="mt-4"></div>
+  <div id="capPilha" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: encapsulamento em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Medindo o encapsulamento</h2>
+  <div class="ah-prose">
+    <p>
+      O programa a seguir não usa rede. Ele calcula o tamanho da mensagem em cada camada, usando os tamanhos típicos dos cabeçalhos
+      (TCP 20 bytes, IP 20 bytes, Ethernet 14 bytes mais 4 de FCS), e depois percorre o caminho de volta. A conta é a mesma que você faria
+      no papel, e o <code>assert</code> no fim confirma que a mensagem volta do mesmo tamanho.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>01-modelos-camadas.py · desce_pilha</code></p>
+<pre class="ah-code"><code>def desce_pilha(dado):
+    segmento_tam = len(dado) + TCP_CABECALHO
+    pacote_tam = segmento_tam + IP_CABECALHO
+    quadro_tam = pacote_tam + ETH_CABECALHO + ETH_FCS
+    sobrecarga = quadro_tam - len(dado)
+    return quadro_tam</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Descendo a pilha (encapsulamento)
+  Aplicação  mensagem :   56 bytes  HTTP GET
+  Transporte segmento :   76 bytes  TCP 51234 -> 80
+  Rede       pacote   :   96 bytes  IPv4 192.168.0.10 -> 93.184.216.34
+  Enlace     quadro   :  114 bytes  Ethernet 3c:22:fb:01:02:03 -> 00:1a:2b:3c:4d:5e
+  Sobrecarga total: 58 bytes para 56 de dados (50.9% do quadro)
+
+Subindo a pilha (desencapsulamento) no receptor
+  Enlace     : confere o FCS, entrega o pacote de 96 bytes ao IP
+  Rede       : lê o protocolo = TCP e entrega o segmento de 76 bytes
+  Transporte : porta de destino 80 = HTTP, entrega 56 bytes
+  Aplicação  : recebe a mensagem de 56 bytes</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Leia a saída de cima para baixo e depois de baixo para cima. A coluna da esquerda mostra o nome da unidade de dados em cada camada, e o
+      tamanho cresce a cada cabeçalho. O total de 58 bytes de sobrecarga é a soma de 20 + 20 + 14 + 4, e a porcentagem mostra que, nesta
+      mensagem pequena, mais da metade do quadro é controle.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Trocar o Wi-Fi pelo cabo</div>
+      <p class="text-xs text-slate-400">Ao trocar a conexão de Wi-Fi para Ethernet, o navegador continua funcionando sem mudança. Só as camadas de baixo mudam: o quadro passa a ser 802.3 em vez de 802.11, e o IP, o TCP e o HTTP permanecem iguais.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Um roteador não lê o HTTP</div>
+      <p class="text-xs text-slate-400">Um roteador de operadora desencapsula até a camada 3, lê o endereço IP de destino, decide a próxima saída e encapsula de novo num quadro novo. Os cabeçalhos de enlace mudam a cada salto; o cabeçalho IP mantém os endereços de origem e destino.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Uma página que não abre</div>
+      <p class="text-xs text-slate-400">Se o navegador mostra "não foi possível encontrar o servidor", o problema está na resolução de nomes (aplicação). Se mostra "conexão recusada", a rede chegou ao servidor, mas a porta não atende (transporte). Os dois sintomas apontam camadas diferentes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Cabo desconectado</div>
+      <p class="text-xs text-slate-400">Sem sinal no enlace, nenhum quadro chega, e nenhuma camada acima recebe nada. O sintoma é o mesmo de um servidor fora do ar, mas o diagnóstico começa na camada física: luz de link, cabo e porta.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Suba ou desça a pilha</div>
+      <p class="text-xs text-slate-400">Ao diagnosticar, comece pela camada mais baixa que você consegue testar e suba. Se o cabo não tem link, nem adianta testar DNS.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Nomeie a unidade</div>
+      <p class="text-xs text-slate-400">Ao ler uma descrição de problema, substitua "pacote" por "quadro", "segmento" ou "mensagem" quando for o caso. Isso já indica em que camada a falha ocorre.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conte os bytes</div>
+      <p class="text-xs text-slate-400">Em mensagens pequenas, o cabeçalho pode ser maior que o dado. Conte a sobrecarga antes de decidir se vale agrupar mensagens em lotes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Não confunda as camadas</div>
+      <p class="text-xs text-slate-400">Um endereço MAC identifica o dispositivo vizinho e muda a cada salto. Um endereço IP identifica o destino fim a fim. Uma porta identifica o processo. Três identificadores, três camadas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: sobrecarga de uma mensagem de 1000 bytes</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma aplicação envia 1000 bytes de dados por TCP sobre IPv4 e Ethernet, sem opções nos cabeçalhos. Qual o tamanho do quadro e qual a fração de sobrecarga?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Cabeçalhos: TCP 20, IP 20, Ethernet 14 e FCS 4, total 58 bytes. Quadro: 1000 + 58 = 1058 bytes. Sobrecarga: 58 / 1058 ≈ 5,5%.</p>
+      <p><strong>Lição.</strong> Com dados grandes, a sobrecarga dos cabeçalhos é pequena. A mesma conta com 56 bytes, como no exemplo da página, dá mais da metade do quadro. O tamanho do dado é o fator que mais muda a eficiência.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: em que camada está o problema?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Três sintomas: (a) o LED de link da placa de rede está apagado; (b) o nome do servidor não resolve, mas o IP funciona quando digitado; (c) o IP responde ao ping, mas a porta 443 recusa conexão. Em que camadas estão os problemas?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> (a) Camada física ou enlace, pois não há sinal. (b) Aplicação, na resolução de nomes (DNS). (c) Transporte, porque a rede chegou ao destino (o ping usa o protocolo ICMP da camada de rede), mas nenhum processo atende a porta TCP 443.</p>
+      <p><strong>Lição.</strong> Cada sintoma aponta uma camada. Testar a camada errada desperdiça tempo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Uma mensagem de 1460 bytes de dados é enviada por TCP, IP e Ethernet sem opções. Qual o tamanho total do quadro? Esse quadro cabe no MTU Ethernet de 1500 bytes do pacote IP?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o segmento tem 1460 + 20 = 1480 bytes; o pacote IP tem 1480 + 20 = 1500 bytes, que é exatamente o MTU. O quadro tem 1500 + 14 + 4 = 1518 bytes. O cabeçalho Ethernet e o FCS não entram no MTU, que mede só o pacote IP.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que um roteador precisa desencapsular até a camada 3, mas não até a 4?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o roteador precisa do endereço IP de destino para escolher a próxima saída. A porta TCP só interessa ao host de destino. Desencapsular além disso seria trabalho inútil e quebraria o princípio fim a fim, porque o roteador passaria a depender de detalhes da aplicação.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Escolha um serviço que você usa diariamente (uma videochamada, por exemplo). Liste um protocolo por camada, de cima para baixo, e identifique a unidade de dados de cada uma.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> resposta livre, mas deve citar pelo menos quatro camadas com protocolo plausível e a unidade correta. Exemplo: RTP sobre UDP (datagramas), IP (pacotes), Wi-Fi (quadros), rádio (bits).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a unidade de dados da camada de rede no modelo OSI?</p>
+      <button class="ah-quiz-opt">Segmento</button>
+      <button class="ah-quiz-opt">Pacote</button>
+      <button class="ah-quiz-opt">Quadro</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Segmento é da camada de transporte, pacote da de rede e quadro da de enlace.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um host recebe um quadro cujo cabeçalho IP tem destino correto, mas a porta TCP não corresponde a nenhum processo. Em que camada o desencapsulamento para?</p>
+      <button class="ah-quiz-opt">Enlace</button>
+      <button class="ah-quiz-opt">Rede</button>
+      <button class="ah-quiz-opt">Transporte</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O transporte lê a porta de destino e, sem processo que a atenda, descarta o segmento (um TCP responde com RST).</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual frase sobre o encapsulamento é verdadeira?</p>
+      <button class="ah-quiz-opt">Cada camada acrescenta o próprio cabeçalho e trata o dado da camada de cima como conteúdo opaco</button>
+      <button class="ah-quiz-opt">O roteador acrescenta o cabeçalho TCP ao pacote</button>
+      <button class="ah-quiz-opt">O cabeçalho Ethernet é o mesmo do início ao fim da rota</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O cabeçalho de enlace muda a cada salto; o IP mantém origem e destino fim a fim; o TCP é acrescentado pelo host de origem, não pelo roteador.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>A rede é organizada em camadas, e cada camada usa os serviços da de baixo e oferece serviços à de cima.</li>
+    <li>O OSI tem sete camadas e é o modelo de referência; o TCP/IP tem quatro e é o que a Internet usa.</li>
+    <li>O encapsulamento acrescenta um cabeçalho por camada ao descer; o desencapsulamento o remove ao subir.</li>
+    <li>As unidades de dados (mensagem, segmento, pacote, quadro, bits) indicam em que camada se está.</li>
+    <li>A sobrecarga de cabeçalhos pesa mais em mensagens pequenas.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 1 (camadas e encapsulamento).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 1 (modelos de referência OSI e TCP/IP).</li>
+    <li>ZIMMERMANN, H. OSI Reference Model: the ISO model of architecture for open systems interconnection. <em>IEEE Transactions on Communications</em>, v. 28, n. 4, p. 425–432, 1980.</li>
+    <li>CERF, V.; KAHN, R. A protocol for packet network intercommunication. <em>IEEE Transactions on Communications</em>, v. 22, n. 5, p. 637–648, 1974.</li>
+    <li>SALTZER, J. H.; REED, D. P.; CLARK, D. D. End-to-end arguments in system design. <em>ACM Transactions on Computer Systems</em>, v. 2, n. 4, p. 277–288, 1984.</li>
+    <li>POSTEL, J. <em>RFC 791: Internet Protocol</em>. IETF, 1981.</li>
+    <li>BRADEN, R. (ed.). <em>RFC 1122: Requirements for Internet Hosts – Communication Layers</em>. IETF, 1989.</li>
+    <li>CALLON, R. <em>RFC 1925: The Twelve Networking Truths</em>. IETF, 1996.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  const pilha = IR.criaPilha({
+    camadas: ['Aplicação', 'Transporte', 'Rede', 'Enlace', 'Física'],
+    pdu: ['mensagem', 'segmento', 'pacote', 'quadro', 'bits'],
+    cabecalhos: [
+      { nivel: 1, rotulo: 'TCP', cor: '#38bdf8' },
+      { nivel: 2, rotulo: 'IP', cor: '#f59e0b' },
+      { nivel: 3, rotulo: 'Ethernet', cauda: 'FCS', cor: '#a855f7' }
+    ],
+    dado: 'GET /',
+    legendas: {
+      intro: 'Uma requisição HTTP desce a pilha do host A, cruza a rede e sobe a pilha do host B. Use os controles para avançar.',
+      desce: [
+        'Aplicação: o HTTP produz a mensagem "GET /". Ainda não há cabeçalho de rede.',
+        'Transporte: acrescenta o cabeçalho TCP com as portas 51234 → 80. A unidade passa a ser o segmento.',
+        'Rede: acrescenta o cabeçalho IP com os endereços 192.168.0.10 → 93.184.216.34. Agora é um pacote.',
+        'Enlace: acrescenta o cabeçalho Ethernet com os endereços MAC e o FCS no fim. Agora é um quadro.',
+        'Física: o quadro vira sequência de bits e sinais elétricos, ópticos ou de rádio.'
+      ],
+      meio: 'Os bits atravessam o meio físico. Roteadores intermediários leriam só até o IP e reescreveriam o cabeçalho de enlace.',
+      sobe: [
+        'Aplicação (B): recebe a mensagem "GET /" original, sem nenhum cabeçalho.',
+        'Transporte (B): a porta de destino 80 indica HTTP; remove o cabeçalho TCP e entrega o dado à aplicação.',
+        'Rede (B): confere o IP de destino e remove o cabeçalho IP; o campo de protocolo indica TCP.',
+        'Enlace (B): confere o FCS, lê o MAC de destino e remove o cabeçalho Ethernet.',
+        'Física (B): os sinais viram bits. Nada foi removido ainda.'
+      ]
+    }
+  });
+
+  IR.liga(pilha, {
+    canvas: 'cvPilha', ctl: 'ctlPilha', cap: 'capPilha', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>

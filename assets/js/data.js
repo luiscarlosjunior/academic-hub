@@ -318,7 +318,11 @@ const AH_DATA = {
       corHex: '#8b5cf6',
       descricao:
         'Como os computadores se conectam e se encontram: das camadas OSI aos protocolos de transporte e aplicação, segurança, NAT, roteamento, redes de datacenter e cloud, e as ferramentas para diagnosticar uma rede que não funciona.',
-      topicos: []
+      topicos: [
+        { id: '01-modelos-camadas', titulo: 'Modelos em camadas: OSI, TCP/IP e encapsulamento', icone: 'fa-layer-group',
+          resumo: 'Por que a rede tem camadas, os sete níveis do OSI e os quatro do TCP/IP, o encapsulamento de uma requisição e os princípios de projeto por trás da Internet.',
+          tags: ['OSI', 'TCP/IP', 'Encapsulamento'], nivel: 'Introdutório', minutos: 50 }
+      ]
     }
   ]
 };
