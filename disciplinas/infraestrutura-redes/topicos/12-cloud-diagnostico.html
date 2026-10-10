@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redes em cloud e diagnóstico: VPC, rotas, filtros, traceroute e método · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como montar redes em nuvem com VPC, sub-redes públicas e privadas, tabelas de rota, gateways, grupos de segurança e ACLs, e como diagnosticar uma rede com traceroute, ping, tcpdump e um método de camadas, com animação, exemplo em Python e citação da RFC 792.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/12-cloud-diagnostico">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud text-emerald-400 mr-2"></i>Tópico 12 · Redes em cloud e diagnóstico</h2>
+  <div class="ah-prose">
+    <p>
+      Em nuvem, a rede deixa de ser um conjunto de equipamentos que você compra e passa a ser um conjunto de regras que você escreve. Uma VPC
+      (<em>virtual private cloud</em>) é um bloco de endereços privado, dividido em sub-redes, com tabelas de rota, gateways e filtros. Tudo isso se
+      apoia nos conceitos dos tópicos anteriores: CIDR, roteamento, NAT, firewall e ARP.
+    </p>
+    <p>
+      O segundo lado desta página é o diagnóstico. Quando algo não funciona, a pergunta é em qual camada, e a resposta vem de ferramentas simples,
+      como ping e traceroute, e de um método que percorre a pilha da base ao topo. Este é o último tópico da disciplina, e junta as duas partes:
+      projetar bem e saber investigar quando o projeto falha.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>planejar uma VPC com sub-redes públicas e privadas, em mais de uma zona de disponibilidade;</li>
+      <li>explicar a diferença entre gateway de internet e NAT gateway, e quando cada um é necessário;</li>
+      <li>distinguir grupos de segurança (com estado) de ACLs de rede (sem estado);</li>
+      <li>usar traceroute, ping, tcpdump e consultas DNS para localizar uma falha;</li>
+      <li>aplicar um método de diagnóstico por camadas, sem pular etapas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      O traceroute foi escrito por Van Jacobson no fim dos anos 1980, a partir de um truque simples: enviar pacotes com TTL crescente e observar quem responde
+      quando o TTL zera. O ping usa as mensagens de eco do ICMP, descritas na RFC 792 (1981), que também define a mensagem de tempo excedido usada pelo
+      traceroute. O tcpdump, de 1988, e o Wireshark, lançado como Ethereal em 1998, tornaram a captura de pacotes acessível a qualquer um.
+    </p>
+    <p>
+      A computação em nuvem, com a VPC como unidade de rede, surgiu com os provedores públicos no meio dos anos 2000. Ela levou ao extremo a ideia
+      de que a infraestrutura é código, e que a rede pode ser descrita, versionada e reproduzida.
+    </p>
+  </div>
+</section>
+
+<section id="vpc" data-toc="Teoria: VPC e sub-redes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud-arrow-up text-emerald-400 mr-2"></i>Teoria · VPC, sub-redes e zonas</h2>
+  <div class="ah-prose">
+    <p>
+      Uma VPC recebe um bloco CIDR, como 10.0.0.0/16. Dentro dela, você cria sub-redes, cada uma em uma zona de disponibilidade (um datacenter isolado
+      dentro da região). Usar duas ou três zonas garante que a falha de uma não derrube o serviço. Cada sub-rede tem um bloco próprio, e os endereços
+      reservados pelo provedor (na AWS, cinco por sub-rede: os quatro primeiros e o último) não podem ser atribuídos.
+    </p>
+    <p>
+      A separação entre sub-redes públicas e privadas é feita pela tabela de rotas, e não por uma configuração especial da sub-rede. Uma sub-rede
+      é pública quando sua rota padrão aponta para um gateway de internet. Uma sub-rede é privada quando a rota padrão aponta para um NAT gateway, ou
+      não existe. Bancos de dados e serviços internos devem ficar em sub-redes privadas.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Componente</th><th>Função</th><th>Quando usar</th></tr></thead>
+      <tbody>
+        <tr><td>Gateway de internet</td><td>entrada e saída bidirecionais, com IP público</td><td>servidores que recebem conexões de fora</td></tr>
+        <tr><td>NAT gateway</td><td>saída para a internet, sem entrada iniciada de fora</td><td>servidores privados que precisam atualizar pacotes</td></tr>
+        <tr><td>Peering e gateway de trânsito</td><td>ligação entre VPCs e com redes locais</td><td>ambientes com várias contas ou um datacenter próprio</td></tr>
+        <tr><td>Balanceador de carga</td><td>distribui conexões entre instâncias saudáveis</td><td>serviços com várias réplicas</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="filtros" data-toc="Teoria: grupos de segurança e ACLs" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-filter text-emerald-400 mr-2"></i>Teoria · Grupos de segurança e ACLs de rede</h2>
+  <div class="ah-prose">
+    <p>
+      Há dois níveis de filtragem em uma VPC. O <strong>grupo de segurança</strong> fica em torno de uma instância e é <em>com estado</em>: se você
+      permite a entrada de uma conexão, a resposta sai automaticamente, sem regra de saída. A <strong>ACL de rede</strong> fica na borda da sub-rede e é
+      <em>sem estado</em>: entrada e saída são avaliadas separadamente, e a resposta de uma conexão precisa de regra própria na direção oposta, com a
+      faixa de portas efêmeras do cliente, que depende do sistema operacional.
+    </p>
+    <p>
+      A consequência prática é que uma ACL mal escrita quebra conexões que parecem corretas. Permitir a entrada na porta 443 não basta se a saída das
+      portas efêmeras estiver bloqueada: o cliente envia, o servidor responde, e a resposta morre na ACL. O sintoma é uma conexão que abre e não
+      recebe dados.
+    </p>
+  </div>
+</section>
+
+<section id="ferramentas" data-toc="Teoria: ferramentas de diagnóstico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-screwdriver-wrench text-emerald-400 mr-2"></i>Teoria · Ferramentas de diagnóstico</h2>
+  <div class="ah-prose">
+    <p>
+      Cada ferramenta responde a uma pergunta diferente. Usá-las na ordem certa economiza tempo.
+    </p>
+    <ul>
+      <li><strong>ping:</strong> o destino responde a um eco ICMP? Confirma conectividade e dá o RTT. Muitas redes bloqueiam ICMP, então não responder não prova que o host está fora.</li>
+      <li><strong>traceroute / tracert:</strong> por onde o pacote passa? Envia sondas com TTL crescente e registra quem responde em cada salto.</li>
+      <li><strong>dig / nslookup:</strong> o nome resolve? Para qual IP, com qual TTL, por qual servidor?</li>
+      <li><strong>ss / netstat:</strong> quais portas estão abertas e em que estado (LISTEN, ESTABLISHED, TIME_WAIT)? Mostra o que o host realmente faz.</li>
+      <li><strong>tcpdump / Wireshark:</strong> o que chegou ou saiu, byte a byte? É a ferramenta definitiva, quando as outras não bastam.</li>
+      <li><strong>mtr:</strong> combina ping e traceroute, e mostra perda e latência por salto ao longo do tempo.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="traceroute" data-toc="Teoria: traceroute e o TTL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Teoria · Como o traceroute descobre o caminho</h2>
+  <div class="ah-prose">
+    <p>
+      O campo TTL do IP é decrementado por cada roteador. Quando chega a zero, o roteador descarta o pacote e pode avisar a origem. O traceroute usa
+      isso: envia uma sonda com TTL 1, que morre no primeiro roteador; depois com TTL 2, que morre no segundo; e assim por diante, até a sonda chegar ao
+      destino. Cada resposta de tempo excedido identifica um salto.
+    </p>
+    <p>
+      A RFC 792 define o comportamento do roteador nesse caso:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. The gateway may also notify the source host via the time exceeded message."
+    </blockquote>
+    <p class="text-xs text-slate-500">POSTEL, J. RFC 792: Internet Control Message Protocol (1981), descrição da mensagem Time Exceeded. Tradução nossa: se o gateway que processa um datagrama encontra o campo de tempo de vida zerado, deve descartá-lo. O gateway pode também notificar o host de origem pela mensagem de tempo excedido.</p>
+    <p>
+      Duas armadilhas do traceroute. Primeiro, o caminho pode variar entre sondas, por balanceamento de carga (ECMP, tópico 11), o que mostra saltos
+      alternados. Segundo, alguns roteadores não respondem ao ICMP, o que aparece como asteriscos, mesmo com o tráfego real passando.
+    </p>
+  </div>
+</section>
+
+<section id="metodo" data-toc="Método: diagnóstico por camadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-ol text-emerald-400 mr-2"></i>Método · Diagnóstico por camadas</h2>
+  <div class="ah-prose">
+    <p>
+      Quando algo não funciona, siga a pilha de baixo para cima, e não pule etapas. A ordem é a mesma que você viu nos tópicos anteriores, e cada
+      etapa elimina uma classe de causas.
+    </p>
+    <ol>
+      <li><strong>Física e enlace:</strong> a interface está ativa? Há link? Há erros de CRC nos contadores? (tópicos 2 e 3)</li>
+      <li><strong>Endereçamento:</strong> o host tem IP, máscara e gateway corretos? O ARP resolve o gateway? (tópico 4)</li>
+      <li><strong>Roteamento:</strong> a tabela tem rota para o destino? O traceroute passa por onde deveria? (tópico 5)</li>
+      <li><strong>Transporte:</strong> a porta está aberta e aceita a conexão? Há SYN sem SYN-ACK? (tópico 6)</li>
+      <li><strong>Aplicação:</strong> o nome resolve? A requisição tem o Host correto e o certificado é válido? (tópicos 8 e 9)</li>
+      <li><strong>Filtros:</strong> um firewall, uma ACL ou um grupo de segurança bloqueia alguma direção? (esta página)</li>
+    </ol>
+    <p>
+      Um princípio que simplifica muito: a primeira camada que falha é a causa, e as camadas acima dela não devem ser investigadas antes. Um DNS
+      que não responde não é problema de aplicação se o gateway não responde ao ARP.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: traceroute" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Sondas com TTL crescente</h2>
+  <p class="ah-lead text-sm mb-4">A origem envia sondas com TTL 1, 2, 3 e 4. Cada roteador que zera o TTL responde com tempo excedido, e o destino responde ao eco. Assim o caminho aparece, salto a salto. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvTR" style="height:380px"></canvas></div>
+  <div id="ctlTR" class="mt-4"></div>
+  <div id="capTR" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: VPC, rotas e traceroute em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Planejar, rotear, investigar</h2>
+  <div class="ah-prose">
+    <p>
+      O programa planeja uma VPC 10.0.0.0/16 em sub-redes /24, consulta as tabelas de rota pública e privada pelo prefixo mais longo, simula o
+      traceroute decrementando o TTL, e compara um grupo de segurança com uma ACL.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>12-cloud-diagnostico.py · traceroute</code></p>
+<pre class="ah-code"><code>def traceroute(origem, destino, caminho, ttl_max=6):
+    for ttl in range(1, ttl_max + 1):
+        if ttl &gt; len(caminho):
+            print(f"  {ttl:&gt;2}  sem resposta")
+            break
+        salto = caminho[ttl - 1]
+        if salto == destino:
+            print(f"  {ttl:&gt;2}  {salto}  echo reply: o destino respondeu")
+            break
+        print(f"  {ttl:&gt;2}  {salto}  time exceeded: TTL zerou no roteador")</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: planejamento da VPC
+  VPC 10.0.0.0/16: 256 sub-redes /24 disponíveis, 65536 endereços
+  pública  zona-a: 10.0.0.0/24 (251 endereços úteis, com 5 reservados pela AWS)
+  pública  zona-b: 10.0.1.0/24 (251 endereços úteis, com 5 reservados pela AWS)
+  privada  zona-a: 10.0.10.0/24
+  privada  zona-b: 10.0.11.0/24
+
+Parte 2: tabelas de rota
+  pública  -&gt; 10.0.0.25  : ('10.0.0.0/16', 'local')
+  pública  -&gt; 10.0.200.9 : ('10.0.0.0/16', 'local')
+  pública  -&gt; 8.8.8.8    : ('0.0.0.0/0', 'gateway-internet')
+  privada  -&gt; 10.0.0.25  : ('10.0.0.0/16', 'local')
+  privada  -&gt; 8.8.8.8    : ('0.0.0.0/0', 'nat-gateway')
+
+Parte 3: traceroute
+  traceroute de 10.0.0.25 para 93.184.216.34
+   1  10.0.0.1  time exceeded: TTL zerou no roteador
+   2  10.0.1.1  time exceeded: TTL zerou no roteador
+   3  172.16.5.1  time exceeded: TTL zerou no roteador
+   4  93.184.216.34  echo reply: o destino respondeu
+
+Parte 4: filtros
+  grupo de segurança, entrada permitida: permitido; a resposta volta pelo estado da conexão
+  ACL, entrada permitida e saída sem regra: entrada permitida, mas a resposta é bloqueada na saída
+  ACL, entrada e saída permitidas: permitido nos dois sentidos</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Na parte 2, o endereço 10.0.200.9 casa com a rota local da VPC, mesmo fora da sub-rede pública: a rota local cobre toda a VPC, e as sub-redes
+      só dividem o espaço. Na parte 4, a diferença entre grupo e ACL é o que você veria no exemplo de resposta bloqueada: a ACL não lembra a conexão.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Aplicação instalada, mas sem acesso</div>
+      <p class="text-xs text-slate-400">Um serviço sobe, o teste local passa, e o acesso externo falha. Pelo método, o primeiro suspeito é o filtro: ACL sem regra de volta ou grupo sem a porta. Um ss -tln mostra se o serviço escuta no endereço certo, e não só em 127.0.0.1.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Atualização que não baixa</div>
+      <p class="text-xs text-slate-400">Um servidor privado sem rota para o NAT gateway não alcança os repositórios. A tabela da sub-rede mostra a rota padrão ausente, e a correção é uma rota, não um ajuste na aplicação.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Latência alta só para um cliente</div>
+      <p class="text-xs text-slate-400">Um traceroute e um mtr a partir do cliente mostram onde a latência sobe. Se o salto é de um provedor, o problema é fora do seu controle, e o registro com horários é a evidência para abrir chamado.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conexões presas em TIME_WAIT</div>
+      <p class="text-xs text-slate-400">Um ss mostra milhares de conexões em TIME_WAIT no balanceador. Lembre-se do tópico 6: é estado normal de quem fecha primeiro, mas em volume alto pode esgotar portas. Reuso de conexões (keep-alive) é a correção usual.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Reproduza antes de corrigir</div>
+      <p class="text-xs text-slate-400">Confirme o problema com um teste mínimo (um ping, um curl com IP fixo, uma consulta DNS) antes de mudar qualquer configuração.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Teste nos dois sentidos</div>
+      <p class="text-xs text-slate-400">Conexão que abre e não transfere costuma ser filtro em uma direção. Verifique a ida e a volta, em especial em ACLs.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Capture na dúvida</div>
+      <p class="text-xs text-slate-400">Quando as hipóteses se esgotam, um tcpdump no ponto de dúvida mostra o que realmente chegou. Vale mais que uma hora de suposições.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Documente a topologia</div>
+      <p class="text-xs text-slate-400">Um diagrama com CIDRs, rotas e zonas economiza horas de diagnóstico. Em nuvem, trate a configuração como código e versione-a.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: planejamento de VPC</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Você precisa de uma VPC para 3 zonas, cada uma com uma sub-rede pública e uma privada, com pelo menos 200 endereços úteis por sub-rede privada. Qual o menor prefixo para as privadas, e quantos blocos /24 de reserva sobram se a VPC for 10.0.0.0/16?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> 200 endereços úteis, mais 5 reservados pela AWS, dá pelo menos 205 endereços: um /24 (256) basta, e um /25 (128) não. Logo, /24 para as privadas. São 3 públicas e 3 privadas de /24, somando 6 blocos. Com a VPC /16 tendo 256 blocos /24, sobram 250 para crescimento.</p>
+      <p><strong>Lição.</strong> Planeje com folga e alinhe as faixas por função: públicas num bloco, privadas em outro, para que as rotas fiquem legíveis.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: onde está a falha?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um servidor privado não consegue acessar a internet. O ping para 10.0.0.1 (gateway local) funciona, o ping para 8.8.8.8 falha, e a tabela da sub-rede privada não tem rota padrão. Em que camada e onde está o problema?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> As camadas de enlace e de endereçamento estão corretas, porque o gateway local responde. O problema está no roteamento: a sub-rede privada não tem rota 0.0.0.0/0 para o NAT gateway, então o pacote para 8.8.8.8 não tem saída. A correção é adicionar a rota para o NAT gateway, e não mexer no servidor.</p>
+      <p><strong>Lição.</strong> Quando o ping local funciona e o externo não, o método leva direto à tabela de rotas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um traceroute mostra os saltos 1 a 3 normais, o salto 4 com asteriscos, e os saltos 5 a 7 normais, com o destino no 7. O que pode ter acontecido no salto 4?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o roteador do salto 4 provavelmente não responde a ICMP (por política ou carga), mas encaminha o tráfego normalmente. Asteriscos isolados não significam falha, desde que os saltos seguintes respondam. Se o destino não respondesse, aí sim haveria um problema.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um grupo de segurança permite a entrada TCP 443 de qualquer origem, e não há regra de saída explícita. Um cliente acessa o serviço. A resposta chega? Por quê?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> sim. O grupo é com estado: a conexão foi permitida na entrada, e a resposta do mesmo fluxo é aceita sem regra de saída. Se o filtro fosse uma ACL sem estado, a resposta precisaria de regra explícita na saída, e as portas efêmeras do cliente precisariam estar liberadas.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Por que uma ACL com regra de entrada para a porta 443 pode quebrar o acesso HTTPS, mesmo estando "liberada"?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a ACL é sem estado. O cliente inicia a conexão a partir de uma porta efêmera, e o servidor responde a essa porta. Se a regra de saída não cobre as portas efêmeras do cliente, a resposta é bloqueada e a conexão nunca completa o handshake de volta. A regra de entrada sozinha não basta.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual campo do IP o traceroute usa para descobrir os saltos?</p>
+      <button class="ah-quiz-opt">O campo de protocolo</button>
+      <button class="ah-quiz-opt">O TTL</button>
+      <button class="ah-quiz-opt">O campo de opções</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com TTL crescente, cada roteador que zera o TTL revela sua presença, com a mensagem de tempo excedido.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a diferença entre grupo de segurança e ACL de rede?</p>
+      <button class="ah-quiz-opt">O grupo é com estado; a ACL é sem estado</button>
+      <button class="ah-quiz-opt">A ACL é com estado; o grupo é sem estado</button>
+      <button class="ah-quiz-opt">Ambos são com estado</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O grupo lembra as conexões permitidas e aceita as respostas. A ACL avalia cada pacote isoladamente, nos dois sentidos.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Para que serve um NAT gateway numa sub-rede privada?</p>
+      <button class="ah-quiz-opt">Para receber conexões de fora com IP público fixo</button>
+      <button class="ah-quiz-opt">Para ligar duas VPCs entre si</button>
+      <button class="ah-quiz-opt">Para permitir saída à internet sem aceitar conexões iniciadas de fora</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A sub-rede privada sai pelo NAT gateway, que traduz a origem, e não aceita conexões não solicitadas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Uma VPC é um bloco CIDR dividido em sub-redes por zona; a sub-rede é pública ou privada pela rota padrão.</li>
+    <li>Grupos de segurança são com estado; ACLs de rede são sem estado e precisam das duas direções.</li>
+    <li>Traceroute usa o TTL: cada roteador que o zera revela sua presença.</li>
+    <li>Diagnostique de baixo para cima, sem pular camadas, e confirme cada hipótese com um teste.</li>
+    <li>Capture pacotes quando as hipóteses se esgotarem; o que chegou é mais confiável que o que deveria chegar.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>POSTEL, J. <em>RFC 792: Internet Control Message Protocol</em>. IETF, 1981.</li>
+    <li>POSTEL, J. <em>RFC 791: Internet Protocol</em>. IETF, 1981. (Campo TTL.)</li>
+    <li>BRADEN, R. (ed.). <em>RFC 1122: Requirements for Internet Hosts – Communication Layers</em>. IETF, 1989. (Requisitos dos hosts, incluindo ICMP.)</li>
+    <li>AMAZON WEB SERVICES. <em>Amazon VPC User Guide</em>. Documentação oficial, edição corrente. (Reserva de endereços, grupos de segurança e ACLs.)</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 1 (atraso, perda e ferramentas de medição).</li>
+    <li>STEVENS, W. R. <em>TCP/IP Illustrated, Volume 1: The Protocols</em>. Reading: Addison-Wesley, 1994. (Referência para traceroute e ICMP.)</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Origem (0), roteadores R1 (1), R2 (2), R3 (3) e destino (4): sondas com TTL crescente */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Origem', 'R1', 'R2', 'R3', 'Destino'],
+    intro: 'A origem quer descobrir o caminho até o destino. Ela não conhece os saltos, então envia sondas com TTL crescente.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'sonda TTL=1', cap: 'Sonda com TTL = 1. O primeiro roteador decrementa o TTL para zero.', fim: 'R1 descarta a sonda, pois o TTL zerou.' },
+      { de: 1, para: 0, rotulo: 'tempo excedido (R1)', cap: 'R1 avisa a origem com ICMP tempo excedido. Assim, a origem conhece o salto 1.', fim: 'A origem registra R1 como o primeiro salto.' },
+      { de: 0, para: 2, rotulo: 'sonda TTL=2', cap: 'Sonda com TTL = 2. Ela passa por R1, que decrementa para 1, e chega a R2.', fim: 'R2 recebe com TTL 1 e o decrementa para zero.' },
+      { de: 2, para: 0, rotulo: 'tempo excedido (R2)', cap: 'R2 responde com tempo excedido. Agora a origem conhece o salto 2.', fim: 'A origem registra R2 como o segundo salto.' },
+      { de: 0, para: 3, rotulo: 'sonda TTL=3', cap: 'Sonda com TTL = 3. Ela passa por R1 e R2 e chega a R3.', fim: 'R3 zera o TTL e descarta a sonda.' },
+      { de: 3, para: 0, rotulo: 'tempo excedido (R3)', cap: 'R3 responde com tempo excedido: salto 3 identificado.', fim: 'A origem registra R3 como o terceiro salto.' },
+      { de: 0, para: 4, rotulo: 'sonda TTL=4', cap: 'Sonda com TTL = 4. Dessa vez, o TTL não zera antes do destino.', fim: 'A sonda chega ao destino com TTL positivo.' },
+      { de: 4, para: 0, rotulo: 'eco / porta', cap: 'O destino responde (eco ou porta inalcançável). Não é mais tempo excedido: o caminho está completo.', fim: 'O traceroute termina: quatro saltos, com o destino no quarto.' }
+    ]
+  }), {
+    canvas: 'cvTR', ctl: 'ctlTR', cap: 'capTR', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>

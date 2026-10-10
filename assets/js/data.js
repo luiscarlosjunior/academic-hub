@@ -351,7 +351,10 @@ const AH_DATA = {
           tags: ['NAT', 'DHCP', 'IPv6'], nivel: 'Intermediário', minutos: 60 },
         { id: '11-sdn-datacenter', titulo: 'Redes avançadas: SDN, NFV e fabric leaf-spine em datacenters', icone: 'fa-diagram-project',
           resumo: 'Plano de controle e plano de dados, tabelas de fluxos com prioridade, NFV, topologia leaf-spine e oversubscription, e o ECMP com seus efeitos sobre falhas.',
-          tags: ['SDN', 'Leaf-spine', 'ECMP'], nivel: 'Avançado', minutos: 70 }
+          tags: ['SDN', 'Leaf-spine', 'ECMP'], nivel: 'Avançado', minutos: 70 },
+        { id: '12-cloud-diagnostico', titulo: 'Redes em cloud e diagnóstico: VPC, filtros, traceroute e método', icone: 'fa-cloud',
+          resumo: 'VPC com sub-redes públicas e privadas, tabelas de rota e gateways, grupos de segurança e ACLs, ferramentas de diagnóstico e um método de investigação por camadas.',
+          tags: ['VPC', 'Diagnóstico', 'Traceroute'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]
