@@ -363,7 +363,10 @@ const AH_DATA = {
           tags: ['CDN', 'Cache', 'Anycast'], nivel: 'Avançado', minutos: 70 },
         { id: '15-observabilidade-rede', titulo: 'Observabilidade de rede: percentis, SLO, fluxos e alertas', icone: 'fa-chart-line',
           resumo: 'Por que a média engana, percentis e caudas de latência, orçamento de erro de um SLO, exportação de fluxos com IPFIX e detecção de anomalias com EWMA.',
-          tags: ['Observabilidade', 'SLO', 'IPFIX'], nivel: 'Avançado', minutos: 70 }
+          tags: ['Observabilidade', 'SLO', 'IPFIX'], nivel: 'Avançado', minutos: 70 },
+        { id: '16-ia-hpc-rdma', titulo: 'Redes para IA e HPC: RDMA, all-reduce, InfiniBand e RoCE', icone: 'fa-microchip',
+          resumo: 'Cópia zero com RDMA, all-reduce em anel e seu volume por trabalhador, latência versus banda, InfiniBand e RoCE, incast e controle de congestionamento de fabric de IA.',
+          tags: ['RDMA', 'All-reduce', 'IA'], nivel: 'Avançado', minutos: 75 }
       ]
     }
   ]
