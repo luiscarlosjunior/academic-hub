@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAT, DHCP e IPv6: escassez de endereços e a transição · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como o NAT e a tradução de portas (NAPT) permitem compartilhar um endereço público, como o DHCP entrega configuração de rede, e o IPv6 com sua escala, compressão e EUI-64, com animação, exemplo em Python e citações das RFCs.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/10-nat-dhcp-ipv6">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-emerald-400 mr-2"></i>Tópico 10 · NAT, DHCP e IPv6</h2>
+  <div class="ah-prose">
+    <p>
+      O IPv4 tem cerca de 4,3 bilhões de endereços, e a Internet atual tem muito mais dispositivos que isso. Três respostas convivem para lidar com
+      essa escassez: o <strong>NAT</strong>, que permite a muitos hosts privados compartilhar um endereço público; o <strong>DHCP</strong>, que
+      distribui configuração de rede automaticamente, para que cada host não precise de ajuste manual; e o <strong>IPv6</strong>, que amplia o espaço
+      de endereços para 2<sup>128</sup>, eliminando a necessidade de compartilhar.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar o NAPT e a tabela de tradução, e prever o que acontece com uma resposta sem entrada;</li>
+      <li>nomear as quatro mensagens do DHCP e o que cada uma carrega;</li>
+      <li>compactar e expandir endereços IPv6, e gerar um endereço de interface com EUI-64;</li>
+      <li>comparar a escala do IPv4 e do IPv6, e explicar por que o IPv6 não precisa de NAT;</li>
+      <li>identificar os problemas que o NAT causa para protocolos que assumem endereços fixos.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      O IPv6 foi especificado no fim dos anos 1990, com a RFC 2460 em 1998, e substituída pela RFC 8200 em 2017. A escassez de IPv4 era prevista
+      desde os anos 1990, e o NAT foi a solução de transição que se tornou permanente. O DHCP, descrito na RFC 2131 (1997), estendeu o BOOTP e substituiu
+      a configuração manual, e é hoje o mecanismo padrão em redes locais e em redes de operadoras.
+    </p>
+    <p>
+      Por que a adoção do IPv6 ainda não é universal? Porque o NAT resolveu o problema imediato, e a mudança exige que roteadores, firewalls,
+      aplicações e operadoras suportem os dois protocolos ao mesmo tempo. Essa coexistência é a fase de transição, e ela dura mais que o previsto.
+    </p>
+  </div>
+</section>
+
+<section id="nat" data-toc="Teoria: NAT e NAPT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>Teoria · NAT e a tabela de tradução</h2>
+  <div class="ah-prose">
+    <p>
+      O NAT (<em>network address translation</em>) fica na borda de uma rede privada. Ao sair, ele troca o endereço privado de origem pelo seu endereço
+      público, e guarda a correspondência numa tabela. Ao chegar a resposta, ele consulta a tabela e troca o destino de volta. Na prática, quase sempre é
+      NAPT (NAT com tradução de portas): a correspondência inclui a porta, e assim muitos hosts podem usar o mesmo endereço público, cada um com portas
+      públicas diferentes.
+    </p>
+    <p>
+      A regra essencial é que o NAT só entrega o que alguém pediu. Um pacote que chega sem entrada correspondente na tabela é descartado. É por isso que o
+      NAT, para a maioria das pessoas, funciona como um firewall: iniciadas de dentro, as conexões voltam; iniciadas de fora, não entram. Esse efeito
+      colateral é útil, mas não é uma política de segurança, porque o NAT não analisa conteúdo e não filtra a saída.
+    </p>
+    <p>
+      Para um servidor que deve ser alcançável de fora, o NAT precisa de uma regra estática (<em>port forwarding</em>), que associa uma porta pública fixa
+      a um host interno. Essa regra é exatamente uma entrada da tabela que não expira.
+    </p>
+  </div>
+</section>
+
+<section id="dhcp" data-toc="Teoria: DHCP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-id-card text-emerald-400 mr-2"></i>Teoria · DHCP e as quatro mensagens</h2>
+  <div class="ah-prose">
+    <p>
+      Quando um host liga, ele não tem IP, máscara, gateway ou DNS. O DHCP entrega tudo isso num processo de quatro mensagens, conhecido pela sigla
+      DORA:
+    </p>
+    <ol>
+      <li><strong>Discover:</strong> o cliente, sem endereço, envia em broadcast (destino 255.255.255.255, origem 0.0.0.0) pedindo um servidor DHCP.</li>
+      <li><strong>Offer:</strong> o servidor responde com um endereço disponível e os parâmetros, por um tempo de concessão (lease).</li>
+      <li><strong>Request:</strong> o cliente aceita a oferta, também em broadcast, para que outros servidores saibam que foi escolhida.</li>
+      <li><strong>Ack:</strong> o servidor confirma a concessão. O cliente configura a interface.</li>
+    </ol>
+    <p>
+      O endereço é uma concessão, e não uma propriedade. Ao chegar à metade do tempo, o cliente renova. Se não renovar, o servidor pode reatribuir o
+      endereço a outro host. Por isso um conflito de IP surge quando um host configurado manualmente usa um endereço que o DHCP já deu a outro.
+    </p>
+    <p>
+      Um detalhe que surpreende: o DHCP usa broadcast porque o cliente ainda não tem IP. Um relay DHCP, em um roteador, encaminha o broadcast para
+      um servidor de outra sub-rede. Sem relay, o servidor só atende a própria sub-rede.
+    </p>
+  </div>
+</section>
+
+<section id="ipv6" data-toc="Teoria: IPv6" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-globe text-emerald-400 mr-2"></i>Teoria · IPv6: escala, notação e EUI-64</h2>
+  <div class="ah-prose">
+    <p>
+      Um endereço IPv6 tem 128 bits, escritos como oito grupos de quatro dígitos hexadecimais. Dois recursos de notação ajudam a lê-los. Zeros à
+      esquerda de cada grupo podem ser omitidos, e um único trecho de grupos zerados consecutivos pode ser substituído por <code>::</code>, uma vez só
+      por endereço. Assim, <code>2001:0db8:0000:0000:0000:ff00:0042:8329</code> vira <code>2001:db8::ff00:42:8329</code>.
+    </p>
+    <p>
+      A estrutura típica separa 64 bits de prefixo de rede e 64 de identificador de interface. Uma organização recebe um bloco, em geral /48, e
+      cria sub-redes /64. Um /48 comporta 65 536 sub-redes /64, e cada uma tem 2<sup>64</sup> endereços. Não há o problema de esgotar espaço que o IPv4
+      tem, e a configuração de uma sub-rede não precisa de contas cuidadosas de máscara.
+    </p>
+    <p>
+      O identificador de interface pode ser gerado a partir do MAC pelo método <strong>EUI-64</strong>: insere-se ff:fe no meio dos 48 bits e inverte-se
+      o bit de administração local. O resultado é previsível, o que tem uma consequência de privacidade: o mesmo identificador acompanha o dispositivo
+      entre redes. Por isso sistemas modernos usam endereços temporários, com identificadores aleatórios que mudam periodicamente.
+    </p>
+    <p>
+      Sobre o NAT e a perda de transparência, a RFC 2775 conclui que os endereços IPv4 não podem mais ser considerados globalmente únicos nem
+      invariantes. Ela afirma:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "IPv4 addresses can no longer be assumed to be either globally unique or invariant, and any protocol or applications design that assumes these properties will fail unpredictably."
+    </blockquote>
+    <p class="text-xs text-slate-500">CARPENTER, B. (ed.). RFC 2775 (2000), seção 1. Tradução nossa: não se pode mais presumir que endereços IPv4 sejam globalmente únicos ou invariantes, e qualquer protocolo ou aplicação que assuma essas propriedades falhará de forma imprevisível.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: NAPT na prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Uma conexão atravessando o NAT</h2>
+  <p class="ah-lead text-sm mb-4">O host privado abre uma conexão. O NAT troca a origem por seu endereço público e uma porta livre, e lembra a correspondência. A resposta volta pela porta certa. Um pacote não solicitado, na última linha, é descartado. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvNAT" style="height:340px"></canvas></div>
+  <div id="ctlNAT" class="mt-4"></div>
+  <div id="capNAT" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: NAPT e IPv6 em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Tabela de NAPT e EUI-64</h2>
+  <div class="ah-prose">
+    <p>
+      O programa implementa uma tabela de NAPT. Dois hosts privados usam a mesma porta de origem (51234), e o NAT dá a cada um uma porta pública
+      diferente. Em seguida, a resposta é entregue ao host certo, e um pacote para uma porta sem entrada é descartado. A segunda parte expande um endereço
+      IPv6 e gera um identificador de interface pelo método EUI-64. A terceira calcula a escala de sub-redes.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>10-nat-ipv6.py · NAT.saida</code></p>
+<pre class="ah-code"><code>def saida(self, ip_privado, porta_privada):
+    chave = (ip_privado, porta_privada)
+    if chave not in self.ida:
+        self.ida[chave] = self.proxima          # nova porta pública
+        self.volta[self.proxima] = chave        # tabela da volta
+        self.proxima += 1
+    return self.ip_publico, self.ida[chave]</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: NAPT com dois hosts usando a mesma porta de origem
+  192.168.0.10:51234 -&gt; 200.1.1.5:40000 -&gt; 93.184.216.34:80
+  192.168.0.11:51234 -&gt; 200.1.1.5:40001 -&gt; 93.184.216.34:80
+  192.168.0.10:51234 -&gt; 200.1.1.5:40000 -&gt; 93.184.216.34:80
+  resposta chegando ao NAT:
+    porta 40000: entregue a 192.168.0.10:51234
+    porta 40001: entregue a 192.168.0.11:51234
+    porta 40005: sem entrada na tabela, descartada
+
+Parte 2: IPv6
+  completo:   2001:0db8:0000:0000:0000:ff00:0042:8329
+  comprimido: 2001:db8::ff00:42:8329
+  EUI-64 de 3c:22:fb:01:02:03 -&gt; fe80::3e22:fbff:fe01:0203
+
+Parte 3: sub-redes e escala
+  /48 tem 65536 sub-redes /64
+  primeira delas: 2001:db8:abcd::/64
+  cada /64 tem 18446744073709551616 endereços
+  total de endereços IPv4: 4294967296; de IPv6: 2^128</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Observe a segunda linha: o host .11 usou a mesma porta de origem que o host .10, e isso não causou conflito, porque o NAT distingue os dois pela
+      porta pública. Essa é a essência do NAPT, e também o motivo pelo qual o NAT consome estado: cada conexão ocupa uma entrada da tabela.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Jogos e chamadas com NAT restrito</div>
+      <p class="text-xs text-slate-400">Jogos peer-to-peer e chamadas de voz podem falhar atrás de NAT simétrico, que muda a porta a cada destino. A solução usual é um servidor intermediário (TURN) ou técnicas de travessia (STUN).</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Servidor de casa acessível de fora</div>
+      <p class="text-xs text-slate-400">Para acessar uma câmera ou um servidor de casa, é preciso uma regra de port forwarding no roteador. Sem ela, o serviço existe, mas está atrás do NAT e não recebe conexões de fora.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conflito de IP em rede doméstica</div>
+      <p class="text-xs text-slate-400">Se você fixa um IP manualmente dentro da faixa do DHCP do roteador, outro dispositivo pode receber o mesmo endereço. A correção é reservar o endereço no DHCP, e não configurá-lo à mão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Operadora sem IPv4 sobrando</div>
+      <p class="text-xs text-slate-400">Uma operadora pode compartilhar um IPv4 público entre milhares de clientes (CGNAT). Isso dificulta rastrear um usuário pelo IP, e quebra serviços que dependem de endereço único por cliente.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte quem iniciou</div>
+      <p class="text-xs text-slate-400">Para uma conexão que não funciona atrás de NAT, verifique de que lado ela começa. Conexões iniciadas de fora só funcionam com regra estática.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Reserve, não fixe</div>
+      <p class="text-xs text-slate-400">Para servidores internos, reserve o endereço no DHCP. Assim o IP é estável e não entra em conflito com a faixa dinâmica.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Não confunda NAT com firewall</div>
+      <p class="text-xs text-slate-400">O NAT descarta o que não foi pedido, mas não filtra a saída nem inspeciona conteúdo. Mantenha um firewall de verdade, com política de negar por padrão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Teste IPv6 sem supor</div>
+      <p class="text-xs text-slate-400">Um serviço pode ser acessível por IPv4 e falhar por IPv6, ou o contrário. Teste os dois, e não presuma que o outro funciona.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: compacte e expanda</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Escreva 2001:0db8:0000:0042:0000:0000:0000:0001 de forma compacta. Depois, expanda 2001:db8::1 para a forma completa.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Compactada: remova os zeros à esquerda (2001:db8:0:42:0:0:0:1) e substitua o maior trecho de grupos zerados consecutivos por <code>::</code>. O trecho 0:0:0 é o maior, então: 2001:db8:0:42::1. Expandida de 2001:db8::1: são 8 grupos, e os que faltam são zeros, o que dá 2001:0db8:0000:0000:0000:0000:0000:0001.</p>
+      <p><strong>Lição.</strong> Use <code>::</code> uma vez só por endereço, sobre o maior trecho de zeros. Se houver empate, o primeiro trecho.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: por que a conexão de fora falha?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um servidor web em 192.168.1.50 funciona dentro da rede, mas não responde a conexões vindas da Internet, mesmo com o IP público do roteador acessível. Qual é a causa mais provável?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O NAT só entrega conexões que alguém iniciou. Uma conexão vinda de fora, para a porta 80 do IP público, não tem entrada na tabela. A correção é uma regra de port forwarding: porta 80 do IP público para 192.168.1.50:80. Confirme também que o firewall do próprio servidor permite a porta.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Com a tabela do exemplo, qual porta pública é usada pelo host 192.168.0.12, que abre sua primeira conexão depois dos três do exemplo?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> 40002. O NAT atribui portas em sequência a partir de 40000. A terceira linha do exemplo reaproveitou 40000, porque era a mesma conexão do host .10; por isso, a próxima porta nova é a 40002.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um identificador EUI-64 é gerado a partir do MAC 00:1a:2b:3c:4d:5e. Qual é a parte de interface?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> 00 tem o bit 1 em 0; invertê-lo dá 02. Os bytes ficam 02:1a:2b, depois ff:fe, depois 3c:4d:5e. Resultado: 021a:2bff:fe3c:4d5e.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Uma aplicação grava o endereço IP de um cliente para autorizar o acesso. O que pode dar errado com NAT e DHCP?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> vários clientes atrás do mesmo NAT compartilham o IP público, então uma autorização por IP libera ou bloqueia todos eles. Além disso, o IP de um cliente pode mudar com a renovação do DHCP ou a troca de rede. A solução é autenticar pelo usuário ou por token, e não pelo endereço.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a primeira mensagem do DHCP, e qual o endereço de origem usado por um cliente que ainda não tem IP?</p>
+      <button class="ah-quiz-opt">Offer, com origem 255.255.255.255</button>
+      <button class="ah-quiz-opt">Ack, com origem 192.168.0.1</button>
+      <button class="ah-quiz-opt">Discover, com origem 0.0.0.0</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O Discover é a primeira mensagem, enviada em broadcast. Como o cliente não tem IP, usa 0.0.0.0 como origem.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um pacote chega ao NAT para a porta pública 40007, que não está na tabela. O que acontece?</p>
+      <button class="ah-quiz-opt">É descartado, porque nenhuma conexão pediu aquele tráfego</button>
+      <button class="ah-quiz-opt">É entregue ao primeiro host da rede</button>
+      <button class="ah-quiz-opt">É encaminhado para o gateway padrão</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O NAT só entrega o que tem correspondência na tabela. Sem ela, descarta, e é isso que dá ao NAT um efeito de proteção.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Quantas sub-redes /64 cabem numa /48?</p>
+      <button class="ah-quiz-opt">256</button>
+      <button class="ah-quiz-opt">65 536</button>
+      <button class="ah-quiz-opt">2<sup>64</sup></button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. São 2<sup>64 − 48</sup> = 2<sup>16</sup> = 65 536 sub-redes /64 numa /48.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>O NAPT compartilha um endereço público por meio de uma tabela de portas; o que não tem entrada é descartado.</li>
+    <li>O DHCP entrega configuração com Discover, Offer, Request e Ack; o endereço é uma concessão.</li>
+    <li>IPv6 tem 128 bits, notação compacta com <code>::</code> e sub-redes /64 em grande quantidade.</li>
+    <li>O EUI-64 gera o identificador de interface a partir do MAC, com implicação de privacidade.</li>
+    <li>Protocolos que assumem endereços únicos e invariantes falham atrás de NAT.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CARPENTER, B. (ed.). <em>RFC 2775: Internet Transparency</em>. IETF, 2000.</li>
+    <li>SRISURESH, P.; EGEVANG, K. <em>RFC 3022: Traditional IP Network Address Translator (Traditional NAT)</em>. IETF, 2001.</li>
+    <li>DROMS, R. <em>RFC 2131: Dynamic Host Configuration Protocol</em>. IETF, 1997.</li>
+    <li>DEERING, S.; HINDEN, R. <em>RFC 8200: Internet Protocol, Version 6 (IPv6) Specification</em>. IETF, 2017.</li>
+    <li>HINDEN, R.; DEERING, S. <em>RFC 4291: IP Version 6 Addressing Architecture</em>. IETF, 2006.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 4 (NAT, DHCP e IPv6).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 5 (camada de rede: IPv6 e NAT).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Host privado (0), NAT (1) e servidor (2): tradução na ida, volta correta e pacote descartado */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Host 192.168.0.10', 'NAT 200.1.1.5', 'Servidor 93.184.216.34'],
+    intro: 'O host privado quer abrir uma conexão com um servidor público. Endereços privados não são roteáveis, então o NAT vai intermediar.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'SYN 192.168.0.10:51234', cap: 'O host envia SYN com origem privada, 192.168.0.10:51234.', fim: 'O NAT recebe o pacote, que ainda não pode sair com endereço privado.' },
+      { de: 1, para: 2, rotulo: 'SYN 200.1.1.5:40000', cap: 'O NAT reescreve a origem para 200.1.1.5:40000 e grava (IP privado, porta) na tabela.', fim: 'O servidor recebe um SYN de um endereço público.' },
+      { de: 2, para: 1, rotulo: 'SYN-ACK → :40000', cap: 'O servidor responde ao endereço público do NAT, na porta 40000.', fim: 'A resposta chega ao NAT pela porta 40000.' },
+      { de: 1, para: 0, rotulo: 'SYN-ACK → 192.168.0.10', cap: 'O NAT consulta a tabela pela porta 40000 e entrega ao host correto.', fim: 'O host recebe a resposta como se fosse direta.' },
+      { de: 0, para: 2, rotulo: 'DADOS', cap: 'A conexão segue: os dados passam pelo NAT com a mesma tradução.', fim: 'O servidor recebe os dados, sem saber que há um NAT no caminho.' },
+      { de: 2, para: 1, rotulo: 'porta 40005', perdida: true, cap: 'Um pacote chega ao NAT para a porta 40005, que não tem entrada na tabela.', fim: 'Nenhuma conexão pediu aquele tráfego: o NAT descarta.' }
+    ]
+  }), {
+    canvas: 'cvNAT', ctl: 'ctlNAT', cap: 'capNAT', velocidade: 2200
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -345,7 +345,10 @@ const AH_DATA = {
           tags: ['DNS', 'HTTP', 'QUIC'], nivel: 'Intermediário', minutos: 65 },
         { id: '09-seguranca-tls', titulo: 'Segurança de redes: criptografia, TLS, firewalls e VPN', icone: 'fa-shield-halved',
           resumo: 'Confidencialidade, integridade e autenticidade, criptografia simétrica e assimétrica, Diffie-Hellman, certificados, o handshake do TLS 1.3, firewalls e VPN.',
-          tags: ['TLS', 'Criptografia', 'Firewall'], nivel: 'Avançado', minutos: 70 }
+          tags: ['TLS', 'Criptografia', 'Firewall'], nivel: 'Avançado', minutos: 70 },
+        { id: '10-nat-dhcp-ipv6', titulo: 'NAT, DHCP e IPv6: escassez de endereços e a transição', icone: 'fa-network-wired',
+          resumo: 'NAPT e a tabela de tradução, as quatro mensagens do DHCP, endereçamento IPv6 com compressão e EUI-64, e os problemas do NAT para protocolos.',
+          tags: ['NAT', 'DHCP', 'IPv6'], nivel: 'Intermediário', minutos: 60 }
       ]
     }
   ]
