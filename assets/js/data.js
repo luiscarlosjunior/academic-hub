@@ -357,7 +357,10 @@ const AH_DATA = {
           tags: ['VPC', 'Diagnóstico', 'Traceroute'], nivel: 'Avançado', minutos: 70 },
         { id: '13-balanceamento-carga', titulo: 'Balanceamento de carga e alta disponibilidade', icone: 'fa-scale-balanced',
           resumo: 'Camadas 4 e 7, algoritmos de distribuição, consistent hashing, health checks com histerese, VRRP e anycast, com casos da indústria.',
-          tags: ['Load balancer', 'Consistent hashing', 'Alta disponibilidade'], nivel: 'Avançado', minutos: 70 }
+          tags: ['Load balancer', 'Consistent hashing', 'Alta disponibilidade'], nivel: 'Avançado', minutos: 70 },
+        { id: '14-cdn-borda', titulo: 'CDN e computação de borda: cache, TTL, anycast e latência', icone: 'fa-globe-americas',
+          resumo: 'Popularidade em cauda pesada, cache LRU com TTL e revalidação por ETag, purga, anycast e os efeitos na latência e na carga da origem, com casos de streaming e de atualizações em massa.',
+          tags: ['CDN', 'Cache', 'Anycast'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDN e computação de borda: cache, TTL, anycast e latência · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como redes de entrega de conteúdo aproximam dados dos usuários: cache na borda, popularidade em cauda pesada, TTL e invalidação, anycast e os efeitos na latência e na carga da origem, com casos da indústria, animação, exemplo em Python com saída real e citação da RFC 9111.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/14-cdn-borda">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-globe-americas text-emerald-400 mr-2"></i>Tópico 14 · CDN e computação de borda</h2>
+  <div class="ah-prose">
+    <p>
+      A velocidade da luz não muda. Um vídeo servido de um data center em outro continente passa por dezenas de milissegundos de propagação a cada
+      requisição, antes de qualquer processamento. A solução que a indústria adotou é levar cópias do conteúdo para perto do usuário. Uma
+      <strong>rede de entrega de conteúdo</strong> (CDN, <em>content delivery network</em>) é uma frota de servidores de borda, espalhados em muitas
+      cidades e dentro de redes de operadoras, que guardam cópias de objetos e atendem os usuários a partir delas.
+    </p>
+    <p>
+      Esta página mostra por que a popularidade do conteúdo tem forma de cauda pesada, como o cache absorve essa distribuição, o papel do TTL e da
+      invalidação, e como o anycast leva o usuário ao servidor certo sem configuração. Ao final, o exemplo mede o ganho em latência e em carga.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar por que poucos conteúdos concentram a maior parte dos acessos, e o que isso implica para o cache;</li>
+      <li>prever a taxa de acerto de um cache LRU em função do tamanho e do TTL;</li>
+      <li>usar os cabeçalhos de cache (Cache-Control, ETag) para controlar o que a borda guarda;</li>
+      <li>descrever como o anycast leva a requisição ao ponto de presença mais próximo;</li>
+      <li>identificar os riscos de cache, como conteúdo obsoleto e dados personalizados guardados por engano.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Os primeiros caches da web eram proxies dentro de empresas e universidades, para economizar banda internacional. Nos anos 1990, empresas como a
+      Akamai construíram redes de servidores de borda para acelerar sites de grandes clientes, e a ideia de cobrar pela distribuição deu origem a
+      uma indústria inteira. Nos anos 2010, serviços de vídeo por streaming levaram o modelo a outra escala, com servidores instalados dentro das
+      redes das operadoras, para que o tráfego de vídeo nem precise atravessar as ligações entre redes.
+    </p>
+    <p>
+      O HTTP sempre previu cache. A especificação atual, a RFC 9111, define o comportamento dos caches em termos que servem de base para tudo o que
+      esta página discute:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "This document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages."
+    </blockquote>
+    <p class="text-xs text-slate-500">FIELDING, R. et al. RFC 9111 (2022), introdução. Tradução nossa: este documento define os caches HTTP e os campos de cabeçalho que controlam o comportamento do cache ou indicam respostas armazenáveis.</p>
+  </div>
+</section>
+
+<section id="cauda" data-toc="Teoria: popularidade em cauda pesada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-emerald-400 mr-2"></i>Teoria · Poucos conteúdos, muitos acessos</h2>
+  <div class="ah-prose">
+    <p>
+      A popularidade de conteúdos costuma seguir uma lei de potência, aproximada por uma distribuição de Zipf: o conteúdo de posição <em>k</em> na
+      lista de popularidade recebe acessos proporcionais a 1/k<sup>s</sup>. Um filme em lançamento, um arquivo de atualização de sistema e uma imagem
+      de página inicial estão no topo; o acervo antigo fica na cauda longa, com pouquíssimos acessos cada um.
+    </p>
+    <p>
+      Essa forma é a boa notícia para o cache. Um cache pequeno, que guarde só o topo, absorve uma fatia grande dos acessos. A má notícia é que a
+      cauda longa, somada, ainda representa muito tráfego, e é ali que o cache perde eficiência. O exemplo em Python mostra a curva de acerto em função
+      do tamanho do cache, e o ganho decrescente de cada novo espaço acrescentado.
+    </p>
+  </div>
+</section>
+
+<section id="cache" data-toc="Teoria: cache LRU, TTL e invalidação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box-archive text-emerald-400 mr-2"></i>Teoria · O que a borda guarda e por quanto tempo</h2>
+  <div class="ah-prose">
+    <p>
+      Quando o cache está cheio, algo precisa sair. A política LRU (<em>least recently used</em>) remove o que foi usado há mais tempo. Ela é simples e
+      funciona bem quando a popularidade muda devagar. Outras políticas, como LFU, favorecem o que é mais frequente, e políticas de borda costumam
+      considerar também o tamanho do objeto, porque um vídeo grande ocupa o espaço de centenas de imagens.
+    </p>
+    <p>
+      O <strong>TTL</strong> decide por quanto tempo uma cópia vale sem consulta à origem. A RFC 9111 define isso pelo cabeçalho <code>Cache-Control: max-age</code>,
+      e pelo <code>ETag</code>, que permite revalidar a cópia com uma requisição condicional, recebendo um 304 quando o conteúdo não mudou. TTL longo
+      poupa a origem, mas torna a atualização lenta. TTL curto atualiza rápido, mas reduz o acerto, como mostra o exemplo.
+    </p>
+    <p>
+      Para mudanças urgentes, a indústria usa a <strong>invalidação</strong> ou purga: uma mensagem da origem manda a borda descartar a cópia antes do
+      TTL. Ela é rápida, mas precisa ser propagada para milhares de locais, então o tempo de conclusão é uma propriedade a medir, não a presumir.
+    </p>
+  </div>
+</section>
+
+<section id="anycast" data-toc="Teoria: anycast e o ponto mais próximo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-location-crosshairs text-emerald-400 mr-2"></i>Teoria · Anycast: o usuário chega ao servidor certo</h2>
+  <div class="ah-prose">
+    <p>
+      Para que um usuário caia no ponto de presença mais próximo, sem configurar nada, a CDN anuncia o mesmo endereço IP em muitos locais, por BGP. O
+      roteamento de cada rede escolhe a rota de menor custo, e na prática isso costuma levar ao local geograficamente próximo. Um local que sai do ar
+      deixa de anunciar, e o tráfego migra para o próximo. É o mesmo princípio do tópico 13, agora em escala mundial.
+    </p>
+    <p>
+      O anycast tem um ponto fraco que já vimos no tópico 13: as rotas podem mudar no meio de uma conexão longa. Por isso ele é usado sobretudo para
+      serviços curtos e sem estado, como DNS, e para conteúdo que cabe em poucas requisições. Para conexões longas, a CDN prefere roteamento por DNS ou
+      por medição de latência, e aceita a escolha do ponto no início da sessão.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: casos reais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-emerald-400 mr-2"></i>Na indústria · Como as grandes plataformas usam borda</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Vídeo por streaming dentro da operadora</div>
+      <p class="text-xs text-slate-400">Plataformas de streaming instalam servidores de cache dentro das redes das operadoras. Os segmentos de vídeo populares ficam ali, e o tráfego de longa distância cai muito no horário de pico. A operadora ganha banda; o serviço ganha qualidade.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Atualizações de sistema em massa</div>
+      <p class="text-xs text-slate-400">Quando um sistema operacional lança uma atualização, milhões de máquinas baixam o mesmo arquivo no mesmo dia. A CDN absorve o pico, e o cache garante que a origem receba uma fração dos pedidos. É um caso típico de popularidade extrema.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Anycast em resolvedores e proteção contra DDoS</div>
+      <p class="text-xs text-slate-400">Redes de provedores de CDN e de DNS usam anycast em centenas de locais. Um ataque volumétrico é diluído entre os locais, em vez de concentrar-se numa origem. Esse efeito é um dos motivos pelos quais a borda virou também uma camada de defesa.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Conteúdo personalizado guardado por engano</div>
+      <p class="text-xs text-slate-400">Um incidente recorrente é a borda guardar uma página com dados de um usuário e servi-la a outro. A causa típica é um cabeçalho de resposta sem <code>private</code> ou uma chave de cache que ignora o cookie. A regra é marcar como não armazenável tudo o que depende do usuário.</p>
+    </div>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: primeiro acesso, acerto e revalidação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Um pedido que vai à origem e outro que não</h2>
+  <p class="ah-lead text-sm mb-4">O primeiro usuário pede um arquivo que a borda não tem: a borda busca na origem e guarda a cópia. O segundo usuário, na mesma região, recebe a cópia da borda, sem nenhuma viagem à origem. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvCDN" style="height:380px"></canvas></div>
+  <div id="ctlCDN" class="mt-4"></div>
+  <div id="capCDN" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: cache LRU e latência em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Acerto, TTL e latência</h2>
+  <div class="ah-prose">
+    <p>
+      O programa gera 20 mil pedidos com popularidade em Zipf, com semente fixa para ser reproduzível. Depois mede a taxa de acerto de um cache LRU de
+      vários tamanhos, o efeito do TTL e a latência média com e sem a borda. Os números são de uma simulação simples, mas mostram as proporções que
+      importam.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>14-cdn-borda.py · CacheLRU.pede</code></p>
+<pre class="ah-code"><code>def pede(self, obj, agora):
+    if obj in self.dados:
+        guardado = self.dados[obj]
+        if self.ttl is None or agora - guardado &lt; self.ttl:
+            self.dados.move_to_end(obj)
+            return True                    # acerto
+        del self.dados[obj]                # expirado: sai do cache
+    self.dados[obj] = agora
+    if len(self.dados) &gt; self.capacidade:
+        self.dados.popitem(last=False)     # remove o menos recente
+    return False</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: 20000 pedidos, 1000 conteúdos (Zipf s=1.0)
+  os 10 conteúdos mais populares recebem 39.8% dos pedidos
+
+Parte 2: taxa de acerto por tamanho do cache (sem TTL)
+  cache de  10 conteúdos: acerto 21.3%
+  cache de  50 conteúdos: acerto 46.3%
+  cache de 100 conteúdos: acerto 57.8%
+  cache de 300 conteúdos: acerto 76.9%
+
+Parte 3: efeito do TTL (cache de 100 conteúdos, 1 pedido por unidade de tempo)
+  sem TTL   : acerto 57.8%
+  TTL 5000  : acerto 57.7%
+  TTL 1000  : acerto 57.0%
+  TTL 200   : acerto 51.1%
+
+Parte 4: latência média (borda a 10 ms do usuário, origem a 120 ms da borda)
+  com cache: 60.7 ms; sem CDN (sempre na origem): 130 ms
+  carga na origem reduzida para 42.2% dos pedidos</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Leia a parte 2 com atenção: triplicar o cache de 100 para 300 conteúdos aumenta o acerto de 58% para 77%, mas dobrar de 10 para 50 já faz uma
+      diferença grande. O ganho é decrescente. Na parte 4, a média cai de 130 ms para 61 ms, e a origem recebe menos de metade dos pedidos. Esses dois
+      números, latência e carga na origem, são as duas razões para a CDN existir.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Site novo que aparece para uns e não para outros</div>
+      <p class="text-xs text-slate-400">Após uma mudança de conteúdo, algumas bordas ainda servem a versão antiga até o TTL expirar. A ação prática é purgar e, se necessário, reduzir o TTL antes da mudança.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Imagem que carrega rápido na segunda vez</div>
+      <p class="text-xs text-slate-400">Na primeira visita, a imagem vem da borda mais próxima após uma busca na origem; nas seguintes, vem do cache do navegador ou da borda. O cabeçalho de cache explica a diferença.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Página com saldo ou nome do usuário</div>
+      <p class="text-xs text-slate-400">Conteúdo personalizado não deve ser armazenado por intermediários. Por isso, respostas autenticadas usam <code>private</code> ou <code>no-store</code>, e a borda as deixa passar.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Vídeo que começa rápido em qualquer cidade</div>
+      <p class="text-xs text-slate-400">O player baixa segmentos curtos. Os segmentos mais assistidos ficam na borda próxima, e o player escolhe a qualidade pela banda que mede. A experiência depende do acerto do cache tanto quanto da rede.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Meça a taxa de acerto</div>
+      <p class="text-xs text-slate-400">Antes de otimizar a origem, meça quanto da carga o cache já absorve. Um acerto baixo indica chave de cache mal escolhida ou TTL curto demais.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Estime o ganho pelo tamanho do cache</div>
+      <p class="text-xs text-slate-400">Como o ganho é decrescente, compare o acerto marginal de cada novo espaço com o custo de armazená-lo na borda.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Diferencie público e privado</div>
+      <p class="text-xs text-slate-400">Antes de habilitar cache em uma rota, decida se o conteúdo é igual para todos. Se não for, o cache pode vazar dados.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Planeje a purga</div>
+      <p class="text-xs text-slate-400">Toda rota em cache precisa de um caminho de invalidação testado. Sem ele, o TTL passa a ser a única garantia, e ela é longa.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: latência média com acerto de 80%</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Usuários estão a 10 ms da borda, e a origem está a 150 ms da borda. A taxa de acerto é 80%. Qual a latência média de propagação?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Acerto: 10 ms. Falha: 10 + 150 = 160 ms. Média: 0,8 × 10 + 0,2 × 160 = 8 + 32 = 40 ms. Sem CDN, seriam 160 ms.</p>
+      <p><strong>Lição.</strong> Cada ponto percentual de acerto vale a diferença entre a latência de origem e a da borda. Com cache quente, a média cai muito rápido.</p>
+    </div>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: TTL e a janela de obsolescência</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma página tem TTL de 600 s na borda. A origem publica uma correção agora, sem purga. Quanto tempo, no pior caso, um usuário ainda pode receber a versão antiga?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A cópia foi guardada logo antes da publicação, então vale o TTL completo: 600 s, isto é, 10 minutos. Com purga, o tempo cai para o tempo de propagação da purga, em geral muito menor.</p>
+      <p><strong>Lição.</strong> O TTL é o limite de obsolescência sem ações adicionais. Ele deve ser escolhido pela tolerância à versão antiga, não pelo hábito.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um recurso de API muda a cada requisição (é personalizado por usuário). Pode ser cacheado na borda? Justifique com os cabeçalhos da RFC 9111.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não como cópia compartilhada. A resposta depende do usuário, então deve ser marcada como <code>private</code> ou <code>no-store</code>, ou a chave de cache deve incluir a identidade. Sem isso, um intermediário serviria a resposta de um usuário a outro.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que o acerto do cache melhora mais para a cauda curta do que para a cauda longa, mesmo com o mesmo tamanho de cache?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o topo concentra a maior parte dos pedidos, e cada item do topo é pedido com frequência, então se mantém no cache. Os itens da cauda são pedidos raramente, e geralmente são expulsos antes de receber um novo pedido. O cache ganha pouco com eles.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o cabeçalho Cache-Control: max-age faz?</p>
+      <button class="ah-quiz-opt">Limita o tamanho máximo da resposta</button>
+      <button class="ah-quiz-opt">Define a versão do HTTP usada</button>
+      <button class="ah-quiz-opt">Informa por quantos segundos a cópia pode ser usada sem nova consulta à origem</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. É o tempo de vida (TTL) da cópia no cache, contado a partir da resposta.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o anycast é usado com tanta frequência para DNS?</p>
+      <button class="ah-quiz-opt">Porque cada consulta DNS é curta e não guarda estado, então pode ir a qualquer local</button>
+      <button class="ah-quiz-opt">Porque o DNS não usa UDP</button>
+      <button class="ah-quiz-opt">Porque o anycast elimina a necessidade de cache</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem estado e de curta duração, uma consulta pode ser atendida por qualquer local anunciado.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual ação é mais rápida para corrigir uma página em todas as bordas?</p>
+      <button class="ah-quiz-opt">Esperar o TTL expirar</button>
+      <button class="ah-quiz-opt">Purgar a cópia na borda</button>
+      <button class="ah-quiz-opt">Aumentar o TTL</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A purga remove a cópia antes do TTL. Aumentar o TTL só piora a obsolescência.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>A popularidade é de cauda pesada: um cache pequeno absorve grande parte dos acessos, com ganho decrescente.</li>
+    <li>TTL é o limite de obsolescência; ETag permite revalidar sem baixar tudo de novo.</li>
+    <li>Purga corrige rápido, mas precisa de propagação medida.</li>
+    <li>Anycast leva o usuário ao local mais próximo, melhor para consultas curtas que para conexões longas.</li>
+    <li>Conteúdo personalizado nunca deve ser armazenado como se fosse público.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>FIELDING, R. et al. <em>RFC 9111: HTTP Caching</em>. IETF, 2022.</li>
+    <li>FIELDING, R. et al. <em>RFC 9110: HTTP Semantics</em>. IETF, 2022. (Campo ETag e requisições condicionais.)</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. (Cache web, no capítulo de camada de aplicação.)</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Usuário A (0), borda (1), origem (2) e usuário B (3) */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Usuário A', 'Borda (São Paulo)', 'Origem', 'Usuário B'],
+    intro: 'Dois usuários da mesma região pedem o mesmo arquivo. A borda ainda não tem nenhuma cópia.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'GET /video.ts', cap: 'Usuário A pede o arquivo à borda mais próxima.', fim: 'A borda procura a cópia no cache: não existe (miss).' },
+      { de: 1, para: 2, rotulo: 'GET /video.ts', cap: 'Miss: a borda busca o arquivo na origem, por uma conexão de longa distância.', fim: 'A origem recebe o pedido, que é o único que precisa chegar até ela.' },
+      { de: 2, para: 1, rotulo: '200 max-age=600', cap: 'A origem responde com o arquivo e Cache-Control: max-age=600, válido por 10 minutos.', fim: 'A borda guarda a cópia, com o prazo de validade.' },
+      { de: 1, para: 0, rotulo: '200 OK', cap: 'A borda entrega ao usuário A. A latência foi a da origem, uma vez só.', fim: 'Usuário A recebe o arquivo.' },
+      { de: 3, para: 1, rotulo: 'GET /video.ts', cap: 'Usuário B pede o mesmo arquivo, na mesma região.', fim: 'A borda encontra a cópia dentro do TTL: hit.' },
+      { de: 1, para: 3, rotulo: '200 (cache)', cap: 'A borda responde a partir do cache. A origem não é consultada.', fim: 'Usuário B recebe o arquivo com a latência de borda.' },
+      { de: 0, para: 1, rotulo: 'GET (após 10 min)', cap: 'Dez minutos depois, usuário A pede de novo: o TTL expirou.', fim: 'A borda sabe que a cópia venceu e precisa revalidar ou buscar de novo.' },
+      { de: 1, para: 2, rotulo: 'If-None-Match', cap: 'A borda faz uma requisição condicional com o ETag: pergunta se o conteúdo mudou.', fim: 'A origem confere o ETag.' },
+      { de: 2, para: 1, rotulo: '304 Not Modified', cap: 'O conteúdo não mudou: a origem responde 304, sem enviar o corpo.', fim: 'A borda renova o TTL da cópia e não transfere o arquivo de novo.' },
+      { de: 1, para: 0, rotulo: '200 (renovado)', cap: 'A borda entrega ao usuário A, com a cópia renovada.', fim: 'Só o cabeçalho viajou até a origem: economia de banda.' }
+    ]
+  }), {
+    canvas: 'cvCDN', ctl: 'ctlCDN', cap: 'capCDN', velocidade: 2100
+  });
+
+})();
+</script>
+</body>
+</html>
