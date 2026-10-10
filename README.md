@@ -83,7 +83,7 @@ A disciplina é dividida em duas trilhas, selecionáveis por abas na página da 
 | 10 | Grafos | Lista de adjacências, BFS, DFS, componentes, Dijkstra, topológica |
 | 11 | Padrões de resolução de problemas | Roteiro de seis passos e os principais padrões, com código |
 
-**Disciplina — Infraestrutura de Redes (12 tópicos)**
+**Disciplina — Infraestrutura de Redes (16 tópicos, com casos da indústria em cada um)**
 
 | # | Tópico | Conteúdo |
 |---|--------|----------|
@@ -99,6 +99,10 @@ A disciplina é dividida em duas trilhas, selecionáveis por abas na página da 
 | 10 | NAT, DHCP e IPv6 | NAPT, Discover–Offer–Request–Ack, compressão e EUI-64 |
 | 11 | Redes avançadas: SDN, NFV e leaf-spine | Planos de controle e de dados, tabelas de fluxos, oversubscription e ECMP |
 | 12 | Redes em cloud e diagnóstico | VPC, rotas, grupos de segurança × ACLs, traceroute e método por camadas |
+| 13 | Balanceamento de carga e alta disponibilidade | Camadas 4 e 7, consistent hashing, health checks com histerese, VRRP e anycast |
+| 14 | CDN e computação de borda | Cauda pesada de popularidade, cache com TTL e ETag, purga e latência |
+| 15 | Observabilidade de rede | Percentis e caudas, orçamento de erro de SLO, IPFIX e detecção de anomalias |
+| 16 | Redes para IA e HPC | RDMA, all-reduce em anel, InfiniBand e RoCE, congestionamento de fabric |
 
 ---
 
@@ -138,7 +142,7 @@ academic-hub/
 │       └── exemplos-c/              # programas em C de cada tópico (compiláveis com -Wall -Wextra -pedantic)
 │   └── infraestrutura-redes/
 │       ├── index.html
-│       ├── topicos/                 # uma página completa por tópico (12 páginas)
+│       ├── topicos/                 # uma página completa por tópico (16 páginas)
 │       └── exemplos-python/         # programas em Python de cada tópico (só biblioteca padrão, saída real na página)
 └── simuladores/
     ├── busca-cega-visual.html       # laboratório BFS × DFS em tela cheia
