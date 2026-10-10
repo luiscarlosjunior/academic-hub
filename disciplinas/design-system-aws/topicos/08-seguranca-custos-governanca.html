@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segurança, custos e governança: WAF, IAM, Budgets e Well-Architected · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Mínimo privilégio no IAM, proteção de borda com AWS WAF, alarmes de custo com AWS Budgets, modelo de responsabilidade compartilhada e os seis pilares do Well-Architected.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/08-seguranca-custos-governanca">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-orange-400 mr-2"></i>Tópico 8 · Segurança, custos e governança</h2>
+  <div class="ah-prose">
+    <p>
+      Um design system publicado na AWS é um serviço em produção, e serviços têm três riscos permanentes: alguém acessar o que não deveria,
+      alguém atacar a aplicação e a conta gerar uma fatura inesperada. Este tópico trata dos três, com as ferramentas que a AWS oferece e
+      com o modelo que organiza quem faz o quê.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>aplicar o princípio do mínimo privilégio em uma política IAM;</li>
+      <li>descrever regras de AWS WAF para a borda do CloudFront, incluindo limite de taxa;</li>
+      <li>criar um orçamento com alerta no AWS Budgets;</li>
+      <li>separar as responsabilidades da AWS e do cliente e avaliar uma arquitetura pelos seis pilares do Well-Architected.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: responsabilidade e mínimo privilégio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: modelo de responsabilidade compartilhada</h2>
+  <div class="ah-prose">
+    <p>
+      A AWS é responsável pela segurança <em>da</em> nuvem: data centers, rede física, hardware e o software que sustenta os serviços. O
+      cliente é responsável pela segurança <em>na</em> nuvem: quem tem acesso, como a configuração é feita, se o bucket está público, se os
+      dados estão criptografados. Na maior parte dos incidentes em documentação estática, o problema está no lado do cliente.
+    </p>
+    <p>
+      O <strong>mínimo privilégio</strong> diz que cada identidade recebe só as ações e os recursos de que precisa, e nada mais. Um papel de
+      deploy que só sincroniza um bucket não deve poder criar usuários nem ler outros buckets. Em geral, começa-se com nenhuma permissão e
+      acrescenta-se o que o teste mostrar necessário, e não o contrário.
+    </p>
+    <p>
+      Por último, a <strong>governança</strong> trata da organização das contas. O AWS Organizations agrupa contas em unidades
+      organizacionais, e as <em>service control policies</em> (SCPs) definem o limite máximo de ações permitidas em cada grupo. Assim, mesmo
+      um administrador de conta não consegue, por exemplo, desabilitar o CloudTrail em produção.
+    </p>
+  </div>
+</section>
+
+<section id="iam" data-toc="Operação 1: mínimo privilégio no IAM" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-lock text-orange-400 mr-2"></i>Operação 1 · Política do papel de deploy</h2>
+  <div class="ah-prose">
+    <p>
+      A política abaixo substitui a versão “administrador” que muita gente usa nos primeiros dias. Ela permite gravar e remover objetos
+      no bucket de produção, listar e ler para a sincronização, e criar invalidações em uma única distribuição. Qualquer outra ação é
+      negada por padrão, sem precisar de regra explícita.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · política do papel <code>ds-deploy-producao</code></p>
+<pre class="ah-code"><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SincronizarDocumentacao",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::ds-docs-producao",
+        "arn:aws:s3:::ds-docs-producao/*"
+      ]
+    },
+    {
+      "Sid": "InvalidarCache",
+      "Effect": "Allow",
+      "Action": "cloudfront:CreateInvalidation",
+      "Resource": "arn:aws:cloudfront::123456789012:distribution/EDFDVBD6EXAMPLE"
+    }
+  ]
+}</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      O erro mais comum é <code>"Resource": "*"</code> junto com <code>"Action": "s3:*"</code>. Uma política assim funciona, mas permite
+      apagar todos os buckets da conta. Se o pipeline for comprometido, o estrago é total. Com a política acima, o estrago fica limitado a
+      um bucket.
+    </p>
+  </div>
+</section>
+
+<section id="waf" data-toc="Operação 2: AWS WAF na borda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-virus text-orange-400 mr-2"></i>Operação 2 · Filtrar tráfego com AWS WAF</h2>
+  <div class="ah-prose">
+    <p>
+      O AWS WAF é anexado à distribuição do CloudFront e avalia cada requisição antes de ela chegar ao S3. Ele tem dois tipos de regra que
+      interessam aqui: <strong>grupos de regras gerenciados</strong>, mantidos pela AWS, que cobrem padrões como injeção de SQL e XSS; e
+      <strong>regras de taxa</strong>, que bloqueiam um IP acima de um limite em uma janela de cinco minutos. Para CloudFront, o WAF precisa
+      ser criado na região <strong>us-east-1</strong> com escopo <code>CLOUDFRONT</code>. Escolha um cenário na animação.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: pedidos avaliados pelo WAF</h3>
+  <p class="ah-lead text-sm mb-4">O tráfego normal passa de ponta a ponta. Com ataque, o WAF bloqueia por regra e limita a rajada de login.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvWaf" style="height:320px"></canvas></div>
+  <div id="ctlWaf" class="mt-4"></div>
+  <div id="capWaf" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em JSON · regras do Web ACL (WAFv2)</p>
+<pre class="ah-code"><code>[
+  {
+    "Name": "RegrasComuns",
+    "Priority": 0,
+    "Statement": {
+      "ManagedRuleGroupStatement": {
+        "VendorName": "AWS",
+        "Name": "AWSManagedRulesCommonRuleSet"
+      }
+    },
+    "OverrideAction": { "None": {} },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "RegrasComuns"
+    }
+  },
+  {
+    "Name": "LimitarTaxaPorIP",
+    "Priority": 1,
+    "Statement": {
+      "RateBasedStatement": { "Limit": 100, "AggregateKeyType": "IP" }
+    },
+    "Action": { "Block": {} },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "LimitarTaxaPorIP"
+    }
+  }
+]</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      O limite de 100 requisições por IP em cinco minutos é o mínimo aceito pela regra de taxa. Ele precisa ser calibrado com o tráfego
+      real: um limite baixo demais bloqueia usuários legítimos atrás de uma mesma rede corporativa.
+    </p>
+  </div>
+</section>
+
+<section id="custos" data-toc="Operação 3: orçamento e alertas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sack-dollar text-orange-400 mr-2"></i>Operação 3 · Orçamento com alerta</h2>
+  <div class="ah-prose">
+    <p>
+      Custos de documentação estática costumam ser baixos, mas três itens podem crescer sem aviso: transferência de dados do CloudFront,
+      requisições ao S3 quando o cache não funciona (tópico 4) e armazenamento de pacotes no CodeArtifact. Um orçamento com alerta em
+      percentual avisa antes da fatura chegar. Marque também as tags de alocação de custo, como <code>projeto=design-system</code>, para
+      separar o gasto desta disciplina ou produto dos demais.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · <code>orcamento.json</code></p>
+<pre class="ah-code"><code>{
+  "BudgetName": "design-system-mensal",
+  "BudgetLimit": { "Amount": "200", "Unit": "USD" },
+  "BudgetType": "COST",
+  "TimeUnit": "MONTHLY"
+}</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · criar o orçamento com alerta em 80%</p>
+<pre class="ah-code"><code>aws budgets create-budget \
+  --account-id 123456789012 \
+  --budget file://orcamento.json \
+  --notifications-with-subscribers '[{
+    "Notification": {
+      "NotificationType": "ACTUAL",
+      "ComparisonOperator": "GREATER_THAN",
+      "Threshold": 80,
+      "ThresholdType": "PERCENTAGE"
+    },
+    "Subscribers": [{ "SubscriptionType": "EMAIL", "Address": "time-ds@sua-org.com.br" }]
+  }]'</code></pre>
+</section>
+
+<section id="wellarchitected" data-toc="Operação 4: os seis pilares" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-orange-400 mr-2"></i>Operação 4 · Avaliar pelo Well-Architected</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>AWS Well-Architected Framework</strong> organiza as boas práticas em seis pilares. Usá-lo como checklist de revisão de
+      arquitetura é uma prática comum, e a ferramenta Well-Architected da console registra as respostas e os riscos encontrados.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Pilar</th><th>Pergunta que faz ao design system</th><th>Onde aparece neste curso</th></tr></thead>
+      <tbody>
+        <tr><td>Excelência operacional</td><td>Como o pipeline é observado e atualizado?</td><td>Tópico 6 e tópico 8</td></tr>
+        <tr><td>Segurança</td><td>Quem acessa o bucket e a distribuição?</td><td>Tópicos 4 e 8</td></tr>
+        <tr><td>Confiabilidade</td><td>O que acontece se uma região cair?</td><td>Tópico 4 (CloudFront)</td></tr>
+        <tr><td>Eficiência de desempenho</td><td>O cache está servindo a maior parte das requisições?</td><td>Tópico 4</td></tr>
+        <tr><td>Otimização de custos</td><td>Qual é o custo por visita à documentação?</td><td>Operação 3</td></tr>
+        <tr><td>Sustentabilidade</td><td>O cache e o tamanho dos assets reduzem o consumo de recursos?</td><td>Tópico 4 e tópico 2</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Detecção contínua:</strong> GuardDuty analisa eventos e o Security Hub consolida achados de vários serviços numa única tela.</li>
+      <li><strong>Registro de auditoria:</strong> CloudTrail ativo em todas as regiões, com logs em um bucket de conta separada.</li>
+      <li><strong>Dados pessoais:</strong> a documentação não deve conter dados de pessoas reais. Em projetos no Brasil, a LGPD se aplica quando há coleta de dados de usuários, como em exemplos com cadastros.</li>
+      <li><strong>Tags obrigatórias:</strong> políticas de tag no AWS Organizations garantem que todo recurso tenha dono e projeto.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Uma política tem <code>"Action": "s3:*"</code> e <code>"Resource": "*"</code>. Qual é o problema e como corrigir?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a identidade pode executar qualquer ação de S3 em qualquer bucket da conta, incluindo apagar todos eles. A correção é listar apenas as ações necessárias (<code>s3:PutObject</code>, <code>s3:ListBucket</code> etc.) e restringir o campo <code>Resource</code> aos ARNs do bucket de produção.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Um usuário legítimo reclama de bloqueio pelo WAF. Qual é a primeira investigação?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> consultar as requisições amostradas no WAF para identificar qual regra bloqueou e qual IP foi afetado. Se foi a regra de taxa, o limite pode estar baixo para o tráfego real, ou o usuário compartilha IP com outros. A correção vem da análise, e não de desligar a regra.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Escreva a política mínima do papel de staging, que publica num bucket diferente do de produção, e mostre que ela não permite acesso ao bucket de produção.</li>
+    <li>Calcule o gasto mensal de um site que recebe 50 mil visitas com 2 MB de transferência cada, e compare com o orçamento de US$ 200. Use a calculadora de preços da AWS.</li>
+    <li>Avalie o design system deste curso pelos seis pilares e escreva um risco por pilar com uma ação de correção.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Este tópico cobre os temas com maior peso nas provas. No CLF-C02, <strong>segurança e conformidade</strong> é um dos quatro domínios
+      e o modelo de responsabilidade compartilhada aparece em praticamente todas as questões. No SAA-C03, o domínio de <strong>arquiteturas
+      seguras</strong> é o de maior peso. Cobrança e custo aparecem no CLF-C02 com menor peso, e as ferramentas de orçamento são
+      mencionadas nas perguntas sobre gestão financeira. Os pesos exatos mudam entre versões; confira o guia oficial do exame.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No modelo de responsabilidade compartilhada, de quem é a segurança da configuração de um bucket público?</p>
+      <button class="ah-quiz-opt">Da AWS, sempre</button>
+      <button class="ah-quiz-opt">Do cliente, porque é configuração na nuvem</button>
+      <button class="ah-quiz-opt">Metade para cada um</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A AWS protege a infraestrutura; a configuração de acesso e de dados é responsabilidade do cliente.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Para anexar um Web ACL do WAF a uma distribuição do CloudFront, em que escopo e região ele deve ser criado?</p>
+      <button class="ah-quiz-opt">REGIONAL, na região do bucket</button>
+      <button class="ah-quiz-opt">REGIONAL, em sa-east-1</button>
+      <button class="ah-quiz-opt">CLOUDFRONT, em us-east-1</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Para CloudFront, o WAF usa escopo CLOUDFRONT e fica na região us-east-1.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="3">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual dos itens abaixo <strong>não</strong> é um dos seis pilares do Well-Architected Framework?</p>
+      <button class="ah-quiz-opt">Segurança</button>
+      <button class="ah-quiz-opt">Sustentabilidade</button>
+      <button class="ah-quiz-opt">Otimização de custos</button>
+      <button class="ah-quiz-opt">Escalabilidade ilimitada</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Os pilares são excelência operacional, segurança, confiabilidade, eficiência de desempenho, otimização de custos e sustentabilidade.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Responsabilidade compartilhada: AWS protege a nuvem; o cliente protege o que configura nela.</li>
+    <li>Mínimo privilégio: liste as ações e os recursos; nada de <code>s3:*</code> sobre <code>*</code>.</li>
+    <li>WAF filtra na borda; regras gerenciadas e de taxa cobrem a maior parte dos casos comuns.</li>
+    <li>Orçamento com alerta e tags de custo evitam surpresa na fatura.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>AWS Well-Architected Framework</em>. docs.aws.amazon.com/wellarchitected.</li>
+    <li>AWS. <em>AWS WAF Developer Guide</em>. docs.aws.amazon.com/waf.</li>
+    <li>AWS. <em>AWS Identity and Access Management User Guide</em>, seção sobre mínimo privilégio. docs.aws.amazon.com/IAM.</li>
+    <li>AWS. <em>AWS Budgets User Guide</em>. docs.aws.amazon.com/cost-management.</li>
+    <li>BRASIL. <em>Lei nº 13.709, de 14 de agosto de 2018</em> (Lei Geral de Proteção de Dados Pessoais).</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('waf');
+})();
+</script>
+</body>
+</html>

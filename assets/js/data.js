@@ -267,6 +267,46 @@ const AH_DATA = {
           resumo: 'Funções sem servidor e o início a frio, filas com fila de mensagens mortas, timeout, backoff com jitter, disjuntor e degradação.',
           tags: ['Serverless', 'Disjuntor', 'Backoff'], nivel: 'Avançado', minutos: 60 }
       ]
+    },
+    {
+      id: 'dsa',
+      slug: 'design-system-aws',
+      nome: 'Design System em AWS',
+      curto: 'Design System AWS',
+      icone: 'fa-cubes',
+      cor: 'orange',
+      corHex: '#f97316',
+      descricao:
+        'Do fundamento de um design system à operação na AWS: tokens e componentes acessíveis, hospedagem em S3 e CloudFront, pacotes no CodeArtifact, pipelines com OIDC, infraestrutura em CDK e a preparação para as certificações AWS.',
+      topicos: [
+        { id: '01-design-system-fundamentos', titulo: 'Design Systems: fundamentos, hierarquia atômica e governança', icone: 'fa-layer-group',
+          resumo: 'O que é um design system, por que ele existe, a hierarquia de Brad Frost e como um time o governa.',
+          tags: ['Fundamentos', 'Atomic Design', 'Governança'], nivel: 'Introdutório', minutos: 40 },
+        { id: '02-design-tokens', titulo: 'Design Tokens: primitivos, semântica e Style Dictionary', icone: 'fa-palette',
+          resumo: 'Como tokens em JSON viram variáveis CSS, Swift e XML, com temas claro e escuro sem reescrever componentes.',
+          tags: ['Tokens', 'Style Dictionary', 'Temas'], nivel: 'Intermediário', minutos: 35 },
+        { id: '03-componentes-acessibilidade', titulo: 'Componentes, acessibilidade (WCAG) e Storybook', icone: 'fa-universal-access',
+          resumo: 'API de componentes, variantes, padrões ARIA, critérios WCAG 2.2 e documentação viva no Storybook.',
+          tags: ['Componentes', 'WCAG', 'Storybook'], nivel: 'Intermediário', minutos: 40 },
+        { id: '04-cdn-s3-cloudfront', titulo: 'Hospedagem: S3, CloudFront, OAC e Route 53', icone: 'fa-cloud',
+          resumo: 'Publicar a documentação com bucket privado, distribuição global, cache, certificado e domínio próprio.',
+          tags: ['S3', 'CloudFront', 'OAC'], nivel: 'Intermediário', minutos: 40 },
+        { id: '05-distribuicao-codeartifact', titulo: 'Distribuição de pacotes com CodeArtifact e versionamento semântico', icone: 'fa-box-archive',
+          resumo: 'Publicar o pacote npm num repositório privado, versionar com SemVer e entender quando uma mudança quebra o consumidor.',
+          tags: ['CodeArtifact', 'SemVer', 'npm'], nivel: 'Intermediário', minutos: 35 },
+        { id: '06-cicd-github-actions-oidc', titulo: 'CI/CD com GitHub Actions, OIDC e testes visuais', icone: 'fa-rotate',
+          resumo: 'Pipeline de lint, testes, build, teste visual e promoção com aprovação, sem chaves de longa duração.',
+          tags: ['CI/CD', 'OIDC', 'Testes visuais'], nivel: 'Avançado', minutos: 45 },
+        { id: '07-infraestrutura-cdk', titulo: 'Infraestrutura como código com AWS CDK (TypeScript)', icone: 'fa-code',
+          resumo: 'Descrever bucket, distribuição e política em TypeScript, gerar o template CloudFormation e aplicar com segurança.',
+          tags: ['CDK', 'IaC', 'CloudFormation'], nivel: 'Avançado', minutos: 45 },
+        { id: '08-seguranca-custos-governanca', titulo: 'Segurança, custos e governança: WAF, IAM, Budgets e Well-Architected', icone: 'fa-shield-halved',
+          resumo: 'Mínimo privilégio, proteção de borda com WAF, alarmes de custo e os seis pilares do Well-Architected.',
+          tags: ['IAM', 'WAF', 'Custos'], nivel: 'Avançado', minutos: 40 },
+        { id: '09-certificacao-aws', titulo: 'Preparação para certificações AWS: domínios, serviços e simulado', icone: 'fa-certificate',
+          resumo: 'Mapa dos domínios de CLF-C02, SAA-C03 e DVA-C03, serviços que mais caem e um simulado comentado.',
+          tags: ['Certificação', 'CLF-C02', 'SAA-C03', 'DVA-C03'], nivel: 'Certificação', minutos: 50 }
+      ]
     }
   ]
 };

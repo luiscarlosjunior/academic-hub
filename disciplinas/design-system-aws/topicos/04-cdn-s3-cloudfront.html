@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospedagem: S3, CloudFront, OAC e Route 53 · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Publicar a documentação de um design system com bucket S3 privado, distribuição CloudFront com Origin Access Control, cache por tipo de arquivo, certificado ACM e domínio no Route 53.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/04-cdn-s3-cloudfront">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud text-orange-400 mr-2"></i>Tópico 4 · Hospedagem na AWS</h2>
+  <div class="ah-prose">
+    <p>
+      A documentação do design system é um site estático: HTML, CSS e JavaScript gerados pelo Storybook. Esse tipo de site dispensa
+      servidor. Na AWS, o padrão é guardar os arquivos num bucket <strong>S3</strong> e entregá-los pelo <strong>CloudFront</strong>, a rede
+      de distribuição de conteúdo da AWS, com o domínio controlado pelo <strong>Route 53</strong>. O bucket fica privado, e só a distribuição
+      tem acesso a ele.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar o caminho de uma requisição: DNS, borda, origem e cache;</li>
+      <li>configurar um bucket privado acessível apenas pelo CloudFront, com OAC;</li>
+      <li>definir políticas de cache diferentes para arquivos com hash e para o index.html;</li>
+      <li>publicar uma nova versão da documentação com sincronização e invalidação.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: borda, origem e cache" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: borda, origem e cache</h2>
+  <div class="ah-prose">
+    <p>
+      O CloudFront é formado por <strong>locais de borda</strong> espalhados pelo mundo. Cada local guarda cópias dos objetos por um tempo
+      definido pelo TTL. Quando a borda já tem o arquivo, a resposta é um <strong>cache hit</strong>, e a origem nem é consultada. Quando não tem,
+      é um <strong>cache miss</strong>, e a borda busca o arquivo na <strong>origem</strong>, que aqui é o bucket S3.
+    </p>
+    <p>
+      O <strong>Origin Access Control (OAC)</strong> é o mecanismo atual para o CloudFront acessar um bucket privado. Ele assina as requisições
+      com SigV4, e a política do bucket autoriza apenas a distribuição específica. Antes do OAC existia o Origin Access Identity (OAI), que a
+      AWS recomenda substituir. A documentação oficial lista as diferenças.
+    </p>
+    <p>
+      Dois detalhes costumam cair na prova e na prática. Primeiro, o certificado ACM usado pelo CloudFront precisa estar na região
+      <strong>us-east-1</strong>, independentemente da região do bucket. Segundo, o Route 53 aponta o domínio para a distribuição com um
+      registro do tipo <em>alias</em>, que resolve para o endereço da distribuição sem um IP fixo.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Arquivo</th><th>Cache-Control</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><code>assets/app.3f9c1a.js</code> (com hash)</td><td><code>public, max-age=31536000, immutable</code></td><td>O nome muda quando o conteúdo muda, então pode ficar no cache por um ano</td></tr>
+        <tr><td><code>index.html</code></td><td><code>no-cache</code></td><td>Sempre tem o mesmo nome; precisa ser revalidado a cada visita</td></tr>
+        <tr><td><code>versions.json</code></td><td><code>no-cache</code> ou TTL curto</td><td>Lista que muda a cada publicação</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="fluxo" data-toc="Operação 1: caminho da requisição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-orange-400 mr-2"></i>Operação 1 · Seguir uma requisição</h2>
+  <div class="ah-prose">
+    <p>
+      Acompanhe duas visitas ao mesmo endereço. Na primeira, o arquivo ainda não está na borda, e o CloudFront busca no S3 com OAC. Na
+      segunda, a borda responde sozinha. É exatamente essa diferença que explica a queda de latência e o custo menor de requisições ao S3.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: do DNS ao cache</h3>
+  <p class="ah-lead text-sm mb-4">Os quadros 3 e 4 são a primeira visita; o quadro 6 é a segunda, já com cache hit.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvCdn" style="height:300px"></canvas></div>
+  <div id="ctlCdn" class="mt-4"></div>
+  <div id="capCdn" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="politica" data-toc="Operação 2: bucket privado com OAC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-orange-400 mr-2"></i>Operação 2 · Bucket privado e política com OAC</h2>
+  <div class="ah-prose">
+    <p>
+      O bucket mantém o <em>Block Public Access</em> ligado. Ninguém acessa os arquivos diretamente pelo endereço do S3. A única exceção é a
+      política abaixo, que permite a leitura somente quando a requisição vem da distribuição indicada em <code>AWS:SourceArn</code>. Sem
+      essa condição, qualquer outra distribuição da mesma conta poderia usar o bucket.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · política do bucket</p>
+<pre class="ah-code"><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PermitirSomenteCloudFront",
+      "Effect": "Allow",
+      "Principal": { "Service": "cloudfront.amazonaws.com" },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::ds-docs-123456789012/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::123456789012:distribution/EDFDVBD6EXAMPLE"
+        }
+      }
+    }
+  ]
+}</code></pre>
+</section>
+
+<section id="publicacao" data-toc="Operação 3: sincronizar e invalidar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud-arrow-up text-orange-400 mr-2"></i>Operação 3 · Publicar sem servir versão antiga</h2>
+  <div class="ah-prose">
+    <p>
+      A publicação sobe os arquivos com <code>--cache-control</code> diferente por tipo, e depois invalida só o que precisa de revalidação.
+      Invalidar tudo (<code>/*</code>) funciona, mas custa mais e perde o benefício do cache dos assets com hash. Por isso, a invalidação
+      fica restrita ao <code>index.html</code>.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · <code>publicar-docs.sh</code></p>
+<pre class="ah-code"><code>#!/usr/bin/env bash
+set -euo pipefail
+
+BUCKET="ds-docs-123456789012"
+DISTRIBUICAO="EDFDVBD6EXAMPLE"
+
+# 1. assets com hash: longa duração e imutáveis
+aws s3 sync ./storybook-static "s3://$BUCKET" \
+  --exclude "index.html" --exclude "versions.json" \
+  --cache-control "public, max-age=31536000, immutable" \
+  --delete
+
+# 2. páginas que mudam a cada deploy: sempre revalidadas
+aws s3 cp ./storybook-static/index.html "s3://$BUCKET/index.html" \
+  --cache-control "no-cache"
+
+# 3. invalidar somente o que pode estar desatualizado
+aws cloudfront create-invalidation \
+  --distribution-id "$DISTRIBUICAO" \
+  --paths "/index.html"</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      Em produção, o passo 3 costuma virar uma etapa do pipeline do tópico 6, com as credenciais obtidas por OIDC. O comando
+      <code>--delete</code> remove do bucket o que não existe mais no build; use-o com cuidado e somente em pastas dedicadas.
+    </p>
+  </div>
+</section>
+
+<section id="versoes" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Documentação por versão:</strong> cada versão major publica em um prefixo (<code>/v1/</code>, <code>/v2/</code>), para que consumidores antigos consultem o que usam.</li>
+      <li><strong>Domínio próprio:</strong> <code>design.empresa.com.br</code> aponta para o CloudFront por alias, com certificado ACM em us-east-1.</li>
+      <li><strong>Alternativas gerenciadas:</strong> Chromatic, Netlify e Vercel publicam Storybook sem operar bucket. O AWS Amplify Hosting cobre o mesmo papel dentro da AWS. A escolha depende de quem opera e de onde estão os dados.</li>
+      <li><strong>Logs e métricas:</strong> o CloudFront registra acessos e taxa de cache hit, que mostra se a configuração está funcionando (tópico 8).</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um colega sugere tornar o bucket público para “simplificar”. Qual é o risco e a alternativa?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> com o bucket público, os arquivos ficam acessíveis sem passar pela borda, sem WAF e sem o controle de cache. Qualquer pessoa pode listar e baixar o conteúdo, e o custo de transferência sai do controle. A alternativa é manter o bucket privado e liberar a leitura só para a distribuição via OAC.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Depois de um deploy, o usuário ainda vê a versão anterior, mas os assets novos carregam. Qual é a causa mais provável?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o <code>index.html</code> ficou com cache longo na borda ou no navegador, então aponta para os nomes antigos dos assets. A correção é ter <code>no-cache</code> no index e invalidá-lo no CloudFront, como na operação 3.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Gere o Storybook estático (<code>npm run build-storybook</code>) e publique a pasta com o script da operação 3 numa conta de testes.</li>
+    <li>Calcule a taxa de cache hit depois de 1.000 visitas em que 900 são servidas pela borda. Quantas requisições chegaram ao S3?</li>
+    <li>Explique por que um bucket público com <code>index.html</code> de 1 ano de cache é um problema mesmo que os assets tenham hash.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Este é o tópico com maior ligação às provas. <strong>CLF-C02:</strong> identificar S3, CloudFront e Route 53 e para que servem.
+      <strong>SAA-C03:</strong> o domínio de arquiteturas seguras (bucket privado com OAC) e de desempenho (cache na borda) aparece em
+      cenários de escolha. <strong>DVA-C03:</strong> publicação de artefatos e invalidação de cache. Os guias oficiais detalham os pesos de
+      cada domínio, e vale conferi-los antes de estudar.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é o mecanismo recomendado para o CloudFront acessar um bucket S3 privado?</p>
+      <button class="ah-quiz-opt">Tornar o bucket público para leitura</button>
+      <button class="ah-quiz-opt">Origin Access Control (OAC)</button>
+      <button class="ah-quiz-opt">ACL pública em cada objeto</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O OAC assina as requisições da distribuição, e a política do bucket autoriza apenas essa distribuição.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o index.html usa <code>no-cache</code>, enquanto os assets com hash usam <code>immutable</code>?</p>
+      <button class="ah-quiz-opt">Porque o index.html é menor</button>
+      <button class="ah-quiz-opt">Porque o S3 não aceita cache em HTML</button>
+      <button class="ah-quiz-opt">Porque o index.html mantém o mesmo nome e precisa ser revalidado, enquanto os assets com hash mudam de nome quando mudam</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O nome com hash torna o arquivo imutável; o index.html aponta para os assets e precisa estar sempre atualizado.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em qual região o certificado ACM deve estar para ser usado por uma distribuição CloudFront?</p>
+      <button class="ah-quiz-opt">Na mesma região do bucket</button>
+      <button class="ah-quiz-opt">us-east-1 (Norte da Virgínia)</button>
+      <button class="ah-quiz-opt">sa-east-1 (São Paulo)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O CloudFront exige o certificado em us-east-1, independentemente da região do bucket.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>O site estático vai para S3 privado e é entregue pelo CloudFront via OAC.</li>
+    <li>Assets com hash: cache longo e imutáveis. index.html: no-cache e invalidação.</li>
+    <li>Certificado de CloudFront fica em us-east-1; o domínio é um alias no Route 53.</li>
+    <li>Publicar é sincronizar com cache por tipo e invalidar só o necessário.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>Amazon CloudFront Developer Guide</em>. Seções sobre Origin Access Control e invalidação. docs.aws.amazon.com/AmazonCloudFront.</li>
+    <li>AWS. <em>Amazon Simple Storage Service User Guide</em>. Bloqueio de acesso público e políticas de bucket. docs.aws.amazon.com/AmazonS3.</li>
+    <li>AWS. <em>Amazon Route 53 Developer Guide</em>. Registros alias. docs.aws.amazon.com/Route53.</li>
+    <li>AWS. <em>Well-Architected Framework</em>, pilar Desempenho e pilar Segurança. docs.aws.amazon.com/wellarchitected.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('cdn');
+})();
+</script>
+</body>
+</html>

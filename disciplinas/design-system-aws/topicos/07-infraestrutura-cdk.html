@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infraestrutura como código com AWS CDK (TypeScript) · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Descrever o bucket, a distribuição CloudFront com OAC e o registro no Route 53 em TypeScript com AWS CDK, gerar o template com cdk synth e aplicar com cdk diff e cdk deploy.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/07-infraestrutura-cdk">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-orange-400 mr-2"></i>Tópico 7 · Infraestrutura como código</h2>
+  <div class="ah-prose">
+    <p>
+      Até aqui, cada peça foi descrita à mão: bucket, distribuição, política, registro DNS. A <strong>infraestrutura como código (IaC)</strong>
+      transforma essa descrição em um arquivo versionado, revisável e reproduzível. O <strong>AWS CDK</strong> permite escrever essa descrição
+      em TypeScript, com as ferramentas de uma linguagem de programação, e gera um template do <strong>CloudFormation</strong>, que é quem
+      de fato cria os recursos.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever uma pilha com bucket privado, distribuição com OAC e registro alias em TypeScript;</li>
+      <li>explicar a diferença entre App, Stack e Construct, e os níveis L1, L2 e L3;</li>
+      <li>gerar e ler o template com <code>cdk synth</code>;</li>
+      <li>revisar mudanças com <code>cdk diff</code> antes de aplicar com <code>cdk deploy</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: App, Stack e Construct" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: a árvore de construtos</h2>
+  <div class="ah-prose">
+    <p>
+      Um programa CDK é uma árvore. A raiz é o <strong>App</strong>. Dentro dele ficam uma ou mais <strong>Stacks</strong>, que correspondem
+      a uma pilha do CloudFormation e são a unidade de deploy. Dentro da pilha ficam os <strong>Constructs</strong>, que são os recursos e
+      os agrupamentos. Essa árvore é percorrida no <em>synth</em>, que a transforma em JSON.
+    </p>
+    <p>
+      Os constructs têm três níveis. O <strong>L1</strong> (<code>Cfn*</code>) é uma tradução direta de um recurso do CloudFormation, sem
+      padrões. O <strong>L2</strong> (como <code>s3.Bucket</code>) traz padrões seguros e métodos que criam permissões e ligações, e é o nível
+      usado no dia a dia. O <strong>L3</strong> (padrões) combina vários recursos em uma solução pronta. Ao escolher um L2, você ganha o padrão
+      seguro; ao escolher um L1, você assume toda a responsabilidade.
+    </p>
+    <p>
+      Um detalhe importante: <code>cdk synth</code> não cria nada na AWS. Ele só gera o template. A criação acontece no <code>cdk deploy</code>,
+      quando o CloudFormation recebe o template e cria os recursos na ordem das dependências. Por isso, <code>cdk diff</code> é a etapa mais
+      importante antes de qualquer mudança em produção.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Conceito</th><th>O que é</th><th>Exemplo no projeto</th></tr></thead>
+      <tbody>
+        <tr><td>App</td><td>Raiz do programa</td><td><code>bin/app.ts</code></td></tr>
+        <tr><td>Stack</td><td>Unidade de deploy (pilha CloudFormation)</td><td><code>DocsStack</code></td></tr>
+        <tr><td>Construct L2</td><td>Recurso com padrões seguros</td><td><code>s3.Bucket</code>, <code>cloudfront.Distribution</code></td></tr>
+        <tr><td>Construct L1</td><td>Tradução direta do CloudFormation</td><td><code>s3.CfnBucket</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="stack" data-toc="Operação 1: descrever a pilha" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes text-orange-400 mr-2"></i>Operação 1 · Descrever bucket, distribuição e registro</h2>
+  <div class="ah-prose">
+    <p>
+      A pilha abaixo cria tudo o que o tópico 4 descreveu à mão. Repare que a política do bucket não aparece: a chamada
+      <code>S3BucketOrigin.withOriginAccessControl</code> cria o OAC e a permissão de leitura para a distribuição, com o <code>AWS:SourceArn</code>
+      correto. Esse é o ganho do L2: a parte fácil de errar fica pronta.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>lib/docs-stack.ts</code> (trecho central)</p>
+<pre class="ah-code"><code>export class DocsStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: DocsStackProps) {
+    super(scope, id, props);
+
+    const bucket = new s3.Bucket(this, 'DocsBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    const distribuicao = new cloudfront.Distribution(this, 'DocsDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(bucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      defaultRootObject: 'index.html',
+      domainNames: [props.dominio],
+      certificate: acm.Certificate.fromCertificateArn(this, 'Certificado', props.certificadoArn),
+    });
+
+    new route53.ARecord(this, 'AliasDocs', {
+      zone: route53.HostedZone.fromHostedZoneAttributes(this, 'Zona', {
+        hostedZoneId: props.zonaId,
+        zoneName: props.zonaNome,
+      }),
+      recordName: props.dominio,
+      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribuicao)),
+    });
+
+    new cdk.CfnOutput(this, 'DistribuicaoId', { value: distribuicao.distributionId });
+  }
+}</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      O arquivo completo, com as importações e a interface <code>DocsStackProps</code>, está em
+      <code>disciplinas/design-system-aws/exemplos/docs-stack.ts</code>. Já <code>RemovalPolicy.RETAIN</code> mantém o bucket se a pilha for
+      removida: um comando de destruir a pilha não deve apagar a documentação publicada.
+    </p>
+  </div>
+</section>
+
+<section id="ciclo" data-toc="Operação 2: synth, diff e deploy" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-orange-400 mr-2"></i>Operação 2 · Do código à criação dos recursos</h2>
+  <div class="ah-prose">
+    <p>
+      O ciclo tem quatro passos. O <code>synth</code> gera o template. O <code>diff</code> compara o template com a pilha existente e mostra
+      o que será criado, alterado ou removido. O <code>deploy</code> aplica. A animação acompanha o fluxo; compare com o caminho que você
+      faria à mão no console.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: do código ao recurso</h3>
+  <p class="ah-lead text-sm mb-4">Cada quadro é uma etapa do ciclo. O código é a fonte da verdade; o recurso na AWS é consequência dele.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvCdk" style="height:300px"></canvas></div>
+  <div id="ctlCdk" class="mt-4"></div>
+  <div id="capCdk" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em Bash · sequência de comandos</p>
+<pre class="ah-code"><code># uma vez por conta e região: prepara o bucket de artefatos do CDK
+npx cdk bootstrap aws://123456789012/sa-east-1
+
+# gera o template em cdk.out/ (não cria nada na AWS)
+npx cdk synth DocsStaging
+
+# mostra o que mudaria em relação à pilha atual
+npx cdk diff DocsStaging
+
+# aplica; "broadening" pede aprovação quando há novas permissões
+npx cdk deploy DocsStaging --require-approval broadening</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · trecho do template gerado em <code>cdk.out/</code></p>
+<pre class="ah-code"><code>{
+  "Resources": {
+    "DocsBucketXXXX": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "DocsDistributionYYYY": {
+      "Type": "AWS::CloudFront::Distribution"
+    }
+  }
+}</code></pre>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Escolha da ferramenta:</strong> CDK quando a equipe já escreve TypeScript; Terraform (HashiCorp) quando há múltiplos provedores de nuvem; CloudFormation puro para times que preferem YAML ou JSON sem camada de código.</li>
+      <li><strong>Ambientes por stack:</strong> a mesma classe gera <code>DocsStaging</code> e <code>DocsProducao</code> com parâmetros diferentes.</li>
+      <li><strong>Revisão de diff no pull request:</strong> o resultado de <code>cdk diff</code> entra no comentário da mudança, para o revisor ver o impacto antes do merge.</li>
+      <li><strong>Proteção contra remoção acidental:</strong> <code>RETAIN</code> em dados, <code>terminationProtection</code> em pilhas críticas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um colega troca <code>removalPolicy</code> para <code>DESTROY</code> “para limpar o ambiente de testes”. Há algum risco se esse código for o de produção?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> sim. Com <code>DESTROY</code>, remover a pilha apaga o bucket e a documentação publicada, e o <code>cdk diff</code> mostra isso como remoção. A prática segura é separar as pilhas por ambiente e usar <code>DESTROY</code> apenas em staging, com o diff revisado.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Ao alterar o nome lógico do bucket (<code>'DocsBucket'</code> para <code>'DocsBucket2'</code>), o diff mostra substituição. Por quê?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o identificador lógico faz parte do nome do recurso no template. O CloudFormation trata um novo identificador como um recurso diferente: cria o novo e remove o antigo. Com <code>RETAIN</code>, o bucket antigo permanece, mas o ideal é não renomear identificadores de recursos com dados.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Crie duas stacks, <code>DocsStaging</code> e <code>DocsProducao</code>, a partir da mesma classe, com domínios diferentes passados por props.</li>
+    <li>Rode <code>cdk synth</code> e localize, em <code>cdk.out/</code>, o recurso <code>AWS::CloudFront::Distribution</code>. Identifique onde está a referência ao OAC.</li>
+    <li>Altere o <code>cachePolicy</code> para um valor de sua escolha e descreva o resultado esperado no <code>cdk diff</code>.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      O CloudFormation é o motor por trás do CDK, e ele aparece nas provas como serviço de implantação e de infraestrutura. Nas provas de
+      SAA-C03 e DVA-C03, o foco é entender templates, pilhas e dependências entre recursos, mais do que escrever código. O CDK em si não tem
+      uma questão dedicada; use-o para consolidar o conceito de template e pilha. Confira os guias oficiais para o escopo vigente.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que <code>cdk synth</code> faz?</p>
+      <button class="ah-quiz-opt">Cria os recursos na AWS</button>
+      <button class="ah-quiz-opt">Gera o template do CloudFormation a partir do código</button>
+      <button class="ah-quiz-opt">Apaga a pilha anterior</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O synth só gera o template; quem cria os recursos é o deploy, via CloudFormation.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual comando mostra as mudanças antes de aplicá-las?</p>
+      <button class="ah-quiz-opt">cdk bootstrap</button>
+      <button class="ah-quiz-opt">cdk synth --apply</button>
+      <button class="ah-quiz-opt">cdk diff</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O diff compara o template gerado com a pilha atual e mostra criações, alterações e remoções.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que usar <code>RemovalPolicy.RETAIN</code> em um bucket com a documentação publicada?</p>
+      <button class="ah-quiz-opt">Para que a remoção da pilha não apague os dados do bucket</button>
+      <button class="ah-quiz-opt">Para acelerar o deploy</button>
+      <button class="ah-quiz-opt">Porque o S3 não aceita remoção de bucket</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com RETAIN, o recurso permanece quando a pilha é removida, evitando perda de dados.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>App contém Stacks; Stack é a unidade de deploy; Constructs são os recursos.</li>
+    <li>L2 traz padrões seguros (como o OAC); L1 é a tradução direta do CloudFormation.</li>
+    <li><code>synth</code> gera; <code>diff</code> revisa; <code>deploy</code> aplica.</li>
+    <li>Proteja dados com <code>RETAIN</code> e separe ambientes em stacks diferentes.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>AWS Cloud Development Kit (AWS CDK) Developer Guide</em>. docs.aws.amazon.com/cdk.</li>
+    <li>AWS. <em>AWS CloudFormation User Guide</em>, seções sobre templates e pilhas. docs.aws.amazon.com/cloudformation.</li>
+    <li>AWS. <em>CDK API Reference</em>, módulos <code>aws-s3</code>, <code>aws-cloudfront</code> e <code>aws-cloudfront-origins</code>.</li>
+    <li>HASHICORP. <em>Terraform Documentation</em>. developer.hashicorp.com/terraform.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('cdk');
+})();
+</script>
+</body>
+</html>

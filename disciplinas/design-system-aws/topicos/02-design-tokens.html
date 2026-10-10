@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Tokens: primitivos, semântica e Style Dictionary · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Design tokens em JSON no formato DTCG, camadas primitiva e semântica, geração de variáveis CSS, Swift e XML com Style Dictionary e temas claro e escuro.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/02-design-tokens">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-palette text-orange-400 mr-2"></i>Tópico 2 · Design tokens</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>design token</strong> é um valor de design dado a um nome: uma cor, um espaçamento, uma fonte, uma sombra. Tokens são a
+      menor fonte única de verdade do sistema. Em vez de escrever <code>#2563eb</code> em cem arquivos, o componente pede
+      <code>cor.acao.primaria</code>, e o valor vem de um lugar só. Isso torna temas, marcas e plataformas (web, iOS, Android) gerados a
+      partir da mesma fonte.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>separar tokens primitivos de tokens semânticos e explicar o ganho dessa separação;</li>
+      <li>escrever tokens no formato de design tokens do W3C (DTCG), com <code>$value</code> e <code>$type</code>;</li>
+      <li>gerar variáveis CSS, Swift e XML a partir do mesmo arquivo com Style Dictionary;</li>
+      <li>implementar um tema escuro trocando apenas a camada semântica.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: três camadas de tokens" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: primitivos, semânticos e de componente</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Primitivos</strong> são valores brutos, sem intenção: <code>azul.600 = #2563eb</code>. Eles descrevem a paleta da marca.
+      <strong>Semânticos</strong> dão intenção ao valor: <code>cor.acao.primaria</code> aponta para <code>azul.600</code>. Um componente
+      nunca usa primitivos diretamente; ele usa semânticos. Por fim, tokens de <strong>componente</strong> podem existir para casos específicos,
+      como <code>botao.primario.fundo</code>, que aponta para um semântico.
+    </p>
+    <p>
+      A separação compensa de duas formas. Primeiro, <em>mudar a marca</em> é trocar primitivos. Segundo, <em>criar um tema</em> é trocar
+      o mapeamento semântico, mantendo os mesmos nomes. O componente continua pedindo <code>cor.fundo</code>, e o tema decide o que isso
+      significa. Essa ideia aparece na documentação de todos os grandes sistemas listados no tópico 1.
+    </p>
+    <p>
+      O formato de referência é o rascunho do <strong>Design Tokens Format Module</strong>, produzido pelo W3C Design Tokens Community Group.
+      Cada token tem <code>$value</code>, <code>$type</code> e, opcionalmente, <code>$description</code>. Referências usam chaves duplas:
+      <code>{'{'}color.blue.600{'}'}</code>.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Camada</th><th>Exemplo de nome</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Primitivo</td><td><code>blue.600</code></td><td>Qual é o valor?</td></tr>
+        <tr><td>Semântico</td><td><code>color.action.primary</code></td><td>Para que serve?</td></tr>
+        <tr><td>Componente</td><td><code>button.primary.background</code></td><td>Onde é usado?</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="json" data-toc="Operação 1: tokens em JSON" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-code text-orange-400 mr-2"></i>Operação 1 · Escrever tokens no formato DTCG</h2>
+  <div class="ah-prose">
+    <p>
+      O arquivo abaixo tem duas camadas. A primitiva define o valor; a semântica só aponta para ela. Note que a referência
+      <code>{'{'}color.blue.600{'}'}</code> é resolvida pelo build, não pelo componente.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · <code>exemplos/tokens.json</code></p>
+<pre class="ah-code"><code>{
+  "color": {
+    "blue": {
+      "600": { "$value": "#2563eb", "$type": "color" }
+    },
+    "gray": {
+      "900": { "$value": "#0f172a", "$type": "color" },
+      "50":  { "$value": "#f8fafc", "$type": "color" }
+    }
+  },
+  "color-semantic": {
+    "action": {
+      "primary": { "$value": "{color.blue.600}", "$type": "color",
+                   "$description": "Ação principal: botão de confirmar" }
+    },
+    "surface": { "$value": "{color.gray.50}", "$type": "color" },
+    "text":    { "$value": "{color.gray.900}", "$type": "color" }
+  },
+  "space": {
+    "4": { "$value": "16px", "$type": "dimension" }
+  }
+}</code></pre>
+</section>
+
+<section id="transformacao" data-toc="Operação 2: transformação e saídas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-orange-400 mr-2"></i>Operação 2 · Resolver referências e gerar saídas</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>Style Dictionary</strong>, mantido originalmente pela Amazon, lê os tokens, resolve as referências, aplica
+      <em>transforms</em> (converter unidades, nomes, cores) e escreve <em>formatos</em> para cada plataforma. O mesmo passo gera o CSS,
+      o Swift e o XML. A animação mostra o fluxo.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: do tokens.json às plataformas</h3>
+  <p class="ah-lead text-sm mb-4">Avance para ver cada saída sendo produzida. No último quadro, o tema escuro sai do mesmo arquivo, com outra camada semântica.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvTokens" style="height:340px"></canvas></div>
+  <div id="ctlTokens" class="mt-4"></div>
+  <div id="capTokens" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em JavaScript (Node) · <code>style-dictionary.config.mjs · v4</code></p>
+<pre class="ah-code"><code>import StyleDictionary from 'style-dictionary';
+
+const sd = new StyleDictionary({
+  source: ['tokens/**/*.json'],
+  platforms: {
+    css: {
+      transformGroup: 'css',
+      buildPath: 'dist/css/',
+      files: [{ destination: 'variables.css', format: 'css/variables' }]
+    },
+    ios: {
+      transformGroup: 'ios-swift',
+      buildPath: 'dist/ios/',
+      files: [{ destination: 'Tokens.swift', format: 'ios-swift/class.swift', className: 'Tokens' }]
+    }
+  }
+});
+
+await sd.buildAllPlatforms();</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída gerada em CSS · <code>dist/css/variables.css</code></p>
+<pre class="ah-code"><code>:root {
+  --color-blue-600: #2563eb;
+  --color-action-primary: #2563eb;
+  --color-surface: #f8fafc;
+  --color-text: #0f172a;
+  --space-4: 16px;
+}</code></pre>
+</section>
+
+<section id="tema" data-toc="Operação 3: tema escuro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-moon text-orange-400 mr-2"></i>Operação 3 · Tema escuro pela camada semântica</h2>
+  <div class="ah-prose">
+    <p>
+      Para o tema escuro, não se duplica componente nem CSS. Cria-se um segundo arquivo semântico que aponta para outros primitivos e
+      sai com um seletor próprio. O componente continua usando <code>--color-surface</code> e <code>--color-text</code>; a página decide o
+      tema com um atributo no elemento raiz.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · <code>tokens/semantic.dark.json</code></p>
+<pre class="ah-code"><code>{
+  "color-semantic": {
+    "surface": { "$value": "{color.gray.900}", "$type": "color" },
+    "text":    { "$value": "{color.gray.50}",  "$type": "color" }
+  }
+}</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em CSS · uso no navegador</p>
+<pre class="ah-code"><code>[data-theme="dark"] {
+  --color-surface: #0f172a;
+  --color-text: #f8fafc;
+}
+
+/* o componente não muda: */
+.card { background: var(--color-surface); color: var(--color-text); }</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-orange-400 mr-2"></i>Programa completo</h2>
+  <div class="ah-prose">
+    <p>
+      Os dois arquivos completos estão em <code>disciplinas/design-system-aws/exemplos/</code>: <code>tokens.json</code> com primitivos e
+      semânticos, e <code>style-dictionary.config.mjs</code> com as plataformas. Rode <code>npm i style-dictionary</code> e depois
+      <code>node style-dictionary.config.mjs</code> para gerar a pasta <code>dist/</code>.
+    </p>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um componente usa <code>blue.600</code> diretamente no CSS. Por que isso é um problema para o tema escuro?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o primitivo não carrega intenção. Se o tema escuro precisar de outro azul para a ação, o componente não sabe se deve mudar. A referência correta é semântica (<code>color.action.primary</code>), que o tema pode apontar para outro valor sem alterar o componente.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Quantas vezes você precisa escrever <code>#2563eb</code> se usa Style Dictionary com as três plataformas?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> uma vez, no <code>tokens.json</code>. O build escreve o valor no CSS, no Swift e no XML. Isso elimina divergência entre plataformas, que é um dos principais motivos para adotar tokens.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Adicione uma escala de espaçamento (4, 8, 12, 16, 24, 32) como primitivos e crie dois semânticos: <code>space.inset.sm</code> e <code>space.inset.md</code>.</li>
+    <li>Crie um token de raio de borda (<code>$type: dimension</code>) e gere a saída CSS. Confirme que o valor aparece em <code>:root</code>.</li>
+    <li>Escreva um teste automatizado que falha se algum componente usar um hexadecimal fora de <code>tokens/</code>.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Tokens não são cobrados pela AWS, mas o modelo de “fonte única + build + publicação” é o mesmo que a prova DVA-C03 explora em
+      automação e implantação: o artefato gerado é versionado e publicado sem edição manual. Esse raciocínio volta nos tópicos 5 a 7.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual token um componente deve usar para cor de ação?</p>
+      <button class="ah-quiz-opt">O primitivo <code>blue.600</code>, por ser o valor exato</button>
+      <button class="ah-quiz-opt">Um hexadecimal copiado do Figma</button>
+      <button class="ah-quiz-opt">O semântico <code>color.action.primary</code></button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O semântico expressa a intenção e permite trocar o valor por tema ou por marca sem tocar no componente.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em um arquivo DTCG, qual propriedade guarda o valor de um token?</p>
+      <button class="ah-quiz-opt">$value</button>
+      <button class="ah-quiz-opt">value</button>
+      <button class="ah-quiz-opt">$data</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O formato DTCG usa <code>$value</code>, com <code>$type</code> para descrever o tipo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a forma mais limpa de criar um tema escuro num sistema com tokens?</p>
+      <button class="ah-quiz-opt">Duplicar todos os componentes com cores escuras</button>
+      <button class="ah-quiz-opt">Trocar apenas o mapeamento da camada semântica, sob um seletor de tema</button>
+      <button class="ah-quiz-opt">Alterar os primitivos da marca</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Os componentes não mudam; o tema é uma troca de referências na camada semântica.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Tokens são fonte única: primitivos guardam valores, semânticos guardam intenção.</li>
+    <li>Use o formato DTCG (<code>$value</code>, <code>$type</code>) e referências entre chaves.</li>
+    <li>Style Dictionary gera CSS, Swift e XML a partir do mesmo arquivo.</li>
+    <li>Temas trocam a camada semântica; componentes não mudam.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>W3C DESIGN TOKENS COMMUNITY GROUP. <em>Design Tokens Format Module</em>. Rascunho da comunidade W3C, disponível em design-tokens.github.io.</li>
+    <li>AMAZON. <em>Style Dictionary</em>. Documentação oficial em styledictionary.com.</li>
+    <li>KHOLMATOVA, Alla. <em>Design Systems: A Practical Guide to Creating Design Languages for Digital Products</em>. Smashing Magazine, 2017. Capítulo sobre fundamentos.</li>
+    <li>FROST, Brad. <em>Atomic Design</em>. Pittsburgh: Brad Frost, 2016.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('tokens');
+})();
+</script>
+</body>
+</html>
