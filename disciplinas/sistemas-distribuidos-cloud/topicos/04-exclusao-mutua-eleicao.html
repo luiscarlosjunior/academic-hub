@@ -181,6 +181,14 @@
   <div id="capToken" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="ricart-animacao" data-toc="Animação: Ricart e Agrawala" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope-open-text text-sky-400 mr-2"></i>Animação · Quem tem o carimbo menor entra primeiro</h2>
+  <p class="ah-lead text-sm mb-4">P1 e P3 pedem a seção crítica. O pedido com carimbo menor vence, e o outro adia a resposta. Troque os carimbos no seletor e veja a ordem de entrada mudar.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvRicart" style="height:320px"></canvas></div>
+  <div id="ctlRicart" class="mt-4"></div>
+  <div id="capRicart" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: eleição e token em Python" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Chang e Roberts e token em anel</h2>
   <div class="ah-prose">
@@ -278,6 +286,44 @@
       <div class="text-xs font-bold text-sky-300 mb-1">Aplicativo de caronas</div>
       <p class="text-xs text-slate-400">Dois motoristas não podem aceitar a mesma corrida. O servidor da corrida age como coordenador da exclusão mútua: o primeiro pedido concede o recurso, e os demais recebem "indisponível".</p>
     </div>
+  </div>
+</section>
+
+<section id="falhas-algoritmos" data-toc="Aprofundamento: falhas e custos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-sky-400 mr-2"></i>Aprofundamento · O que acontece quando um processo cai</h2>
+  <div class="ah-prose">
+    <p>
+      Os algoritmos desta página foram apresentados supondo que nenhum processo falha durante a execução. Na prática, a falha é o caso que define o projeto. Em
+      Ricart e Agrawala, um processo que cai nunca responde, e todos os outros ficam esperando indefinidamente. A solução clássica é tratar a ausência de resposta
+      com um detector de falhas (tópico 1), e remover o processo suspeito do conjunto de respostas esperadas. Isso restaura a vivacidade, mas introduz o risco de
+      um falso positivo: um processo vivo, mas lento, é removido, e dois processos podem entrar na seção crítica. Por isso, a remoção deve ser uma decisão
+      coletiva, ou um quórum precisa autorizar a mudança de conjunto.
+    </p>
+    <p>
+      No token em anel, a falha é ainda mais perigosa. Se o processo que tem o token cai, o token desaparece, e a exclusão mútua trava. Se o detector suspeita
+      do token perdido e cria outro, pode haver dois tokens quando o original reaparece, e a segurança quebra. A correção é usar um número de geração no token:
+      o recurso só aceita um token de geração igual ou maior que a última vista, o mesmo princípio do fencing token.
+    </p>
+    <p>
+      O algoritmo centralizado, em contraste, falha de forma mais previsível: o coordenador é um ponto único, e a eleição de um novo coordenador (por Bully, ou por Raft,
+      no tópico 6) é o que restaura o serviço. Os algoritmos de quórum de Maekawa toleram a falha de alguns nós, desde que o quórum da seção crítica continue
+      disponível, e não há um ponto central. Em troca, o número de mensagens e a complexidade de implementação são maiores.
+    </p>
+    <p>
+      A tabela abaixo resume a comparação com falhas, que costuma ser a pergunta decisiva ao escolher um algoritmo em produção. A escolha depende de quanto custa
+      travar, de quanto custa uma violação de exclusão e de quanta complexidade a equipe consegue manter.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Algoritmo</th><th>Falha de um processo</th><th>Risco principal</th><th>Estratégia usual</th></tr></thead>
+      <tbody>
+        <tr><td>Centralizado</td><td>o coordenador para tudo</td><td>ponto único de falha</td><td>coordenador replicado com Raft</td></tr>
+        <tr><td>Token em anel</td><td>o token pode se perder</td><td>dois tokens, segurança quebrada</td><td>número de geração no token</td></tr>
+        <tr><td>Ricart e Agrawala</td><td>respostas nunca chegam</td><td>trava, ou falso positivo</td><td>remoção por quórum</td></tr>
+        <tr><td>Maekawa</td><td>um membro do quórum cai</td><td>quórum indisponível</td><td>quóruns redundantes</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -397,6 +443,15 @@
   ED.criaAnimacao({
     canvas: 'cvToken', ctl: 'ctlToken', cap: 'capToken',
     desenha: SD.desenhaToken, gera: SD.geraToken, velocidade: 2000
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvRicart', ctl: 'ctlRicart', cap: 'capRicart',
+    desenha: SD.desenhaRicart, gera: SD.geraRicart, velocidade: 2000,
+    opcoes: [
+      { v: 'P1primeiro', rotulo: 'P1 tem o carimbo menor (5 × 7)' },
+      { v: 'P3primeiro', rotulo: 'P3 tem o carimbo menor (7 × 5)' }
+    ]
   });
 
 })();
