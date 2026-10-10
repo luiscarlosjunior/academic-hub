@@ -339,7 +339,10 @@ const AH_DATA = {
           tags: ['UDP', 'TCP', 'Handshake'], nivel: 'Intermediário', minutos: 65 },
         { id: '07-congestionamento-qos', titulo: 'Controle de congestionamento e QoS: slow start, AIMD e balde de fichas', icone: 'fa-gauge-high',
           resumo: 'Fluxo versus congestionamento, slow start e AIMD, Tahoe e Reno diante de perdas, bufferbloat, DiffServ e policiamento com balde de fichas.',
-          tags: ['Congestionamento', 'AIMD', 'QoS'], nivel: 'Avançado', minutos: 70 }
+          tags: ['Congestionamento', 'AIMD', 'QoS'], nivel: 'Avançado', minutos: 70 },
+        { id: '08-dns-http', titulo: 'Camada de aplicação: DNS, HTTP e a evolução para HTTP/3', icone: 'fa-globe',
+          resumo: 'Hierarquia e delegação do DNS, resolução iterativa e cache por TTL, registros, requisições HTTP com Host, e HTTP/1.1, HTTP/2 e HTTP/3 sobre QUIC.',
+          tags: ['DNS', 'HTTP', 'QUIC'], nivel: 'Intermediário', minutos: 65 }
       ]
     }
   ]

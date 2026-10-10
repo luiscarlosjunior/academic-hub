@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camada de aplicação: DNS, HTTP e a evolução para HTTP/3 · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como o DNS resolve nomes de forma hierárquica e com cache, como o HTTP troca requisições e respostas, e a evolução de HTTP/1.1 para HTTP/2 e HTTP/3, com animação de uma navegação completa, exemplo em Python e citações das RFCs.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/08-dns-http">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-globe text-emerald-400 mr-2"></i>Tópico 8 · Camada de aplicação: DNS e HTTP</h2>
+  <div class="ah-prose">
+    <p>
+      Quando você digita um endereço, duas coisas acontecem antes de qualquer página aparecer. Primeiro, o nome precisa virar um endereço IP, o
+      trabalho do <strong>DNS</strong>. Depois, o navegador conversa com o servidor usando <strong>HTTP</strong>. Os dois protocolos são
+      aplicações, ou seja, ficam acima do transporte, e foram pensados para funcionar em escala mundial, com milhões de consultas por segundo.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever a hierarquia do DNS e a diferença entre resolução recursiva e iterativa;</li>
+      <li>explicar como o TTL controla o cache e a consistência entre servidores;</li>
+      <li>nomear os principais tipos de registro (A, AAAA, CNAME, MX, NS, TXT);</li>
+      <li>explicar por que o cabeçalho Host é obrigatório no HTTP/1.1;</li>
+      <li>comparar HTTP/1.1, HTTP/2 e HTTP/3 pelo transporte que usam e pelo bloqueio de cabeça de linha.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      No início, a correspondência entre nomes e endereços ficava em um único arquivo, o HOSTS.TXT, mantido e distribuído a mão. Com o crescimento
+      da rede, isso se tornou impraticável. Paul Mockapetris publicou em 1983 o DNS, com a RFC 882 e a RFC 883, e as versões definitivas, RFC 1034
+      e RFC 1035, em 1987. A ideia de uma árvore delegada, em que cada nível administra o seguinte, é a base da escalabilidade da Internet.
+    </p>
+    <p>
+      O HTTP começou em 1991 como um protocolo simples para documentos de hipertexto, descrito como HTTP/1.0 na RFC 1945 (1996). O HTTP/1.1 foi
+      padronizado em 1997 (RFC 2068) e revisado pela RFC 2616 (1999). Ele introduziu conexões persistentes e o cabeçalho Host, e foi reescrito pela
+      série RFC 7230 a 7235 (2014), que a RFC 9110 a 9112 (2022) substituiu. HTTP/2 (RFC 7540, 2015, depois RFC 9113) e HTTP/3 (RFC 9114, 2022)
+      mudaram o transporte, e é isso que esta página explica.
+    </p>
+  </div>
+</section>
+
+<section id="dns" data-toc="Teoria: DNS hierárquico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Teoria · A árvore do DNS</h2>
+  <div class="ah-prose">
+    <p>
+      O espaço de nomes é uma árvore, lida da direita para a esquerda: a raiz (indicada por um ponto final, invisível na prática), os domínios de
+      topo como <code>com</code> e <code>br</code>, os domínios de segundo nível como <code>exemplo.com</code>, e os subdomínios, como
+      <code>www.exemplo.com</code>. Cada nível é um conjunto de <strong>zonas</strong>, e cada zona é administrada por um servidor autoritativo.
+    </p>
+    <p>
+      A delegação é o mecanismo que conecta os níveis. A raiz não sabe o endereço de <code>www.exemplo.com</code>. Ela sabe quem atende o domínio
+      <code>com</code>. O servidor do <code>com</code> sabe quem atende <code>exemplo.com</code>. Só esse servidor sabe o IP de <code>www</code>. Cada
+      nível aponta para o próximo, e isso distribui a carga e a responsabilidade.
+    </p>
+    <p>
+      Há dois modos de resolução. Na <strong>recursiva</strong>, o cliente pede ao resolvedor (em geral o da operadora ou um público, como 8.8.8.8)
+      a resposta final, e o resolvedor faz o trabalho. Na <strong>iterativa</strong>, o resolvedor pergunta a cada nível e recebe um encaminhamento
+      para o próximo. O cliente costuma falar de forma recursiva com o resolvedor, e o resolvedor fala de forma iterativa com a hierarquia.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Tipo</th><th>O que guarda</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td>endereço IPv4 de um nome</td><td>exemplo.com → 93.184.216.34</td></tr>
+        <tr><td>AAAA</td><td>endereço IPv6 de um nome</td><td>exemplo.com → 2606:2800:…</td></tr>
+        <tr><td>CNAME</td><td>apelido para outro nome</td><td>www → exemplo.com</td></tr>
+        <tr><td>NS</td><td>servidor autoritativo de uma zona</td><td>com → ns1.exemplo.net</td></tr>
+        <tr><td>MX</td><td>servidor de e-mail do domínio</td><td>exemplo.com → mail.exemplo.com (prioridade 10)</td></tr>
+        <tr><td>TXT</td><td>texto livre, usado por verificações e políticas</td><td>SPF, DKIM e verificação de domínio</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-6">
+    <p class="text-sm"><strong>CNAME não pode coexistir com outros registros.</strong> Um nome com CNAME não pode ter outro tipo de registro no mesmo
+    nome, como MX. Por isso o domínio raiz, que precisa de MX e NS, não pode ser um CNAME. Muitos provedores oferecem registros especiais para resolver
+    isso, mas o padrão não permite.</p>
+  </div>
+</section>
+
+<section id="cache" data-toc="Teoria: cache e TTL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clock-rotate-left text-emerald-400 mr-2"></i>Teoria · Cache e TTL</h2>
+  <div class="ah-prose">
+    <p>
+      Cada resposta do DNS traz um <strong>TTL</strong>, em segundos, que diz por quanto tempo ela pode ser reutilizada. O resolvedor guarda a resposta
+      e, dentro do TTL, responde sem consultar ninguém. Isso reduz a carga na hierarquia e a latência percebida. Depois do TTL, o registro expira e a
+      próxima consulta vai à origem.
+    </p>
+    <p>
+      O TTL é um trade-off. Um TTL longo reduz consultas, mas atrasa mudanças: se o IP do servidor muda, os clientes continuam indo ao endereço antigo
+      até o cache expirar. Um TTL curto acelera mudanças, mas aumenta a carga. Antes de uma migração, é comum reduzir o TTL com antecedência, e
+      depois aumentá-lo de novo.
+    </p>
+  </div>
+</section>
+
+<section id="http" data-toc="Teoria: HTTP e requisição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-lines text-emerald-400 mr-2"></i>Teoria · HTTP: requisição e resposta</h2>
+  <div class="ah-prose">
+    <p>
+      Uma requisição HTTP tem uma linha de requisição (método, caminho e versão), cabeçalhos e, às vezes, um corpo. A resposta tem uma linha de
+      status (versão, código e frase), cabeçalhos e corpo. Os métodos principais são GET (obter), POST (enviar dados para processamento), PUT e DELETE.
+      Os códigos são agrupados por classe: 2xx de sucesso, 3xx de redirecionamento, 4xx de erro do cliente e 5xx de erro do servidor.
+    </p>
+    <p>
+      O HTTP é, por definição, sem estado. A RFC 9110, que consolida a semântica do protocolo, afirma:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "HTTP is a stateless request/response protocol"
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 9110 (Fielding et al., 2022), seção 1. Tradução nossa: o HTTP é um protocolo de requisição e resposta sem estado. Estado, como login, vem de cookies (RFC 6265) ou tokens, carregados em cada requisição.</p>
+    <p>
+      O cabeçalho <strong>Host</strong> é obrigatório no HTTP/1.1. Ele diz qual site se deseja, porque um mesmo IP pode hospedar centenas de domínios.
+      Sem ele, o servidor não sabe qual dos sites responder. É por isso que o exemplo deste tópico devolve 400 para uma requisição sem Host, e o
+      HTTP/1.0 é tratado como resposta do site padrão.
+    </p>
+  </div>
+</section>
+
+<section id="versoes" data-toc="Teoria: HTTP/1.1, HTTP/2 e HTTP/3" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Teoria · De HTTP/1.1 a HTTP/3</h2>
+  <div class="ah-prose">
+    <p>
+      No HTTP/1.1, uma conexão TCP atende uma requisição por vez, na ordem. Conexões persistentes evitam refazer o handshake a cada objeto. Para carregar
+      uma página com muitas imagens, o navegador abre várias conexões em paralelo, geralmente seis. Isso gasta recursos e ainda sofre com o
+      <strong>bloqueio de cabeça de linha</strong>: um objeto lento atrasa os seguintes na mesma conexão.
+    </p>
+    <p>
+      HTTP/2 multiplexa vários fluxos numa única conexão TCP, com quadros binários, cabeçalhos comprimidos com HPACK e prioridades. Resolve o problema
+      de aplicação, mas não o de transporte: como todos os fluxos compartilham o TCP, uma perda de pacote bloqueia todos eles até a retransmissão.
+    </p>
+    <p>
+      HTTP/3 usa QUIC, um protocolo de transporte sobre UDP, implementado no espaço de usuário. O QUIC tem os fluxos no próprio transporte, de modo
+      que a perda num fluxo não bloqueia os outros. Ele também integra o TLS 1.3 ao handshake, reduzindo o número de viagens até o primeiro dado, e
+      permite migrar a conexão entre redes, mantendo o identificador da conexão.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Versão</th><th>Transporte</th><th>Fluxos</th><th>Bloqueio de cabeça de linha</th></tr></thead>
+      <tbody>
+        <tr><td>HTTP/1.1</td><td>TCP</td><td>uma requisição por conexão, com várias conexões</td><td>sim, por conexão</td></tr>
+        <tr><td>HTTP/2</td><td>TCP</td><td>multiplexados numa conexão</td><td>sim, no nível do TCP</td></tr>
+        <tr><td>HTTP/3</td><td>QUIC sobre UDP</td><td>independentes no transporte</td><td>não entre fluxos</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: DNS e HTTP em sequência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Do nome à página</h2>
+  <p class="ah-lead text-sm mb-4">O cliente pede exemplo.com ao resolvedor. Este percorre a hierarquia (raiz, TLD e autoritativo), recebe o IP e devolve ao cliente. Só então o HTTP começa. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:420px"><canvas id="cvApp" style="height:420px"></canvas></div>
+  <div id="ctlApp" class="mt-4"></div>
+  <div id="capApp" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: DNS com cache e HTTP em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Resolvedor com cache e requisição HTTP</h2>
+  <div class="ah-prose">
+    <p>
+      O programa simula um resolvedor iterativo com três zonas: raiz, o servidor do TLD <code>com</code> e o autoritativo de <code>exemplo.com</code>.
+      Ele consulta quatro vezes: a primeira percorre a hierarquia, a segunda é atendida pelo cache, e a terceira e a quarta mostram a expiração do TTL
+      de 3600 segundos. A segunda parte analisa três requisições HTTP.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>08-dns-http.py · Resolvedor.resolve</code></p>
+<pre class="ah-code"><code>def resolve(self, nome, agora):
+    if nome in self.cache and self.cache[nome][1] &gt; agora:
+        ip, expira = self.cache[nome]
+        return ip, [f"cache: {nome} -&gt; {ip} (expira em t={expira})"]
+    passos = [f"raiz: quem atende o domínio com.? -&gt; {RAIZ['com.']}",
+              f"tld: quem atende {nome}? -&gt; {TLD_COM[nome]}"]
+    ip, ttl = AUTORITATIVO[nome]
+    passos.append(f"autoritativo: A de {nome}? -&gt; {ip} (TTL {ttl})")
+    self.cache[nome] = (ip, agora + ttl)
+    return ip, passos</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: resolução iterativa e cache
+  t=   0: exemplo.com. -&gt; 93.184.216.34
+           raiz: quem atende o domínio com.? -&gt; ns.tld-com
+           tld: quem atende exemplo.com.? -&gt; ns1.exemplo.com.
+           autoritativo: A de exemplo.com.? -&gt; 93.184.216.34 (TTL 3600)
+  t= 100: exemplo.com. -&gt; 93.184.216.34
+           cache: exemplo.com. -&gt; 93.184.216.34 (expira em t=3600)
+  t=3600: exemplo.com. -&gt; 93.184.216.34
+           raiz: quem atende o domínio com.? -&gt; ns.tld-com
+           tld: quem atende exemplo.com.? -&gt; ns1.exemplo.com.
+           autoritativo: A de exemplo.com.? -&gt; 93.184.216.34 (TTL 3600)
+  t=3601: exemplo.com. -&gt; 93.184.216.34
+           cache: exemplo.com. -&gt; 93.184.216.34 (expira em t=7200)
+
+Parte 2: requisição HTTP/1.1
+  GET /index.html HTTP/1.1 -&gt; 200: serve /index.html para o site exemplo.com
+  sem Host: -&gt; 400: falta o cabeçalho Host
+  HTTP/1.0 sem Host: -&gt; 200: serve /index.html para o site (site padrão do IP)</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Repare em t = 3600. O registro expirou exatamente nesse instante, porque a condição de cache exige que a expiração seja maior que o tempo atual.
+      Por isso a consulta vai de novo à hierarquia. Esse detalhe, de "maior que" contra "maior ou igual", é o tipo de coisa que importa em implementações.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Site "fora do ar" só para alguns</div>
+      <p class="text-xs text-slate-400">Um resolvedor com cache antigo pode continuar entregando o IP velho depois de uma migração, até o TTL expirar. Quem usa outro resolvedor vê o site novo. Esse é o efeito do TTL na prática.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Muitos sites, um IP</div>
+      <p class="text-xs text-slate-400">Hospedagens compartilhadas servem centenas de domínios num mesmo IP. O cabeçalho Host decide qual site responder. Sem ele, o servidor não saberia a quem entregar a página.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">E-mail não chega</div>
+      <p class="text-xs text-slate-400">Um servidor de e-mail é localizado pelo registro MX. Se o MX aponta para um nome que não resolve, a mensagem fica na fila. Registros TXT com SPF e DKIM são o que os servidores consultam para validar o remetente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Página que carrega mais rápido no celular</div>
+      <p class="text-xs text-slate-400">Em rede móvel, com perdas frequentes, o bloqueio de cabeça de linha do TCP pesa. HTTP/3 sobre QUIC reduz esse efeito, e é por isso que grandes provedores o adotaram.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Teste o nome antes do IP</div>
+      <p class="text-xs text-slate-400">Se o site não abre mas o IP responde, o problema está no DNS. Use uma consulta direta a um resolvedor público para comparar.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Reduza o TTL antes de mudar</div>
+      <p class="text-xs text-slate-400">Antes de migrar um serviço, baixe o TTL com antecedência de pelo menos o TTL antigo. Assim, a mudança se propaga em minutos, não em horas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Sempre envie o Host</div>
+      <p class="text-xs text-slate-400">Ao testar um servidor pelo IP, informe o Host correto. Sem ele, você pode receber a página de outro site, ou um erro.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Separe estado de protocolo</div>
+      <p class="text-xs text-slate-400">Como o HTTP não guarda estado, login, carrinho e preferências vivem em cookies ou tokens. Trate cada um como parte da requisição.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: quantas consultas em 2 horas?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um cliente consulta exemplo.com a cada 5 minutos, durante 2 horas, por um resolvedor com TTL de 3600 s para o registro A. Quantas consultas chegam ao autoritativo?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Duas horas são 7200 s. Com TTL de 3600 s, o resolvedor consulta o autoritativo no início e uma vez mais ao expirar o TTL, ou seja, duas vezes. As demais consultas do cliente são atendidas pelo cache. Resposta: 2 consultas ao autoritativo, num total de 24 pedidos do cliente.</p>
+      <p><strong>Lição.</strong> O cache reduz a carga na origem por um fator igual à razão entre a frequência das consultas e o TTL.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: diagnóstico de um 400</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um cliente HTTP/1.1 envia GET /api sem cabeçalho Host, para um servidor que hospeda três sites no mesmo IP. O que o servidor responde, e como corrigir?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O servidor responde 400 Bad Request, porque o HTTP/1.1 exige o Host e o servidor não sabe qual dos três sites atender. A correção é enviar o cabeçalho Host com o nome do site desejado. O erro não está no servidor nem na rede, mas na requisição.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que a raiz do DNS não precisa saber o IP de www.exemplo.com para ajudar uma consulta?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a raiz só precisa indicar quem atende o domínio de topo (com). Cada nível delega ao seguinte. Se a raiz soubesse de todos os nomes, a carga e a atualização seriam impraticáveis, e a delegação existe justamente para evitar isso.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um domínio tem CNAME para outro domínio. O que acontece se o autoritativo do destino mudar o IP?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> nada precisa ser alterado no domínio com o CNAME. O resolvedor segue o apelido até o registro A do destino, que agora tem o IP novo. O TTL de cada registro continua valendo, então a propagação depende dos dois TTLs.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Uma página com 40 imagens em HTTP/1.1, com 6 conexões paralelas, e a mesma página em HTTP/2 numa conexão. Qual a diferença principal de latência em rede com perdas? Justifique.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> em HTTP/1.1, as seis conexões são independentes, então a perda afeta só a conexão atingida; mas cada uma tem seu próprio handshake e sua própria janela, e a fila de objetos é grande. Em HTTP/2, uma perda no TCP bloqueia todos os fluxos da conexão até a retransmissão. A resposta é livre, mas deve citar que o bloqueio de cabeça de linha se move para o transporte, e que HTTP/3 o remove para os fluxos.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual registro DNS informa o servidor de e-mail de um domínio?</p>
+      <button class="ah-quiz-opt">A</button>
+      <button class="ah-quiz-opt">MX</button>
+      <button class="ah-quiz-opt">CNAME</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. MX (mail exchanger) aponta para o servidor de e-mail, com prioridade.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um resolvedor tem um registro com TTL de 300 s. Quanto tempo ele pode responder sem consultar a origem?</p>
+      <button class="ah-quiz-opt">Para sempre, até alguém pedir a atualização</button>
+      <button class="ah-quiz-opt">Trinta segundos</button>
+      <button class="ah-quiz-opt">Até 300 segundos depois de o resolvedor obter a resposta da origem</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O TTL é contado a partir do momento em que a resposta chega ao resolvedor, e não a partir das consultas do cliente. Expirado, o resolvedor volta à origem.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que HTTP/3 não sofre bloqueio de cabeça de linha entre fluxos?</p>
+      <button class="ah-quiz-opt">Porque os fluxos são independentes no próprio transporte (QUIC), sobre UDP</button>
+      <button class="ah-quiz-opt">Porque usa mais conexões TCP em paralelo</button>
+      <button class="ah-quiz-opt">Porque dispensa o TLS</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. No QUIC, a perda de pacote afeta apenas o fluxo ao qual o dado pertence. Os outros continuam, o que não acontece com um único TCP.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>O DNS é uma árvore delegada: cada nível aponta para o seguinte, e nenhum servidor sabe tudo.</li>
+    <li>O TTL controla o cache e o tempo de propagação de uma mudança.</li>
+    <li>O HTTP não guarda estado; o cabeçalho Host é obrigatório no HTTP/1.1.</li>
+    <li>HTTP/2 multiplexa no TCP; HTTP/3 move a multiplexação para o QUIC, sobre UDP.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>MOCKAPETRIS, P. <em>RFC 1034: Domain Names – Concepts and Facilities</em>. IETF, 1987.</li>
+    <li>MOCKAPETRIS, P. <em>RFC 1035: Domain Names – Implementation and Specification</em>. IETF, 1987.</li>
+    <li>FIELDING, R. et al. <em>RFC 9110: HTTP Semantics</em>. IETF, 2022.</li>
+    <li>BELSHE, M.; PEON, R.; THOMSON, M. <em>RFC 9113: HTTP/2</em>. IETF, 2022. (Substitui a RFC 7540.)</li>
+    <li>BISHOP, M. <em>RFC 9114: HTTP/3</em>. IETF, 2022.</li>
+    <li>IYENGAR, J.; THOMSON, M. <em>RFC 9000: QUIC: A UDP-Based Multiplexed and Secure Transport</em>. IETF, 2021.</li>
+    <li>BARTH, A. <em>RFC 6265: HTTP State Management Mechanism</em>. IETF, 2011.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 2 (camada de aplicação: DNS, HTTP e web).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 7 (camada de aplicação: DNS, web e correio).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Cliente (0), resolvedor (1), raiz (2), TLD .com (3), autoritativo (4) e servidor web (5) */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Cliente', 'Resolvedor', 'Raiz', 'TLD .com', 'Autoritativo', 'Servidor web'],
+    intro: 'O cliente quer abrir exemplo.com. Ele ainda não tem o IP, então pergunta ao resolvedor.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'A exemplo.com?', cap: 'Cliente pergunta ao resolvedor, de forma recursiva, o IP de exemplo.com.', fim: 'O resolvedor não tem o registro em cache. Vai à hierarquia.' },
+      { de: 1, para: 2, rotulo: 'quem é .com?', cap: 'O resolvedor pergunta à raiz de forma iterativa.', fim: 'A raiz não sabe o IP do domínio, mas indica o servidor do .com.' },
+      { de: 2, para: 1, rotulo: 'NS do .com', cap: 'A raiz devolve o encaminhamento: quem atende o domínio .com.', fim: 'O resolvedor recebe a delegação e vai ao servidor do .com.' },
+      { de: 1, para: 3, rotulo: 'NS exemplo.com?', cap: 'O resolvedor pergunta ao servidor do .com quem atende exemplo.com.', fim: 'O servidor do .com conhece o autoritativo do domínio.' },
+      { de: 3, para: 1, rotulo: 'ns1.exemplo', cap: 'O TLD devolve a delegação: o autoritativo de exemplo.com.', fim: 'Agora o resolvedor sabe quem tem o registro A.' },
+      { de: 1, para: 4, rotulo: 'A exemplo.com?', cap: 'O resolvedor pergunta ao autoritativo o registro A.', fim: 'O autoritativo responde com o IP e o TTL de 3600 s.' },
+      { de: 4, para: 1, rotulo: '93.184.216.34', cap: 'O autoritativo responde: 93.184.216.34, com TTL de 3600 s.', fim: 'O resolvedor guarda a resposta em cache durante o TTL.' },
+      { de: 1, para: 0, rotulo: 'IP', cap: 'O resolvedor entrega o IP ao cliente.', fim: 'O cliente agora tem o endereço e pode abrir a conexão.' },
+      { de: 0, para: 5, rotulo: 'GET / Host: exemplo.com', cap: 'O cliente abre a conexão com o servidor e envia GET com o cabeçalho Host.', fim: 'O servidor recebe e sabe qual site servir, graças ao Host.' },
+      { de: 5, para: 0, rotulo: '200 OK', cap: 'O servidor responde 200 OK, com a página.', fim: 'O navegador recebe a página e a renderiza.' }
+    ]
+  }), {
+    canvas: 'cvApp', ctl: 'ctlApp', cap: 'capApp', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>
