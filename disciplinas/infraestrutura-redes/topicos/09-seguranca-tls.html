@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segurança de redes: criptografia, TLS, firewalls e VPN · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Confidencialidade, integridade e autenticidade, criptografia simétrica e assimétrica, troca de chaves Diffie-Hellman, certificados e a cadeia de confiança, o handshake do TLS 1.3, firewalls e VPN, com animação, exemplo em Python e citação da RFC 8446.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/09-seguranca-tls">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-emerald-400 mr-2"></i>Tópico 9 · Segurança de redes</h2>
+  <div class="ah-prose">
+    <p>
+      Até aqui, a rede foi tratada como um meio que entrega bits, às vezes com erro, às vezes com atraso. Na prática, o meio pode ser lido e
+      alterado por qualquer um que esteja no caminho: o Wi-Fi de um café, um roteador comprometido, um provedor curioso, um atacante que envenena
+      o ARP ou o DNS, como vimos nos tópicos 4 e 8. Segurança de redes é a disciplina de assumir esse cenário e projetar para ele.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>definir confidencialidade, integridade e autenticidade, e dar um exemplo de falha de cada uma;</li>
+      <li>explicar a diferença entre criptografia simétrica, assimétrica e funções de hash;</li>
+      <li>descrever a troca de chaves Diffie-Hellman e o que ela garante, e o que não garante;</li>
+      <li>explicar como um certificado e a cadeia de confiança autenticam um servidor;</li>
+      <li>acompanhar o handshake do TLS 1.3 e identificar onde a autenticação acontece;</li>
+      <li>distinguir firewall, IDS e VPN pelo que cada um protege.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Em 1976, Diffie e Hellman publicaram <em>New Directions in Cryptography</em>, que propôs a troca de chaves por um canal público. Em 1977, Rivest,
+      Shamir e Adleman apresentaram o RSA, o primeiro sistema de criptografia de chave pública prático. O SSL, da Netscape, surgiu em meados dos anos
+      1990, e foi sucedido pelo TLS (RFC 2246, de 1999). A versão 1.3 do TLS, publicada na RFC 8446 em 2018, eliminou algoritmos antigos e reduziu o
+      handshake a uma viagem de ida e volta.
+    </p>
+    <p>
+      A história do TLS é também uma história de falhas: versões antigas foram quebradas por ataques como POODLE e BEAST, e configurações fracas ainda
+      são comuns. A regra prática é desabilitar versões e algoritmos antigos, e não depender de sua existência.
+    </p>
+  </div>
+</section>
+
+<section id="ciaa" data-toc="Teoria: os objetivos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-emerald-400 mr-2"></i>Teoria · O que a segurança deve garantir</h2>
+  <div class="ah-prose">
+    <p>
+      Três propriedades aparecem em quase toda discussão de segurança de redes:
+    </p>
+    <ul>
+      <li><strong>Confidencialidade:</strong> só quem deve ler, lê. Obtida com criptografia. Exemplo de falha: um Wi-Fi aberto que transmite senhas em texto puro.</li>
+      <li><strong>Integridade:</strong> o dado não foi alterado sem detecção. Obtida com códigos de autenticação (MAC/HMAC) e assinaturas. Exemplo de falha: um proxy que troca o valor de uma transferência.</li>
+      <li><strong>Autenticidade:</strong> quem diz ser X é X. Obtida com certificados e chaves verificadas. Exemplo de falha: um site falso que parece o banco.</li>
+    </ul>
+    <p>
+      Disponibilidade também conta, e é a propriedade atacada por DDoS e SYN flood, como vimos no tópico 6. Um sistema que não responde não viola nenhuma
+      das três acima, mas falha tanto quanto elas.
+    </p>
+    <p>
+      A RFC 8446 descreve o objetivo do TLS em termos que resumem o problema:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "designed to prevent eavesdropping, tampering, and message forgery"
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 8446 (Rescorla, 2018), seção 1. Tradução nossa: projetado para impedir a escuta, a adulteração e a falsificação de mensagens. Essas três palavras correspondem, em ordem, à confidencialidade, à integridade e à autenticidade.</p>
+  </div>
+</section>
+
+<section id="cripto" data-toc="Teoria: criptografia simétrica, assimétrica e hash" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-emerald-400 mr-2"></i>Teoria · Simétrica, assimétrica e hash</h2>
+  <div class="ah-prose">
+    <p>
+      A <strong>criptografia simétrica</strong> usa a mesma chave para cifrar e decifrar. É rápida, e o AES é o padrão atual. O problema é a distribuição:
+      como duas partes que nunca se viram combinam a chave, sem que um espião a leia no caminho?
+    </p>
+    <p>
+      A <strong>criptografia assimétrica</strong> usa um par de chaves, uma pública e uma privada. O que uma cifra, só a outra decifra. Ela resolve a
+      distribuição, mas é muito mais lenta, então em geral serve para combinar uma chave simétrica no início de uma sessão.
+    </p>
+    <p>
+      Uma <strong>função de hash</strong> transforma uma mensagem de qualquer tamanho em um resumo de tamanho fixo. Um hash criptográfico como o
+      SHA-256 é difícil de inverter e difícil de colidir. Um <strong>HMAC</strong> combina hash e chave secreta: quem não tem a chave não consegue
+      produzir a etiqueta correta para uma mensagem alterada. Isso dá integridade e autenticidade, mas não dá confidencialidade.
+    </p>
+  </div>
+</section>
+
+<section id="dh" data-toc="Teoria: troca de chaves Diffie-Hellman" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-handshake text-emerald-400 mr-2"></i>Teoria · Como duas partes combinam uma chave</h2>
+  <div class="ah-prose">
+    <p>
+      No Diffie-Hellman, as partes concordam em um primo <em>p</em> e um gerador <em>g</em>, públicos. Cada uma escolhe uma chave privada (a, b) e
+      publica g<sup>a</sup> mod p e g<sup>b</sup> mod p. Cada uma então eleva o valor recebido à sua própria privada: (g<sup>b</sup>)<sup>a</sup> =
+      (g<sup>a</sup>)<sup>b</sup> = g<sup>ab</sup> mod p. O segredo compartilhado nunca atravessa a rede.
+    </p>
+    <p>
+      O que essa troca garante é o <strong>sigilo perfeito para a frente</strong> (<em>forward secrecy</em>), quando as chaves privadas são efêmeras: se
+      a chave de longo prazo do servidor vazar amanhã, as sessões de ontem continuam protegidas, porque a chave de cada sessão foi descartada.
+    </p>
+    <p>
+      O que ela <strong>não</strong> garante é a identidade. Quem está do outro lado pode ser um atacante que fez a troca com ambos. Por isso o
+      Diffie-Hellman precisa de autenticação: é aí que entram os certificados.
+    </p>
+  </div>
+</section>
+
+<section id="certificados" data-toc="Teoria: certificados e cadeia de confiança" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-emerald-400 mr-2"></i>Teoria · Certificados e cadeia de confiança</h2>
+  <div class="ah-prose">
+    <p>
+      Um certificado X.509 associa uma chave pública a um nome (por exemplo, exemplo.com), e é assinado por uma autoridade certificadora (CA). O navegador
+      confia num conjunto de CAs raiz. Se o certificado do site é assinado por uma CA intermediária, e esta por uma raiz confiável, forma-se uma
+      <strong>cadeia de confiança</strong>, que o cliente verifica elo a elo.
+    </p>
+    <p>
+      O cliente verifica três coisas: a assinatura da cadeia, a validade (datas) e se o nome do certificado corresponde ao que ele quis acessar. Um
+      certificado válido para outro nome não serve, mesmo que a cadeia esteja correta. Falhar qualquer uma das checagens deve interromper a conexão.
+    </p>
+    <p>
+      Note que a confiança é depositada em terceiros. Uma CA comprometida pode emitir certificados falsos para qualquer domínio. Mecanismos como
+      Certificate Transparency existem para tornar essas emissões públicas e auditáveis.
+    </p>
+  </div>
+</section>
+
+<section id="tls" data-toc="Teoria: handshake do TLS 1.3" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-emerald-400 mr-2"></i>Teoria · O handshake do TLS 1.3</h2>
+  <div class="ah-prose">
+    <p>
+      O TLS 1.3 é executado sobre uma conexão TCP já estabelecida (tópico 6). O cliente envia, na primeira mensagem, as versões e os algoritmos que
+      aceita, e já inclui sua parte da troca Diffie-Hellman (<em>key share</em>). Isso permite que o servidor responda com a sua parte e, logo depois do
+      primeiro RTT, os dois já têm a chave para cifrar o restante.
+    </p>
+    <ol>
+      <li><strong>ClientHello:</strong> versões, algoritmos e a parte pública do cliente.</li>
+      <li><strong>ServerHello:</strong> a parte pública do servidor. A partir daqui, o tráfego já é cifrado.</li>
+      <li><strong>Certificate e CertificateVerify:</strong> o servidor envia o certificado e prova que possui a chave privada correspondente, assinando o
+      que foi trocado até então.</li>
+      <li><strong>Finished:</strong> o servidor confirma o handshake, com um código que depende da chave da sessão.</li>
+      <li><strong>Finished do cliente:</strong> o cliente valida o certificado e confirma também.</li>
+    </ol>
+    <p>
+      Em uma conexão nova, o handshake custa um RTT adicional sobre o TCP. Com retomada de sessão (0-RTT), o cliente envia dados junto com o
+      ClientHello, com cuidados contra repetição, porque esses dados podem ser reenviados por um atacante.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: handshake do TLS" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Do ClientHello aos dados cifrados</h2>
+  <p class="ah-lead text-sm mb-4">Cliente e servidor trocam as partes públicas, o servidor prova sua identidade com o certificado, e os dois confirmam. Só então os dados seguem cifrados. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:360px"><canvas id="cvTLS" style="height:360px"></canvas></div>
+  <div id="ctlTLS" class="mt-4"></div>
+  <div id="capTLS" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="firewall" data-toc="Teoria: firewall, IDS e VPN" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-fire-flame-curved text-emerald-400 mr-2"></i>Teoria · Firewall, IDS e VPN</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>firewall</strong> decide, com base em regras, quais pacotes passam. Um firewall sem estado olha cada pacote isoladamente. Um firewall
+      com estado acompanha as conexões (o estado do TCP, do tópico 6), e deixa passar as respostas de conexões abertas por dentro. A política padrão
+      mais segura é negar tudo e permitir só o necessário.
+    </p>
+    <p>
+      Um <strong>IDS</strong> (sistema de detecção de intrusão) observa o tráfego e alerta sobre padrões suspeitos, sem bloquear. Um IPS faz o mesmo e
+      também bloqueia. A diferença importa: um alerta sem resposta humana é só um registro.
+    </p>
+    <p>
+      Uma <strong>VPN</strong> cria um túnel cifrado e autenticado entre dois pontos, e o tráfego que passa por ele fica protegido da rede
+      intermediária. Ela protege o caminho, não o destino: o servidor do outro lado ainda vê o tráfego em claro depois que ele sai do túnel. IPsec e
+      WireGuard são os protocolos mais comuns.
+    </p>
+    <p>
+      Note que nenhum desses mecanismos substitui a criptografia fim a fim. Um firewall não impede um atacante que já está dentro da rede, e uma VPN
+      não protege contra um site malicioso. As camadas se complementam: cada uma resolve um problema específico.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: Diffie-Hellman, HMAC e firewall em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Chave compartilhada, integridade e regras</h2>
+  <div class="ah-prose">
+    <p>
+      O programa usa apenas a biblioteca padrão. A primeira parte mostra a troca Diffie-Hellman com números pequenos, de modo que a álgebra caiba na
+      tela. A segunda usa HMAC-SHA256 para detectar uma alteração de valor. A terceira avalia regras de firewall pela primeira correspondência. Os números
+      pequenos são didáticos: em uso real, o primo tem 2048 bits, ou a troca é feita com curvas elípticas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>09-seguranca-tls.py · verifica</code></p>
+<pre class="ah-code"><code>def etiqueta(chave: bytes, mensagem: bytes) -&gt; str:
+    return hmac.new(chave, mensagem, hashlib.sha256).hexdigest()[:16]
+
+def verifica(chave: bytes, mensagem: bytes, tag: str) -&gt; bool:
+    return hmac.compare_digest(etiqueta(chave, mensagem), tag)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: Diffie-Hellman
+  públicas trocadas: A = 8, B = 19
+  chave calculada por Alice: 2
+  chave calculada por Bob:   2
+  iguais: True
+
+Parte 2: integridade com HMAC
+  mensagem original, tag 7af292432e8c3398: verificada = True
+  mensagem alterada, mesma tag: verificada = False
+  sem a chave, o atacante não gera a tag correta para a nova mensagem
+
+Parte 3: firewall, primeira correspondência
+  tcp/443   -&gt; permitir
+  tcp/23    -&gt; negar
+  udp/53    -&gt; permitir
+  tcp/3389  -&gt; negar
+  udp/123   -&gt; negar</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Repare que a tag da mensagem alterada é a mesma, mas a verificação falha: quem altera o valor de 100 para 900 não consegue recalcular a tag sem
+      a chave. Na parte 3, a porta 3389 (RDP) é negada pela política padrão, porque não há regra que a permita. A política padrão é a parte mais
+      importante de um firewall.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Cadeado no navegador</div>
+      <p class="text-xs text-slate-400">O cadeado indica que a conexão usa TLS e que o certificado do servidor foi validado para aquele nome. Ele não diz nada sobre a honestidade do site, nem sobre o conteúdo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Aviso de certificado</div>
+      <p class="text-xs text-slate-400">Um aviso de certificado vencido ou de nome errado é o sinal de que a cadeia de confiança falhou. Ignorá-lo é aceitar que qualquer um no caminho pode estar lendo a conexão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Wi-Fi público</div>
+      <p class="text-xs text-slate-400">Em uma rede aberta, qualquer um pode ler o tráfego não cifrado e fazer ARP spoofing. Com HTTPS e uma VPN, o conteúdo fica protegido, mas o uso de uma VPN não substitui a atualização do sistema.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Porta aberta na internet</div>
+      <p class="text-xs text-slate-400">Um serviço de administração (SSH ou RDP) exposto à Internet recebe tentativas de acesso o tempo todo. A regra correta é restringir a origem, e não só usar senha forte.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte qual propriedade falta</div>
+      <p class="text-xs text-slate-400">Diante de um problema, pergunte se é confidencialidade, integridade ou autenticidade. Cada uma tem um mecanismo diferente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Negue por padrão</div>
+      <p class="text-xs text-slate-400">Um firewall que permite tudo e bloqueia alguma coisa depende de você ter pensado em tudo. Um que nega tudo e permite o necessário falha de forma segura.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Não crie criptografia própria</div>
+      <p class="text-xs text-slate-400">Use TLS, bibliotecas consolidadas e configurações recomendadas. Erros em protocolos caseiros são comuns e difíceis de ver.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Mantenha as chaves curtas no tempo</div>
+      <p class="text-xs text-slate-400">Renove certificados e chaves com regularidade, e prefira sigilo perfeito para a frente. O vazamento de uma chave antiga não deve expor o passado.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: qual propriedade falhou?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Três incidentes: (a) um atacante lê as senhas de um login em HTTP num Wi-Fi público; (b) um atacante troca o valor de uma transferência num pacote não protegido, sem que o destinatário perceba; (c) um site falso com certificado de outro domínio é aceito pelo usuário. Qual propriedade foi violada em cada um?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> (a) Confidencialidade: o conteúdo foi lido. (b) Integridade: o valor foi alterado sem detecção. (c) Autenticidade: o servidor não provou ser quem dizia, e a validação do nome falhou.</p>
+      <p><strong>Lição.</strong> Cada incidente pede um mecanismo diferente: cifrar, assinar ou validar o certificado.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: o que a VPN protege?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um funcionário usa uma VPN para acessar um site HTTP (sem TLS) a partir de um Wi-Fi público. O que está protegido e o que não está?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O trecho entre o notebook e o gateway da VPN está protegido: quem está no Wi-Fi não lê o tráfego. Depois que o pacote sai do túnel, ele segue em claro até o site HTTP, e qualquer um no caminho até lá pode lê-lo. A VPN não protege o destino.</p>
+      <p><strong>Lição.</strong> A proteção de um túnel vai até a saída do túnel. Para o conteúdo, é preciso TLS fim a fim.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que um HMAC não protege a confidencialidade, mesmo com uma chave secreta?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o HMAC gera uma etiqueta sobre a mensagem, mas não a transforma. Quem vê a mensagem vê o conteúdo em claro. Para confidencialidade, é preciso cifrar; o HMAC só acrescenta a garantia de que a mensagem não foi alterada.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um certificado de exemplo.com foi emitido por uma CA confiável, mas o usuário acessa exemplo.org. O navegador deve aceitar? Por quê?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não. A cadeia pode estar correta, mas o nome do certificado não corresponde ao domínio acessado. A verificação de nome é obrigatória, e falhá-la deve interromper a conexão.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Escreva três regras de firewall para um servidor web que também tem SSH restrito a uma rede de administração (10.0.0.0/24), usando a política de negar por padrão.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> (1) permitir TCP 443 de qualquer origem, para HTTPS; (2) permitir TCP 22 apenas de 10.0.0.0/24; (3) política padrão: negar. Se o servidor também servir HTTP, uma regra TCP 80 para redirecionamento para HTTPS é comum. Discuta por que a regra de SSH precisa de origem, e não só de porta.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual propriedade o HMAC garante?</p>
+      <button class="ah-quiz-opt">Confidencialidade</button>
+      <button class="ah-quiz-opt">Integridade e autenticidade, com chave secreta compartilhada</button>
+      <button class="ah-quiz-opt">Disponibilidade</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O HMAC detecta alteração e prova que quem gerou a etiqueta conhece a chave. Não esconde o conteúdo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que a troca Diffie-Hellman sozinha não garante?</p>
+      <button class="ah-quiz-opt">A identidade de quem está do outro lado</button>
+      <button class="ah-quiz-opt">O sigilo da chave compartilhada</button>
+      <button class="ah-quiz-opt">A ausência de escuta passiva</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem autenticação, um atacante pode participar da troca com cada lado. Por isso ela é combinada com certificados.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em uma VPN, o que fica protegido?</p>
+      <button class="ah-quiz-opt">O conteúdo até o destino final, sempre</button>
+      <button class="ah-quiz-opt">Apenas o nome do domínio acessado</button>
+      <button class="ah-quiz-opt">O trecho entre o cliente e a saída do túnel</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A VPN protege o caminho até a saída do túnel. O destino recebe o tráfego em claro, a não ser que a aplicação use TLS.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Confidencialidade, integridade e autenticidade são propriedades distintas, com mecanismos distintos.</li>
+    <li>Simétrica cifra rápido; assimétrica combina chaves; hash e HMAC detectam alteração.</li>
+    <li>Diffie-Hellman dá sigilo, mas não identidade: a autenticação vem do certificado.</li>
+    <li>No TLS 1.3, o servidor prova sua identidade no handshake, e os dados seguem cifrados.</li>
+    <li>Firewall nega por padrão; VPN protege o caminho, e não o destino.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>DIFFIE, W.; HELLMAN, M. New directions in cryptography. <em>IEEE Transactions on Information Theory</em>, v. 22, n. 6, p. 644–654, 1976.</li>
+    <li>RIVEST, R. L.; SHAMIR, A.; ADLEMAN, L. A method for obtaining digital signatures and public-key cryptosystems. <em>Communications of the ACM</em>, v. 21, n. 2, p. 120–126, 1978.</li>
+    <li>RESCORLA, E. <em>RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3</em>. IETF, 2018.</li>
+    <li>KRAWCZYK, H.; BELLARE, M.; CANETTI, R. <em>RFC 2104: HMAC: Keyed-Hashing for Message Authentication</em>. IETF, 1997.</li>
+    <li>KENT, S.; SEO, K. <em>RFC 4301: Security Architecture for the Internet Protocol</em>. IETF, 2005.</li>
+    <li>DONENFELD, J. A. WireGuard: next generation kernel network tunnel. In: <em>NDSS</em>, 2017.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 8 (segurança em redes de computadores).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 8 (segurança em redes).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Cliente (0) e servidor (1): handshake do TLS 1.3 e dados cifrados */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Cliente', 'Servidor'],
+    intro: 'O cliente quer uma conexão segura com exemplo.com. A conexão TCP já está estabelecida; falta o TLS.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'ClientHello + key share', cap: 'Cliente envia versões, algoritmos aceitos e sua parte pública Diffie-Hellman.', fim: 'Servidor recebe e escolhe os algoritmos.' },
+      { de: 1, para: 0, rotulo: 'ServerHello + key share', cap: 'Servidor responde com a sua parte pública. Os dois já calculam a mesma chave.', fim: 'A partir daqui, o tráfego é cifrado.' },
+      { de: 1, para: 0, rotulo: 'Certificate + Verify', cap: 'Servidor envia o certificado e prova a posse da chave privada, assinando o handshake.', fim: 'Cliente valida a cadeia, o prazo e o nome: exemplo.com confere.' },
+      { de: 1, para: 0, rotulo: 'Finished', cap: 'Servidor confirma o handshake com um código que depende da chave da sessão.', fim: 'Cliente verifica o código: os dois têm a mesma chave.' },
+      { de: 0, para: 1, rotulo: 'Finished', cap: 'Cliente confirma o handshake, também com o código da sessão.', fim: 'Servidor verifica. O handshake está concluído.' },
+      { de: 0, para: 1, rotulo: 'DADOS cifrados', cap: 'Cliente envia a requisição HTTP, já cifrada com a chave da sessão.', fim: 'Servidor decifra. Quem está no meio só vê bytes sem sentido.' },
+      { de: 1, para: 0, rotulo: 'DADOS cifrados', cap: 'Servidor responde, também cifrado.', fim: 'Cliente decifra a resposta. Sigilo perfeito para a frente: a chave de sessão foi descartada depois.' }
+    ]
+  }), {
+    canvas: 'cvTLS', ctl: 'ctlTLS', cap: 'capTLS', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>

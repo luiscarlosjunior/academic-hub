@@ -342,7 +342,10 @@ const AH_DATA = {
           tags: ['Congestionamento', 'AIMD', 'QoS'], nivel: 'Avançado', minutos: 70 },
         { id: '08-dns-http', titulo: 'Camada de aplicação: DNS, HTTP e a evolução para HTTP/3', icone: 'fa-globe',
           resumo: 'Hierarquia e delegação do DNS, resolução iterativa e cache por TTL, registros, requisições HTTP com Host, e HTTP/1.1, HTTP/2 e HTTP/3 sobre QUIC.',
-          tags: ['DNS', 'HTTP', 'QUIC'], nivel: 'Intermediário', minutos: 65 }
+          tags: ['DNS', 'HTTP', 'QUIC'], nivel: 'Intermediário', minutos: 65 },
+        { id: '09-seguranca-tls', titulo: 'Segurança de redes: criptografia, TLS, firewalls e VPN', icone: 'fa-shield-halved',
+          resumo: 'Confidencialidade, integridade e autenticidade, criptografia simétrica e assimétrica, Diffie-Hellman, certificados, o handshake do TLS 1.3, firewalls e VPN.',
+          tags: ['TLS', 'Criptografia', 'Firewall'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]
