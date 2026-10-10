@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transporte: UDP, TCP, handshake e janela deslizante · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Portas e multiplexação, UDP sem conexão, TCP com handshake de três vias, números de sequência, ACK cumulativo, timeouts e encerramento com FIN, com animação de uma conexão completa, exemplo em Python com saída real e citações das RFCs 768 e 793.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/06-udp-tcp">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>Tópico 6 · Transporte: UDP e TCP</h2>
+  <div class="ah-prose">
+    <p>
+      A camada de rede entrega pacotes entre hosts, mas não sabe qual programa deve receber cada um. Também não garante que os pacotes cheguem,
+      nem na ordem certa. A camada de transporte resolve esses dois problemas. Ela multiplexa a comunicação entre processos por meio de
+      <strong>portas</strong> e, conforme o protocolo escolhido, oferece ou não confiabilidade. Os dois protocolos principais são o UDP, que é
+      quase só portas, e o TCP, que acrescenta entrega confiável, ordem, controle de fluxo e controle de congestionamento.
+    </p>
+    <p>
+      Esta página trata de como uma conexão TCP começa, transfere dados com números de sequência e confirmações, se recupera de perdas e termina.
+      O controle de congestionamento, que é a parte mais sutil, fica para o tópico 7.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar a multiplexação por portas e o par (endereço, porta) que identifica um processo;</li>
+      <li>decidir quando usar UDP e quando usar TCP, com justificativa;</li>
+      <li>descrever o handshake de três vias e o que cada número de sequência significa;</li>
+      <li>explicar o ACK cumulativo, o buffer de recepção e por que dois ACKs duplicados não bastam para retransmissão rápida;</li>
+      <li>descrever os estados principais de uma conexão, do SYN_SENT ao TIME_WAIT.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Nos primeiros projetos, um único protocolo misturava o encaminhamento de datagramas com a entrega confiável de fluxos. Ao longo da década de
+      1970, essas funções foram separadas: o IP ficou com o endereçamento e o encaminhamento, e o TCP com a confiabilidade. Essa separação abriu
+      espaço para o UDP, publicado em 1980 como RFC 768, para aplicações que preferem controlar a própria confiabilidade, como a voz e o jogo em
+      tempo real. A RFC 793, de 1981, é a especificação do TCP que vigorou por décadas.
+    </p>
+    <p>
+      Sobre a motivação do TCP, a RFC 793 abre dizendo:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "The Transmission Control Protocol (TCP) is intended for use as a highly reliable host-to-host protocol between hosts in packet-switched computer communication networks"
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 793 (Postel, 1981), seção 1. Tradução nossa: o Protocolo de Controle de Transmissão (TCP) destina-se a ser um protocolo host a host altamente confiável em redes de comutação de pacotes.</p>
+  </div>
+</section>
+
+<section id="portas" data-toc="Teoria: portas e multiplexação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-door-open text-emerald-400 mr-2"></i>Teoria · Portas e multiplexação</h2>
+  <div class="ah-prose">
+    <p>
+      Uma porta é um número de 16 bits no cabeçalho de transporte. Um processo que escuta uma porta é um <strong>serviço</strong>: HTTP usa a 80,
+      HTTPS a 443, DNS a 53. Do lado do cliente, a porta de origem é escolhida pelo sistema, em geral entre 49152 e 65535, e muda a cada conexão.
+    </p>
+    <p>
+      Uma conexão TCP é identificada pelas quatro informações: IP de origem, porta de origem, IP de destino e porta de destino. Dois navegadores
+      no mesmo computador acessando o mesmo servidor têm portas de origem diferentes, e por isso não se confundem. É essa quádrupla que o sistema
+      operacional usa para entregar cada segmento ao processo certo.
+    </p>
+  </div>
+</section>
+
+<section id="udp" data-toc="Teoria: UDP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-emerald-400 mr-2"></i>Teoria · UDP: o mínimo necessário</h2>
+  <div class="ah-prose">
+    <p>
+      O UDP tem cabeçalho de 8 bytes, com porta de origem, porta de destino, tamanho e uma soma de verificação opcional em IPv4. Não há conexão,
+      não há números de sequência, não há confirmação e não há controle de congestionamento. A RFC 768 descreve o protocolo nestes termos:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "The protocol is transaction oriented, and delivery and duplicate protection are not guaranteed."
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 768 (Postel, 1980), seção de introdução. Tradução nossa: o protocolo é orientado a transações, e a entrega e a proteção contra duplicatas não são garantidas.</p>
+    <p>
+      Parece pouco, e é. Justamente por isso o UDP é usado quando o atraso importa mais que a perda: voz e vídeo em tempo real, jogos, consultas
+      DNS (uma pergunta e uma resposta), e o próprio QUIC, que implementa sua confiabilidade em espaço de usuário. Uma aplicação que usa UDP
+      precisa tratar perda, duplicação e reordenação por conta própria, se precisar disso.
+    </p>
+  </div>
+</section>
+
+<section id="tcp" data-toc="Teoria: TCP e o segmento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-emerald-400 mr-2"></i>Teoria · TCP: confiabilidade construída sobre o IP</h2>
+  <div class="ah-prose">
+    <p>
+      O TCP transforma um fluxo de bytes em segmentos, numera cada byte e exige confirmação. O cabeçalho tem 20 bytes sem opções, e os campos que
+      importam são: porta de origem e destino, <strong>número de sequência</strong> (o primeiro byte do segmento), <strong>número de confirmação</strong>
+      (o próximo byte esperado), flags (SYN, ACK, FIN, RST, PSH), <strong>janela de recepção</strong> (quantos bytes o receptor aceita) e a soma
+      de verificação.
+    </p>
+    <p>
+      Os números de sequência começam em um valor inicial aleatório (ISN), para evitar confusão entre conexões antigas e novas. Isso importa para
+      segurança: um ISN previsível permitia forjar segmentos, e por isso ele é gerado com aleatoriedade criptográfica nas implementações atuais.
+    </p>
+    <p><strong>Handshake de três vias.</strong></p>
+    <ol>
+      <li>O cliente envia SYN com seq = x. Ele está em SYN_SENT.</li>
+      <li>O servidor responde SYN-ACK com seq = y e ack = x + 1. Ele está em SYN_RCVD.</li>
+      <li>O cliente envia ACK com ack = y + 1. Os dois estão em ESTABLISHED.</li>
+    </ol>
+    <p>
+      O handshake existe para que os dois lados confirmem que podem enviar e receber, e para sincronizar os ISNs. Ele custa um RTT antes do primeiro dado,
+      e é por isso que conexões de longa distância sentem a latência tanto.
+    </p>
+    <p><strong>ACK cumulativo e buffer.</strong> O ACK diz "recebi tudo até o byte k − 1". Se o segmento 601 se perdeu e o 1101 chegou, o receptor
+    guarda o 1101 em buffer e repete o ACK de 601. Quando o 601 chega, ele entrega tudo o que está contíguo de uma vez e confirma até o próximo
+    buraco. Por isso um único ACK pode confirmar vários segmentos.</p>
+    <p><strong>Retransmissão.</strong> O remetente retransmite quando o temporizador expira. Três ACKs duplicados também indicam perda de um segmento,
+    e disparam a retransmissão rápida, sem esperar o temporizador. Dois ACKs duplicados não bastam: é preciso o terceiro. O tempo do temporizador é
+    calculado a partir do RTT medido, com a fórmula da RFC 6298, que pondera a média e a variação do RTT.</p>
+    <p><strong>Controle de fluxo.</strong> O campo de janela informa quanto espaço o receptor tem livre. O remetente nunca envia além dessa janela,
+    para não sobrecarregar um receptor lento. Isso é controle de fluxo, e é diferente de controle de congestionamento: o primeiro protege o receptor,
+    o segundo protege a rede.</p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Estado</th><th>Lado</th><th>O que significa</th></tr></thead>
+      <tbody>
+        <tr><td>CLOSED</td><td>ambos</td><td>sem conexão</td></tr>
+        <tr><td>LISTEN</td><td>servidor</td><td>aguardando SYN</td></tr>
+        <tr><td>SYN_SENT / SYN_RCVD</td><td>cliente / servidor</td><td>no meio do handshake</td></tr>
+        <tr><td>ESTABLISHED</td><td>ambos</td><td>transferindo dados</td></tr>
+        <tr><td>FIN_WAIT_1 / FIN_WAIT_2</td><td>quem fecha primeiro</td><td>FIN enviado, aguardando o outro</td></tr>
+        <tr><td>CLOSE_WAIT / LAST_ACK</td><td>quem recebe o FIN</td><td>a aplicação ainda pode terminar de enviar</td></tr>
+        <tr><td>TIME_WAIT</td><td>quem fecha primeiro</td><td>espera 2 × MSL para absorver segmentos atrasados</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: uma conexão completa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Handshake, perda e encerramento</h2>
+  <p class="ah-lead text-sm mb-4">O cliente abre a conexão, envia 2000 bytes em três segmentos, e o segmento de seq 601 se perde. O receptor guarda os que chegaram e confirma de forma cumulativa. Depois do timeout, o 601 é reenviado e um único ACK confirma tudo. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:420px"><canvas id="cvTCP" style="height:420px"></canvas></div>
+  <div id="ctlTCP" class="mt-4"></div>
+  <div id="capTCP" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: TCP simulado em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Handshake, perda e ACK cumulativo</h2>
+  <div class="ah-prose">
+    <p>
+      O programa simula a mesma conexão da animação, sem sockets, para que a saída seja sempre igual. O receptor tem buffer para segmentos fora de
+      ordem; o remetente registra os ACKs duplicados e reenvia o segmento perdido após o timeout. A última parte compara os cabeçalhos de UDP e TCP.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>06-udp-tcp.py · Receptor.recebe</code></p>
+<pre class="ah-code"><code>def recebe(self, seq, tamanho):
+    if seq == self.esperado:
+        self.esperado += tamanho
+        while self.esperado in self.buffer:          # entrega o que ficou contíguo
+            self.esperado += self.buffer.pop(self.esperado)
+    elif seq > self.esperado:
+        self.buffer[seq] = tamanho                   # guarda: fora de ordem
+    return self.esperado                             # ACK cumulativo</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: handshake e encerramento
+  C -> S  SYN      seq=100                   CLOSED -> SYN_SENT
+  S -> C  SYN-ACK  seq=300 ack=101              LISTEN -> SYN_RCVD
+  C -> S  ACK      seq=101 ack=301              ESTABLISHED nos dois lados
+
+Parte 2: transferência de 2000 bytes, segmento seq=601 perdido
+  C -> S  seq= 101 len=500   S -> C  ack=601
+  C -> S  seq= 601 len=500  PERDIDO no caminho
+  C -> S  seq=1101 len=500   S -> C  ack=601
+  C -> S  seq=1601 len=500   S -> C  ack=601
+  ACKs duplicados recebidos pelo remetente: 2
+  três são necessários para retransmissão rápida; com 2, espera o temporizador
+  temporizador expira: C reenvia seq=601 len=500
+  S -> C  ack=2101: o buffer entregou 601, 1101 e 1601 de uma vez
+  total confirmado: 2000 bytes de 2000
+
+Parte 3: encerramento com FIN
+  C -> S  FIN      seq=2101           ESTABLISHED -> FIN_WAIT_1
+  S -> C  ACK      ack=2102           CLOSE_WAIT
+  S -> C  FIN      seq=301                LAST_ACK
+  C -> S  ACK      ack=302                TIME_WAIT (espera 2 x MSL)
+
+Parte 4: cabeçalhos
+  UDP, 100 bytes de dados: {'cabecalho': 8, 'total': 108}
+  TCP, 100 bytes de dados: {'cabecalho': 20, 'total': 120}
+  TCP com timestamp (12 bytes de opção): {'cabecalho': 32, 'total': 132}</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Repare que o ACK 601 aparece três vezes: uma para o primeiro segmento e duas duplicadas. A quarta confirmação, a de 2101, chega depois do
+      reenvio e confirma os três segmentos de uma vez. Note também que o servidor usa seu próprio espaço de sequência (301) no FIN: os dois lados numeram
+      seus bytes de forma independente.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Chamada de vídeo</div>
+      <p class="text-xs text-slate-400">Usa UDP (e, em muitos casos, QUIC). Um pacote perdido vira um pixel errado por um instante, e não uma pausa de meio segundo esperando retransmissão. Para voz, um atraso de centenas de milissegundos é pior que um chiado.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Download de arquivo</div>
+      <p class="text-xs text-slate-400">Usa TCP. Um byte corrompido ou faltando estragaria o arquivo, então a confiabilidade vale o custo do handshake e da retransmissão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">"Porta já em uso" ao reiniciar um servidor</div>
+      <p class="text-xs text-slate-400">Após fechar um servidor, a conexão pode ficar em TIME_WAIT por até dois minutos. Reabrir a mesma porta falha até o estado expirar; a solução usual é a opção SO_REUSEADDR.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Muitas conexões em SYN_RCVD</div>
+      <p class="text-xs text-slate-400">Um ataque de SYN flood envia SYNs sem completar o handshake, e lota a fila de conexões half-open do servidor. Cookies de SYN e limites por origem são as defesas usadas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte: preciso de entrega?</div>
+      <p class="text-xs text-slate-400">Se a aplicação prefere um dado atrasado a um dado perdido, UDP. Se prefere um dado correto a um dado rápido, TCP. Esse é o critério principal.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Identifique a conexão por quatro campos</div>
+      <p class="text-xs text-slate-400">Ao investigar conexões, use IP e porta de origem e de destino juntos. Olhar só a porta de destino mistura clientes diferentes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Espere o RTT antes de concluir</div>
+      <p class="text-xs text-slate-400">Um "timeout" pode ser só um RTT longo. Calcule o RTT do enlace antes de dimensionar temporizadores e janelas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Leia os estados</div>
+      <p class="text-xs text-slate-400">Um servidor com muitas conexões em CLOSE_WAIT tem uma aplicação que não fecha os sockets. Muitas em TIME_WAIT indicam o oposto: quem fecha primeiro é o servidor, e isso pode ser ajustado.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: qual o número de ACK após um reenvio?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> O cliente envia três segmentos de 500 bytes, com seq 101, 601 e 1101. O de seq 101 chega, o de seq 601 se perde, e o de seq 1101 chega. Qual ACK o servidor envia após cada chegada? Qual o ACK após o reenvio do 601?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Após o 101: ack = 601 (próximo byte esperado). Após o 1101: ack = 601 de novo, porque o 601 ainda não chegou; esse é um ACK duplicado. Após o reenvio do 601, o receptor entrega 601 e 1101, e confirma: ack = 1601.</p>
+      <p><strong>Lição.</strong> O ACK sempre aponta para o primeiro byte que falta, e não para o último que chegou.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quando o UDP é melhor que o TCP?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um sensor envia leituras de temperatura a cada segundo para um painel. Cada leitura substitui a anterior. TCP ou UDP? Justifique.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> UDP. Uma leitura antiga perdida não tem valor, porque a próxima já a substitui. Com TCP, uma perda travaria a entrega das leituras seguintes até a retransmissão, e o painel mostraria um valor atrasado. O custo do handshake e do controle de estado também seria desperdício para mensagens de poucos bytes.</p>
+      <p><strong>Lição.</strong> Quando cada mensagem substitui a anterior, a confiabilidade ordenada é um custo sem benefício.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um servidor tem 10 mil conexões em CLOSE_WAIT. O que isso sugere, e de quem é o problema: do cliente ou do servidor?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> CLOSE_WAIT significa que o outro lado enviou FIN e o servidor ainda não fechou seu lado. O problema está no servidor: a aplicação não chama close() depois de receber o FIN. O cliente fez sua parte.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que o TIME_WAIT existe? O que aconteceria se uma conexão fosse fechada sem esse estado?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> ele garante que segmentos atrasados de uma conexão antiga não sejam aceitos por uma conexão nova com a mesma quádrupla. Sem o TIME_WAIT, um segmento tardio poderia ser entregue como se fosse da conexão nova. O custo é manter a quádrupla reservada por 2 × MSL.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um enlace tem RTT de 200 ms e o cliente envia uma requisição HTTP curta. Quanto tempo leva até a primeira resposta chegar, considerando handshake TCP e a requisição, sem TLS?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o handshake custa 1 RTT (200 ms) até o cliente ter ESTABLISHED e enviar a requisição junto com o ACK. A requisição chega em meio RTT e a resposta volta em meio RTT. Total aproximado: 2 RTT = 400 ms. Com TLS 1.3, mais 1 RTT, a menos que haja 0-RTT.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o número de confirmação (ack) em um SYN-ACK, se o SYN do cliente tinha seq = 500?</p>
+      <button class="ah-quiz-opt">500</button>
+      <button class="ah-quiz-opt">501</button>
+      <button class="ah-quiz-opt">502</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O SYN ocupa um número de sequência, então o ack aponta para 501, o próximo esperado.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O receptor recebe os segmentos 1101 e 1601, mas não o 601. Qual é o ACK enviado?</p>
+      <button class="ah-quiz-opt">1601</button>
+      <button class="ah-quiz-opt">1101</button>
+      <button class="ah-quiz-opt">601</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O ACK cumulativo confirma só o que está contíguo a partir do início. O primeiro byte que falta é o 601.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual a diferença entre controle de fluxo e controle de congestionamento?</p>
+      <button class="ah-quiz-opt">O fluxo protege o receptor; o congestionamento protege a rede</button>
+      <button class="ah-quiz-opt">São o mesmo mecanismo com nomes diferentes</button>
+      <button class="ah-quiz-opt">O fluxo é do UDP, e o congestionamento é do TCP</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A janela anunciada pelo receptor limita o fluxo; a janela de congestionamento, mantida pelo remetente, limita o que a rede aguenta.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Portas identificam processos; a conexão TCP é identificada pela quádrupla IP e porta de origem e de destino.</li>
+    <li>UDP entrega com mínimo de mecanismo; TCP acrescenta confiabilidade, ordem e fluxo.</li>
+    <li>O handshake de três vias sincroniza os números de sequência e custa um RTT.</li>
+    <li>O ACK é cumulativo e aponta para o primeiro byte que falta.</li>
+    <li>Três ACKs duplicados disparam retransmissão rápida; o temporizador é o último recurso.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>POSTEL, J. <em>RFC 768: User Datagram Protocol</em>. IETF, 1980.</li>
+    <li>POSTEL, J. <em>RFC 793: Transmission Control Protocol</em>. IETF, 1981.</li>
+    <li>POSTEL, J. <em>RFC 760: DoD Standard Internet Protocol</em>. IETF, 1980.</li>
+    <li>PAXSON, V. et al. <em>RFC 6298: Computing TCP's Retransmission Timer</em>. IETF, 2011.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 3 (camada de transporte: UDP, TCP e transferência confiável).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 6 (camada de transporte).</li>
+    <li>STEVENS, W. R. <em>TCP/IP Illustrated, Volume 1: The Protocols</em>. Reading: Addison-Wesley, 1994. (Referência prática para o handshake e os estados.)</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Cliente (C) e servidor (S): handshake, dados com perda, reenvio e encerramento */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Cliente (C)', 'Servidor (S)'],
+    intro: 'Duas aplicações querem conversar. Nenhum byte foi trocado: a conexão começa com o handshake.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'SYN seq=100', cap: 'C envia SYN com seq = 100 (ISN). C vai a SYN_SENT.', fim: 'S recebe o SYN e vai a SYN_RCVD.' },
+      { de: 1, para: 0, rotulo: 'SYN-ACK 300/101', cap: 'S responde SYN-ACK: seq = 300 e ack = 101.', fim: 'C confirma que o SYN de S foi recebido.' },
+      { de: 0, para: 1, rotulo: 'ACK 301', cap: 'C envia ACK = 301. Os dois lados estão em ESTABLISHED.', fim: 'S conclui o handshake: conexão aberta.' },
+      { de: 0, para: 1, rotulo: 'DADOS seq=101', cap: 'C envia 500 bytes, de seq 101 a 600.', fim: 'S recebe em ordem e avança o ack para 601.' },
+      { de: 1, para: 0, rotulo: 'ACK 601', cap: 'S confirma até o byte 600: ack = 601.', fim: 'C avança a base da janela.' },
+      { de: 0, para: 1, rotulo: 'DADOS seq=601', perdida: true, cap: 'C envia o segmento seq 601, mas ele se perde no caminho.', fim: 'S nunca recebe o 601. Ele não sabe que o segmento existe.' },
+      { de: 0, para: 1, rotulo: 'DADOS seq=1101', cap: 'C envia o segmento seq 1101, que segue na janela.', fim: 'S recebe fora de ordem: guarda em buffer.' },
+      { de: 1, para: 0, rotulo: 'ACK 601 (dup)', cap: 'S repete ACK 601: ainda falta o byte 601.', fim: 'C recebe um ACK duplicado. Ainda não são três: nada acontece.' },
+      { de: 0, para: 1, rotulo: 'DADOS seq=1601', cap: 'C envia o segmento seq 1601.', fim: 'S guarda o segmento também em buffer.' },
+      { de: 1, para: 0, rotulo: 'ACK 601 (dup)', cap: 'S repete ACK 601 de novo: o segundo duplicado.', fim: 'C tem dois duplicados. Não basta: espera o temporizador.' },
+      { de: 0, para: 1, rotulo: 'REENVIO seq=601', cap: 'O temporizador expira. C reenvia apenas o segmento 601.', fim: 'S recebe o 601 e encaixa os guardados: 601, 1101 e 1601.' },
+      { de: 1, para: 0, rotulo: 'ACK 2101', cap: 'S confirma tudo de uma vez: ack = 2101, o cumulativo.', fim: 'C recebe um único ACK que cobre os três segmentos.' },
+      { de: 0, para: 1, rotulo: 'FIN seq=2101', cap: 'C termina e envia FIN. C vai a FIN_WAIT_1.', fim: 'S recebe o FIN.' },
+      { de: 1, para: 0, rotulo: 'ACK 2102', cap: 'S confirma o FIN. S vai a CLOSE_WAIT, e a aplicação ainda pode enviar.', fim: 'C vai a FIN_WAIT_2.' },
+      { de: 1, para: 0, rotulo: 'FIN seq=301', cap: 'S termina e envia o próprio FIN, com seu espaço de sequência. S vai a LAST_ACK.', fim: 'C recebe o FIN de S.' },
+      { de: 0, para: 1, rotulo: 'ACK 302', cap: 'C confirma. C vai a TIME_WAIT e espera 2 × MSL antes de liberar a porta.', fim: 'S fecha a conexão. Quem fechou primeiro ficou em TIME_WAIT.' }
+    ]
+  }), {
+    canvas: 'cvTCP', ctl: 'ctlTCP', cap: 'capTCP', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>

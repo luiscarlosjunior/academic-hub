@@ -333,7 +333,10 @@ const AH_DATA = {
           tags: ['IPv4', 'Sub-redes', 'ARP'], nivel: 'Fundamental', minutos: 60 },
         { id: '05-roteamento', titulo: 'Roteamento: vetor de distância, estado de enlace e BGP', icone: 'fa-route',
           resumo: 'Tabela de encaminhamento e prefixo mais longo, Bellman-Ford e a contagem ao infinito, Dijkstra no estado de enlace, sistemas autônomos e a política do BGP.',
-          tags: ['Roteamento', 'OSPF', 'BGP'], nivel: 'Intermediário', minutos: 65 }
+          tags: ['Roteamento', 'OSPF', 'BGP'], nivel: 'Intermediário', minutos: 65 },
+        { id: '06-udp-tcp', titulo: 'Transporte: UDP, TCP, handshake e janela deslizante', icone: 'fa-right-left',
+          resumo: 'Portas e a quádrupla de uma conexão, UDP sem garantias, handshake de três vias, ACK cumulativo, retransmissão e os estados do encerramento.',
+          tags: ['UDP', 'TCP', 'Handshake'], nivel: 'Intermediário', minutos: 65 }
       ]
     }
   ]
