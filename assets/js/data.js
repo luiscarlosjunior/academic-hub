@@ -233,9 +233,39 @@ const AH_DATA = {
       descricao:
         'Como vários computadores trabalham como um único sistema: tempo e ordem de eventos, consistência, falhas, escalabilidade e a infraestrutura de cloud que sustenta os serviços do dia a dia.',
       topicos: [
-        { id: '01-sistemas-distribuidos', titulo: 'Sistemas Distribuídos: tempo, consistência e escala na cloud', icone: 'fa-network-wired',
-          resumo: 'Por que a ordem dos eventos é difícil em rede, relógios de Lamport, hash consistente, o teorema CAP e o que a cloud oferece.',
-          tags: ['Distribuído', 'Lamport', 'CAP', 'Cloud'], nivel: 'Introdutório', minutos: 45 }
+        { id: '01-sistemas-distribuidos', titulo: 'Introdução a sistemas distribuídos: metas, modelos e falhas', icone: 'fa-network-wired',
+          resumo: 'O que é um sistema distribuído, suas metas, modelos de sincronia e de falha, as falácias da rede e a rede assíncrona.',
+          tags: ['Metas', 'Modelos', 'Falácias'], nivel: 'Introdutório', minutos: 60 },
+        { id: '02-arquiteturas-comunicacao', titulo: 'Arquiteturas e comunicação: RPC, mensagens e semântica de entrega', icone: 'fa-diagram-project',
+          resumo: 'Estilos arquiteturais, sockets, RPC, at-most-once, at-least-once e idempotência com identificadores de requisição.',
+          tags: ['RPC', 'Idempotência', 'Semântica'], nivel: 'Fundamental', minutos: 60 },
+        { id: '03-relogios-ordenacao', titulo: 'Relógios e ordenação de eventos: happened-before, Lamport e vetorial', icone: 'fa-clock',
+          resumo: 'Por que relógios físicos não bastam, a relação happened-before, carimbos de Lamport e vetores para detectar concorrência.',
+          tags: ['Lamport', 'Vetorial', 'Causalidade'], nivel: 'Intermediário', minutos: 55 },
+        { id: '04-exclusao-mutua-eleicao', titulo: 'Exclusão mútua e eleição de líder', icone: 'fa-user-lock',
+          resumo: 'Token em anel, Ricart e Agrawala, quóruns de Maekawa, eleição de Chang e Roberts e Bully, e fencing tokens.',
+          tags: ['Exclusão mútua', 'Eleição', 'Fencing'], nivel: 'Intermediário', minutos: 60 },
+        { id: '05-replicacao-consistencia', titulo: 'Replicação e modelos de consistência', icone: 'fa-copy',
+          resumo: 'Líder-seguidor, multi-líder e sem líder, linearizabilidade, consistência causal e eventual, e quóruns com W + R > N.',
+          tags: ['Quóruns', 'Consistência', 'Réplicas'], nivel: 'Avançado', minutos: 60 },
+        { id: '06-consenso-tolerancia-falhas', titulo: 'Consenso e tolerância a falhas: Paxos, Raft e FLP', icone: 'fa-gavel',
+          resumo: 'O problema do consenso, o resultado de FLP, quóruns 2f+1 e 3f+1, Paxos, Raft com termos e votos, e BFT.',
+          tags: ['Consenso', 'Raft', 'FLP'], nivel: 'Avançado', minutos: 65 },
+        { id: '07-transacoes-distribuidas', titulo: 'Transações distribuídas: commit em duas fases e sagas', icone: 'fa-right-left',
+          resumo: 'ACID entre sistemas, o 2PC e seu bloqueio, Paxos Commit, sagas com compensação e o padrão outbox.',
+          tags: ['2PC', 'Sagas', 'Outbox'], nivel: 'Avançado', minutos: 60 },
+        { id: '08-particionamento-cap', titulo: 'Particionamento, hash consistente e o teorema CAP', icone: 'fa-circle-nodes',
+          resumo: 'Particionamento por intervalo e por hash, nós virtuais, o teorema CAP com precisão e PACELC.',
+          tags: ['Particionamento', 'CAP', 'PACELC'], nivel: 'Intermediário', minutos: 55 },
+        { id: '09-computacao-nuvem', titulo: 'Computação em nuvem: modelos de serviço, elasticidade e custo', icone: 'fa-cloud-arrow-up',
+          resumo: 'A definição do NIST, IaaS, PaaS e SaaS, virtualização, escalonamento automático com atraso e disponibilidade por zonas.',
+          tags: ['NIST', 'Elasticidade', 'Custo'], nivel: 'Introdutório', minutos: 50 },
+        { id: '10-containers-microsservicos', titulo: 'Containers, orquestração e microsserviços', icone: 'fa-boxes-stacked',
+          resumo: 'Namespaces e cgroups, a arquitetura do Kubernetes, o laço de reconciliação e os custos dos microsserviços.',
+          tags: ['Containers', 'Kubernetes', 'Microsserviços'], nivel: 'Intermediário', minutos: 60 },
+        { id: '11-serverless-resiliencia', titulo: 'Serverless e padrões de resiliência', icone: 'fa-shield-halved',
+          resumo: 'Funções sem servidor e o início a frio, filas com fila de mensagens mortas, timeout, backoff com jitter, disjuntor e degradação.',
+          tags: ['Serverless', 'Disjuntor', 'Backoff'], nivel: 'Avançado', minutos: 60 }
       ]
     }
   ]
