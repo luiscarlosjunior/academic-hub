@@ -83,6 +83,23 @@ A disciplina é dividida em duas trilhas, selecionáveis por abas na página da 
 | 10 | Grafos | Lista de adjacências, BFS, DFS, componentes, Dijkstra, topológica |
 | 11 | Padrões de resolução de problemas | Roteiro de seis passos e os principais padrões, com código |
 
+**Disciplina — Infraestrutura de Redes (12 tópicos)**
+
+| # | Tópico | Conteúdo |
+|---|--------|----------|
+| 01 | Modelos em camadas: OSI, TCP/IP e encapsulamento | Sete e quatro camadas, unidades de dados, princípios de projeto e a pilha em animação |
+| 02 | Camada física e de enlace | Transmissão, propagação e a razão *a*, CRC-32, ARQ, Go-Back-N e repetição seletiva |
+| 03 | Ethernet, switches e VLANs | Quadro e MAC, aprendizado, flood, spanning tree e 802.1Q |
+| 04 | Endereçamento IPv4, sub-redes, CIDR e ARP | Máscara, cálculo de sub-redes, envio direto ou gateway e resolução de endereços |
+| 05 | Roteamento | Tabela de encaminhamento, vetor de distância e contagem ao infinito, Dijkstra, BGP |
+| 06 | Transporte: UDP, TCP, handshake e janela | Portas, handshake de três vias, ACK cumulativo, retransmissão e encerramento |
+| 07 | Controle de congestionamento e QoS | Slow start, AIMD, Tahoe × Reno, bufferbloat, DiffServ e balde de fichas |
+| 08 | Camada de aplicação: DNS, HTTP e HTTP/3 | Hierarquia e cache do DNS, cabeçalho Host, HTTP/2 e QUIC |
+| 09 | Segurança: criptografia, TLS, firewall e VPN | CIA, Diffie-Hellman, certificados, handshake do TLS 1.3, firewall e VPN |
+| 10 | NAT, DHCP e IPv6 | NAPT, Discover–Offer–Request–Ack, compressão e EUI-64 |
+| 11 | Redes avançadas: SDN, NFV e leaf-spine | Planos de controle e de dados, tabelas de fluxos, oversubscription e ECMP |
+| 12 | Redes em cloud e diagnóstico | VPC, rotas, grupos de segurança × ACLs, traceroute e método por camadas |
+
 ---
 
 ## Como publicar no GitHub Pages
@@ -119,6 +136,10 @@ academic-hub/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (11 páginas)
 │       └── exemplos-c/              # programas em C de cada tópico (compiláveis com -Wall -Wextra -pedantic)
+│   └── infraestrutura-redes/
+│       ├── index.html
+│       ├── topicos/                 # uma página completa por tópico (12 páginas)
+│       └── exemplos-python/         # programas em Python de cada tópico (só biblioteca padrão, saída real na página)
 └── simuladores/
     ├── busca-cega-visual.html       # laboratório BFS × DFS em tela cheia
     └── busca-heuristica-visual.html # laboratório gulosa × A* em tela cheia
