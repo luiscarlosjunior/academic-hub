@@ -967,4 +967,258 @@
     geraEntregas,
     desenhaEntregas
   };
+  /* ===================================================================
+     1b. DETECTOR DE FALHAS POR TIMEOUT (tópico 1)
+     B envia heartbeats; A suspeita de B quando passa T sem receber nenhum.
+     Opção "atraso": B está vivo, e um heartbeat apenas atrasou (falsa suspeita).
+     Opção "queda": B cai, e a suspeita está correta.
+     =================================================================== */
+  function geraDetector(opcao) {
+    const T = 3;
+    const hbs = opcao === 'queda'
+      ? [{ env: 0, chega: 1 }, { env: 2, chega: 3 }]
+      : [{ env: 0, chega: 1 }, { env: 2, chega: 6 }, { env: 4, chega: 5 }];
+    const quadros = [];
+    let suspeitoAnt = false;
+    for (let t = 0; t <= 6; t++) {
+      const chegados = hbs.filter(h => h.chega <= t);
+      const ultimo = chegados.length ? Math.max(...chegados.map(h => h.chega)) : 0;
+      const suspeito = t - ultimo >= T;
+      let txt;
+      if (suspeito && !suspeitoAnt) {
+        txt = opcao === 'queda'
+          ? 'A passa a suspeitar de B: já são 3 unidades sem heartbeat. B caiu de fato, então a suspeita está correta.'
+          : 'A passa a suspeitar de B: 3 unidades sem heartbeat. Mas B está vivo, e a mensagem apenas não chegou.';
+      } else if (!suspeito && suspeitoAnt) {
+        txt = 'A revoga a suspeita: o heartbeat chegou, atrasado. B nunca tinha caído. Detectores por timeout em rede assíncrona erram assim.';
+      } else if (suspeito) {
+        txt = opcao === 'queda'
+          ? 'A mantém a suspeita: nenhum heartbeat chegou desde t = ' + ultimo + '.'
+          : 'A mantém a suspeita, porque o heartbeat ainda não chegou.';
+      } else {
+        txt = 'A confia em B: o último heartbeat chegou em t = ' + ultimo + '.';
+      }
+      suspeitoAnt = suspeito;
+      quadros.push({ tempo: t, hbs, suspeito, t: txt });
+    }
+    return quadros;
+  }
+
+  function desenhaDetector(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const x0 = 120, x1 = w - 40, yA = h * 0.3, yB = h * 0.7;
+    const X = t => x0 + (t / 6) * (x1 - x0);
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = 'rgba(148,163,184,.3)';
+    ctx.beginPath(); ctx.moveTo(x0, yA); ctx.lineTo(x1, yA); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, yB); ctx.lineTo(x1, yB); ctx.stroke();
+    ctx.setLineDash([]);
+    rotulo(ctx, 'A (monitor)', 14, yA, CORES.txt);
+    rotulo(ctx, 'B (processo)', 14, yB, CORES.txt);
+
+    q.hbs.forEach(hb => {
+      if (hb.env > q.tempo) return;
+      const x1h = X(hb.chega), y1h = yA;
+      if (hb.chega <= q.tempo) {
+        global.AH.arrow(ctx, X(hb.env), yB, x1h, y1h, CORES.verde, true);
+      } else {
+        const f = (q.tempo - hb.env) / (hb.chega - hb.env);
+        const px = X(hb.env) + (x1h - X(hb.env)) * f;
+        const py = yB + (y1h - yB) * f;
+        ctx.strokeStyle = CORES.azul;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(X(hb.env), yB); ctx.lineTo(px, py); ctx.stroke();
+        bolha(ctx, px, py, 8, CORES.azul, '');
+      }
+    });
+
+    const cor = q.suspeito ? CORES.rosa : CORES.verde;
+    global.AH.roundRect(ctx, x1 - 150, yA - 22, 150, 44, 10);
+    ctx.fillStyle = '#1e293b';
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = cor;
+    ctx.stroke();
+    rotulo(ctx, q.suspeito ? 'suspeita de B' : 'confia em B', x1 - 75, yA, cor, 'center');
+
+    ctx.strokeStyle = CORES.amarelo;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(q.tempo), yA - 40); ctx.lineTo(X(q.tempo), yB + 40); ctx.stroke();
+    for (let t = 0; t <= 6; t++) rotulo(ctx, String(t), X(t), h - 14, CORES.mudo, 'center');
+    rotulo(ctx, 'tempo', 14, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     2b. PIPELINE DE UMA CHAMADA REMOTA (tópico 2)
+     Stub, marshalling, rede, skeleton, execução e volta. Opção "versao":
+     o skeleton do servidor recebe um campo que não conhece e rejeita a chamada.
+     =================================================================== */
+  const ETAPAS_RPC = [
+    'Cliente chama o stub', 'Stub faz marshalling', 'Rede transporta o pedido', 'Skeleton faz unmarshalling',
+    'Servidor executa o método', 'Resposta: marshalling', 'Rede devolve a resposta', 'Stub faz unmarshalling e retorna'
+  ];
+
+  function geraPipelineRPC(opcao) {
+    const erro = opcao === 'versao';
+    const quadros = [];
+    for (let i = 0; i < ETAPAS_RPC.length; i++) {
+      const estados = ETAPAS_RPC.map((_, k) => (k < i ? 'feito' : k === i ? 'atual' : 'pendente'));
+      let txt = ETAPAS_RPC[i] + '. ';
+      if (erro && i === 3) {
+        estados[3] = 'erro';
+        for (let k = 4; k < ETAPAS_RPC.length; k++) estados[k] = 'cancelado';
+        txt += 'O skeleton encontra um campo que a versão do servidor não conhece e rejeita a chamada. Nada é executado, e o erro volta ao cliente.';
+      } else if (erro && i > 3) {
+        break;
+      } else {
+        txt += ['O cliente não sabe que a chamada é remota: a interface é a mesma de uma chamada local.',
+          'Os argumentos viram bytes em um formato de fio, com tipos e ordem fixados pelo contrato.',
+          'Esta é a parte que falha de verdade: atraso, perda ou partição podem acontecer aqui.',
+          'O skeleton reconstrói os argumentos. Se o contrato não bate, a chamada é recusada.',
+          'O método roda no servidor, com o estado do servidor, não o do cliente.',
+          'O resultado também precisa ser serializado. Um tipo de dado não suportado causa erro aqui.',
+          'A rede pode perder esta resposta, o que leva de volta ao problema de retry do tópico 2.',
+          'O stub devolve o valor como se fosse uma função local.'][i];
+      }
+      quadros.push({ tempo: i, estados, t: txt });
+    }
+    return quadros;
+  }
+
+  function desenhaPipelineRPC(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const colunas = 4, gap = 18;
+    const larg = (w - 40 - gap * (colunas - 1)) / colunas, alt = 74;
+    const pos = i => {
+      const linha = i < colunas ? 0 : 1;
+      const col = i % colunas;
+      return { x: 20 + col * (larg + gap), y: linha === 0 ? h * 0.22 : h * 0.6 };
+    };
+    q.estados.forEach((estado, i) => {
+      const p = pos(i);
+      const cor = estado === 'feito' ? CORES.verde : estado === 'atual' ? CORES.amarelo
+        : estado === 'erro' ? CORES.rosa : estado === 'cancelado' ? CORES.mudo : 'rgba(148,163,184,.35)';
+      global.AH.roundRect(ctx, p.x, p.y, larg, alt, 10);
+      ctx.fillStyle = estado === 'pendente' || estado === 'cancelado' ? '#0f172a' : '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = cor;
+      ctx.stroke();
+      rotulo(ctx, (i + 1) + '. ' + ETAPAS_RPC[i].split(' ').slice(0, 2).join(' '), p.x + larg / 2, p.y + alt / 2 - 10, estado === 'pendente' ? CORES.mudo : CORES.txt, 'center');
+      rotulo(ctx, estado, p.x + larg / 2, p.y + alt / 2 + 14, cor, 'center');
+      if (i < colunas - 1 && estados_linha_ok(i)) {
+        global.AH.arrow(ctx, p.x + larg, p.y + alt / 2, p.x + larg + gap, p.y + alt / 2, 'rgba(148,163,184,.5)', true);
+      }
+    });
+    rotulo(ctx, 'stub e skeleton são gerados a partir do contrato (IDL, .proto, WSDL)', 16, h - 14, CORES.mudo);
+  }
+
+  function estados_linha_ok(i) { return i !== 3; }
+
+  /* ===================================================================
+     3b. SNAPSHOT DE CHANDY E LAMPORT (tópico 3)
+     Três processos e um mensagem m em trânsito de P3 para P2. Um marcador
+     percorre os canais; cada processo grava o seu estado na primeira vez
+     que recebe um marcador, e grava os canais de entrada até o marcador.
+     =================================================================== */
+  const CANAIS_SNAP = {
+    C12: { de: 0, para: 1 }, C13: { de: 0, para: 2 }, C23: { de: 1, para: 2 },
+    C31: { de: 2, para: 0 }, C32: { de: 2, para: 1 }
+  };
+
+  function geraSnapshot() {
+    const base = { rec: [0, 0, 0], mk: [], gravando: [], canal: { C32: 'm' } };
+    return [
+      Object.assign({}, base, { tempo: 0, t: 'Três processos trocam mensagens. P3 tem uma mensagem m em trânsito para P2, no canal C32.' }),
+      Object.assign({}, base, { tempo: 1, rec: [1, 0, 0], mk: ['C12', 'C13'], t: 'P1 inicia o snapshot: grava seu estado e envia um marcador por cada canal de saída (C12 e C13).' }),
+      Object.assign({}, base, { tempo: 2, rec: [1, 1, 0], mk: ['C13', 'C23'], gravando: ['C32'], canal: { C32: 'm' }, t: 'P2 recebe o primeiro marcador (de P1). Grava seu estado, começa a gravar o canal C32 e envia um marcador a P3. A mensagem m chega e fica registrada no canal.' }),
+      Object.assign({}, base, { tempo: 3, rec: [1, 1, 1], mk: ['C31', 'C23'], gravando: ['C32'], canal: { C32: 'm' }, t: 'P3 recebe o marcador de P1, grava seu estado e envia um marcador de volta a P1 (C31). Passa a gravar o canal C23.' }),
+      Object.assign({}, base, { tempo: 4, rec: [1, 1, 1], mk: ['C31'], gravando: ['C32'], canal: { C32: 'm' }, t: 'O marcador de P2 chega a P3 pelo canal C23. P3 já gravou, então para de gravar C23: o canal estava vazio.' }),
+      Object.assign({}, base, { tempo: 5, rec: [1, 1, 1], mk: [], gravando: [], canal: { C32: 'm' }, t: 'O marcador de P3 chega a P2 pelo canal C32. P2 para de gravar: o canal guarda m. O snapshot está completo e consistente.' })
+    ];
+  }
+
+  function desenhaSnapshot(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const pos = [{ x: w * 0.5, y: h * 0.2 }, { x: w * 0.22, y: h * 0.74 }, { x: w * 0.78, y: h * 0.74 }];
+    const nomes = ['P1', 'P2', 'P3'];
+    const offset = (a, b) => {
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      return { nx: -dy / len * 12, ny: dx / len * 12 };
+    };
+    Object.keys(CANAIS_SNAP).forEach(id => {
+      const { de, para } = CANAIS_SNAP[id];
+      const a = pos[de], b = pos[para];
+      const o = offset(a, b);
+      const x1 = a.x + o.nx, y1 = a.y + o.ny, x2 = b.x + o.nx, y2 = b.y + o.ny;
+      const gravando = q.gravando.indexOf(id) >= 0;
+      const cor = gravando ? CORES.amarelo : 'rgba(148,163,184,.45)';
+      ctx.setLineDash(gravando ? [6, 4] : []);
+      global.AH.arrow(ctx, x1, y1, x2, y2, cor, true);
+      ctx.setLineDash([]);
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      if (q.mk.indexOf(id) >= 0) {
+        ctx.fillStyle = CORES.rosa;
+        ctx.fillRect(mx - 6, my - 6, 12, 12);
+      }
+      rotulo(ctx, id, mx + o.nx * 2.6, my + o.ny * 2.6, CORES.mudo, 'center');
+      if (q.canal[id]) rotulo(ctx, 'canal: ' + q.canal[id], mx + o.nx * 2.6, my + o.ny * 2.6 + 14, CORES.azul, 'center');
+    });
+    pos.forEach((p, i) => {
+      const gravou = q.rec[i] === 1;
+      bolha(ctx, p.x, p.y, 26, gravou ? CORES.verde : 'rgba(148,163,184,.5)', nomes[i]);
+      rotulo(ctx, gravou ? 'estado gravado' : 'sem gravação', p.x, p.y - 40, gravou ? CORES.verde : CORES.mudo, 'center');
+    });
+    rotulo(ctx, 'quadrado rosa: marcador em trânsito · tracejado: canal sendo gravado', 16, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     4b. RICART E AGRAWALA (tópico 4)
+     Três processos pedem a seção crítica com carimbos diferentes. Quem tem
+     o carimbo menor vence; o outro adia a resposta até sair da fila.
+     Opção "P1primeiro" (P1 tem o carimbo menor) e "P3primeiro" (o inverso).
+     =================================================================== */
+  function geraRicart(opcao) {
+    const ts = opcao === 'P3primeiro' ? [7, 0, 5] : [5, 0, 7];
+    const W = ts[0] < ts[2] ? 0 : 2;     // vencedor: carimbo menor
+    const L = W === 0 ? 2 : 0;
+    const nomes = ['P1', 'P2', 'P3'];
+    const nome = i => nomes[i];
+    const base = { ts };
+    return [
+      Object.assign({}, base, { tempo: 0, estados: ['fora', 'fora', 'fora'], msgs: [], t: 'Nenhum processo quer a seção crítica. Cada pedido recebe um carimbo de Lamport.' }),
+      Object.assign({}, base, { tempo: 1, estados: [W === 0 ? 'pedindo' : 'pedindo', 'fora', 'pedindo'], msgs: [{ de: 0, para: 1, tipo: 'REQ' }, { de: 0, para: 2, tipo: 'REQ' }, { de: 2, para: 1, tipo: 'REQ' }, { de: 2, para: 0, tipo: 'REQ' }], t: nome(0) + ' (carimbo ' + ts[0] + ') e P3 (carimbo ' + ts[2] + ') pedem a seção crítica e enviam REQ aos demais.' }),
+      Object.assign({}, base, { tempo: 2, estados: [W === 0 ? 'pedindo' : 'pedindo', 'fora', 'pedindo'], msgs: [{ de: 1, para: 0, tipo: 'OK' }, { de: 1, para: 2, tipo: 'OK' }, { de: L, para: W, tipo: 'OK' }], t: nome(L) + ' tem carimbo maior: responde OK a ' + nome(W) + ' de imediato. ' + nome(W) + ' tem o carimbo menor e adia a resposta a ' + nome(L) + '. P2 responde OK aos dois.' }),
+      Object.assign({}, base, { tempo: 3, estados: ['na SC', 'fora', 'pedindo'].map((e, i) => (i === W ? 'na SC' : i === L ? 'pedindo' : 'fora')), msgs: [], t: nome(W) + ' recebeu N − 1 = 2 respostas e entra na seção crítica. ' + nome(L) + ' continua esperando, com o adiamento de ' + nome(W) + ' ainda pendente.' }),
+      Object.assign({}, base, { tempo: 4, estados: [0, 1, 2].map(i => (i === W ? 'fora' : i === L ? 'pedindo' : 'fora')), msgs: [{ de: W, para: L, tipo: 'OK' }], t: nome(W) + ' sai e envia a resposta adiada a ' + nome(L) + '. A saída libera a fila sem nenhum coordenador.' }),
+      Object.assign({}, base, { tempo: 5, estados: [0, 1, 2].map(i => (i === L ? 'na SC' : 'fora')), msgs: [], t: nome(L) + ' recebeu todas as respostas e entra na seção crítica. A ordem de entrada seguiu a ordem dos carimbos.' })
+    ];
+  }
+
+  function desenhaRicart(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const pos = [{ x: w * 0.5, y: h * 0.22 }, { x: w * 0.2, y: h * 0.72 }, { x: w * 0.8, y: h * 0.72 }];
+    const nomes = ['P1', 'P2', 'P3'];
+    const corDe = { fora: 'rgba(148,163,184,.5)', pedindo: CORES.amarelo, 'na SC': CORES.verde };
+    q.msgs.forEach(m => {
+      const a = pos[m.de], b = pos[m.para];
+      const cor = m.tipo === 'REQ' ? CORES.azul : CORES.verde;
+      const o = { x: (b.y - a.y) * 0.04, y: -(b.x - a.x) * 0.04 };
+      global.AH.arrow(ctx, a.x + o.x, a.y + o.y, b.x + o.x, b.y + o.y, cor, true);
+      rotulo(ctx, m.tipo, (a.x + b.x) / 2 + o.x * 3, (a.y + b.y) / 2 + o.y * 3 - 6, cor, 'center');
+    });
+    pos.forEach((p, i) => {
+      const e = q.estados[i];
+      bolha(ctx, p.x, p.y, 28, corDe[e] || CORES.mudo, nomes[i] + ' · ts ' + q.ts[i]);
+      rotulo(ctx, e, p.x, p.y + 44, corDe[e] || CORES.mudo, 'center');
+    });
+    rotulo(ctx, 'REQ: pedido com carimbo · OK: permissão · quem tem o carimbo menor entra primeiro', 16, h - 14, CORES.mudo);
+  }
+
+  Object.assign(global.SD, {
+    geraDetector, desenhaDetector,
+    geraPipelineRPC, desenhaPipelineRPC,
+    geraSnapshot, desenhaSnapshot,
+    geraRicart, desenhaRicart
+  });
 })(window);
