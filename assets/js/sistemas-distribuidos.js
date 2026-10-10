@@ -726,11 +726,87 @@
     rotulo(ctx, 'fase 1: votos · fase 2: decisão · amarelo: dados travados', 16, h - 14, CORES.mudo);
   }
 
+  /* ===================================================================
+     0h. ELASTICIDADE: DEMANDA × CAPACIDADE
+     A demanda sobe e desce ao longo de nove intervalos. Cada instância atende
+     30 requisições por intervalo. Opções: "fixo" (2 instâncias o tempo todo)
+     e "auto" (o escalonador decide a cada intervalo, com 1 intervalo de atraso).
+     =================================================================== */
+  const DEMANDA = [20, 35, 60, 90, 120, 110, 70, 40, 25];
+  const CAPACIDADE_INSTANCIA = 30;
+
+  function geraElasticidade(opcao) {
+    const auto = opcao === 'auto';
+    const quadros = [];
+    for (let t = 0; t < DEMANDA.length; t++) {
+      const inst = auto ? Math.max(1, Math.ceil(DEMANDA[Math.max(0, t - 1)] / CAPACIDADE_INSTANCIA)) : 2;
+      const cap = inst * CAPACIDADE_INSTANCIA;
+      const perdida = Math.max(0, DEMANDA[t] - cap);
+      let texto;
+      if (auto && t === 0) texto = 'Demanda baixa: o escalonador mantém uma instância. Ele reage à demanda do intervalo anterior, então sempre existe um atraso.';
+      else if (perdida > 0) texto = 'Demanda de ' + DEMANDA[t] + ' com ' + inst + ' instância(s) (capacidade ' + cap + '): ' + perdida + ' requisições ficam sem atendimento.';
+      else if (auto) texto = 'Com ' + inst + ' instância(s), a capacidade de ' + cap + ' cobre a demanda de ' + DEMANDA[t] + '.';
+      else texto = 'Com 2 instâncias fixas (capacidade ' + cap + ') a demanda de ' + DEMANDA[t] + ' é atendida.';
+      quadros.push({ tempo: t, dem: DEMANDA.slice(0, t + 1), cap, perdida, auto, t: texto,
+        instancias: Array.from({ length: t + 1 }, (_, k) => (auto ? Math.max(1, Math.ceil(DEMANDA[Math.max(0, k - 1)] / CAPACIDADE_INSTANCIA)) : 2)) });
+    }
+    return quadros;
+  }
+
+  function desenhaElasticidade(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const x0 = 56, x1 = w - 24, yBase = h - 52, yTopo = 28;
+    const max = 130;
+    const yDe = v => yBase - (v / max) * (yBase - yTopo);
+    const passo = (x1 - x0) / (DEMANDA.length - 1);
+    const xDe = i => x0 + i * passo;
+
+    ctx.strokeStyle = 'rgba(148,163,184,.25)';
+    ctx.lineWidth = 1;
+    [0, 30, 60, 90, 120].forEach(v => {
+      ctx.beginPath();
+      ctx.moveTo(x0, yDe(v));
+      ctx.lineTo(x1, yDe(v));
+      ctx.stroke();
+      rotulo(ctx, String(v), x0 - 8, yDe(v), CORES.mudo, 'right');
+    });
+
+    /* Capacidade ao longo do tempo (linha amarela em degraus) */
+    ctx.strokeStyle = CORES.amarelo;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    q.instancias.forEach((n, i) => {
+      const y = yDe(n * CAPACIDADE_INSTANCIA);
+      if (i === 0) ctx.moveTo(xDe(i), y); else ctx.lineTo(xDe(i), y);
+    });
+    ctx.stroke();
+
+    /* Demanda até o instante atual (barras azuis); perdas em rosa */
+    q.dem.forEach((d, i) => {
+      const x = xDe(i);
+      const bw = 26;
+      const cap = q.instancias[i] * CAPACIDADE_INSTANCIA;
+      const atendida = Math.min(d, cap);
+      ctx.fillStyle = 'rgba(56,189,248,.45)';
+      ctx.fillRect(x - bw / 2, yDe(atendida), bw, yBase - yDe(atendida));
+      if (d > cap) {
+        ctx.fillStyle = 'rgba(244,63,94,.55)';
+        ctx.fillRect(x - bw / 2, yDe(d), bw, yDe(cap) - yDe(d));
+      }
+      rotulo(ctx, String(i), x, yBase + 14, CORES.mudo, 'center');
+    });
+
+    rotulo(ctx, 'requisições por intervalo', x0, yTopo - 14, CORES.mudo);
+    rotulo(ctx, 'azul: atendidas · rosa: perdidas · linha amarela: capacidade', 16, h - 14, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraElasticidade,
+    desenhaElasticidade,
     geraDoisFases,
     desenhaDoisFases,
     geraRaft,

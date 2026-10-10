@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computação em nuvem: modelos de serviço, virtualização, elasticidade e custo · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="O que define computação em nuvem segundo o NIST, IaaS, PaaS e SaaS, virtualização e multi-tenancy, elasticidade com escalonamento automático e atraso, modelos de custo e disponibilidade por zonas, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/09-computacao-nuvem">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud-arrow-up text-sky-400 mr-2"></i>Tópico 9 · Computação em nuvem</h2>
+  <div class="ah-prose">
+    <p>
+      Computação em nuvem é, antes de tudo, uma forma de consumir recursos computacionais: capacidade de processamento, armazenamento e rede são
+      alugados sob demanda, com pagamento pelo uso, por provedores que operam grandes data centers. Do ponto de vista dos sistemas distribuídos, a
+      nuvem não traz algoritmos novos. Ela traz <strong>escala elástica</strong>, <strong>abstração de infraestrutura</strong> e um novo modelo de custo,
+      e com eles novas formas de falhar.
+    </p>
+    <p>
+      Esta página separa o que é definição (o que conta como nuvem), o que é tecnologia (virtualização e multi-tenancy), o que é comportamento (elasticidade
+      e atraso de escalonamento) e o que é decisão de negócio (custo, disponibilidade e responsabilidade). Os tópicos 10 e 11 aprofundam containers,
+      microsserviços e computação sem servidor.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>enumerar as cinco características essenciais da nuvem segundo o NIST e os três modelos de serviço;</li>
+      <li>explicar virtualização e multi-tenancy, e o papel do hypervisor;</li>
+      <li>analisar uma política de escalonamento automático, incluindo o atraso entre demanda e capacidade;</li>
+      <li>calcular disponibilidade de um serviço replicado em zonas, e reconhecer o limite da hipótese de independência;</li>
+      <li>discutir custo fixo e variável, e a responsabilidade compartilhada entre cliente e provedor.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="definicao" data-toc="Teoria: definição NIST" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Teoria · O que define a nuvem</h2>
+  <div class="ah-prose">
+    <p>
+      Mell e Grance (2011), no documento SP 800-145 do NIST, definem computação em nuvem por cinco características essenciais:
+    </p>
+    <ul>
+      <li><strong>Autosserviço sob demanda:</strong> o cliente provisiona recursos sozinho, sem falar com um atendente.</li>
+      <li><strong>Acesso amplo pela rede:</strong> os recursos são acessados por mecanismos padronizados, de navegadores a dispositivos móveis.</li>
+      <li><strong>Pool de recursos:</strong> recursos físicos e virtuais são compartilhados entre clientes, com a alocação feita dinamicamente.</li>
+      <li><strong>Elasticidade rápida:</strong> capacidade cresce e diminui, às vezes automaticamente, conforme a demanda. Para o cliente, o recurso parece ilimitado.</li>
+      <li><strong>Serviço medido:</strong> o uso é monitorado, e o cliente paga pelo que consome, em alguma unidade como horas de CPU ou gigabytes transferidos.</li>
+    </ul>
+    <p>
+      Nem todo serviço hospedado é nuvem. Um servidor alugado com contrato fixo, sem autosserviço nem elasticidade, é hospedagem. A distinção importa: o
+      que a nuvem promete é o comportamento, e não o local do data center.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Modelo</th><th>O que você gerencia</th><th>O que o provedor gerencia</th><th>Exemplo do dia a dia</th></tr></thead>
+      <tbody>
+        <tr><td><strong>IaaS</strong></td><td>sistema operacional, rede virtual, aplicação e dados</td><td>hardware, virtualização, armazenamento e rede física</td><td>máquina virtual que você liga e desliga</td></tr>
+        <tr><td><strong>PaaS</strong></td><td>código e dados</td><td>runtime, sistema operacional, escala e balanceamento</td><td>publicar uma API ou um site sem gerenciar servidores</td></tr>
+        <tr><td><strong>SaaS</strong></td><td>configuração e usuários</td><td>todo o restante</td><td>e-mail, planilhas e videoconferência no navegador</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-6">
+    <p>
+      Os modelos formam uma pilha de responsabilidades. Quanto mais alto o modelo, menos você opera e menos controle tem. O erro mais comum é tratar a
+      nuvem como se o provedor fosse responsável por tudo. Em IaaS, uma configuração de rede que expõe um banco à internet é responsabilidade do cliente,
+      e não do provedor. É o modelo de <strong>responsabilidade compartilhada</strong>.
+    </p>
+  </div>
+</section>
+
+<section id="virtualizacao" data-toc="Teoria: virtualização e multi-tenancy" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clone text-sky-400 mr-2"></i>Teoria · Virtualização e multi-tenancy</h2>
+  <div class="ah-prose">
+    <p>
+      A base técnica é a <strong>virtualização</strong>: um hypervisor cria máquinas virtuais, cada uma com a ilusão de ter hardware próprio. Popek e Goldberg
+      (1974) formalizaram quando uma arquitetura é virtualizável: as instruções sensíveis devem ser capturadas pelo hypervisor. Hoje, extensões de hardware
+      (como Intel VT-x e AMD-V) fazem isso eficientemente.
+    </p>
+    <p>
+      Uma máquina virtual tem seu próprio sistema operacional, o que dá isolamento forte, mas custa memória e tempo de inicialização. Containers (tópico 10)
+      compartilham o núcleo do sistema operacional, o que os torna mais leves, com isolamento menor.
+    </p>
+    <p>
+      <strong>Multi-tenancy</strong> é o compartilhamento de uma mesma infraestrutura, ou até de uma mesma aplicação, por clientes diferentes. Ela aumenta a
+      utilização do hardware, e por isso reduz custo, mas exige isolamento lógico entre inquilinos: um cliente não pode ver ou afetar os dados de outro, e
+      um cliente barulhento não pode degradar os demais. Esse último problema, chamado de <em>noisy neighbor</em>, é a razão de limites de recursos por
+      inquilino.
+    </p>
+  </div>
+</section>
+
+<section id="elasticidade" data-toc="Teoria: elasticidade e escalonamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-up-right-and-down-left-from-center text-sky-400 mr-2"></i>Teoria · Elasticidade e escalonamento automático</h2>
+  <div class="ah-prose">
+    <p>
+      Escalabilidade é a capacidade de crescer. <strong>Elasticidade</strong> é crescer e encolher automaticamente, acompanhando a demanda. Um escalonador
+      automático observa métricas, como utilização da CPU ou fila de requisições, e decide quantas instâncias manter. Três detalhes determinam se a política
+      funciona:
+    </p>
+    <ul>
+      <li><strong>Atraso:</strong> uma instância nova leva segundos ou minutos para ficar pronta, e a métrica é medida com intervalo. Durante esse tempo, a demanda pode já ter passado. A animação abaixo mostra o custo desse atraso.</li>
+      <li><strong>Histerese e cooldown:</strong> para evitar oscilação, a política espera um tempo após cada mudança, e só encolhe depois de a carga ficar baixa por algum tempo. Sem isso, o sistema oscila entre crescer e encolher, e paga pela oscilação.</li>
+      <li><strong>Limites:</strong> um máximo protege o orçamento; um mínimo protege contra picos repentinos e garante disponibilidade enquanto a política reage.</li>
+    </ul>
+    <p>
+      Há políticas por métrica (manter a utilização em torno de 60%), por agenda (mais instâncias às 18h) e preditivas (estimam a demanda antes que ela
+      chegue). Nenhuma elimina o atraso: a previsão apenas o reduz, quando o padrão é regular.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: demanda e capacidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-sky-400 mr-2"></i>Animação · Duas políticas diante do mesmo pico</h2>
+  <p class="ah-lead text-sm mb-4">A demanda sobe até 120 e volta a cair. Em "Fixo", o sistema mantém 2 instâncias e perde o pico. Em "Automático", a capacidade acompanha a demanda, mas com um intervalo de atraso, e perde o começo da subida.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvElastic" style="height:320px"></canvas></div>
+  <div id="ctlElastic" class="mt-4"></div>
+  <div id="capElastic" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="custo" data-toc="Teoria: custo e disponibilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-coins text-sky-400 mr-2"></i>Teoria · Custo e disponibilidade por zonas</h2>
+  <div class="ah-prose">
+    <p>
+      O modelo de custo muda a pergunta. Em vez de comprar capacidade para o pico, paga-se pelo uso. Isso converte um custo fixo, o investimento em
+      servidores, em custo variável, que cresce com a utilização. A conta, porém, nem sempre favorece a nuvem. Para uma carga constante e previsível,
+      instâncias reservadas, com compromisso de longo prazo, costumam custar menos que a demanda sob demanda. A escolha depende do perfil de carga.
+    </p>
+    <p>
+      A disponibilidade é organizada em <strong>regiões</strong> (áreas geográficas) e <strong>zonas de disponibilidade</strong> (data centers independentes
+      dentro de uma região). Um serviço replicado em k zonas, cada uma com disponibilidade a, tem disponibilidade 1 − (1 − a)<sup>k</sup>, se as falhas forem
+      independentes. Com a = 99%, duas zonas dão 99,99%; três dão 99,9999%.
+    </p>
+    <p>
+      O cálculo supõe independência, que quase nunca vale. Zonas de uma mesma região dividem energia, rede e às vezes software de controle. Uma falha
+      de configuração que afeta a região inteira derruba todas as zonas juntas. Por isso, sistemas críticos replicam entre regiões, e testam os
+      cenários correlacionados, não apenas as falhas isoladas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>09-computacao-nuvem.py · op:disponibilidade_zonas</code></p>
+<pre class="ah-code"><code>def disponibilidade_zonas(a, k):
+    return 1 - (1 - a) ** k    # falhas independentes entre k zonas</code></pre>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: política de escalonamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Custo e perdas de três políticas</h2>
+  <div class="ah-prose">
+    <p>
+      O programa simula 12 intervalos de demanda, com um pico de 120. Compara duas políticas fixas (2 e 4 instâncias) e uma automática, com atraso de um
+      intervalo. Mede requisições perdidas e o custo, em instância-intervalo, com um preço ilustrativo. A demanda e o preço são exemplos, não valores de
+      mercado.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Demanda em 12 intervalos, instância = 30 requisições, preço ilustrativo de 0,10 por instância-intervalo
+  política      perdidas  instâncias-intervalo    custo
+  fixa:2             170                    24     2.40
+  fixa:4               0                    48     4.80
+  auto               115                    25     2.50
+
+Disponibilidade de um serviço com réplica por zona (cada zona com 99%):
+  1 zona(s): 99.0000%
+  2 zona(s): 99.9900%
+  3 zona(s): 99.9999%</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Não há política perfeita. A fixa com 2 instâncias é barata e perde 170 requisições. A fixa com 4 não perde nada, mas custa o dobro. A automática
+      custa quase o mesmo que a fixa com 2, e perde 115, metade da perda da primeira. Essas perdas estão quase todas na subida do pico, porque a política
+      só reage ao intervalo anterior. Reduzir a perda sem pagar o dobro exige previsão, ou um escalonamento mais agressivo para cima que para baixo.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Black Friday</div>
+      <p class="text-xs text-slate-400">Uma loja de e-commerce pode ter, em um dia de promoção, muito mais tráfego do que em uma semana comum. Escalonamento automático com previsão baseada no ano anterior, e um mínimo de instâncias já ligadas, é a combinação típica.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Declaração de imposto</div>
+      <p class="text-xs text-slate-400">Um sistema público de declarações tem pico previsível em certas datas. A agenda é mais útil que a métrica, porque o pico chega antes que a utilização reflita a carga.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Conta de nuvem inesperada</div>
+      <p class="text-xs text-slate-400">Um erro de configuração pode fazer o escalonador crescer sem limite, por um bug que gera carga. Por isso, todo ambiente de nuvem define limites de gasto e alertas, além do limite de instâncias.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Vizinho barulhento</div>
+      <p class="text-xs text-slate-400">Em um servidor compartilhado, um cliente que roda um processo pesado reduz o desempenho dos outros. Os provedores impõem cotas de CPU e de disco por máquina virtual para limitar esse efeito.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: disponibilidade com três zonas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um serviço roda em duas zonas, cada uma com disponibilidade de 99,5%. Quanto ele passa a ter com uma terceira zona? Em termos de minutos por ano indisponível, quanto isso representa?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Com duas zonas: 1 − 0,005² = 1 − 0,000025 = 99,9975%. Com três: 1 − 0,005³ = 99,9999875%. Um ano tem 525 600 minutos. A indisponibilidade cai de 0,0025% (cerca de 13 minutos por ano) para 0,0000125% (menos de 7 segundos por ano).</p>
+      <p><strong>Ponto de atenção.</strong> Esses números são otimistas: assumem independência. Uma falha regional correlacionada domina a conta, e a terceira zona não muda esse risco. Replicar entre regiões é o que enfrenta esse caso.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quando reservar?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma instância custa 0,10 por hora sob demanda, ou 0,06 por hora com reserva de um ano (pagamento por uso, independentemente de utilização). A carga exige a instância em 60% das horas. Qual opção é mais barata?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Sob demanda, paga-se só nas horas usadas: 0,10 × 0,6 = 0,06 por hora média. Reservada, paga-se 0,06 em todas as horas: 0,06. Empatam. Acima de 60% de uso, a reserva ganha; abaixo, o sob demanda. Com 80% de uso, a reserva custa 0,06 contra 0,08 do sob demanda.</p>
+      <p><strong>Lição.</strong> A comparação exige conhecer o padrão de uso, e não só o preço unitário. Por isso a previsão de carga é parte da arquitetura financeira de um sistema.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Uma política de escalonamento cresce quando a utilização passa de 70% e encolhe quando cai abaixo de 70%, sem nenhum atraso ou cooldown. Descreva o comportamento esperado para uma carga que oscila perto de 70%.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> oscilação. Uma instância a mais reduz a utilização, que cai abaixo do limite e a política remove a instância, o que a eleva de novo acima do limite. O sistema alterna entre n e n+1 instâncias a cada intervalo, e paga por cada criação e remoção, sem melhorar o atendimento. A solução é histerese: limites diferentes para crescer e encolher, e um cooldown.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um banco quer 99,99% de disponibilidade com zonas de 99,9% de disponibilidade cada. Quantas zonas são necessárias, supondo independência? O que pode invalidar essa conta?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> com duas zonas, 1 − 0,001² = 99,9999%, o que já supera a meta. Uma zona não basta (99,9%). A conta é invalidada por falhas correlacionadas: uma atualização de software aplicada a todas as zonas, uma falha de energia regional, ou um erro de configuração compartilhado.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um produto de notícias tem picos imprevisíveis ao longo do dia. Escolha entre escalonamento reativo, preditivo e uma capacidade fixa com folga. Justifique, considerando custo, perda de requisições e complexidade.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> resposta livre. Deve notar que picos imprevisíveis excluem a predição confiável, e que a folga fixa custa caro o tempo todo. Um escalonamento reativo com mínimo de instâncias e limite de gasto costuma ser a escolha equilibrada, com alertas para o atraso. Justificativas bem feitas mencionam o custo do atraso e a perda aceitável.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual a diferença entre escalabilidade e elasticidade?</p>
+      <button class="ah-quiz-opt">Não há diferença: são sinônimos</button>
+      <button class="ah-quiz-opt">Escalabilidade é a capacidade de criar máquinas virtuais; elasticidade, a de criar containers</button>
+      <button class="ah-quiz-opt">Escalabilidade é crescer; elasticidade é crescer e encolher automaticamente, acompanhando a demanda</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Elasticidade é uma forma dinâmica de escalabilidade, com ajuste automático para cima e para baixo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um escalonador reativo perde requisições em um pico repentino?</p>
+      <button class="ah-quiz-opt">Porque instâncias novas levam tempo para ficar prontas, e a métrica é medida com intervalo</button>
+      <button class="ah-quiz-opt">Porque o hypervisor bloqueia a criação de instâncias</button>
+      <button class="ah-quiz-opt">Porque a nuvem não permite escalar acima de 2 instâncias</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O atraso de provisionamento e o intervalo de medição fazem a capacidade chegar depois da demanda.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No modelo de responsabilidade compartilhada em IaaS, quem é responsável pela configuração de rede de uma máquina virtual?</p>
+      <button class="ah-quiz-opt">O provedor, sempre</button>
+      <button class="ah-quiz-opt">O cliente</button>
+      <button class="ah-quiz-opt">Ninguém, porque a nuvem é segura por padrão</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Em IaaS, o cliente gerencia o sistema operacional, a rede virtual e a aplicação. O provedor cuida da infraestrutura física.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Nuvem é um conjunto de características (autosserviço, pool, elasticidade, serviço medido), não um lugar.</li>
+    <li>A responsabilidade é compartilhada. Em IaaS, muito do que dá errado é configuração do cliente.</li>
+    <li>Escalonamento automático tem atraso. Limites, cooldown e previsão reduzem o problema, mas não o eliminam.</li>
+    <li>Disponibilidade por zonas depende de independência, que é mais frágil do que parece. Replique entre regiões quando o risco for alto.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>MELL, P.; GRANCE, T. <em>The NIST Definition of Cloud Computing</em>. NIST SP 800-145, 2011.</li>
+    <li>ARMBRUST, M. et al. A view of cloud computing. <em>Communications of the ACM</em>, v. 53, n. 4, p. 50–58, 2010.</li>
+    <li>POPEK, G. J.; GOLDBERG, R. P. Formal requirements for virtualizable third generation architectures. <em>Communications of the ACM</em>, v. 17, n. 7, p. 412–421, 1974.</li>
+    <li>BARROSO, L. A.; HÖLZLE, U.; RANGANATHAN, P. <em>The Datacenter as a Computer</em>. 3. ed. Morgan &amp; Claypool, 2018.</li>
+    <li>BEYER, B. et al. <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly, 2016. Capítulos sobre carga e planejamento de capacidade.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 1 (confiabilidade, escalabilidade e manutenibilidade).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvElastic', ctl: 'ctlElastic', cap: 'capElastic',
+    desenha: SD.desenhaElasticidade, gera: SD.geraElasticidade, velocidade: 1600,
+    opcoes: [
+      { v: 'fixo', rotulo: 'Fixo (2 instâncias)' },
+      { v: 'auto', rotulo: 'Automático (com atraso)' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>
