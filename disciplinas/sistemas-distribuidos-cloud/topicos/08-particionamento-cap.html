@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particionamento, hash consistente e o teorema CAP · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Como dividir dados entre servidores: particionamento por intervalo e por hash, hot spots, hash consistente com nós virtuais e o trade-off CAP e PACELC durante partições de rede, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/08-particionamento-cap">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-sky-400 mr-2"></i>Tópico 8 · Particionamento e CAP</h2>
+  <div class="ah-prose">
+    <p>
+      Replicação (tópico 5) cuida de cópias do mesmo dado. <strong>Particionamento</strong> cuida de dividir dados diferentes entre servidores, para que
+      nenhum servidor precise guardar, ou atender, tudo. Um sistema com bilhões de registros não cabe em uma máquina; um sistema com milhões de
+      requisições por segundo não cabe em um servidor. Cada partição (ou <em>shard</em>) é responsável por um subconjunto das chaves.
+    </p>
+    <p>
+      Particionar traz dois problemas que este tópico enfrenta. O primeiro é <strong>como atribuir chaves a servidores</strong> sem recalcular tudo quando
+      um servidor entra ou sai. O segundo é <strong>o que acontece quando a rede divide o sistema</strong>, e cada lado precisa decidir se continua
+      atendendo. A resposta ao segundo é o teorema CAP, que relaciona consistência, disponibilidade e tolerância a partições.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>comparar particionamento por intervalo e por hash, e identificar hot spots;</li>
+      <li>explicar hash consistente com nós virtuais e medir o movimento de chaves ao mudar o número de servidores;</li>
+      <li>enunciar o teorema CAP com precisão, incluindo o que ele não diz;</li>
+      <li>usar PACELC para descrever o trade-off também sem partição;</li>
+      <li>classificar sistemas reais conforme as escolhas feitas para partições.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="intervalo-hash" data-toc="Teoria: intervalo e hash" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-grip text-sky-400 mr-2"></i>Teoria · Particionamento por intervalo e por hash</h2>
+  <div class="ah-prose">
+    <p>
+      No <strong>particionamento por intervalo</strong>, as chaves são ordenadas e divididas em faixas: de A a F, de G a M, e assim por diante. Consultas
+      por intervalo são eficientes, porque os dados vizinhos estão no mesmo servidor. O risco é o <strong>hot spot</strong>: se as chaves são datas, todas
+      as escritas de hoje caem na mesma partição, e ela sobrecarrega enquanto as outras ficam ociosas.
+    </p>
+    <p>
+      No <strong>particionamento por hash</strong>, a chave passa por uma função de espalhamento, e o resultado escolhe a partição. As escritas se espalham
+      bem, mas consultas por intervalo deixam de ser eficientes, pois chaves vizinhas caem em servidores diferentes. Há também o risco de hot spot por
+      chave: uma celebridade com milhões de seguidores ainda concentra carga em uma única chave, mesmo com hash perfeito.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Estratégia</th><th>Bom para</th><th>Risco</th></tr></thead>
+      <tbody>
+        <tr><td>Intervalo</td><td>consultas por faixa, séries temporais ordenadas</td><td>hot spot por ordem (ex.: data de hoje)</td></tr>
+        <tr><td>Hash</td><td>carga uniforme, acesso por chave</td><td>consultas por faixa caras; hot spot por chave</td></tr>
+        <tr><td>Hash com nós virtuais</td><td>carga uniforme e mudança de tamanho</td><td>mais metadados no anel</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="hash-consistente" data-toc="Teoria: hash consistente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-sky-400 mr-2"></i>Teoria · Hash consistente e nós virtuais</h2>
+  <div class="ah-prose">
+    <p>
+      O hash simples, <code>servidor = hash(chave) mod N</code>, falha quando N muda: quase todas as chaves mudam de servidor. Karger e colaboradores
+      (1997) propuseram o <strong>hash consistente</strong>: servidores e chaves são espalhados num anel. Cada chave pertence ao primeiro servidor no
+      sentido horário. Ao entrar um servidor, só as chaves do arco que ele assume se movem, em média 1/(N+1) do total.
+    </p>
+    <p>
+      Há um problema prático: com poucos servidores, os arcos são desiguais, e um servidor pode receber um arco grande demais. A solução são os
+      <strong>nós virtuais</strong>: cada servidor ocupa muitas posições no anel, por exemplo 100. Com isso, os arcos se somam em média e a carga se
+      equilibra. É o que o Dynamo e o Cassandra fazem. O custo é um anel maior e mais metadados para manter.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>08-particionamento-cap.py · op:responsavel</code></p>
+<pre class="ah-code"><code>def responsavel(self, chave):
+    i = bisect.bisect_left(self.anel, (posicao(chave),))
+    return self.anel[i % len(self.anel)][1]   # o módulo dá a volta no anel</code></pre>
+</section>
+
+<section id="animacao" data-toc="Animação: anel de hash" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Um servidor entra no anel</h2>
+  <p class="ah-lead text-sm mb-4">Avance passo a passo. Quando D entra, apenas as chaves do arco entre A e D são reavaliadas. A chave k1 é a única que muda de dono.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvAnel" style="height:340px"></canvas></div>
+  <div id="ctlAnel" class="mt-4"></div>
+  <div id="capAnel" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: balanceamento e movimento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Balanceamento, movimento e CAP</h2>
+  <div class="ah-prose">
+    <p>
+      O programa distribui 10 000 clientes entre quatro servidores, com e sem nós virtuais, e mede o desvio da carga. Depois adiciona um quinto
+      servidor e conta quantas chaves mudam, comparando com o hash mod N. Por fim, simula uma réplica isolada por partição, que pode recusar leituras
+      (CP) ou responder com dado antigo (AP).
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>--- Balanceamento: 4 servidores, com e sem nós virtuais ---
+  nós virtuais =   1: min= 1062 max= 3122 desvio=  837.9
+  nós virtuais = 100: min= 2355 max= 2747 desvio=  147.9
+
+--- Movimento de chaves ao adicionar um 5º servidor ---
+  nós virtuais =   1: 1732 de 10000 chaves mudaram (17.3%)
+  nós virtuais = 100: 1485 de 10000 chaves mudaram (14.8%)
+  esperado com hash consistente: cerca de 1/5 = 20%
+
+--- Hash mod N: mesmo cenário ---
+  mod 4 -&gt; mod 5: 8009 de 10000 chaves mudaram
+
+--- CAP: réplica isolada durante uma partição (10 leituras) ---
+  CP: respondeu= 0 recusou=10 valor_antigo= 0
+  AP: respondeu=10 recusou= 0 valor_antigo=10</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Três leituras do resultado. Primeiro, com um nó virtual por servidor, o desvio da carga é de 838 chaves; com 100 nós virtuais, cai para 148.
+      Segundo, o hash consistente move de 15% a 17% das chaves ao entrar o quinto servidor, perto da previsão de 20%; o hash mod N move 80%, que
+      é N/(N+1). Terceiro, no CAP, a escolha aparece com clareza: CP não responde nada, AP responde algo que pode estar errado.
+    </p>
+  </div>
+</section>
+
+<section id="cap" data-toc="Teoria: teorema CAP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · O teorema CAP com precisão</h2>
+  <div class="ah-prose">
+    <p>
+      Brewer apresentou a conjectura em 2000, e Gilbert e Lynch a provaram em 2002, para um modelo assíncrono em que mensagens podem se perder. As três
+      propriedades, com as definições formais:
+    </p>
+    <ul>
+      <li><strong>Consistência (linearizabilidade):</strong> toda leitura bem-sucedida devolve a escrita mais recente confirmada. Não é a consistência ACID do tópico 7, nem a eventual.</li>
+      <li><strong>Disponibilidade:</strong> todo pedido recebido por um nó não falho recebe uma resposta, sem erro e sem tempo limite. Note que a definição exige resposta sempre, não apenas resposta rápida.</li>
+      <li><strong>Tolerância a partições:</strong> o sistema continua funcionando mesmo que mensagens entre nós se percam arbitrariamente.</li>
+    </ul>
+    <p>
+      O teorema diz que, durante uma partição, não é possível garantir C e A ao mesmo tempo. Para o leitor, há três pontos que costumam se perder:
+    </p>
+    <ul>
+      <li><strong>P não é opcional em rede real.</strong> Partições acontecem. A escolha é entre C e A quando P ocorre.</li>
+      <li><strong>O teorema vale só durante a partição.</strong> Sem partição, um sistema pode ser C e A ao mesmo tempo.</li>
+      <li><strong>CAP não é uma classificação de sistemas.</strong> Um mesmo sistema pode ser CP para uma operação e AP para outra, e a escolha pode ser configurável por consulta.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="pacelc" data-toc="Teoria: PACELC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Teoria · PACELC: o trade-off sem partição</h2>
+  <div class="ah-prose">
+    <p>
+      Abadi (2012) observou que CAP só fala do momento de partição, que é raro. Em operação normal, sem partição, ainda existe um trade-off: garantir
+      que toda leitura veja a escrita mais recente exige coordenação, que custa latência. O modelo PACELC lê assim: se há <strong>P</strong>artição,
+      escolha entre <strong>A</strong> e <strong>C</strong>; <strong>E</strong>lse (senão), escolha entre <strong>L</strong>atência e <strong>C</strong>onsistência.
+    </p>
+    <p>
+      Um sistema pode ser PA/EL: prioriza disponibilidade na partição e latência no resto (muitos sistemas de cache e de catálogo). Ou PC/EC: prioriza
+      consistência em todo o tempo (sistemas de saldo bancário que aceitam esperar). A pergunta prática é: quanto de latência o negócio tolera pelo
+      ganho de consistência?
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Sistema (exemplo)</th><th>Durante partição</th><th>Sem partição</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Dynamo / Cassandra (ajustável)</td><td>AP por padrão</td><td>EL: leituras rápidas, com quórum configurável</td><td>W e R escolhem o ponto no espectro</td></tr>
+        <tr><td>ZooKeeper / etcd</td><td>CP: minoria não atende</td><td>EC: escrita passa pelo líder</td><td>usados como coordenação, não como dados de aplicação</td></tr>
+        <tr><td>Spanner</td><td>CP em escritas</td><td>EC com relógios de alta precisão</td><td>leituras de snapshot com garantias fortes</td></tr>
+        <tr><td>Cache distribuído</td><td>AP: serve o que tem</td><td>EL: prioriza latência</td><td>perder um valor é aceitável; o banco é a fonte</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Cache de sessão</div>
+      <p class="text-xs text-slate-400">Um servidor de cache distribuído usa hash consistente para escolher o nó de cada sessão. Se um nó cai, só as sessões dele são perdidas, e o usuário faz login de novo. Isso é AP: a perda é aceitável.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Hot spot em evento</div>
+      <p class="text-xs text-slate-400">Na venda de ingressos de um show, todos querem o mesmo assento. A chave do assento é um hot spot, por mais que o hash seja uniforme. A solução é controlar a concorrência daquela chave, ou separar a contagem em várias chaves.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Conta bancária</div>
+      <p class="text-xs text-slate-400">Durante uma partição entre agências, o saldo não pode ser ambíguo. O sistema prefere recusar a operação naquela agência a permitir um saque com saldo desatualizado. É CP.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Rede social</div>
+      <p class="text-xs text-slate-400">Se o contador de curtidas está atrasado em uma região, o usuário ainda vê a página. Disponibilidade é prioridade, e a consistência é eventual: é AP com EL.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: quantas chaves se movem?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um cluster de cache com 9 servidores usa hash consistente com nós virtuais. Um décimo servidor entra. Quantas chaves, em média, se movem de cada 100 000?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A fração esperada é 1/(N+1) = 1/10, ou seja, 10%. Isso dá cerca de 10 000 chaves. Com hash mod N, a fração seria N/(N+1) = 9/10: cerca de 90 000 chaves. A conta é uma média: a variação observável depende do número de chaves e da escolha das posições.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: classificar um sistema</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um app de mensagens usa uma réplica por região. Durante uma partição, cada região continua aceitando mensagens e sincroniza depois. O usuário pode ver mensagens em ordem diferente em regiões diferentes por alguns segundos. Classifique usando CAP e PACELC.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Na partição, cada região responde (A), e portanto não garante consistência linearizável (sem C): o sistema é AP. Sem partição, o app privilegia latência (EL), aceitando a visão divergente por segundos. Logo, PA/EL. Para mensagens, a causalidade (tópico 3) costuma ser preservada por ordenação local, o que é um meio-termo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que um particionamento por intervalo de datas é um problema para um sistema de registros de sensores que escreve sempre na data de hoje?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> todas as escritas do dia caem na mesma partição, que recebe a carga inteira enquanto as demais ficam ociosas. A solução usual é prefixar a chave com um identificador do sensor, ou usar hash para espalhar as escritas, sacrificando as consultas por intervalo de tempo.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Explique por que o teorema CAP não diz que um sistema não pode ser consistente e disponível em geral, e sim durante uma partição.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> sem partição, todas as réplicas podem trocar mensagens, e o sistema pode responder com dados atualizados e em tempo finito. O teorema só limita o caso em que a comunicação entre réplicas está interrompida. Fora desse caso, C e A podem ser garantidos juntos, e o custo passa a ser de latência, como diz PACELC.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um nó virtual a mais por servidor, ou 100 nós virtuais, muda a fração de chaves movidas ao adicionar um servidor? E muda o equilíbrio de carga?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a fração movida permanece em torno de 1/(N+1), pois a quantidade de arco assumida pelo novo servidor é, em média, a mesma. O equilíbrio de carga melhora muito com mais nós virtuais, porque o desvio dos arcos cai. A simulação mostra isso: o desvio caiu de 838 para 148 chaves.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o principal benefício dos nós virtuais no hash consistente?</p>
+      <button class="ah-quiz-opt">Eliminar a necessidade de uma função de hash</button>
+      <button class="ah-quiz-opt">Tornar as consultas por intervalo mais rápidas</button>
+      <button class="ah-quiz-opt">Equilibrar a carga, porque os arcos de cada servidor se somam em média</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com poucos pontos no anel, os arcos são desiguais. Muitos pontos por servidor fazem a carga convergir para a média.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No teorema CAP, o que a sigla P significa?</p>
+      <button class="ah-quiz-opt">Tolerância a partições de rede</button>
+      <button class="ah-quiz-opt">Paralelismo de processamento</button>
+      <button class="ah-quiz-opt">Persistência em disco</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. P é a tolerância a partições. Em rede real, partições acontecem, então P não é opcional.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que PACELC acrescenta ao CAP?</p>
+      <button class="ah-quiz-opt">Um quarto atributo, a segurança</button>
+      <button class="ah-quiz-opt">Um trade-off entre latência e consistência também quando não há partição</button>
+      <button class="ah-quiz-opt">A obrigatoriedade de usar consenso</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Em operação normal, consistência forte custa latência. PACELC torna esse custo explícito.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Intervalo facilita consultas, mas concentra escritas. Hash espalha as escritas, mas não preserva a ordem.</li>
+    <li>Hash consistente move cerca de 1/(N+1) das chaves ao mudar o número de servidores. Nós virtuais equilibram a carga.</li>
+    <li>CAP fala de um momento: a partição. Durante ela, escolha entre consistência e disponibilidade.</li>
+    <li>PACELC lembra que, sem partição, o trade-off continua, agora entre latência e consistência.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KARGER, D. et al. Consistent hashing and random trees: distributed caching protocols for relieving hot spots on the World Wide Web. In: <em>ACM Symposium on Theory of Computing (STOC)</em>, 1997.</li>
+    <li>BREWER, E. Towards robust distributed systems. Keynote, <em>ACM PODC</em>, 2000.</li>
+    <li>GILBERT, S.; LYNCH, N. Brewer's conjecture and the feasibility of consistent, available, partition-tolerant web services. <em>ACM SIGACT News</em>, v. 33, n. 2, p. 51–59, 2002.</li>
+    <li>ABADI, D. Consistency tradeoffs in modern distributed database system design. <em>IEEE Computer</em>, v. 45, n. 2, p. 37–42, 2012.</li>
+    <li>DECANDIA, G. et al. Dynamo: Amazon's highly available key-value store. In: <em>ACM SOSP</em>, 2007.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 6 (particionamento).</li>
+    <li>NYGARD, M. T. <em>Release It!</em>. 2. ed. Raleigh: Pragmatic Bookshelf, 2018. Padrões para sistemas em produção.</li>
+    <li>COULOURIS, G. et al. <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Cap. 10 (distribuição de dados).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvAnel', ctl: 'ctlAnel', cap: 'capAnel',
+    desenha: SD.desenhaAnel, gera: SD.geraAnel, velocidade: 2600
+  });
+
+})();
+</script>
+</body>
+</html>
