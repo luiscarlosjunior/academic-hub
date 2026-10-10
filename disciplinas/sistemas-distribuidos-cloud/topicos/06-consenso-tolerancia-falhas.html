@@ -210,6 +210,14 @@
     return votos &gt;= self.maioria</code></pre>
 </section>
 
+<section id="paxos-animacao" data-toc="Animação: Paxos e o valor preservado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scroll text-sky-400 mr-2"></i>Animação · Paxos: o valor decidido não muda</h2>
+  <p class="ah-lead text-sm mb-4">Três aceitadores. P1 decide A com número 1. No cenário "Proposta conflitante", P2 chega depois com um número maior e quer propor B. A regra de Paxos o obriga a propor A.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvPaxos" style="height:320px"></canvas></div>
+  <div id="ctlPaxos" class="mt-4"></div>
+  <div id="capPaxos" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: eleição com partição" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Maioria em partições aleatórias</h2>
   <div class="ah-prose">
@@ -257,6 +265,34 @@ Simulação com 5000 cenários aleatórios (partição e até duas falhas):
       <div class="text-xs font-bold text-sky-300 mb-1">Eleição de líder e split brain</div>
       <p class="text-xs text-slate-400">Um sistema com dois primários, cada um com metade dos clientes, é o split brain. A maioria existe justamente para impedi-lo: um lado sem quórum se cala, em vez de aceitar escritas conflitantes.</p>
     </div>
+  </div>
+</section>
+
+<section id="multi-paxos" data-toc="Aprofundamento: do Paxos ao log replicado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Aprofundamento · Do consenso único ao log replicado</h2>
+  <div class="ah-prose">
+    <p>
+      Paxos, como descrito acima, decide um único valor. Um sistema real precisa decidir uma sequência de comandos, um log. A extensão natural é o
+      <strong>Multi-Paxos</strong>: cada posição do log é uma instância de Paxos, e um líder estável pode pular a fase de preparação para todas as posições
+      seguintes, enquanto ninguém mais disputa a liderança. Assim, cada comando custa uma única ida e volta à maioria no caso comum. A parte difícil fica
+      nas trocas de líder: o novo líder precisa completar as posições pendentes do antigo, sem deixar buracos no log.
+    </p>
+    <p>
+      O Raft foi projetado para tornar essa parte compreensível. Ele impõe que um log só cresce a partir do líder, e que um candidato só vence a eleição se
+      seu log for pelo menos tão atualizado quanto o de uma maioria (a restrição de votação). Assim, o líder eleito sempre contém todas as entradas já
+      confirmadas, e não precisa buscá-las de outros nós antes de começar. Ongaro e Ousterhout (2014) provam essa propriedade de segurança e mostram que ela
+      vale mesmo com reinícios de servidores, desde que o estado de votação seja persistido antes de responder.
+    </p>
+    <p>
+      A vivacidade depende de detalhes de temporização. Se os timeouts de eleição forem iguais em todos os nós, dois candidatos podem se enfrentar
+      indefinidamente. O Raft usa timeouts aleatórios para quebrar esse empate, em linha com a ideia de aleatoriedade que contorna FLP. Os parâmetros
+      de tempo precisam refletir a latência real da rede: um timeout menor que o tempo de ida e volta gera eleições em série.
+    </p>
+    <p>
+      Por fim, a <strong>reconfiguração</strong> (trocar os membros do cluster) é uma fonte clássica de erros. Trocar todos os nós de uma vez pode criar duas
+      maiorias disjuntas. O Raft resolve com configurações conjuntas, em que a decisão exige maioria nas duas configurações durante a transição. É um lembrete de
+      que a propriedade de maioria é um invariante, e que qualquer operação que o viole, mesmo temporariamente, destrói a segurança.
+    </p>
   </div>
 </section>
 
@@ -373,6 +409,15 @@ Simulação com 5000 cenários aleatórios (partição e até duas falhas):
     opcoes: [
       { v: 'maioria', rotulo: 'Falhas de servidores' },
       { v: 'particao', rotulo: 'Partição de rede' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvPaxos', ctl: 'ctlPaxos', cap: 'capPaxos',
+    desenha: SD.desenhaPaxos, gera: SD.geraPaxos, velocidade: 2000,
+    opcoes: [
+      { v: 'simples', rotulo: 'Uma proposta' },
+      { v: 'conflito', rotulo: 'Proposta conflitante' }
     ]
   });
 
