@@ -330,7 +330,10 @@ const AH_DATA = {
           tags: ['Ethernet', 'Switch', 'VLAN'], nivel: 'Fundamental', minutos: 50 },
         { id: '04-ip-subredes-arp', titulo: 'Endereçamento IPv4, sub-redes, CIDR e ARP', icone: 'fa-location-dot',
           resumo: 'Máscara e prefixo, cálculo de rede e broadcast, divisão em sub-redes, a decisão entre envio direto e gateway, e o ARP que traduz IP em MAC.',
-          tags: ['IPv4', 'Sub-redes', 'ARP'], nivel: 'Fundamental', minutos: 60 }
+          tags: ['IPv4', 'Sub-redes', 'ARP'], nivel: 'Fundamental', minutos: 60 },
+        { id: '05-roteamento', titulo: 'Roteamento: vetor de distância, estado de enlace e BGP', icone: 'fa-route',
+          resumo: 'Tabela de encaminhamento e prefixo mais longo, Bellman-Ford e a contagem ao infinito, Dijkstra no estado de enlace, sistemas autônomos e a política do BGP.',
+          tags: ['Roteamento', 'OSPF', 'BGP'], nivel: 'Intermediário', minutos: 65 }
       ]
     }
   ]

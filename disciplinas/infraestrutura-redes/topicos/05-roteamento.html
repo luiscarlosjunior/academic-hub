@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roteamento: vetor de distância, estado de enlace e BGP · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como roteadores constroem tabelas de encaminhamento, o algoritmo de vetor de distância e a contagem ao infinito, o estado de enlace com Dijkstra (OSPF), sistemas autônomos e BGP, com animação, exemplo em Python com saída real e citações.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/05-roteamento">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Tópico 5 · Roteamento</h2>
+  <div class="ah-prose">
+    <p>
+      Um roteador faz duas coisas que é importante não confundir. <strong>Encaminhar</strong> é a ação local e rápida: olhar o endereço de destino
+      de um pacote que chegou e decidir por qual interface sair. <strong>Rotear</strong> é o processo distribuído e lento que constrói a informação
+      usada nessa decisão. A primeira acontece em nanossegundos, em hardware; a segunda leva segundos ou minutos, e envolve trocar mensagens com
+      outros roteadores.
+    </p>
+    <p>
+      Esta página explica como os roteadores constroem as tabelas, por que dois algoritmos clássicos (vetor de distância e estado de enlace)
+      têm propriedades tão diferentes, e como a Internet inteira é costurada por um protocolo, o BGP, que escolhe caminhos por política mais do
+      que por distância.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever a tabela de encaminhamento e aplicar a regra do prefixo mais longo;</li>
+      <li>executar uma rodada do algoritmo de vetor de distância e explicar a contagem ao infinito;</li>
+      <li>explicar por que o estado de enlace converge sem contagem ao infinito e calcular caminhos com Dijkstra;</li>
+      <li>distinguir protocolos internos (IGP) de externos (EGP), e o papel de um sistema autônomo;</li>
+      <li>explicar por que o BGP escolhe por política e o que é o AS_PATH.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      O algoritmo de vetor de distância é antigo, derivado do trabalho de Bellman (1958) e de Ford e Fulkerson sobre caminhos mínimos, e foi usado
+      nas primeiras redes da ARPANET com o protocolo de roteamento original. O RIP, de Charles Hedrick, em 1988, levou a ideia para os roteadores
+      comerciais. O estado de enlace, baseado no algoritmo de Dijkstra de 1959, ganhou força com o OSPF nos anos 1990, justamente para corrigir
+      os problemas de convergência do vetor de distância em redes grandes.
+    </p>
+    <p>
+      Entre sistemas autônomos, o protocolo é o BGP. A versão 4, descrita na RFC 4271 em 2006, é a que mantém a Internet interligada hoje. Um erro de
+      configuração no BGP pode tirar do ar redes inteiras, como já ocorreu em incidentes amplamente documentados, o que mostra que o roteamento
+      é uma questão de confiança além da técnica.
+    </p>
+  </div>
+</section>
+
+<section id="tabela" data-toc="Teoria: tabela de encaminhamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>Teoria · A tabela de encaminhamento</h2>
+  <div class="ah-prose">
+    <p>
+      Cada entrada da tabela associa um <strong>prefixo</strong> (uma rede, como <code>10.1.0.0/16</code>) a um <strong>próximo salto</strong> e a
+      uma interface de saída. Quando um pacote chega, o roteador procura todos os prefixos que contêm o destino e escolhe o mais específico: é a
+      regra do <strong>prefixo mais longo</strong> (<em>longest prefix match</em>). Se a tabela tem <code>10.0.0.0/8</code> e <code>10.1.0.0/16</code>,
+      um pacote para <code>10.1.5.9</code> usa a segunda, que é mais específica. A rota padrão, <code>0.0.0.0/0</code>, casa com tudo e fica por último.
+    </p>
+    <div class="overflow-x-auto ah-card mt-4">
+      <table class="ah-table">
+        <thead><tr><th>Prefixo</th><th>Próximo salto</th><th>Interface</th><th>Origem</th></tr></thead>
+        <tbody>
+          <tr><td>10.1.0.0/16</td><td>10.0.0.2</td><td>eth1</td><td>OSPF</td></tr>
+          <tr><td>10.0.0.0/8</td><td>10.0.0.9</td><td>eth2</td><td>estática</td></tr>
+          <tr><td>192.168.0.0/24</td><td>conectada</td><td>eth0</td><td>direta</td></tr>
+          <tr><td>0.0.0.0/0</td><td>200.1.1.1</td><td>eth3</td><td>rota padrão</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-4">
+      Para um pacote a 10.1.5.9, a tabela acima casa com 10.0.0.0/8 e com 10.1.0.0/16, e escolhe a segunda. Para 10.9.9.9, só casa com a primeira.
+      Para 8.8.8.8, só casa com a rota padrão. Essa regra simples é o que permite agregar redes e ter uma tabela global de centenas de milhares de
+      entradas que ainda funciona.
+    </p>
+  </div>
+</section>
+
+<section id="dv" data-toc="Teoria: vetor de distância" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-emerald-400 mr-2"></i>Teoria · Vetor de distância</h2>
+  <div class="ah-prose">
+    <p>
+      No vetor de distância, cada roteador conhece apenas seus vizinhos e o custo até eles. Periodicamente, ele anuncia a cada vizinho sua tabela
+      de distâncias (o "vetor"). Ao receber um anúncio, ele aplica a equação de Bellman-Ford: a distância até um destino é o mínimo, sobre todos os
+      vizinhos y, de custo(x, y) + distância anunciada por y.
+    </p>
+    <p>
+      O que torna o algoritmo perigoso é que cada roteador confia no que o vizinho diz, sem saber como a informação foi obtida. Se a rota direta
+      cai, o vizinho ainda pode anunciar um caminho que passa por você. Você o aceita, anuncia de volta um caminho mais longo, e os dois se alimentam
+      em loop. Cada rodada soma um custo, e a distância sobe devagar até chegar ao limite (16 no RIP, que representa infinito).
+    </p>
+    <p><strong>Técnicas para mitigar.</strong></p>
+    <ul>
+      <li><strong>Split horizon:</strong> não anuncie a um vizinho uma rota que aprendeu dele.</li>
+      <li><strong>Poison reverse:</strong> anuncie essa rota com custo infinito, em vez de omiti-la. Corta os loops de dois nós, mas não os maiores.</li>
+      <li><strong>Limite de infinito:</strong> defina um valor máximo. Ele limita o problema, mas torna a convergência lenta.</li>
+      <li><strong>Atualizações acionadas:</strong> anuncie mudanças imediatamente, sem esperar o ciclo periódico.</li>
+    </ul>
+    <p>
+      Nenhuma dessas técnicas elimina o problema por completo, porque o roteador ainda não sabe a topologia. Essa é a diferença fundamental para
+      o estado de enlace.
+    </p>
+  </div>
+</section>
+
+<section id="ls" data-toc="Teoria: estado de enlace e Dijkstra" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Teoria · Estado de enlace e Dijkstra</h2>
+  <div class="ah-prose">
+    <p>
+      No estado de enlace, cada roteador descobre seus vizinhos e o custo de cada enlace, e inunda essa informação para todos os roteadores da área.
+      Ao final, todos têm o mesmo grafo completo, e cada um calcula sozinho a árvore de caminhos mínimos a partir de si mesmo, com o algoritmo de
+      Dijkstra. Não há rumor: cada roteador pode verificar a topologia por conta própria.
+    </p>
+    <p>
+      O algoritmo mantém um conjunto de nós já finalizados e, a cada passo, escolhe o nó não finalizado de menor distância, e relaxa as arestas
+      que saem dele. Com custos não negativos, a distância de cada nó é final quando ele sai da fila. Para os caminhos seguirem apenas a topologia,
+      a fila de prioridade torna o cálculo eficiente em redes grandes.
+    </p>
+    <p>
+      O OSPF usa essa ideia dentro de um sistema autônomo. A troca de informação é mais cara que no vetor de distância, porque a inundação exige
+      memória e banda, mas a convergência é rápida e não há contagem ao infinito. O custo de um enlace é, em geral, inversamente proporcional à
+      banda, e isso é uma escolha de política, não uma lei física.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: convergência e contagem ao infinito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Vetor de distância, normal e com falha</h2>
+  <p class="ah-lead text-sm mb-4">Quatro roteadores: A é ligado diretamente ao destino D. No cenário normal, B e C aprendem o caminho em uma rodada e o sistema converge. No cenário de falha, o enlace A–D cai na rodada 3, e a distância cresce de um em um: essa é a contagem ao infinito. Escolha o cenário no seletor e avance.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvRota" style="height:380px"></canvas></div>
+  <div id="ctlRota" class="mt-4"></div>
+  <div id="capRota" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="bgp" data-toc="Teoria: sistemas autônomos e BGP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-globe text-emerald-400 mr-2"></i>Teoria · Sistemas autônomos e BGP</h2>
+  <div class="ah-prose">
+    <p>
+      A Internet é um conjunto de <strong>sistemas autônomos</strong> (AS): redes sob uma mesma administração, com política de roteamento própria.
+      Dentro de um AS, usa-se um <strong>IGP</strong> (OSPF, IS-IS, RIP), que otimiza distância ou custo. Entre ASes, usa-se um <strong>EGP</strong>,
+      e o único em uso hoje é o BGP.
+    </p>
+    <p>
+      O BGP é um protocolo de vetor de caminhos: cada anúncio carrega a lista de ASes pelos quais a rota passou, o <strong>AS_PATH</strong>. Isso
+      evita loops, porque um roteador descarta uma rota que contenha o próprio AS. A decisão é tomada por uma sequência de critérios, e o primeiro
+      deles é a preferência local, definida pela política do operador, não pela distância.
+    </p>
+    <p>
+      Por isso, o BGP é o protocolo da política, e não da eficiência. Um provedor pode preferir pagar menos a rotear pelo caminho mais curto; um
+      cliente pode preferir um trânsito específico por razões contratuais. Esse é o motivo pelo qual o BGP pode produzir caminhos longos e
+      surpreendentes, e por que ele é tão sensível a erros de configuração.
+    </p>
+    <p>
+      A RFC 4271 começa com uma definição direta:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "The Border Gateway Protocol (BGP) is an inter-Autonomous System routing protocol."
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 4271 (Rekhter, Li e Hares, 2006), seção 1. Tradução nossa: o Border Gateway Protocol (BGP) é um protocolo de roteamento entre sistemas autônomos.</p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: vetor de distância e Dijkstra em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Os dois algoritmos na mesma rede</h2>
+  <div class="ah-prose">
+    <p>
+      O programa roda o vetor de distância sobre quatro roteadores, com a mesma topologia da animação. Na primeira parte, a convergência leva duas
+      rodadas. Na segunda, o enlace A–D cai na rodada 3, e a contagem ao infinito aparece: B e C sustentam uma rota falsa que passa um pelo outro,
+      e a distância sobe de um em um. A terceira parte roda Dijkstra sobre o mesmo grafo, e chega aos mesmos caminhos sem nenhuma contagem.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>05-roteamento.py · passo</code></p>
+<pre class="ah-code"><code>def passo(dist, ativos):
+    novo, via = {}, {}
+    for x in NOS:
+        if x == "D":
+            novo[x], via[x] = 0, "-"
+            continue
+        melhor, escolha = INF, None
+        for y in vizinhos(x, ativos):
+            c = custo(x, y) + dist[y]        # Bellman-Ford com o que y anunciou
+            if c < melhor:
+                melhor, escolha = c, y
+        novo[x] = min(melhor, INF)
+        via[x] = escolha if novo[x] < INF else "-"
+    return novo, via</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: vetor de distância, convergência (destino D)
+
+  rodada  0: A= 1 via -  B=16 via -  C=16 via -
+  rodada  1: A= 1 via D  B= 2 via A  C= 2 via A
+  rodada  2: A= 1 via D  B= 2 via A  C= 2 via A
+
+Parte 2: falha do enlace A-D na rodada 3 (contagem ao infinito)
+
+  rodada  0: A= 1 via -  B=16 via -  C=16 via -
+  rodada  1: A= 1 via D  B= 2 via A  C= 2 via A
+  rodada  2: A= 1 via D  B= 2 via A  C= 2 via A
+  rodada  3: A= 3 via B  B= 2 via A  C= 2 via A
+  rodada  4: A= 3 via B  B= 3 via C  C= 3 via B
+  rodada  5: A= 4 via B  B= 4 via A  C= 4 via A
+  rodada  6: A= 5 via B  B= 5 via A  C= 5 via A
+  rodada  7: A= 6 via B  B= 6 via A  C= 6 via A
+  rodada  8: A= 7 via B  B= 7 via A  C= 7 via A
+  rodada  9: A= 8 via B  B= 8 via A  C= 8 via A
+  rodada 10: A= 9 via B  B= 9 via A  C= 9 via A
+  rodada 11: A=10 via B  B=10 via A  C=10 via A
+  rodada 12: A=11 via B  B=11 via A  C=11 via A
+
+Parte 3: estado de enlace, Dijkstra a partir de A
+  para A: custo 0, caminho A
+  para B: custo 1, caminho A -> B
+  para C: custo 1, caminho A -> C
+  para D: custo 1, caminho A -> D</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Leia a rodada 3 com atenção. Antes da falha, A tinha distância 1 via D. Depois da queda, A passa a usar B, que ainda acha que tem distância
+      2 via A. A soma dá 3, e A anuncia isso. Na rodada 4, B passa a usar C, que é a mesma história. O sistema nunca chega a uma resposta
+      estável, só a um limite artificial.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Rota padrão do roteador de casa</div>
+      <p class="text-xs text-slate-400">O roteador doméstico tem uma rota padrão apontando para a operadora. Ela casa com tudo que não está nas redes locais. É a regra do prefixo mais longo: as redes locais, mais específicas, vencem a padrão.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Queda de um enlace num datacenter</div>
+      <p class="text-xs text-slate-400">Num datacenter com OSPF, a queda de um link é detectada em segundos, e todos os roteadores recalculam o grafo. Num ambiente com vetor de distância mal configurado, a mesma falha pode gerar minutos de instabilidade.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Incidente de BGP</div>
+      <p class="text-xs text-slate-400">Quando um AS anuncia prefixos que não controla, o tráfego de outras redes pode passar por ele. Esses "desvios de rota" são notícia recorrente, e a razão é a confiança implícita no AS_PATH, que ainda é pouco verificada.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Caminho mais curto não é o mais rápido</div>
+      <p class="text-xs text-slate-400">Um traceroute pode mostrar um caminho com menos saltos e mais latência que outro, porque o custo do OSPF ou a preferência do BGP refletem política e banda, e não distância geográfica.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Ordene por especificidade</div>
+      <p class="text-xs text-slate-400">Para decidir uma rota, liste os prefixos que casam e escolha o de maior comprimento. Só depois olhe métricas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Não confie no vizinho cegamente</div>
+      <p class="text-xs text-slate-400">No vetor de distância, a informação já é de segunda mão. Se os números não batem com a topologia, suspeite de um loop.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Prefira o que conhece o grafo</div>
+      <p class="text-xs text-slate-400">Dentro de uma organização, o estado de enlace dá convergência previsível. Use vetor de distância só quando a escala for pequena e a topologia simples.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Trate política como código</div>
+      <p class="text-xs text-slate-400">Configurações de BGP mudam o comportamento de uma Internet inteira. Revise, teste e registre cada alteração como faria com qualquer código de produção.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: qual rota é escolhida?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um roteador tem as rotas 172.16.0.0/12, 172.16.8.0/21 e 0.0.0.0/0. Para qual rota vai um pacote para 172.16.9.44?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Os três prefixos casam com 172.16.9.44: o /12 (172.16.0.0 a 172.31.255.255) contém; o /21 (172.16.8.0 a 172.16.15.255) contém; a padrão casa com tudo. O mais longo é o /21, com 21 bits de rede. Escolhe-se a rota 172.16.8.0/21.</p>
+      <p><strong>Lição.</strong> Um prefixo mais específico sempre vence, mesmo que a rota geral tenha métrica menor.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quantas rodadas até convergir?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma cadeia de cinco roteadores, R1–R2–R3–R4–R5, tem o destino ligado a R1 com custo 1. Supondo atualizações síncronas e custo 1 em cada enlace, quantas rodadas são necessárias para R5 aprender a rota?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Em cada rodada, a informação avança um salto. R1 sabe na rodada 0. R2 aprende na rodada 1, R3 na 2, R4 na 3 e R5 na 4. São 4 rodadas, ou seja, o número de saltos a partir de R1.</p>
+      <p><strong>Lição.</strong> No vetor de distância, a convergência é proporcional ao diâmetro da rede. Em redes grandes, isso é lento.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Na topologia do exemplo, o custo do enlace B–C passa a ser 10. Recalcule, pelo Dijkstra a partir de A, o caminho para C.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o caminho direto A–C tem custo 1, e a alternativa A–B–C tem custo 1 + 10 = 11. O Dijkstra escolhe A–C, com custo 1, sem mudança.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Explique por que o poison reverse corta loops de dois nós, mas não corta um loop de três nós como o da animação.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o poison reverse age sobre a rota que o vizinho lhe ensinou: ao anunciar de volta, o roteador diz "por mim, você está inalcançável". Em um loop de dois nós, isso basta, porque a informação só vai e volta entre os dois. No loop da animação, a informação circula por três roteadores (B, C e A), e cada um só vê diretamente o vizinho imediato. O poison reverse de um par não intercepta a rota que volta pelo terceiro nó, e o loop se mantém.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um AS recebe dois anúncios para o mesmo prefixo: um com AS_PATH de 3 ASes e outro com 5. A política do AS prefere rotas de um cliente pagante, mesmo que sejam mais longas. Qual é escolhida, e por quê?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a decisão começa pela preferência local, definida pela política, e só depois pelo comprimento do AS_PATH. Se o anúncio do cliente pagante tiver preferência local maior, ele vence, mesmo com 5 ASes. O menor AS_PATH só desempata quando as preferências são iguais.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um pacote tem destino 10.1.5.9, e a tabela tem 10.0.0.0/8 e 10.1.0.0/16. Qual rota é usada?</p>
+      <button class="ah-quiz-opt">10.0.0.0/8, porque tem o prefixo mais curto</button>
+      <button class="ah-quiz-opt">A que tiver a menor métrica, sem olhar o prefixo</button>
+      <button class="ah-quiz-opt">10.1.0.0/16, por ser o prefixo mais longo que casa</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A regra é o prefixo mais longo que contém o destino. O /16 é mais específico que o /8.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o vetor de distância pode sofrer contagem ao infinito?</p>
+      <button class="ah-quiz-opt">Porque cada roteador confia no que o vizinho anuncia, sem conhecer a topologia completa</button>
+      <button class="ah-quiz-opt">Porque o algoritmo de Dijkstra é lento demais</button>
+      <button class="ah-quiz-opt">Porque o OSPF não envia atualizações</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem o grafo, um roteador pode aceitar uma rota que passa por si mesmo e a propagar de volta, criando um loop.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é o papel do AS_PATH no BGP?</p>
+      <button class="ah-quiz-opt">Medir a latência entre os roteadores</button>
+      <button class="ah-quiz-opt">Listar os sistemas autônomos pelos quais a rota passou, e evitar loops</button>
+      <button class="ah-quiz-opt">Definir o endereço IP de cada AS</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Um roteador descarta uma rota cujo AS_PATH contém o próprio AS, o que impede loops entre sistemas autônomos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Encaminhar é decidir por pacote; rotear é construir a tabela que embasa a decisão.</li>
+    <li>O prefixo mais longo que casa com o destino sempre vence.</li>
+    <li>O vetor de distância converge devagar e pode sofrer contagem ao infinito após uma falha.</li>
+    <li>O estado de enlace conhece o grafo inteiro e calcula caminhos com Dijkstra, sem contagem.</li>
+    <li>O BGP escolhe rotas por política, com o AS_PATH evitando loops entre sistemas autônomos.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>REKHTER, Y.; LI, T.; HARES, S. <em>RFC 4271: A Border Gateway Protocol 4 (BGP-4)</em>. IETF, 2006.</li>
+    <li>MALKIN, G. <em>RFC 2453: RIP Version 2</em>. IETF, 1998. (Limite de 16 saltos e split horizon.)</li>
+    <li>MOY, J. <em>RFC 2328: OSPF Version 2</em>. IETF, 1998.</li>
+    <li>DIJKSTRA, E. W. A note on two problems in connexion with graphs. <em>Numerische Mathematik</em>, v. 1, p. 269–271, 1959.</li>
+    <li>BELLMAN, R. On a routing problem. <em>Quarterly of Applied Mathematics</em>, v. 16, n. 1, p. 87–90, 1958.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 5 (roteamento: vetor de distância, estado de enlace e BGP).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 5 (algoritmos de roteamento).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Vetor de distância: convergência normal ou falha do enlace A–D na rodada 3 */
+  IR.liga(IR.criaRoteamento(), {
+    canvas: 'cvRota', ctl: 'ctlRota', cap: 'capRota', velocidade: 1600,
+    cenarios: { convergencia: {}, queda: {} },
+    rotulos: { convergencia: 'Convergência normal', queda: 'Falha do enlace A–D' }
+  });
+
+})();
+</script>
+</body>
+</html>

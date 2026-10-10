@@ -240,6 +240,131 @@
     });
   }
 
+  /* ===================================================================
+     MOTOR DE ROTEAMENTO — vetor de distância em rodadas síncronas.
+     Espelha disciplinas/infraestrutura-redes/exemplos-python/05-roteamento.py:
+     quatro roteadores (A, B, C e o destino D); o enlace A–D pode cair.
+     =================================================================== */
+  const RT_INF = 16;
+  const RT_NOS = ['A', 'B', 'C', 'D'];
+  const RT_ENLACES = [['A', 'B', 1], ['B', 'C', 1], ['A', 'C', 1], ['A', 'D', 1]];
+  const RT_POS = { A: [0.34, 0.5], D: [0.1, 0.5], B: [0.72, 0.2], C: [0.72, 0.8] };
+
+  function rtCusto(x, y) {
+    const e = RT_ENLACES.find(([a, b]) => (a === x && b === y) || (a === y && b === x));
+    return e ? e[2] : null;
+  }
+
+  function rtVizinhos(x, ativos) {
+    return ativos
+      .filter(e => e[0] === x || e[1] === x)
+      .map(e => (e[0] === x ? e[1] : e[0]))
+      .sort();
+  }
+
+  /* Uma rodada: cada nó recalcula com base no que os vizinhos anunciaram antes */
+  function rtPasso(dist, ativos) {
+    const novo = {}, via = {};
+    RT_NOS.forEach(x => {
+      if (x === 'D') { novo[x] = 0; via[x] = '-'; return; }
+      let melhor = RT_INF, escolha = null;
+      rtVizinhos(x, ativos).forEach(y => {
+        const c = rtCusto(x, y) + dist[y];
+        if (c < melhor) { melhor = c; escolha = y; }
+      });
+      novo[x] = Math.min(melhor, RT_INF);
+      via[x] = novo[x] < RT_INF ? escolha : '-';
+    });
+    return { novo, via };
+  }
+
+  /* Roda até estabilizar; se houver falha, remove o enlace na rodada indicada */
+  function rtVetor(rodadasMax, falha, rodadaFalha) {
+    let ativos = RT_ENLACES.map(([a, b]) => [a, b]);
+    let dist = {};
+    RT_NOS.forEach(x => { dist[x] = RT_INF; });
+    dist.D = 0;
+    ativos.forEach(([a, b]) => { if (b === 'D') dist[a] = rtCusto(a, b); });
+
+    const historico = [{ r: 0, dist: Object.assign({}, dist), via: { A: '-', B: '-', C: '-', D: '-' }, ativos }];
+    for (let r = 1; r <= rodadasMax; r++) {
+      if (falha && r === rodadaFalha) {
+        ativos = ativos.filter(e => !(e[0] === falha[0] && e[1] === falha[1]));
+      }
+      const { novo, via } = rtPasso(dist, ativos);
+      historico.push({ r, dist: novo, via, ativos });
+      const igual = RT_NOS.every(x => novo[x] === dist[x]);
+      if (igual && !(falha && r <= rodadaFalha)) break;
+      dist = novo;
+    }
+    return historico;
+  }
+
+  function criaRoteamento() {
+    const FALHA = ['A', 'D'];
+
+    function gera(opcao) {
+      const queda = opcao === 'queda';
+      const h = queda ? rtVetor(12, FALHA, 3) : rtVetor(20, null, null);
+      return h.map((st, i) => {
+        if (i === 0) {
+          return Object.assign({}, st, {
+            falhou: false,
+            t: 'Início: só A conhece a rota direta para D (custo 1). B e C ainda não sabem nada: 16 significa infinito.'
+          });
+        }
+        const ant = h[i - 1].dist;
+        const mudou = ['A', 'B', 'C'].filter(x => st.dist[x] !== ant[x]);
+        const falhou = queda && st.r >= 3;
+        let t = 'Rodada ' + st.r + ': ' +
+          (mudou.length ? mudou.map(x => x + ' ' + ant[x] + ' → ' + st.dist[x]).join(', ') : 'nenhuma mudança') + '.';
+        if (queda && st.r === 3) t = 'O enlace A–D cai nesta rodada. A perde a rota direta. ' + t;
+        else if (queda && st.r > 3 && mudou.length) t += ' Cada um acredita numa rota que passa pelo outro, e os valores sobem de um em um até INF.';
+        else if (!mudou.length) t += ' A rede convergiu: nenhum valor mudou.';
+        return Object.assign({}, st, { falhou, mudou, t });
+      });
+    }
+
+    function desenha(ctx, w, h, q) {
+      limpa(ctx, w, h);
+      const P = x => [RT_POS[x][0] * w, RT_POS[x][1] * h];
+
+      RT_ENLACES.forEach(([a, b, c]) => {
+        const [x1, y1] = P(a), [x2, y2] = P(b);
+        const caiu = q.falhou && a === 'A' && b === 'D';
+        ctx.save();
+        if (caiu) ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = caiu ? CORES.rosa : CORES.azul;
+        ctx.lineWidth = caiu ? 2 : 1.6;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.restore();
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        rotulo(ctx, caiu ? 'caiu' : 'custo ' + c, mx + 6, my - 10, caiu ? CORES.rosa : CORES.mudo, 'left', 11);
+      });
+
+      RT_NOS.forEach(x => {
+        const [cx, cy] = P(x);
+        const mudou = q.mudou && q.mudou.includes(x);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 26, 0, Math.PI * 2);
+        ctx.fillStyle = '#0f172a';
+        ctx.fill();
+        ctx.strokeStyle = mudou ? CORES.amarelo : (x === 'D' ? CORES.verde : CORES.azul);
+        ctx.lineWidth = mudou ? 3 : 1.6;
+        ctx.stroke();
+        ctx.fillStyle = CORES.txt;
+        ctx.font = '700 15px "Fira Code", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(x, cx, cy);
+        const linha = x === 'D' ? 'destino' : 'd=' + q.dist[x] + ' via ' + q.via[x];
+        rotulo(ctx, linha, cx, cy + 40, mudou ? CORES.amarelo : CORES.mudo, 'center', 11);
+      });
+    }
+
+    return { gera, desenha };
+  }
+
   global.IR = {
     CORES,
     limpa,
@@ -248,6 +373,7 @@
     linhaTracejada,
     criaSequencia,
     criaPilha,
+    criaRoteamento,
     liga
   };
 })(window);
