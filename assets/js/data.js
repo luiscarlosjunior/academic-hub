@@ -354,7 +354,10 @@ const AH_DATA = {
           tags: ['SDN', 'Leaf-spine', 'ECMP'], nivel: 'Avançado', minutos: 70 },
         { id: '12-cloud-diagnostico', titulo: 'Redes em cloud e diagnóstico: VPC, filtros, traceroute e método', icone: 'fa-cloud',
           resumo: 'VPC com sub-redes públicas e privadas, tabelas de rota e gateways, grupos de segurança e ACLs, ferramentas de diagnóstico e um método de investigação por camadas.',
-          tags: ['VPC', 'Diagnóstico', 'Traceroute'], nivel: 'Avançado', minutos: 70 }
+          tags: ['VPC', 'Diagnóstico', 'Traceroute'], nivel: 'Avançado', minutos: 70 },
+        { id: '13-balanceamento-carga', titulo: 'Balanceamento de carga e alta disponibilidade', icone: 'fa-scale-balanced',
+          resumo: 'Camadas 4 e 7, algoritmos de distribuição, consistent hashing, health checks com histerese, VRRP e anycast, com casos da indústria.',
+          tags: ['Load balancer', 'Consistent hashing', 'Alta disponibilidade'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]

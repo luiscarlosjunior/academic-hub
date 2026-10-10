@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Balanceamento de carga e alta disponibilidade: L4, L7, consistent hashing e health checks · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como balanceadores distribuem conexões entre servidores: camadas 4 e 7, algoritmos, consistent hashing, health checks, failover com VRRP e anycast, com casos reais da indústria, animação, exemplo em Python com saída real e citação da RFC 5798.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/13-balanceamento-carga">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Tópico 13 · Balanceamento de carga e alta disponibilidade</h2>
+  <div class="ah-prose">
+    <p>
+      Nenhum serviço que atende milhões de pessoas roda em um único servidor. Ele roda em dezenas ou milhares de réplicas, e alguma peça precisa decidir,
+      para cada conexão nova, qual réplica vai atendê-la. Essa peça é o <strong>balanceador de carga</strong>. Ele também precisa perceber quando uma
+      réplica adoeceu e tirá-la de circulação antes que os usuários percebam.
+    </p>
+    <p>
+      Quando você compra algo numa loja online na Black Friday, sua requisição passa por balanceadores em vários níveis antes de chegar a uma máquina
+      de aplicação. Esta página explica como eles decidem, por que o algoritmo importa para o estado da sessão, e como a alta disponibilidade é
+      construída sobre eles.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>diferenciar balanceamento na camada 4 (transporte) e na camada 7 (aplicação), com as vantagens de cada um;</li>
+      <li>comparar round robin, menos conexões e hash, e escolher um para um caso concreto;</li>
+      <li>explicar por que o consistent hashing reduz a remontagem de conexões quando um servidor sai;</li>
+      <li>descrever um health check com histerese e por que ele evita oscilação;</li>
+      <li>relacionar VRRP e anycast ao failover de gateways e de serviços globais.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Nos anos 1990, a resposta a mais carga era comprar um servidor maior. Isso tem limite de custo e de capacidade. O balanceamento por DNS, em que
+      um mesmo nome devolve vários IPs em rodízio, foi uma das primeiras saídas, e ainda é usado, com as suas limitações de cache. Os balanceadores
+      dedicados chegaram com a web de larga escala no início dos anos 2000.
+    </p>
+    <p>
+      Em 2016, o Google publicou o Maglev, um balanceador de software na camada de rede, que roda em servidores comuns e distribui pacotes de todo o
+      tráfego de entrada de seus serviços. O artigo ficou conhecido por mostrar que a combinação de hash consistente com uma tabela de tamanho fixo
+      podia manter conexões estáveis mesmo quando a própria frota de balanceadores mudava.
+    </p>
+  </div>
+</section>
+
+<section id="camadas" data-toc="Teoria: camadas 4 e 7" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Teoria · Camada 4 e camada 7</h2>
+  <div class="ah-prose">
+    <p>
+      Um balanceador de <strong>camada 4</strong> enxerga endereços IP e portas, e decide por conexão TCP ou UDP. Ele não lê o conteúdo: encaminha
+      os pacotes do fluxo para o mesmo servidor, e é muito rápido, porque o trabalho por pacote é pequeno. Não sabe nada sobre URLs, cookies ou
+      cabeçalhos.
+    </p>
+    <p>
+      Um balanceador de <strong>camada 7</strong> termina a conexão TLS, lê a requisição HTTP e decide com base no caminho, no cabeçalho ou no método.
+      Assim, <code>/api</code> pode ir para um conjunto de servidores e <code>/imagens</code> para outro, e um cabeçalho pode forçar uma versão de
+      teste. O preço é processar cada requisição, o que custa CPU e latência.
+    </p>
+    <p>
+      Na prática, grandes serviços usam os dois: um balanceador de camada 4 distribui o tráfego de entrada entre um conjunto de proxies de camada 7,
+      que então roteiam por aplicação. Essa segunda camada é o que a indústria chama de <em>ingress</em> em plataformas de contêineres.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th>Camada 4</th><th>Camada 7</th></tr></thead>
+      <tbody>
+        <tr><td>O que vê</td><td>IP, porta, protocolo</td><td>URL, cabeçalhos, cookies, método</td></tr>
+        <tr><td>Custo por requisição</td><td>baixo</td><td>maior (parse, TLS, reescrita)</td></tr>
+        <tr><td>Roteamento por aplicação</td><td>não</td><td>sim</td></tr>
+        <tr><td>Exemplo na indústria</td><td>balanceador de rede de provedores de nuvem</td><td>proxy de API e ingress de Kubernetes</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="algoritmos" data-toc="Teoria: algoritmos de distribuição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-emerald-400 mr-2"></i>Teoria · Como escolher o servidor</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Round robin:</strong> o próximo da fila. Simples e justo quando as requisições custam o mesmo.</li>
+      <li><strong>Menos conexões (least connections):</strong> o servidor com menos conexões ativas. Bom quando o custo das requisições varia muito, como em relatórios longos misturados com consultas rápidas.</li>
+      <li><strong>Pesos:</strong> servidores mais potentes recebem mais tráfego. Útil em frotas heterogêneas durante uma migração.</li>
+      <li><strong>Hash do cliente ou da sessão:</strong> a mesma origem sempre vai ao mesmo servidor. Mantém estado local, mas dificulta a remoção de servidores.</li>
+      <li><strong>Latência:</strong> o servidor com menor tempo de resposta recente. Comum em balanceadores globais, combinado com a geografia.</li>
+    </ul>
+    <p>
+      Nenhum algoritmo é universalmente melhor. A escolha depende de três perguntas: as requisições têm custos parecidos? Existe estado que precisa
+      ficar no mesmo servidor? Os servidores entram e saem com frequência? As duas últimas perguntas levam ao próximo tema.
+    </p>
+  </div>
+</section>
+
+<section id="consistente" data-toc="Teoria: consistent hashing" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-emerald-400 mr-2"></i>Teoria · Hash módulo N e consistent hashing</h2>
+  <div class="ah-prose">
+    <p>
+      A forma mais simples de manter uma conexão no mesmo servidor é calcular <code>hash(cliente) mod N</code>. O problema aparece quando N muda: ao
+      remover um servidor, <em>N</em> passa de 4 para 3, e quase todo resultado muda. Num cache ou numa sessão em memória, isso significa remontar quase
+      tudo de uma vez, com uma onda de falhas no pior momento.
+    </p>
+    <p>
+      O <strong>consistent hashing</strong> posiciona servidores e chaves num mesmo anel. Cada chave vai ao primeiro servidor no sentido horário. Ao
+      remover um servidor, só as chaves entre ele e o anterior mudam de dono, algo como 1/N do total. Para equilibrar a carga, cada servidor ocupa muitos
+      pontos no anel (nós virtuais). O exemplo em Python mede exatamente essa diferença.
+    </p>
+    <p>
+      A indústria usa variantes: o rendezvous hashing (ou HRW), em que cada chave escolhe o servidor de maior peso combinado, e tabelas de tamanho
+      primo como as do Maglev. Todas buscam o mesmo resultado: pouca remontagem quando a frota muda.
+    </p>
+  </div>
+</section>
+
+<section id="healthcheck" data-toc="Teoria: health checks e histerese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-heart-pulse text-emerald-400 mr-2"></i>Teoria · Health checks e histerese</h2>
+  <div class="ah-prose">
+    <p>
+      Um balanceador só é útil se souber quais servidores estão saudáveis. O health check faz isso com uma sonda periódica: uma requisição HTTP a um
+      caminho de saúde, uma conexão TCP, ou um comando de aplicação. A sonda é simples; a decisão de tirar um servidor de circulação é o que exige
+      cuidado.
+    </p>
+    <p>
+      Se um servidor sai da rotação ao primeiro erro, qualquer soluço de um segundo o retira, e o tráfego se concentra nos demais, que podem cair
+      também. Se ele volta ao primeiro sucesso, oscila a cada rodada. A solução é a <strong>histerese</strong>: exigir falhas consecutivas para remover,
+      e sucessos consecutivos para reintegrar. O exemplo usa 3 falhas e 2 sucessos.
+    </p>
+    <p>
+      Um defeito clássico é o health check que testa só se a porta responde, e não se a aplicação funciona. A máquina aceita conexões, o balanceador a
+      mantém, e as requisições dão erro. Um bom check testa a dependência principal, sem derrubar o servidor se essa dependência estiver lenta.
+    </p>
+  </div>
+</section>
+
+<section id="ha" data-toc="Teoria: failover, VRRP e anycast" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-split-up-and-left text-emerald-400 mr-2"></i>Teoria · Failover, VRRP e anycast</h2>
+  <div class="ah-prose">
+    <p>
+      O próprio balanceador pode falhar, e por isso existe redundância nele. Em <strong>ativo-passivo</strong>, um fica de reserva e assume o endereço
+      virtual quando o principal cai. Em <strong>ativo-ativo</strong>, os dois atendem e um assume a carga do outro. O VRRP cuida da eleição do
+      endereço virtual dentro de uma LAN, e a RFC 5798 descreve o mecanismo:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "VRRP specifies an election protocol that dynamically assigns responsibility for a virtual router to one of the VRRP routers on a LAN."
+    </blockquote>
+    <p class="text-xs text-slate-500">IETF, RFC 5798 (2010), resumo. Tradução nossa: o VRRP especifica um protocolo de eleição que atribui dinamicamente a responsabilidade por um roteador virtual a um dos roteadores VRRP de uma LAN.</p>
+    <p>
+      Em escala global, o <strong>anycast</strong> faz o mesmo com rotas: o mesmo endereço IP é anunciado por BGP em muitos locais, e a rede entrega
+      cada pacote ao local mais próximo, segundo o roteamento. Um local que sai do ar deixa de anunciar, e o tráfego migra sozinho para o próximo.
+      É o mecanismo por trás dos resolvedores DNS públicos e de grande parte das CDNs, tema do tópico 14.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: casos reais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-emerald-400 mr-2"></i>Na indústria · Casos reais de balanceamento</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Black Friday de e-commerce</div>
+      <p class="text-xs text-slate-400">Varejistas escalam o número de réplicas de carrinho e pagamento horas antes do pico, e tiram do rodízio as que respondem com lentidão. Pelo health check, uma réplica com o banco de dados saturado sai sozinha antes que os clientes vejam erro.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Maglev e o tráfego de entrada do Google</div>
+      <p class="text-xs text-slate-400">Os balanceadores de rede do Google rodam em software, em servidores comuns, com hash consistente em tabela de tamanho fixo. Quando um balanceador sai ou entra, a maior parte das conexões continua no mesmo destino, o que é essencial para não derrubar sessões TCP em curso.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Conexões longas e o sticky session</div>
+      <p class="text-xs text-slate-400">Aplicações de chat e de videoconferência mantêm conexões por horas. Um algoritmo que redistribui conexões a cada rodada faria milhões de clientes reconectarem. Por isso, a escolha inicial é estável, e a reconexão é reservada para falhas reais.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Incidente com health check mal desenhado</div>
+      <p class="text-xs text-slate-400">Um check que consulta um banco compartilhado pode derrubar todas as réplicas ao mesmo tempo, quando o banco fica lento. A consequência é uma indisponibilidade total causada pela própria proteção. A regra da indústria é que o check avalie a instância, e as dependências tenham tratamento próprio.</p>
+    </div>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: balanceador e falha de servidor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Distribuição, falha e reintegração</h2>
+  <p class="ah-lead text-sm mb-4">O balanceador distribui requisições entre três servidores. O servidor B começa a falhar: após três sondas sem resposta, é retirado. Quando se recupera, volta depois de duas sondas bem-sucedidas. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvLB" style="height:380px"></canvas></div>
+  <div id="ctlLB" class="mt-4"></div>
+  <div id="capLB" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: hash, anel e health check em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Quanto muda quando um servidor sai</h2>
+  <div class="ah-prose">
+    <p>
+      O programa distribui 1000 conexões entre quatro servidores de duas formas, e depois remove o servidor B. No hash módulo N, a maioria das conexões
+      muda de destino. No consistent hashing, só as do servidor removido. A terceira parte aplica o health check com histerese.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>13-balanceamento-carga.py · AnelConsistente.escolhe</code></p>
+<pre class="ah-code"><code>def escolhe(self, conexao):
+    i = bisect.bisect(self.chaves, h(conexao)) % len(self.anel)
+    return self.anel[i][1]</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: hash módulo N, 1000 conexões, servidor B sai
+  distribuição antes: {'A': 222, 'B': 251, 'C': 266, 'D': 261}
+  conexões que mudaram de servidor: 731 de 1000 (73.1%)
+
+Parte 2: consistent hashing, mesmo cenário
+  conexões que mudaram de servidor: 259 de 1000 (25.9%)
+  esperado (só as que estavam em B, ~1/4): ~25%
+
+Parte 3: health check, servidor B falha e se recupera
+  B falha -&gt; ativos: ['A', 'B', 'C']
+  B falha -&gt; ativos: ['A', 'B', 'C']
+  B falha -&gt; ativos: ['A', 'C']
+  B ok   -&gt; ativos: ['A', 'C']
+  B ok   -&gt; ativos: ['A', 'B', 'C']
+  A ok   -&gt; ativos: ['A', 'B', 'C']</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Na parte 3, repare que B só volta depois do segundo sucesso, e que as duas primeiras falhas não o tiram do grupo. Essa é a histerese em ação: ela
+      custa um pouco de tempo de reação, e em troca evita oscilação.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Página que alterna entre duas versões</div>
+      <p class="text-xs text-slate-400">Um balanceador sem afinidade manda a mesma pessoa, a cada clique, para réplicas com versões diferentes do site. O sintoma é um carrinho que some e volta. Afinidade por cookie resolve.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Um servidor "lento" que atrai tudo</div>
+      <p class="text-xs text-slate-400">Com round robin, um servidor lento continua recebendo a mesma fatia. Com menos conexões, ele acumula conexões abertas e recebe menos novas. Escolher o algoritmo errado piora o incidente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Manutenção sem queda</div>
+      <p class="text-xs text-slate-400">Para atualizar um servidor, marca-se ele como "drenando": novas conexões param de chegar, e as existentes terminam. Só depois ele é desligado. É a forma de manter o serviço no ar durante deploy.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Dois gateways, um IP</div>
+      <p class="text-xs text-slate-400">Em escritórios com dois roteadores, o VRRP faz os dispositivos da rede usarem um único gateway virtual. Se o principal cai, o de reserva assume em segundos, sem que os computadores mudem configuração.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte o que é estado</div>
+      <p class="text-xs text-slate-400">Antes de escolher um algoritmo, liste o que vive no servidor: sessão, cache, conexão. Estado local pede afinidade e hash consistente; estado externo deixa o balanceador livre.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Use histerese em tudo que oscila</div>
+      <p class="text-xs text-slate-400">Health checks, autoescalonamento e failover precisam de limiares com memória. Reagir a cada medição cria o próprio problema.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Teste o caminho do failover</div>
+      <p class="text-xs text-slate-400">Redundância que nunca foi testada não existe. Desligue um servidor em horário controlado e meça o tempo até a reintegração.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Separe a sonda da dependência</div>
+      <p class="text-xs text-slate-400">O health check diz se a instância pode receber tráfego. Se ela depende de algo externo, trate essa dependência com fallback, não com a remoção de todas as instâncias.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: quantas conexões migram?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um cluster tem 10 servidores com hash módulo N e 1 milhão de sessões. Um servidor é removido. Estime quantas sessões mudam de servidor, e compare com o consistent hashing.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Com módulo, N passa de 10 para 9. Uma sessão só mantém o mesmo servidor se o resto não mudar, o que acontece com probabilidade de cerca de 1/10. Logo, quase 90% das sessões mudam: cerca de 900 mil. Com consistent hashing, só as sessões do servidor removido mudam, cerca de 1/10, isto é, 100 mil.</p>
+      <p><strong>Lição.</strong> A diferença entre as duas abordagens é de uma ordem de grandeza na remontagem, e a escala só aumenta o efeito.</p>
+    </div>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quanto tempo até tirar um servidor?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um health check envia sondas a cada 5 segundos, com limiar de 3 falhas. Quanto tempo leva, no pior caso, até o servidor sair da rotação, supondo que ele falhou logo após uma sonda bem-sucedida?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A primeira sonda falha após 5 s; a segunda, após 10 s; a terceira, após 15 s, e só então o servidor sai. Pior caso: 15 s, mais o tempo de resposta até o timeout da sonda. Esse número é o tempo de exposição do serviço a requisições para o servidor doente.</p>
+      <p><strong>Lição.</strong> Intervalo e limiar definem o tempo de reação. Reduzi-los aumenta a sensibilidade e o risco de falsos positivos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um serviço de checkout guarda o carrinho em memória do servidor. Qual algoritmo você escolhe, e o que muda se o carrinho for movido para um banco compartilhado?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> com carrinho em memória, afinidade (hash da sessão ou cookie de afinidade), porque sem ela o carrinho some. Com banco compartilhado, qualquer algoritmo serve, e least connections costuma ser a melhor escolha, pois o custo das requisições varia.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que o anycast funciona bem para DNS e mal para conexões TCP longas que mudam de rota?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o DNS é uma consulta curta e sem estado, então cada consulta pode ir a um local diferente. Uma conexão TCP longa depende de um caminho estável. Se o BGP mudar a rota no meio, os pacotes chegam a outro local que não conhece a conexão, e ela é reiniciada.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual balanceador consegue rotear /api e /imagens para conjuntos diferentes de servidores?</p>
+      <button class="ah-quiz-opt">Camada 4</button>
+      <button class="ah-quiz-opt">Camada 7</button>
+      <button class="ah-quiz-opt">Nenhum dos dois, só DNS</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A decisão por caminho exige ler a requisição HTTP, o que é função da camada 7.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a histerese existe num health check?</p>
+      <button class="ah-quiz-opt">Para economizar banda nas sondas</button>
+      <button class="ah-quiz-opt">Para que o servidor receba mais tráfego</button>
+      <button class="ah-quiz-opt">Para evitar que um servidor oscile entre ativo e inativo a cada sonda</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Exigir falhas e sucessos consecutivos amortece oscilações causadas por variações pontuais.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No consistent hashing, o que acontece quando um servidor é removido?</p>
+      <button class="ah-quiz-opt">Só as chaves que estavam nele mudam de dono, em torno de 1/N</button>
+      <button class="ah-quiz-opt">Quase todas as chaves mudam de dono</button>
+      <button class="ah-quiz-opt">O anel inteiro é recalculado do zero</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Essa é a propriedade que torna o consistent hashing útil quando a frota muda.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Camada 4 é rápida e cega ao conteúdo; camada 7 entende a requisição e custa mais.</li>
+    <li>O algoritmo deve refletir o custo das requisições e o estado que vive no servidor.</li>
+    <li>Hash módulo N remonta quase tudo quando a frota muda; consistent hashing remonta cerca de 1/N.</li>
+    <li>Health checks precisam de histerese e devem avaliar a instância, não a dependência compartilhada.</li>
+    <li>Failover só é confiável se for testado.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KARGER, D. et al. Consistent hashing and random trees: distributed caching protocols for relieving hot spots on the World Wide Web. In: <em>ACM STOC</em>, 1997.</li>
+    <li>EISENBUD, D. E. et al. Maglev: a fast and reliable software network load balancer. In: <em>USENIX NSDI</em>, 2016.</li>
+    <li>IETF. <em>RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3</em>. 2010.</li>
+    <li>ABLEY, J.; LINDQVIST, K. <em>RFC 4786: Operation of Anycast Services</em>. IETF, 2006.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. (Revisar a parte de redes de datacenter e de serviços de borda.)</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Cliente (0), balanceador (1), servidores A (2), B (3) e C (4) */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Cliente', 'Balanceador', 'Servidor A', 'Servidor B', 'Servidor C'],
+    intro: 'Três servidores atendem o mesmo serviço. O balanceador sonda cada um periodicamente. Hoje, todos respondem.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'req 1', cap: 'Cliente envia a requisição 1 ao endereço virtual do serviço.', fim: 'O balanceador escolhe um servidor pelo algoritmo (menos conexões).' },
+      { de: 1, para: 2, rotulo: 'req 1', cap: 'Requisição 1 vai para o servidor A, que tem menos conexões.', fim: 'A responde normalmente.' },
+      { de: 1, para: 3, rotulo: 'sonda', cap: 'Health check: sonda enviada ao servidor B.', fim: 'B não responde. Primeira falha registrada (1 de 3).', perdida: true },
+      { de: 1, para: 4, rotulo: 'sonda', cap: 'Sonda ao servidor C.', fim: 'C responde. Continua no rodízio.' },
+      { de: 1, para: 3, rotulo: 'sonda', cap: 'Segunda sonda ao servidor B, sem resposta. Falha 2 de 3.', fim: 'B continua no grupo: a histerese ainda não foi atingida.', perdida: true },
+      { de: 1, para: 3, rotulo: 'sonda', cap: 'Terceira falha seguida em B. O limiar foi atingido.', fim: 'B é retirado da rotação. Novas requisições não vão mais para ele.', perdida: true },
+      { de: 0, para: 1, rotulo: 'req 2', cap: 'Cliente envia a requisição 2.', fim: 'O balanceador usa apenas A e C.' },
+      { de: 1, para: 4, rotulo: 'req 2', cap: 'Requisição 2 vai para C, pois B já saiu do grupo.', fim: 'C responde. O usuário não percebe a falha de B.' },
+      { de: 1, para: 3, rotulo: 'sonda ok', cap: 'B se recupera. A sonda agora tem resposta: sucesso 1 de 2.', fim: 'B ainda não volta: a histerese exige dois sucessos.' },
+      { de: 1, para: 3, rotulo: 'sonda ok', cap: 'Segunda sonda bem-sucedida em B: sucesso 2 de 2.', fim: 'B é reintegrado e volta a receber tráfego.' }
+    ]
+  }), {
+    canvas: 'cvLB', ctl: 'ctlLB', cap: 'capLB', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>
