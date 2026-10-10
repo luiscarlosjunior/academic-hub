@@ -360,7 +360,10 @@ const AH_DATA = {
           tags: ['Load balancer', 'Consistent hashing', 'Alta disponibilidade'], nivel: 'Avançado', minutos: 70 },
         { id: '14-cdn-borda', titulo: 'CDN e computação de borda: cache, TTL, anycast e latência', icone: 'fa-globe-americas',
           resumo: 'Popularidade em cauda pesada, cache LRU com TTL e revalidação por ETag, purga, anycast e os efeitos na latência e na carga da origem, com casos de streaming e de atualizações em massa.',
-          tags: ['CDN', 'Cache', 'Anycast'], nivel: 'Avançado', minutos: 70 }
+          tags: ['CDN', 'Cache', 'Anycast'], nivel: 'Avançado', minutos: 70 },
+        { id: '15-observabilidade-rede', titulo: 'Observabilidade de rede: percentis, SLO, fluxos e alertas', icone: 'fa-chart-line',
+          resumo: 'Por que a média engana, percentis e caudas de latência, orçamento de erro de um SLO, exportação de fluxos com IPFIX e detecção de anomalias com EWMA.',
+          tags: ['Observabilidade', 'SLO', 'IPFIX'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]
