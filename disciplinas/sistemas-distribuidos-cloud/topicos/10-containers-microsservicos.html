@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Containers, orquestração e microsserviços: Kubernetes e o laço de reconciliação · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Containers com namespaces e cgroups, imagens em camadas, orquestração com Kubernetes e o laço de reconciliação, arquitetura de microsserviços e seus custos, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/10-containers-microsservicos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-boxes-stacked text-sky-400 mr-2"></i>Tópico 10 · Containers, orquestração e microsserviços</h2>
+  <div class="ah-prose">
+    <p>
+      Quando um serviço é dividido em muitas partes e cada parte precisa rodar em várias máquinas, surgem três perguntas práticas: como empacotar cada parte
+      para que rode igual em qualquer lugar, como decidir em qual máquina cada uma roda, e o que fazer quando uma delas cai. <strong>Containers</strong>
+      respondem à primeira; <strong>orquestradores</strong>, como o Kubernetes, à segunda e à terceira; e a <strong>arquitetura de microsserviços</strong>
+      é a forma de dividir a aplicação que torna essas ferramentas necessárias.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar o que um container isola (namespaces e cgroups) e o que ele não isola (o núcleo do sistema operacional);</li>
+      <li>descrever a arquitetura do Kubernetes e o papel do etcd, do agendador e do controlador;</li>
+      <li>explicar o modelo declarativo e o laço de reconciliação, e por que ele se recupera de falhas sozinho;</li>
+      <li>definir microsserviços, com seus benefícios, custos e o risco do monólito distribuído;</li>
+      <li>identificar quando a arquitetura de microsserviços compensa e quando não compensa.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="container" data-toc="Teoria: o que é um container" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box text-sky-400 mr-2"></i>Teoria · O que é um container</h2>
+  <div class="ah-prose">
+    <p>
+      Um container é um processo, ou um grupo de processos, executado com <strong>isolamento</strong> do restante do sistema. No Linux, esse isolamento
+      vem de dois recursos do núcleo. Os <strong>namespaces</strong> dão a cada grupo uma visão própria de processos, rede, sistema de arquivos e nomes de
+      usuário. Os <strong>cgroups</strong> limitam quanto de CPU, memória e entrada e saída de disco o grupo pode usar.
+    </p>
+    <p>
+      O ponto que confunde é o que <em>não</em> é isolado: o núcleo do sistema operacional é compartilhado por todos os containers do mesmo host. Por
+      isso, um container é mais leve que uma máquina virtual (que tem seu próprio núcleo), mas oferece um isolamento mais fraco. Um exploit no núcleo
+      afeta todos os containers da máquina.
+    </p>
+    <p>
+      A imagem do container é construída em <strong>camadas</strong>. Cada instrução do arquivo de construção gera uma camada somente leitura, e as camadas
+      são compartilhadas entre imagens. Isso torna a distribuição eficiente: uma camada já presente na máquina não é baixada de novo. O container ganha uma
+      camada fina de escrita, que é descartada ao terminar.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-6 border-l-4 border-sky-400">
+    <p class="text-sm text-slate-300"><strong>Imagem e instância.</strong> A imagem é imutável e versionada. A instância é o container rodando a partir dela. Atualizar um serviço significa trocar a imagem por uma nova versão, e não modificar um servidor existente. Essa imutabilidade reduz a deriva de configuração, uma das causas mais comuns de falhas em produção.</p>
+  </div>
+</section>
+
+<section id="kubernetes" data-toc="Teoria: arquitetura do Kubernetes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-dharmachakra text-sky-400 mr-2"></i>Teoria · Arquitetura do Kubernetes</h2>
+  <div class="ah-prose">
+    <p>
+      Burns e colaboradores (2016) descrevem a linhagem do Kubernetes: ele é inspirado no Borg, o orquestrador interno do Google. Um cluster tem dois
+      tipos de máquinas. O <strong>plano de controle</strong> guarda e decide o estado; os <strong>nós</strong> executam os containers.
+    </p>
+    <ul>
+      <li><strong>API server:</strong> a única porta de entrada. Recebe o estado desejado e o publica para os demais componentes.</li>
+      <li><strong>etcd:</strong> um armazenamento de chave-valor replicado com Raft (tópico 6). É a fonte da verdade do cluster. Por isso, o etcd tem três ou cinco nós.</li>
+      <li><strong>Agendador (scheduler):</strong> escolhe em qual nó cada pod roda, de acordo com recursos livres, afinidades e restrições.</li>
+      <li><strong>Controladores:</strong> laços que observam o estado atual e agem para igualá-lo ao desejado. É aqui que mora a recuperação automática.</li>
+      <li><strong>Kubelet:</strong> agente em cada nó que executa os containers do pod e relata o estado de volta.</li>
+    </ul>
+    <p>
+      Um <strong>pod</strong> é a menor unidade de implantação: um ou mais containers que compartilham rede e armazenamento. Um <strong>deployment</strong> declara
+      quantas réplicas de um pod devem existir, e qual imagem usar. Um <strong>service</strong> dá um nome estável e um balanceamento para um conjunto de
+      pods que mudam o tempo todo.
+    </p>
+  </div>
+</section>
+
+<section id="reconciliacao" data-toc="Teoria: declarativo e reconciliação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-sky-400 mr-2"></i>Teoria · Declarativo e laço de reconciliação</h2>
+  <div class="ah-prose">
+    <p>
+      No modelo <strong>imperativo</strong>, você diz o que fazer: "inicie três instâncias". Se uma cai, você precisa notar e iniciar outra. No modelo
+      <strong>declarativo</strong>, você descreve o estado desejado: "quero três réplicas desta imagem". Um controlador compara o desejado com o atual e age
+      para reduzir a diferença. O laço é contínuo, não uma ação única.
+    </p>
+    <p>
+      Essa abordagem é robusta porque não depende de cada ação dar certo. Se a criação de um pod falhar, o laço tenta de novo no próximo ciclo. Se uma
+      mensagem se perder, o estado atual é reobservado. A convergência não exige que nenhum evento seja entregue, apenas que o controlador continue
+      comparando. O custo é um atraso até a convergência, como mostra a animação.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>10-containers-microsservicos.py · op:intervalo</code></p>
+<pre class="ah-code"><code>def intervalo(self):
+    # 1. falhas aleatórias nos pods rodando
+    sobreviventes = sum(1 for _ in range(self.rodando) if self.rng.random() &gt;= self.p_falha)
+    self.rodando = sobreviventes
+    # 2. pendentes avançam; os prontos passam a rodar
+    # 3. reconciliação: cria pods até rodando + pendentes igualar o desejado
+    faltam = self.desejado - (self.rodando + len(self.pendentes))
+    for _ in range(max(0, faltam)):
+        self.pendentes.append(self.atraso)</code></pre>
+</section>
+
+<section id="animacao" data-toc="Animação: laço de reconciliação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · O controlador corrige a diferença</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Em "Falha de um pod", o controlador recria o pod que caiu. Em "Escala", o desejado sobe de 3 para 5, e o controlador cria os pods um a um, enquanto eles ficam pendentes.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvReconcilia" style="height:280px"></canvas></div>
+  <div id="ctlReconcilia" class="mt-4"></div>
+  <div id="capReconcilia" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: convergência com falhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Reconciliação com falhas aleatórias</h2>
+  <div class="ah-prose">
+    <p>
+      O programa simula 1000 intervalos de um orquestrador. Cada pod falha com probabilidade de 3% por intervalo, e um pod novo leva dois intervalos para
+      ficar pronto. Mede duas coisas: a fração do tempo em que há capacidade plena (todas as réplicas desejadas rodando), e a fração em que pelo menos um
+      pod atende. A segunda métrica é a disponibilidade do serviço.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Laço de reconciliação, 1000 intervalos, pod novo leva 2 intervalos para ficar pronto
+e cada pod falha com probabilidade 3% por intervalo.
+  desejado   capacidade plena   pelo menos 1 pod
+         1              94.2%              94.2%
+         3              85.7%             100.0%
+         5              76.8%             100.0%
+
+Efeito do atraso de inicialização (desejado = 3, capacidade plena):
+  atraso = 1 intervalo(s): 92.6%
+  atraso = 2 intervalo(s): 85.7%
+  atraso = 5 intervalo(s): 68.3%</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      A tabela tem uma leitura contraintuitiva. Com mais réplicas, a <em>capacidade plena</em> cai de 94% para 77%, porque a chance de todas estarem de
+      pé ao mesmo tempo diminui. Mas a <em>disponibilidade</em> do serviço sobe para 100%, porque sempre há um pod atendendo. Qual métrica importa depende
+      do contrato com o usuário: um serviço que tolera redução de capacidade, mas não indisponibilidade, deve medir a segunda.
+    </p>
+    <p>
+      O atraso de inicialização pesa mais do que o número de réplicas. Com atraso de cinco intervalos, a capacidade plena cai para 68%. Por isso, imagens
+      pequenas e pods que ficam prontos rápido são uma otimização real, e não um detalhe de empacotamento.
+    </p>
+  </div>
+</section>
+
+<section id="microsservicos" data-toc="Teoria: microsserviços" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-puzzle-piece text-sky-400 mr-2"></i>Teoria · Arquitetura de microsserviços</h2>
+  <div class="ah-prose">
+    <p>
+      Fowler e Lewis (2014) definiram microsserviços como um estilo em que a aplicação é um conjunto de serviços pequenos, cada um em seu próprio processo,
+      comunicando-se por mecanismos leves, e implantado de forma independente. Cada serviço é dono dos seus dados. Newman (2021) acrescenta que o
+      serviço deve ser organizado em torno de uma capacidade de negócio, e não de uma camada técnica.
+    </p>
+    <p>
+      Os <strong>benefícios</strong> são reais: equipes podem implantar sem coordenar com as outras, cada serviço escala de acordo com sua própria carga, e uma
+      linguagem ou um banco pode ser escolhido por serviço. Os <strong>custos</strong> são igualmente reais: cada chamada entre serviços é uma chamada remota
+      (tópico 2), com latência, falhas parciais e timeouts; um pedido pode atravessar dez serviços; a consistência de dados passa a ser entre serviços,
+      e não dentro de uma transação (tópico 7); e a operação exige observabilidade, rastreamento e automação.
+    </p>
+    <p>
+      O risco mais grave é o <strong>monólito distribuído</strong>: serviços separados em processos, mas acoplados. Se a implantação de um serviço exige a de
+      outro, ou se uma única mudança de contrato quebra cinco serviços, a arquitetura tem o custo de sistemas distribuídos e os benefícios de um monólito
+      lento. O critério para dividir é a fronteira do domínio, em termos de Evans (2003), e não o tamanho do código.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Aspecto</th><th>Monólito</th><th>Microsserviços</th></tr></thead>
+      <tbody>
+        <tr><td>Implantação</td><td>uma unidade, tudo de uma vez</td><td>independente por serviço</td></tr>
+        <tr><td>Chamadas internas</td><td>chamadas de função, falha rara</td><td>chamadas remotas, falha frequente</td></tr>
+        <tr><td>Dados</td><td>um banco, transações locais</td><td>um banco por serviço, sagas (tópico 7)</td></tr>
+        <tr><td>Escala</td><td>a aplicação inteira</td><td>só o serviço que precisa</td></tr>
+        <tr><td>Custo operacional</td><td>baixo</td><td>alto: observabilidade, automação, contratos</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="observabilidade" data-toc="Teoria: observabilidade e rastreamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-chart text-sky-400 mr-2"></i>Teoria · Observabilidade e rastreamento distribuído</h2>
+  <div class="ah-prose">
+    <p>
+      Em um monólito, um erro gera um rastro de pilha. Em microsserviços, um pedido lento pode ter perdido tempo em qualquer um dos serviços que tocou. O
+      rastreamento distribuído resolve isso propagando um identificador de traço por todas as chamadas, e registrando o tempo gasto em cada etapa. O
+      Dapper, do Google, descreveu essa técnica (Sigelman et al., 2010), que inspirou o OpenTelemetry e as ferramentas atuais.
+    </p>
+    <p>
+      Os sinais são três: <strong>métricas</strong> (contadores e percentis agregados), <strong>logs</strong> (eventos individuais) e <strong>traços</strong> (o
+      caminho de um pedido). Juntos, respondem a perguntas diferentes. A métrica diz que há um problema; o traço mostra onde; o log mostra o porquê.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Atualização sem parar o serviço</div>
+      <p class="text-xs text-slate-400">Ao publicar uma nova versão, o orquestrador cria pods da versão nova e só remove os antigos depois que os novos estão prontos. É a atualização contínua (rolling update). O usuário não percebe a troca, se a nova versão for compatível com a anterior.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Aplicativo de banco digital</div>
+      <p class="text-xs text-slate-400">Autenticação, saldo, extrato, Pix e cartões são serviços separados, cada um com seu banco. Isso permite implantar o cartão sem tocar no Pix, mas exige rastreamento para entender por que uma transferência demorou.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Pequena startup com um produto</div>
+      <p class="text-xs text-slate-400">Para um produto com uma equipe pequena, um monólito bem organizado costuma ser a escolha certa. Microsserviços trazem custo de operação que só compensa quando há equipes e cargas diferentes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Container que não sobe</div>
+      <p class="text-xs text-slate-400">Um pod em estado "CrashLoopBackOff" reinicia repetidamente, com intervalos crescentes. O orquestrador continua tentando, o que é o laço de reconciliação funcionando. Para o operador, é um sinal de que a aplicação falha no início, e os logs mostram o motivo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: quanto tempo para convergir?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um deployment declara 4 réplicas. Um pod leva 30 s para ficar pronto após ser criado, e o controlador age a cada 10 s. Após uma falha que derruba 2 pods, em quanto tempo o estado volta a 4 pods rodando, no pior caso?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> No pior caso, a falha ocorre logo após uma ação do controlador, então a próxima verificação ocorre 10 s depois. O controlador cria os 2 pods nessa ação. Como são criados em paralelo, ficam prontos 30 s depois da criação. Total: 10 + 30 = 40 s no pior caso, sem contar o tempo de detecção pelo kubelet.</p>
+      <p><strong>Ponto de atenção.</strong> Se as duas criações fossem sequenciais, o tempo seria maior. Por isso, o controlador cria as réplicas em paralelo, e o tempo de convergência depende do atraso de inicialização mais do que do número de pods.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: microsserviços compensam?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma equipe de quatro pessoas mantém um sistema de agendamento de consultas, com um banco e um único tipo de carga. Propõe dividir em doze microsserviços. Argumente a favor e contra.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Contra: doze serviços exigem doze implantações, doze contratos, observabilidade e contratos entre serviços, para uma equipe de quatro pessoas. As chamadas internas trazem falhas parciais que hoje não existem. Não há cargas diferentes que justifiquem escalas separadas. A favor: fronteiras claras podem facilitar o trabalho futuro, se o domínio já estiver bem entendido.</p>
+      <p><strong>Conclusão.</strong> Um monólito modular, com fronteiras internas claras, costuma ser a melhor escolha. A divisão pode vir depois, guiada por um gargalo real.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que um container compartilha o núcleo do sistema operacional, e qual o impacto de segurança disso?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o container é um processo isolado por namespaces e limitado por cgroups, e não tem núcleo próprio. Isso o torna leve e rápido de iniciar. O impacto é que uma vulnerabilidade no núcleo pode permitir escapar do isolamento e afetar todos os containers do host. Por isso, cargas de alta confiança costumam ficar em máquinas separadas, e cargas de terceiros recebem isolamento reforçado.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um deployment declara 3 réplicas, mas o etcd fica indisponível por dez minutos. O que acontece com os pods já rodando e com uma falha de pod durante esse período?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> os pods já rodando continuam, porque o kubelet mantém os containers em execução localmente. Mas nenhuma reconciliação ocorre: se um pod falhar, nenhum substituto é criado até o etcd voltar, porque o controlador depende do estado guardado nele. O sistema perde a capacidade de se corrigir, não a capacidade de atender.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Explique por que o monólito distribuído é pior que um monólito bem organizado, em termos de falhas e de implantação.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> serviços separados em processos, mas acoplados por contratos e dependências de implantação, combinam as falhas de um sistema distribuído (rede, timeouts, falhas parciais) com a rigidez de um monólito (implantação conjunta, mudanças em cascata). O monólito bem organizado tem falhas mais simples e implantação única. Sem fronteiras de domínio reais, a divisão só acrescenta custo.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que os namespaces e os cgroups do Linux oferecem a um container?</p>
+      <button class="ah-quiz-opt">Um núcleo próprio do sistema operacional</button>
+      <button class="ah-quiz-opt">Isolamento de visão (processos, rede, arquivos) e limites de recursos</button>
+      <button class="ah-quiz-opt">Um hypervisor dedicado</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Namespaces isolam a visão e cgroups limitam recursos. O núcleo continua compartilhado.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o etcd, que guarda o estado do cluster Kubernetes, tem três ou cinco nós?</p>
+      <button class="ah-quiz-opt">Porque o Kubernetes exige um número par de nós</button>
+      <button class="ah-quiz-opt">Porque cada nó do etcd executa um container</button>
+      <button class="ah-quiz-opt">Porque ele usa Raft, e a maioria precisa de um número ímpar para tolerar falhas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com Raft, três nós toleram uma falha e cinco toleram duas. Números ímpares são os mais eficientes.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que caracteriza o modelo declarativo de um orquestrador?</p>
+      <button class="ah-quiz-opt">Você descreve o estado desejado, e um controlador age para convergir a ele</button>
+      <button class="ah-quiz-opt">Você envia comandos sequenciais que devem todos dar certo</button>
+      <button class="ah-quiz-opt">Você escreve o código de recuperação de cada falha</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O laço de reconciliação compara o desejado com o atual e age, sem depender de cada ação dar certo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Container isola a visão e limita recursos, mas compartilha o núcleo. Não é uma máquina virtual.</li>
+    <li>Orquestradores funcionam por reconciliação: descreva o estado desejado e deixe o controlador convergir.</li>
+    <li>O atraso de inicialização afeta a recuperação tanto quanto o número de réplicas.</li>
+    <li>Microsserviços trazem benefícios de escala e de equipe, ao custo de chamadas remotas, dados distribuídos e observabilidade. Comece pelo monólito modular.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BURNS, B. et al. Borg, Omega, and Kubernetes. <em>ACM Queue</em>, v. 14, n. 1, 2016.</li>
+    <li>BURNS, B.; BEDA, J.; HIGHTOWER, K. <em>Kubernetes: Up and Running</em>. 3. ed. Sebastopol: O'Reilly, 2022.</li>
+    <li>MERKEL, D. Docker: lightweight Linux containers for consistent development and deployment. <em>Linux Journal</em>, n. 239, 2014.</li>
+    <li>FOWLER, M.; LEWIS, J. Microservices. Artigo, martinfowler.com, 2014.</li>
+    <li>NEWMAN, S. <em>Building Microservices</em>. 2. ed. Sebastopol: O'Reilly, 2021.</li>
+    <li>EVANS, E. <em>Domain-Driven Design</em>. Boston: Addison-Wesley, 2003. Conceito de contexto delimitado.</li>
+    <li>SIGELMAN, B. H. et al. <em>Dapper, a large-scale distributed systems tracing infrastructure</em>. Relatório técnico, Google, 2010.</li>
+    <li>BEYER, B. et al. <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly, 2016.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvReconcilia', ctl: 'ctlReconcilia', cap: 'capReconcilia',
+    desenha: SD.desenhaReconcilia, gera: SD.geraReconcilia, velocidade: 2000,
+    opcoes: [
+      { v: 'falha', rotulo: 'Falha de um pod' },
+      { v: 'escala', rotulo: 'Escala de 3 para 5' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

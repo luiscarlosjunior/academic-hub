@@ -800,11 +800,79 @@
     rotulo(ctx, 'azul: atendidas · rosa: perdidas · linha amarela: capacidade', 16, h - 14, CORES.mudo);
   }
 
+  /* ===================================================================
+     0i. LAÇO DE RECONCILIAÇÃO (ORQUESTRADOR)
+     O usuário declara o estado desejado; o controlador compara com o atual e
+     corrige a diferença. Opções: "falha" (um pod cai e é recriado) e
+     "escala" (o desejado sobe de 3 para 5).
+     =================================================================== */
+  const SLOTS_POD = 5;
+
+  function geraReconcilia(opcao) {
+    if (opcao === 'escala') {
+      return [
+        { desejado: 3, pods: ['run', 'run', 'run', null, null], t: 'O estado desejado é 3 réplicas, e 3 estão rodando. Nada a corrigir.' },
+        { desejado: 5, pods: ['run', 'run', 'run', null, null], t: 'O usuário muda o desejado para 5. O estado atual ainda é 3: o controlador percebe a diferença.' },
+        { desejado: 5, pods: ['run', 'run', 'run', 'pend', null], t: 'O controlador cria o pod 4. Ele está pendente: a imagem ainda está sendo baixada e o pod ainda não atende.' },
+        { desejado: 5, pods: ['run', 'run', 'run', 'run', 'pend'], t: 'O pod 4 entra em execução e o controlador cria o pod 5, até o atual igualar o desejado.' },
+        { desejado: 5, pods: ['run', 'run', 'run', 'run', 'run'], t: 'Atual igual ao desejado: 5 de 5. O sistema convergiu, e nenhuma ação é necessária.' }
+      ];
+    }
+    return [
+      { desejado: 3, pods: ['run', 'run', 'run', null, null], t: 'Estado desejado: 3 réplicas. Todas estão rodando, e o sistema está convergido.' },
+      { desejado: 3, pods: ['run', 'run', 'falha', null, null], t: 'O pod 3 falha, por um erro na aplicação ou no nó. O atual cai para 2; o desejado continua 3.' },
+      { desejado: 3, pods: ['run', 'run', 'pend', null, null], t: 'O controlador detecta a diferença e cria um pod substituto. Ele ainda não está pronto.' },
+      { desejado: 3, pods: ['run', 'run', 'run', null, null], t: 'O substituto entra em execução. Atual igual ao desejado de novo: a correção foi automática, sem intervenção humana.' }
+    ];
+  }
+
+  function desenhaReconcilia(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const larg = 92, alt = 72, gap = 16;
+    const total = SLOTS_POD * larg + (SLOTS_POD - 1) * gap;
+    const x0 = (w - total) / 2, yPod = h * 0.40;
+
+    q.pods.forEach((estado, i) => {
+      const x = x0 + i * (larg + gap);
+      if (estado === null) {
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = 'rgba(148,163,184,.3)';
+        ctx.lineWidth = 1.5;
+        global.AH.roundRect(ctx, x, yPod - alt / 2, larg, alt, 10);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        rotulo(ctx, 'vazio', x + larg / 2, yPod, CORES.mudo, 'center');
+        return;
+      }
+      const cor = estado === 'run' ? CORES.verde : estado === 'pend' ? CORES.amarelo : CORES.rosa;
+      const rot = estado === 'run' ? 'rodando' : estado === 'pend' ? 'pendente' : 'falhou';
+      global.AH.roundRect(ctx, x, yPod - alt / 2, larg, alt, 10);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = cor;
+      ctx.stroke();
+      ctx.fillStyle = CORES.txt;
+      ctx.font = '600 13px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('pod ' + (i + 1), x + larg / 2, yPod - 8);
+      rotulo(ctx, rot, x + larg / 2, yPod + 14, cor, 'center');
+    });
+
+    const atual = q.pods.filter(p => p === 'run').length;
+    const cor = atual === q.desejado ? CORES.verde : CORES.amarelo;
+    rotulo(ctx, 'desejado: ' + q.desejado + '   ·   atual (rodando): ' + atual, w / 2, yPod + alt / 2 + 46, cor, 'center');
+    rotulo(ctx, 'o controlador compara os dois valores e age até igualar', 16, h - 14, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraReconcilia,
+    desenhaReconcilia,
     geraElasticidade,
     desenhaElasticidade,
     geraDoisFases,
