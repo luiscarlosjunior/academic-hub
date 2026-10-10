@@ -307,6 +307,18 @@ const AH_DATA = {
           resumo: 'Mapa dos domínios de CLF-C02, SAA-C03 e DVA-C03, serviços que mais caem e um simulado comentado.',
           tags: ['Certificação', 'CLF-C02', 'SAA-C03', 'DVA-C03'], nivel: 'Certificação', minutos: 50 }
       ]
+    },
+    {
+      id: 'ir',
+      slug: 'infraestrutura-redes',
+      nome: 'Infraestrutura de Redes',
+      curto: 'Infraestrutura de Redes',
+      icone: 'fa-network-wired',
+      cor: 'violet',
+      corHex: '#8b5cf6',
+      descricao:
+        'Como os computadores se conectam e se encontram: das camadas OSI aos protocolos de transporte e aplicação, segurança, NAT, roteamento, redes de datacenter e cloud, e as ferramentas para diagnosticar uma rede que não funciona.',
+      topicos: []
     }
   ]
 };
