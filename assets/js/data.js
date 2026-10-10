@@ -321,7 +321,10 @@ const AH_DATA = {
       topicos: [
         { id: '01-modelos-camadas', titulo: 'Modelos em camadas: OSI, TCP/IP e encapsulamento', icone: 'fa-layer-group',
           resumo: 'Por que a rede tem camadas, os sete níveis do OSI e os quatro do TCP/IP, o encapsulamento de uma requisição e os princípios de projeto por trás da Internet.',
-          tags: ['OSI', 'TCP/IP', 'Encapsulamento'], nivel: 'Introdutório', minutos: 50 }
+          tags: ['OSI', 'TCP/IP', 'Encapsulamento'], nivel: 'Introdutório', minutos: 50 },
+        { id: '02-fisica-enlace', titulo: 'Camada física e de enlace: quadros, CRC e controle de erro', icone: 'fa-bolt',
+          resumo: 'Transmissão, propagação e a razão a; enquadramento; CRC-32 e o que ele garante; Go-Back-N, repetição seletiva e a janela de 1 + 2a.',
+          tags: ['Enlace', 'CRC', 'Janela deslizante'], nivel: 'Fundamental', minutos: 55 }
       ]
     }
   ]

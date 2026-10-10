@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camada física e de enlace: quadros, CRC e controle de erro · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como bits viram sinais, como a camada de enlace delimita quadros e detecta erros com CRC-32, e como protocolos de janela deslizante (parar-e-esperar, Go-Back-N, repetição seletiva) recuperam perdas, com animação, exemplo em Python e citações.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/02-fisica-enlace">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-emerald-400 mr-2"></i>Tópico 2 · Camada física e de enlace</h2>
+  <div class="ah-prose">
+    <p>
+      Entre dois computadores vizinhos existe um meio físico: um par trançado, uma fibra, um canal de rádio. Esse meio não entrega bits
+      prontos. Ele entrega sinais que variam de tensão, de luz ou de frequência, sujeitos a ruído, atenuação e interferência. A camada física
+      transforma bits em sinais e de volta. A camada de enlace usa esse fluxo de bits imperfeito para entregar <strong>quadros</strong>
+      inteiros e confiáveis entre dispositivos vizinhos.
+    </p>
+    <p>
+      Esta página trata de três problemas. Primeiro, <strong>enquadramento</strong>: como o receptor sabe onde um quadro começa e termina.
+      Segundo, <strong>detecção de erro</strong>: como ele percebe que um quadro chegou corrompido, com o CRC-32. Terceiro,
+      <strong>recuperação</strong>: como o remetente reenvia o que se perdeu, com protocolos de janela deslizante.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar a diferença entre taxa de transmissão, atraso de propagação e atraso de transmissão;</li>
+      <li>descrever como um quadro é delimitado e por que a transparência é necessária;</li>
+      <li>calcular o que um CRC detecta e o que ele não detecta;</li>
+      <li>comparar parar-e-esperar, Go-Back-N e repetição seletiva pela utilização do enlace e pelo custo de retransmissão;</li>
+      <li>relacionar a janela necessária ao produto atraso × largura de banda.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      A detecção de erro por soma de verificação é anterior à Internet. O CRC, derivado da teoria de códigos cíclicos, se tornou o padrão
+      de fato em redes locais. A Ethernet, desenvolvida no Xerox PARC nos anos 1970 e padronizada pelo IEEE como 802.3 em 1983, usa um CRC-32
+      no campo FCS. O Wi-Fi (802.11), de 1997, herdou a mesma ideia.
+    </p>
+    <p>
+      Os protocolos de janela deslizante vêm da mesma época. Eles permitem que o remetente tenha vários quadros em trânsito, em vez de esperar
+      cada confirmação. Go-Back-N e repetição seletiva são variações clássicas, descritas em livros-texto desde os anos 1980. O TCP, que você
+      verá no tópico 6, é uma versão mais elaborada da mesma ideia.
+    </p>
+  </div>
+</section>
+
+<section id="fisica" data-toc="Teoria: da física ao bit" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wave-square text-emerald-400 mr-2"></i>Teoria · Da física ao bit</h2>
+  <div class="ah-prose">
+    <p>
+      Um bit é uma convenção: o receptor precisa decidir, a cada intervalo, se o sinal representa 0 ou 1. A forma como isso é feito se chama
+      <strong>codificação de linha</strong>. Codificações simples, como o NRZ (nível alto para 1, baixo para 0), perdem a sincronia quando
+      há uma longa sequência de zeros. Codificações como a Manchester, usada na Ethernet clássica, misturam o relógio aos dados, com transição
+      em todo bit, ao custo de dobrar a largura de banda necessária.
+    </p>
+    <p>
+      Três grandezas aparecem em todo cálculo de enlace, e confundi-las é o erro mais comum:
+    </p>
+    <ul>
+      <li><strong>Taxa de transmissão</strong> (bits por segundo): quantos bits o enlace coloca no meio por segundo. Um enlace de 1 Gb/s emite 10⁹ bits a cada segundo.</li>
+      <li><strong>Atraso de transmissão</strong>: o tempo para colocar o quadro inteiro no meio. Para um quadro de 1500 bytes em 1 Gb/s, é 12.000 bits / 10⁹ b/s = 12 µs.</li>
+      <li><strong>Atraso de propagação</strong>: o tempo que o primeiro bit leva para atravessar o meio. Depende da distância e da velocidade do sinal, cerca de 2 × 10⁸ m/s em fibra e cobre. Para 1000 km, são 5 ms.</li>
+    </ul>
+    <p>
+      A razão entre propagação e transmissão, chamada <em>a</em>, mede quantos quadros "cabem" no meio enquanto o primeiro ainda não chegou.
+      Esse número governa todo o desempenho dos protocolos desta página. Em enlaces curtos, a é pequeno; em enlaces de satélite, a pode passar de 100.
+    </p>
+    <p>
+      Sobre o limite físico, o RFC 1925, citado com humor como um documento de 1º de abril, resume bem o ponto. Sua regra 2 diz:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "No matter how hard you push and no matter what the priority, you can't increase the speed of light."
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 1925 (Callon, 1996), regra 2. Tradução nossa: não importa quanto você force nem qual a prioridade, você não pode aumentar a velocidade da luz.</p>
+  </div>
+</section>
+
+<section id="enquadramento" data-toc="Teoria: enquadramento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box text-emerald-400 mr-2"></i>Teoria · Enquadramento: onde o quadro começa e termina</h2>
+  <div class="ah-prose">
+    <p>
+      O fluxo de bits no meio não tem separadores. O receptor precisa de um método para achar as fronteiras dos quadros. Há três abordagens
+      clássicas:
+    </p>
+    <ul>
+      <li><strong>Contagem de bytes:</strong> o cabeçalho informa o tamanho do quadro. Simples, mas um erro no campo de tamanho desalinha tudo o que vem depois.</li>
+      <li><strong>Bytes de flag com preenchimento:</strong> um padrão especial (no HDLC, 01111110) marca início e fim. Se o padrão aparece nos dados, o emissor insere um escape. Esse é o caso da <em>inserção de bits</em>: após cinco 1 seguidos, o emissor insere um 0.</li>
+      <li><strong>Violação de código ou silêncio:</strong> a camada física usa sinais inválidos para marcar fronteiras. A Ethernet usa um preâmbulo de 7 bytes de 10101010 mais um byte de início de quadro, e a cada quadro há um intervalo mínimo entre eles.</li>
+    </ul>
+    <p>
+      Na prática, a transparência é a propriedade que importa: qualquer sequência de bits nos dados deve ser entregue sem alteração. A inserção de
+      bits garante isso à custa de um pequeno aumento no tamanho do quadro, que depende dos dados.
+    </p>
+  </div>
+</section>
+
+<section id="crc" data-toc="Teoria: detecção de erro com CRC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-emerald-400 mr-2"></i>Teoria · Detecção de erro com CRC</h2>
+  <div class="ah-prose">
+    <p>
+      O CRC (<em>cyclic redundancy check</em>) trata a mensagem como um polinômio sobre GF(2) e calcula o resto da divisão por um polinômio
+      gerador. O emissor anexa o resto ao quadro; o receptor divide o quadro recebido pelo mesmo gerador e verifica se o resto é zero. O CRC-32
+      da Ethernet usa um gerador de grau 32, e o resto ocupa 4 bytes, o campo FCS.
+    </p>
+    <p><strong>O que o CRC garante, dado um gerador de grau r:</strong></p>
+    <ul>
+      <li>detecta todos os erros de um único bit;</li>
+      <li>detecta todos os erros de rajada de comprimento menor ou igual a r;</li>
+      <li>detecta a maioria das rajadas maiores; para um CRC de 32 bits, a probabilidade de um erro aleatório passar é cerca de 2⁻³².</li>
+    </ul>
+    <p>
+      O CRC é <strong>detecção</strong>, não correção. Ele diz que um quadro está errado, mas não diz qual bit. Por isso o receptor descarta
+      o quadro, e a recuperação fica a cargo de um protocolo de retransmissão, como o descrito a seguir. Também é importante notar que o CRC não
+      protege contra alteração intencional: qualquer um que saiba o gerador pode recalculá-lo. Para isso existem códigos de autenticação, tópico 9.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-6">
+    <p class="text-sm"><strong>Armadilha.</strong> "Não houve erro, porque o CRC bateu" só é verdade se o erro foi aleatório. Um
+    quadro corrompido por hardware defeituoso pode passar no CRC se o defeito produziu um padrão que é múltiplo do gerador. Isso é raro, mas não impossível.</p>
+  </div>
+</section>
+
+<section id="arq" data-toc="Teoria: janela deslizante e ARQ" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-emerald-400 mr-2"></i>Teoria · Recuperação de erros: ARQ e janela deslizante</h2>
+  <div class="ah-prose">
+    <p>
+      Quando o CRC detecta um quadro ruim, ou quando um quadro simplesmente some, o remetente precisa saber e reenviar. Esse conjunto de técnicas
+      se chama ARQ (<em>automatic repeat request</em>) e combina três elementos: números de sequência, confirmações (ACK) e temporizadores.
+    </p>
+    <p><strong>Parar-e-esperar.</strong> O remetente envia um quadro e espera o ACK. Se o temporizador expira, reenvia. É simples e correto, mas
+    desperdiçador: com a = 5, o enlace fica ocupado apenas 1/(1 + 2a) = 1/11, cerca de 9% do tempo.</p>
+    <p><strong>Go-Back-N.</strong> O remetente pode ter até <em>n</em> quadros sem confirmação, numa janela. O receptor só aceita quadros em ordem,
+    e confirma de forma cumulativa: "recebi até o quadro k". Se um quadro se perde, o remetente volta à base da janela e reenvia tudo a partir dele.
+    É eficiente quando as perdas são raras, mas desperdiça banda ao retransmitir quadros que já chegaram bem.</p>
+    <p><strong>Repetição seletiva.</strong> O receptor aceita quadros fora de ordem, dentro de uma janela, e confirma cada um individualmente. O
+    remetente reenvia apenas os perdidos. É mais eficiente, mas o receptor precisa de buffer e a lógica é mais complexa. O TCP combina ideias
+    dos dois: ACK cumulativo com SACK opcional para blocos recebidos fora de ordem.</p>
+    <p>
+      O tamanho da janela necessário para manter o enlace cheio é o produto atraso × largura de banda, em quadros:
+      <strong>n ≥ 1 + 2a</strong>. Com a = 5, são 11 quadros em trânsito. Se a janela for menor, o enlace fica ocioso esperando ACKs, e a
+      utilização cai proporcionalmente.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Protocolo</th><th>Janela do remetente</th><th>Receptor</th><th>Quando reenvia</th><th>Utilização (a = 5)</th></tr></thead>
+      <tbody>
+        <tr><td>Parar-e-esperar</td><td>1</td><td>aceita um quadro por vez</td><td>quando o temporizador expira</td><td>9,1%</td></tr>
+        <tr><td>Go-Back-N</td><td>n</td><td>aceita só em ordem; ACK cumulativo</td><td>volta à base e reenvia tudo</td><td>100% com n ≥ 11</td></tr>
+        <tr><td>Repetição seletiva</td><td>n</td><td>aceita dentro da janela; ACK por quadro</td><td>apenas o quadro perdido</td><td>100% com n ≥ 11</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="ethernet" data-toc="Teoria: Ethernet e acesso ao meio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ethernet text-emerald-400 mr-2"></i>Teoria · Acesso ao meio compartilhado</h2>
+  <div class="ah-prose">
+    <p>
+      Em um barramento compartilhado, dois dispositivos que transmitem ao mesmo tempo colidem. A Ethernet clássica resolvia isso com
+      CSMA/CD: escute antes de transmitir, detecte colisão durante a transmissão, e, se houver colisão, espere um tempo aleatório
+      (recuo exponencial binário) antes de tentar de novo. Hoje, a Ethernet usa switches full-duplex, e não há mais colisão. A
+      disciplina de acesso ficou para o Wi-Fi, com CSMA/CA, que você verá no tópico 3.
+    </p>
+    <p>
+      Por que isso importa aqui? Porque a Ethernet moderna herdou o formato do quadro e o FCS de 4 bytes, mas dispensou o controle de acesso.
+      O tamanho mínimo do quadro (64 bytes) existia para que a colisão fosse detectada antes do fim da transmissão. Quando essa razão
+      desapareceu, o mínimo ficou como herança.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: Go-Back-N com perda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Go-Back-N com um quadro perdido</h2>
+  <p class="ah-lead text-sm mb-4">A janela tem tamanho 3. O quadro F1 se perde. O receptor recusa F2 por estar fora de ordem e repete o último ACK em ordem. Quando o temporizador expira, o remetente reenvia F1 e F2 em sequência. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvGBN" style="height:380px"></canvas></div>
+  <div id="ctlGBN" class="mt-4"></div>
+  <div id="capGBN" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: CRC e utilização em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · CRC-32 e a janela necessária</h2>
+  <div class="ah-prose">
+    <p>
+      O programa usa <code>zlib.crc32</code>, que implementa o CRC-32 do padrão IEEE 802.3, o mesmo da Ethernet. Ele monta um quadro com o FCS,
+      verifica, inverte um bit em três posições e confirma que o erro é detectado em todas. Na segunda parte, calcula a utilização de
+      parar-e-esperar e de janelas de vários tamanhos, mostrando que a janela ótima é 1 + 2a.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>02-fisica-enlace.py · quadro_valido</code></p>
+<pre class="ah-code"><code>def quadro_valido(quadro: bytes) -> bool:
+    dados, fcs = quadro[:-4], int.from_bytes(quadro[-4:], "big")
+    return zlib.crc32(dados) == fcs</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: detecção de erro com CRC-32
+  quadro com FCS: 43 bytes, FCS = ea11243c
+  sem erro: valido = True
+  bit   0 invertido: valido = False
+  bit 100 invertido: valido = False
+  bit 343 invertido: valido = False
+
+Parte 2: utilização do enlace (a = propagação / transmissão = 5)
+  parar-e-esperar       U = 0.0909
+  janela n =  1        U = 0.0909
+  janela n =  3        U = 0.2727
+  janela n =  7        U = 0.6364
+  janela n = 11        U = 1.0000
+  janela n = 15        U = 1.0000
+  janela mínima para U = 1: n >= 1 + 2a = 11</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Repare que a utilização da janela de tamanho 1 coincide com a do parar-e-esperar, o que é esperado: são o mesmo protocolo. A partir de n = 11,
+      a utilização satura em 1, e aumentar a janela além disso não ganha nada. Esse é o ponto em que o enlace fica "cheio".
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Download por satélite</div>
+      <p class="text-xs text-slate-400">Um enlace geoestacionário tem propagação de cerca de 250 ms por sentido. Com quadros de 1500 bytes em 10 Mb/s, a é da ordem de centenas. Janelas pequenas desperdiçam quase toda a capacidade; por isso provedores de satélite usam aceleradores de TCP.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Wi-Fi com interferência</div>
+      <p class="text-xs text-slate-400">Em um canal ruidoso, o Wi-Fi retransmite quadros que falham no CRC. Se a taxa de erro sobe, a camada de enlace reenvia mais, a vazão cai e a latência percebida aumenta, mesmo com o sinal "cheio" no celular.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Cabo com defeito</div>
+      <p class="text-xs text-slate-400">Um cabo que atenua muito o sinal gera quadros com CRC inválido. O sistema não mostra "erro de cabo": ele mostra lentidão, pacotes perdidos e reenvios. Ver os contadores de erros da placa de rede é o primeiro passo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Fibra de longa distância</div>
+      <p class="text-xs text-slate-400">Um enlace submarino de 6000 km tem propagação próxima de 30 ms. Para 10 Gb/s e quadros de 1500 bytes, a é de cerca de 25 mil. Os protocolos de transporte precisam de janelas enormes para encher o enlace, o que motivou ajustes como o escalonamento de janela do TCP.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Calcule a</div>
+      <p class="text-xs text-slate-400">Antes de escolher um protocolo, calcule propagação dividida por transmissão. Ela diz se o problema é de janela ou de largura de banda.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Detecte, não corrija</div>
+      <p class="text-xs text-slate-400">O CRC descarta. Só o protocolo de retransmissão recupera. Se o seu sistema precisa corrigir sem reenviar (como um link de espaço profundo), a solução é código de correção.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Dimensione pelo produto</div>
+      <p class="text-xs text-slate-400">Janela necessária = largura de banda × RTT. Use o mesmo raciocínio para buffers de TCP e para filas de mensagens.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Procure a camada</div>
+      <p class="text-xs text-slate-400">Muitos erros de "lentidão" são retransmissões de enlace. O contador de erros da placa mostra isso antes de qualquer ferramenta de aplicação.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: atraso de transmissão e propagação</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um quadro de 1000 bytes é enviado por um enlace de 100 Mb/s, com 2 × 10⁸ m/s de velocidade de propagação, por 2000 km. Calcule o atraso de transmissão, o de propagação e a.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Transmissão: 8000 bits / 10⁸ b/s = 80 µs. Propagação: 2 × 10⁶ m / 2 × 10⁸ m/s = 10 ms. a = 10 ms / 80 µs = 125. Com janela de Go-Back-N, seriam necessários 1 + 2 × 125 = 251 quadros em trânsito para encher o enlace.</p>
+      <p><strong>Lição.</strong> Num enlace longo e rápido, o problema não é a banda, é a janela. O quadro é pequeno, a distância é grande, e o enlace fica quase sempre vazio se o protocolo espera ACKs.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: o que o CRC detecta</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um receptor usa um CRC de 32 bits. Uma rajada de erro de 20 bits atinge um quadro. O CRC detecta com certeza? E uma rajada de 40 bits?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Uma rajada de comprimento menor ou igual a r = 32 é sempre detectada. Então a de 20 bits é detectada com certeza. A de 40 bits é maior que r, e só é detectada com probabilidade muito alta (cerca de 1 − 2⁻³²), não com certeza.</p>
+      <p><strong>Lição.</strong> Garantias de detecção são condicionais ao tamanho da rajada. Ler "CRC-32" como "garantia total" é um erro comum.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um enlace de 1 Gb/s tem a = 50. Qual o tamanho mínimo da janela para utilização total? Se a janela for 32, qual a utilização aproximada?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> n ≥ 1 + 2 × 50 = 101 quadros. Com n = 32, U = 32 / 101 ≈ 0,32, ou 32%.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que o Go-Back-N descarta quadros fora de ordem, em vez de guardá-los?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a simplicidade. O receptor guarda apenas o número do próximo quadro esperado, sem buffer de reordenação. O custo é retransmitir quadros que já chegaram bem. A repetição seletiva troca essa simplicidade por buffer e eficiência.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um cabeçalho com campo de tamanho de 16 bits sofre um erro de 1 bit. Descreva o que o receptor pode fazer com o enquadramento por contagem de bytes e por flags.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> com contagem, o receptor lê um tamanho errado e desalinha os quadros seguintes, a menos que um mecanismo de ressincronização exista. Com flags, o erro atinge só o quadro afetado, pois a fronteira é marcada por padrão, não por contagem. Discuta o custo da inserção de bits nos dois casos.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um enlace tem a = 10. Qual a utilização do parar-e-esperar?</p>
+      <button class="ah-quiz-opt">100%</button>
+      <button class="ah-quiz-opt">50%</button>
+      <button class="ah-quiz-opt">1/21, cerca de 4,8%</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. U = 1 / (1 + 2a) = 1 / 21 ≈ 4,8%. O remetente passa quase todo o tempo esperando o ACK.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No Go-Back-N, o receptor recebe F0, F2 e F3 (F1 se perdeu). O que ele faz com F2?</p>
+      <button class="ah-quiz-opt">Descarta, porque espera F1 e só aceita em ordem</button>
+      <button class="ah-quiz-opt">Armazena para reordenar quando F1 chegar</button>
+      <button class="ah-quiz-opt">Confirma F2 individualmente</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Go-Back-N não guarda quadros fora de ordem. Ele repete o ACK do último quadro em ordem, e o remetente volta à base da janela.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o CRC-32 faz quando detecta erro num quadro?</p>
+      <button class="ah-quiz-opt">Corrige o bit errado a partir do resto</button>
+      <button class="ah-quiz-opt">Descarta o quadro; a recuperação depende de retransmissão</button>
+      <button class="ah-quiz-opt">Pede ao transmissor que envie um CRC novo e mantém o quadro</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O CRC detecta, não corrige. O receptor descarta, e o protocolo de retransmissão cuida do reenvio.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Transmissão, propagação e a razão entre elas governam o desempenho de qualquer enlace.</li>
+    <li>O enquadramento precisa ser transparente: qualquer sequência de bits nos dados deve chegar intacta.</li>
+    <li>O CRC detecta erros com garantias conhecidas, mas não corrige e não protege contra alteração intencional.</li>
+    <li>Janela necessária = 1 + 2a. Abaixo disso, o enlace fica ocioso.</li>
+    <li>Go-Back-N é simples e desperdiça banda; repetição seletiva é eficiente e exige buffer.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 5 (camada de enlace: detecção de erro, protocolos de acesso e Ethernet).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 3 (camada de enlace de dados: enquadramento, CRC e janelas deslizantes).</li>
+    <li>PETERSON, L. L.; DAVIE, B. S. <em>Computer Networks: A Systems Approach</em>. 5. ed. San Francisco: Morgan Kaufmann, 2011. Cap. 2 (conexões e enlace).</li>
+    <li>IEEE. <em>IEEE Std 802.3: Ethernet</em>. Edição corrente. (Campo FCS e formato do quadro.)</li>
+    <li>CALLON, R. <em>RFC 1925: The Twelve Networking Truths</em>. IETF, 1996. Regra 2.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Janela de tamanho 3: F1 se perde e o remetente volta à base após o timeout */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Remetente (A)', 'Receptor (B)'],
+    intro: 'A janela tem tamanho 3. O remetente pode ter F0, F1 e F2 em trânsito sem esperar ACK.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'F0', cap: 'A envia F0.', fim: 'F0 chega em ordem. B entrega e prepara o ACK.' },
+      { de: 1, para: 0, rotulo: 'ACK0', cap: 'B confirma até F0 (ACK cumulativo: espera F1).', fim: 'A recebe ACK0 e desliza a janela; F3 poderia ser enviado agora.' },
+      { de: 0, para: 1, rotulo: 'F1', perdida: true, cap: 'A envia F1, mas o quadro se perde no meio físico.', fim: 'F1 não chega. B nunca o recebe.' },
+      { de: 0, para: 1, rotulo: 'F2', cap: 'A envia F2, que ainda está dentro da janela.', fim: 'F2 chega fora de ordem. B o descarta, pois espera F1.' },
+      { de: 1, para: 0, rotulo: 'ACK0', cap: 'B repete ACK0: último quadro recebido em ordem.', fim: 'A recebe ACK0 repetido, sem avançar a base.' },
+      { de: 0, para: 1, rotulo: 'F1', cap: 'O temporizador de F1 expira. A volta à base e retransmite F1.', fim: 'F1 chega. B o aceita, pois é o próximo esperado.' },
+      { de: 0, para: 1, rotulo: 'F2', cap: 'A retransmite F2 em sequência, sem esperar o próximo timeout.', fim: 'F2 chega em ordem e B o aceita.' },
+      { de: 1, para: 0, rotulo: 'ACK2', cap: 'B confirma até F2 de forma cumulativa.', fim: 'A recebe ACK2. A janela avança e o protocolo segue.' }
+    ]
+  }), {
+    canvas: 'cvGBN', ctl: 'ctlGBN', cap: 'capGBN', velocidade: 2200
+  });
+
+})();
+</script>
+</body>
+</html>
