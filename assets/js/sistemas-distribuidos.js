@@ -1470,4 +1470,183 @@
     geraSaga, desenhaSaga,
     geraCargaVirtuais, desenhaCargaVirtuais
   });
+
+  /* ===================================================================
+     9b. CUSTO EM FUNÇÃO DA UTILIZAÇÃO (tópico 9)
+     Sob demanda custa 0,10 por hora de instância ativa, proporcional ao uso.
+     Reservada custa 0,06 por hora, usada ou não. Os quadros percorrem a
+     utilização de 10% a 100%. O cruzamento está em 60%.
+     =================================================================== */
+  const PRECO_DEMANDA = 0.10, PRECO_RESERVADA = 0.06;
+
+  function geraCustoUso() {
+    const quadros = [];
+    for (let k = 1; k <= 10; k++) {
+      const u = k / 10;
+      const demanda = PRECO_DEMANDA * u, reservada = PRECO_RESERVADA;
+      const melhor = demanda < reservada ? 'sob demanda' : demanda > reservada ? 'reservada' : 'empate';
+      quadros.push({ tempo: k, u, demanda, reservada, melhor,
+        t: 'Utilização de ' + Math.round(u * 100) + '%: sob demanda custa ' + demanda.toFixed(3).replace('.', ',') + ' por hora, reservada custa ' + reservada.toFixed(3).replace('.', ',') + '. ' +
+          (melhor === 'empate' ? 'Os dois custam o mesmo: é o ponto de equilíbrio.' : 'Mais barata: ' + melhor + '.') });
+    }
+    return quadros;
+  }
+
+  function desenhaCustoUso(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const base = h - 56, topo = 40, maxV = 0.12;
+    const yDe = v => base - (v / maxV) * (base - topo);
+    const xs = [w * 0.3, w * 0.7];
+    const barra = (x, v, cor, rot) => {
+      ctx.fillStyle = cor;
+      ctx.fillRect(x - 60, yDe(v), 120, base - yDe(v));
+      rotulo(ctx, v.toFixed(3).replace('.', ','), x, yDe(v) - 12, CORES.txt, 'center');
+      rotulo(ctx, rot, x, base + 18, CORES.txt, 'center');
+    };
+    barra(xs[0], q.demanda, q.melhor === 'sob demanda' ? CORES.verde : CORES.azul, 'sob demanda');
+    barra(xs[1], q.reservada, q.melhor === 'reservada' ? CORES.verde : CORES.amarelo, 'reservada');
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = 'rgba(148,163,184,.4)';
+    ctx.beginPath(); ctx.moveTo(40, base); ctx.lineTo(w - 40, base); ctx.stroke();
+    ctx.setLineDash([]);
+    rotulo(ctx, 'utilização: ' + Math.round(q.u * 100) + '%', w / 2, 22, CORES.amarelo, 'center');
+    rotulo(ctx, 'custo por hora de instância · verde: a opção mais barata neste ponto', 16, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     10b. ATUALIZAÇÃO CONTÍNUA (ROLLING UPDATE) (tópico 10)
+     Quatro pods da versão v1 são trocados por v2. "Seguro": cria o novo
+     antes de remover o antigo (capacidade mantida). "Agressivo": remove
+     antes de criar (capacidade cai para 3 por um tempo).
+     =================================================================== */
+  function geraRollingUpdate(opcao) {
+    const seguro = opcao !== 'agressivo';
+    let pods = [{ v: 'v1', estado: 'pronto' }, { v: 'v1', estado: 'pronto' }, { v: 'v1', estado: 'pronto' }, { v: 'v1', estado: 'pronto' }];
+    const quadros = [];
+    const add = txt => quadros.push({ tempo: quadros.length, pods: pods.map(p => Object.assign({}, p)), t: txt });
+    add('Quatro pods rodando a versão v1. A nova versão v2 precisa substituir todos, sem derrubar o serviço.');
+    for (let i = 0; i < 4; i++) {
+      if (seguro) {
+        pods.push({ v: 'v2', estado: 'criando' });
+        add('Cria um pod v2 extra (surge). Ele ainda não está pronto, e os quatro v1 continuam atendendo.');
+        pods[pods.length - 1].estado = 'pronto';
+        add('O pod v2 passa na verificação de prontidão e entra no balanceamento.');
+        const idx = pods.findIndex(p => p.v === 'v1');
+        pods[idx].estado = 'saindo';
+        add('Remove um pod v1, depois de drenar as conexões dele. A capacidade volta a 4.');
+        pods.splice(idx, 1);
+      } else {
+        const idx = pods.findIndex(p => p.v === 'v1');
+        pods[idx].estado = 'saindo';
+        add('Remove um pod v1 antes de criar o v2. A capacidade cai para ' + (pods.length - 1) + ' por um intervalo.');
+        pods.splice(idx, 1);
+        pods.push({ v: 'v2', estado: 'criando' });
+        add('Cria o pod v2. Ele ainda não está pronto, e a capacidade continua baixa.');
+        pods[pods.length - 1].estado = 'pronto';
+        add('O pod v2 fica pronto. Repete-se o passo até todos serem v2.');
+      }
+      if (i === 3) break;
+    }
+    add('Todos os pods estão em v2. A atualização terminou sem que o número de pods prontos caísse abaixo de 3.');
+    return quadros;
+  }
+
+  function desenhaRollingUpdate(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const n = q.pods.length;
+    const larg = 110, gap = 14;
+    const total = Math.max(n, 4) * larg + (Math.max(n, 4) - 1) * gap;
+    const x0 = (w - total) / 2, yc = h * 0.46, alt = 84;
+    q.pods.forEach((p, i) => {
+      const x = x0 + i * (larg + gap);
+      const cor = p.v === 'v2' ? (p.estado === 'pronto' ? CORES.verde : CORES.amarelo) : (p.estado === 'saindo' ? CORES.rosa : CORES.azul);
+      global.AH.roundRect(ctx, x, yc - alt / 2, larg, alt, 10);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = cor;
+      ctx.stroke();
+      rotulo(ctx, 'pod ' + (i + 1), x + larg / 2, yc - 14, CORES.txt, 'center');
+      rotulo(ctx, p.v + ' · ' + p.estado, x + larg / 2, yc + 12, cor, 'center');
+    });
+    const prontos = q.pods.filter(p => p.estado === 'pronto').length;
+    rotulo(ctx, 'pods prontos: ' + prontos + ' de ' + n + ' em execução', w / 2, h - 34, prontos >= 3 ? CORES.verde : CORES.rosa, 'center');
+    rotulo(ctx, 'maxSurge = 1 · maxUnavailable = 0 (no cenário seguro)', 16, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     11b. FILA COM CONTRAPRESSÃO E FILA DE MENSAGENS MORTAS (tópico 11)
+     Mensagens chegam por tick. O consumidor processa uma capacidade por tick.
+     A mensagem "veneno" falha sempre: após 3 tentativas vai para a DLQ.
+     Opções: "normal" (capacidade 3) e "lento" (capacidade 2).
+     =================================================================== */
+  function geraFilaDLQ(opcao) {
+    const cap = opcao === 'lento' ? 2 : 3;
+    const chegadas = [2, 3, 2, 4, 1, 0, 0, 0];
+    let fila = [], dlq = [], tent = 0, processadas = 0, n = 0;
+    const quadros = [];
+    for (let tick = 0; tick < chegadas.length; tick++) {
+      const novas = [];
+      for (let k = 0; k < chegadas[tick]; k++) {
+        n++;
+        novas.push(tick === 1 && k === 0 ? 'veneno' : 'm' + n);
+      }
+      fila = fila.concat(novas);
+      const antes = fila.length;
+      for (let k = 0; k < cap && fila.length; k++) {
+        const msg = fila.shift();
+        if (msg === 'veneno') {
+          tent++;
+          if (tent >= 3) dlq.push(msg); else fila.push(msg);
+        } else {
+          processadas++;
+        }
+      }
+      let txt = 'Chegam ' + chegadas[tick] + ' mensagens. O consumidor processa até ' + cap + ' por intervalo. ';
+      txt += fila.length > antes ? 'A fila cresce: a entrada supera o consumo.' : fila.length === 0 ? 'A fila esvazia.' : 'A fila diminui ou se mantém.';
+      if (tent > 0 && tent < 3 && dlq.length === 0) txt += ' A mensagem "veneno" falhou ' + tent + ' vez(es) e volta ao fim da fila.';
+      if (dlq.length) txt += ' A "veneno" falhou 3 vezes e foi para a fila de mensagens mortas, onde um operador a examina. As demais seguem.';
+      quadros.push({ tempo: tick, fila: fila.slice(), dlq: dlq.slice(), processadas, t: txt });
+    }
+    return quadros;
+  }
+
+  function desenhaFilaDLQ(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const x0 = 40, yc = h * 0.42, larg = 46, alt = 42, gap = 8;
+    const maxVis = 12;
+    rotulo(ctx, 'fila principal (' + q.fila.length + ')', x0, yc - alt / 2 - 18, CORES.txt);
+    q.fila.slice(0, maxVis).forEach((m, i) => {
+      const x = x0 + i * (larg + gap);
+      const cor = m === 'veneno' ? CORES.rosa : CORES.azul;
+      global.AH.roundRect(ctx, x, yc - alt / 2, larg, alt, 8);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = cor;
+      ctx.stroke();
+      rotulo(ctx, m, x + larg / 2, yc, cor, 'center');
+    });
+    if (q.fila.length > maxVis) rotulo(ctx, '+' + (q.fila.length - maxVis), x0 + maxVis * (larg + gap), yc, CORES.mudo);
+    const yd = h * 0.74;
+    rotulo(ctx, 'fila de mensagens mortas (' + q.dlq.length + ')', x0, yd - 30, CORES.txt);
+    q.dlq.forEach((m, i) => {
+      const x = x0 + i * (larg + gap);
+      global.AH.roundRect(ctx, x, yd - alt / 2, larg, alt, 8);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = CORES.rosa;
+      ctx.stroke();
+      rotulo(ctx, m, x + larg / 2, yd, CORES.rosa, 'center');
+    });
+    rotulo(ctx, 'processadas com sucesso: ' + q.processadas, w - 30, 22, CORES.verde, 'right');
+    rotulo(ctx, 'veneno: mensagem que falha sempre · após 3 falhas, vai para a DLQ', 16, h - 14, CORES.mudo);
+  }
+
+  Object.assign(global.SD, {
+    geraCustoUso, desenhaCustoUso,
+    geraRollingUpdate, desenhaRollingUpdate,
+    geraFilaDLQ, desenhaFilaDLQ
+  });
 })(window);
