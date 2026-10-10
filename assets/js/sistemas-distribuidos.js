@@ -553,11 +553,89 @@
     rotulo(ctx, 'verde: escrita confirmada · amarelo: réplica consultada na leitura', 16, h - 14, CORES.mudo);
   }
 
+  /* ===================================================================
+     0f. CONSENSO POR MAIORIA (ESTILO RAFT)
+     Cinco servidores. Um líder só é eleito com voto de uma maioria (3 de 5).
+     Opções: "maioria" (falhas de servidores) e "particao" (rede dividida em 2 e 3).
+     Cada quadro traz o papel de cada nó: S (seguidor), C (candidato), L (líder), X (falho).
+     =================================================================== */
+  const SERVIDORES_RAFT = ['S1', 'S2', 'S3', 'S4', 'S5'];
+
+  function geraRaft(opcao) {
+    if (opcao === 'particao') {
+      const grupos = [[0, 1], [2, 3, 4]];
+      return [
+        { papel: ['S', 'S', 'S', 'S', 'S'], votos: [], grupos, cont: {}, t: 'A rede se parte em dois lados: {S1, S2} e {S3, S4, S5}. Nenhum lado enxerga o outro.' },
+        { papel: ['C', 'S', 'S', 'S', 'S'], votos: [{ de: 1, para: 0 }], grupos, cont: { 0: '2/5' }, t: 'S1 dá timeout e pede votos. Só S2 responde: são 2 votos de 5. Sem maioria, S1 não vira líder.' },
+        { papel: ['C', 'S', 'C', 'S', 'S'], votos: [{ de: 1, para: 0 }, { de: 3, para: 2 }, { de: 4, para: 2 }], grupos, cont: { 0: '2/5', 2: '3/5' }, t: 'Do outro lado, S3 vira candidato e recebe votos de S4 e S5: 3 de 5, uma maioria. S3 se torna líder.' },
+        { papel: ['C', 'S', 'L', 'S', 'S'], votos: [], grupos, cont: {}, t: 'Resultado: S3 é o único líder. S1 segue candidato sem sucesso. Não há dois líderes: quem não tem maioria não manda.' }
+      ];
+    }
+    return [
+      { papel: ['S', 'S', 'S', 'S', 'S'], votos: [], grupos: null, cont: {}, t: 'Cinco servidores, todos seguidores. S1 é o primeiro a dar timeout sem ouvir o líder.' },
+      { papel: ['C', 'S', 'S', 'S', 'S'], votos: [], grupos: null, cont: { 0: '1/5' }, t: 'S1 vira candidato no termo 2, vota em si mesmo e pede votos aos demais.' },
+      { papel: ['C', 'S', 'S', 'S', 'S'], votos: [{ de: 1, para: 0 }, { de: 2, para: 0 }], grupos: null, cont: { 0: '3/5' }, t: 'S2 e S3 votam em S1. Com 3 votos de 5, S1 tem maioria.' },
+      { papel: ['L', 'S', 'S', 'S', 'S'], votos: [], grupos: null, cont: {}, t: 'S1 é o líder. Ele envia heartbeats, e os demais deixam de se candidatar.' },
+      { papel: ['L', 'S', 'S', 'S', 'X'], votos: [], grupos: null, cont: {}, t: 'S5 cai. O líder continua, porque 4 nós vivos ainda formam maioria (3 de 5).' },
+      { papel: ['L', 'S', 'X', 'S', 'X'], votos: [], grupos: null, cont: {}, t: 'S3 também cai. Restam 3 nós vivos, exatamente a maioria. Se mais um cair, o sistema para: nenhum líder pode ser eleito sem maioria.' }
+    ];
+  }
+
+  function desenhaRaft(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const yc = h * 0.5, alt = 58, larg = 84;
+    const xDe = i => w * (0.1 + i * 0.2);
+
+    if (q.grupos) {
+      q.grupos.forEach(g => {
+        const xs = g.map(xDe);
+        const x0 = Math.min(...xs) - larg / 2 - 14, x1 = Math.max(...xs) + larg / 2 + 14;
+        global.AH.roundRect(ctx, x0, yc - alt / 2 - 46, x1 - x0, alt + 92, 14);
+        ctx.setLineDash([6, 5]);
+        ctx.strokeStyle = 'rgba(148,163,184,.4)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    q.votos.forEach((v, k) => {
+      const y = yc - alt / 2 - 22 - 8 * (k % 3);
+      global.AH.arrow(ctx, xDe(v.de), y, xDe(v.para), y, CORES.amarelo, true);
+    });
+
+    SERVIDORES_RAFT.forEach((nome, i) => {
+      const papel = q.papel[i];
+      const x = xDe(i) - larg / 2;
+      const cor = papel === 'L' ? CORES.verde : papel === 'C' ? CORES.amarelo : papel === 'X' ? CORES.mudo : CORES.azul;
+      global.AH.roundRect(ctx, x, yc - alt / 2, larg, alt, 10);
+      ctx.fillStyle = papel === 'X' ? '#0f172a' : '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = cor;
+      ctx.setLineDash(papel === 'X' ? [5, 4] : []);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = papel === 'X' ? CORES.mudo : CORES.txt;
+      ctx.font = '600 14px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(nome, xDe(i), yc - 6);
+      const legenda = { S: 'seguidor', C: 'candidato', L: 'líder', X: 'falho' }[papel];
+      rotulo(ctx, legenda, xDe(i), yc + 14, cor, 'center');
+      if (q.cont[i]) rotulo(ctx, 'votos ' + q.cont[i], xDe(i), yc + alt / 2 + 16, CORES.amarelo, 'center');
+    });
+
+    rotulo(ctx, 'maioria = 3 de 5 · setas amarelas: votos · tracejado: partição da rede', 16, h - 14, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraRaft,
+    desenhaRaft,
     geraQuorum,
     desenhaQuorum,
     geraEleicao,

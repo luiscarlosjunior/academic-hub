@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consenso e tolerância a falhas: maioria, Paxos, Raft e o limite de FLP · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="O problema do consenso, o resultado de impossibilidade FLP, quóruns de maioria 2f+1 e 3f+1, os algoritmos Paxos e Raft, máquinas de estados replicadas e tolerância a falhas bizantinas, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/06-consenso-tolerancia-falhas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gavel text-sky-400 mr-2"></i>Tópico 6 · Consenso e tolerância a falhas</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Consenso</strong> é o problema de fazer um grupo de processos concordar com um único valor, mesmo que alguns falhem. Ele aparece em
+      eleição de líder, na ordem de entrega de mensagens, na confirmação de uma transação e na escolha do próximo bloco de uma cadeia. É, em certo
+      sentido, o problema central de todo sistema distribuído: se você sabe resolver consenso, sabe construir um serviço replicado confiável, que se
+      comporta como um único computador mesmo com falhas.
+    </p>
+    <p>
+      O tópico é difícil porque a intuição engana. Consenso parece simples em um grupo de três máquinas. Mas em rede assíncrona não existe algoritmo
+      que o resolva sempre, como Fischer, Lynch e Paterson (1985) provaram. Os algoritmos práticos, Paxos e Raft, contornam esse limite com uma escolha
+      cuidadosa: garantem <strong>segurança</strong> sempre, e <strong>vivacidade</strong> enquanto a rede estiver razoavelmente bem comportada.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>enunciar as propriedades de acordo, validade e terminação do consenso;</li>
+      <li>explicar o resultado de FLP e o que as soluções práticas fazem para contorná-lo;</li>
+      <li>calcular quantas réplicas são necessárias para tolerar f falhas por crash (2f + 1) e f falhas bizantinas (3f + 1);</li>
+      <li>descrever a eleição de líder do Raft, incluindo termos e votos, e por que dois líderes no mesmo termo são impossíveis;</li>
+      <li>explicar máquinas de estados replicadas e o papel do log.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problema" data-toc="Teoria: o problema do consenso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-people-group text-sky-400 mr-2"></i>Teoria · O problema do consenso</h2>
+  <div class="ah-prose">
+    <p>
+      Cada processo começa com um valor proposto. Um algoritmo de consenso deve garantir três propriedades:
+    </p>
+    <ul>
+      <li><strong>Acordo:</strong> dois processos corretos nunca decidem valores diferentes.</li>
+      <li><strong>Validade:</strong> o valor decidido foi proposto por algum processo. Sem essa propriedade, um algoritmo que sempre decide "0" seria trivialmente correto.</li>
+      <li><strong>Terminação:</strong> todo processo correto eventualmente decide.</li>
+    </ul>
+    <p>
+      As duas primeiras são de <em>segurança</em>: nada de ruim acontece. A terceira é de <em>vivacidade</em>: algo bom acontece. Em termos práticos, um
+      sistema que decide errado é pior que um que demora. Por isso, os algoritmos reais nunca abrem mão de acordo, mesmo que percam terminação
+      durante uma partição.
+    </p>
+  </div>
+</section>
+
+<section id="flp" data-toc="Teoria: o limite de FLP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ban text-sky-400 mr-2"></i>Teoria · O resultado de FLP (1985)</h2>
+  <div class="ah-prose">
+    <p>
+      Fischer, Lynch e Paterson provaram que, em um modelo <strong>assíncrono</strong> (sem limite para o atraso de mensagens), não existe algoritmo
+      determinístico que garanta acordo e terminação mesmo se apenas <strong>um</strong> processo puder falhar por crash. A prova constrói, por
+      indução, uma sequência de configurações em que o sistema permanece indeciso para sempre: sempre existe uma mensagem atrasada que poderia mudar a
+      decisão.
+    </p>
+    <p>O resultado não diz que consenso é impossível na prática. Diz que é impossível <em>garantir terminação</em> sob qualquer atraso. Os caminhos práticos são:</p>
+    <ul>
+      <li><strong>Sincronia parcial</strong> (Dwork, Lynch e Stockmeyer, 1988): os limites existem, mas valem só depois de um instante desconhecido. Algoritmos como Paxos e Raft terminam quando a rede se acalma.</li>
+      <li><strong>Detectores de falha</strong> (Chandra e Toueg, 1996): oráculos que suspeitam de processos. Não são perfeitos, mas bastam para resolver consenso se forem eventualmente confiáveis.</li>
+      <li><strong>Aleatoriedade:</strong> processos sorteiam tempos ou valores, e o adversário não consegue manter o impasse para sempre com probabilidade 1. É o caminho de algoritmos como Ben-Or.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="quoruns" data-toc="Teoria: maioria e tolerância" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users-line text-sky-400 mr-2"></i>Teoria · Quantas réplicas para tolerar f falhas</h2>
+  <div class="ah-prose">
+    <p>
+      O mecanismo central das soluções práticas é a <strong>maioria</strong>: uma decisão só vale se for aprovada por mais da metade das réplicas. Duas
+      maiorias de um mesmo conjunto sempre se intersectam, e a réplica comum "lembra" a decisão anterior. Isso dá acordo.
+    </p>
+    <ul>
+      <li><strong>Falhas por crash (parar):</strong> com n réplicas, a maioria tem ⌊n/2⌋ + 1 elementos. Para tolerar f falhas, é preciso que, sem as f falhas, ainda reste uma maioria: n − f ≥ ⌊n/2⌋ + 1. Isso dá <strong>n = 2f + 1</strong>.</li>
+      <li><strong>Falhas bizantinas (qualquer comportamento):</strong> uma réplica falsa pode votar duas vezes, e a intersecção de duas maiorias pode conter apenas réplicas falsas. Para garantir que a intersecção tenha ao menos uma réplica honesta, são necessárias <strong>n = 3f + 1</strong>.</li>
+    </ul>
+    <p>
+      Note a consequência: com duas réplicas, a maioria é de duas, e não se tolera nenhuma falha. Com três, tolera-se uma. Por isso sistemas de
+      coordenação costumam ter 3, 5 ou 7 nós, nunca 2 ou 4 (um nó a mais que um número ímpar não aumenta a tolerância).
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Falhas toleradas (f)</th><th>Crash: n = 2f + 1</th><th>Bizantino: n = 3f + 1</th><th>Maioria de crash</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>3</td><td>4</td><td>2 de 3</td></tr>
+        <tr><td>2</td><td>5</td><td>7</td><td>3 de 5</td></tr>
+        <tr><td>3</td><td>7</td><td>10</td><td>4 de 7</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="paxos" data-toc="Teoria: Paxos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-landmark text-sky-400 mr-2"></i>Teoria · Paxos</h2>
+  <div class="ah-prose">
+    <p>
+      Lamport descreveu o Paxos em 1989 em forma de alegoria de um parlamento grego, e publicou em 1998 (<em>The Part-Time Parliament</em>). A
+      versão mais citada é <em>Paxos Made Simple</em> (2001). Em duas fases, um proponente propõe um valor com um número de proposta crescente:
+    </p>
+    <ul>
+      <li><strong>Fase 1 (preparação):</strong> o proponente pede aos aceitadores uma promessa de não aceitar propostas com número menor. Cada aceitador responde com a maior proposta que já aceitou, se houver.</li>
+      <li><strong>Fase 2 (aceitação):</strong> com a maioria das promessas, o proponente envia seu valor, ou o valor da maior proposta aceita que recebeu. Os aceitadores aceitam, salvo se já prometeram número maior.</li>
+    </ul>
+    <p>
+      Um valor é decidido quando a maioria aceita. A regra de "adotar o valor da maior proposta aceita" é o que garante que um valor decidido não seja
+      mudado depois. Paxos é correto, mas difícil de implementar: o artigo original não descreve bem como lidar com trocas de líder, log de múltiplas
+      decisões e reconfiguração. Essa dificuldade motivou o Raft.
+    </p>
+  </div>
+</section>
+
+<section id="raft" data-toc="Teoria: Raft" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-sky-400 mr-2"></i>Teoria · Raft: líder, termos e log</h2>
+  <div class="ah-prose">
+    <p>
+      Ongaro e Ousterhout (2014) projetaram o Raft com um objetivo declarado: ser compreensível. Ele separa o problema em três partes: eleição de
+      líder, replicação de log e segurança. O tempo é dividido em <strong>termos</strong> numerados. Em cada termo, no máximo um líder é eleito.
+    </p>
+    <ul>
+      <li><strong>Eleição:</strong> um seguidor que não ouve o líder dentro do tempo limite vira candidato, incrementa o termo e pede votos. Cada servidor vota no máximo uma vez por termo. Vence quem obtém a maioria.</li>
+      <li><strong>Replicação:</strong> o líder anexa comandos a seu log e os replica aos seguidores. Um comando é confirmado quando a maioria o gravou. A cada entrada, o líder envia o índice e o termo da entrada anterior, e o seguidor só aceita se houver coincidência.</li>
+      <li><strong>Segurança:</strong> um candidato só vence se seu log estiver pelo menos tão atualizado quanto o de uma maioria. Assim, um líder novo nunca apaga entradas confirmadas.</li>
+    </ul>
+    <p>
+      A propriedade "no máximo um líder por termo" segue direto da maioria e do voto único: duas maiorias em um mesmo termo se intersectam, e a réplica
+      comum vota uma vez só. A animação abaixo mostra isso com cinco servidores.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: eleição e partição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Maioria elege, minoria não</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Em "Falhas", o líder continua enquanto houver maioria. Em "Partição", a rede se divide em dois e apenas o lado com maioria elege um líder.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvRaft" style="height:320px"></canvas></div>
+  <div id="ctlRaft" class="mt-4"></div>
+  <div id="capRaft" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="bizantinas" data-toc="Teoria: falhas bizantinas e BFT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-secret text-sky-400 mr-2"></i>Teoria · Falhas bizantinas e BFT</h2>
+  <div class="ah-prose">
+    <p>
+      Paxos e Raft assumem que as réplicas param, mas não mentem. Se uma réplica pode enviar mensagens contraditórias, como um nó comprometido ou um
+      bug que corrompe dados, é preciso o tipo de solução chamada <strong>tolerância a falhas bizantinas (BFT)</strong>. O Practical Byzantine
+      Fault Tolerance (PBFT), de Castro e Liskov (1999), mostrou que é possível com n = 3f + 1 réplicas, com três fases de troca de mensagens e
+      um custo de comunicação quadrático no número de réplicas.
+    </p>
+    <p>
+      O custo é alto, por isso BFT aparece onde a confiança entre os participantes é baixa: sistemas com participantes independentes e sem uma
+      autoridade comum. Redes de blockchain usam variantes de BFT ou consenso probabilístico, como o Proof of Stake e a regra da cadeia mais longa de
+      Nakamoto (2008) em Bitcoin, que troca garantias de decisão final por escala e abertura.
+    </p>
+  </div>
+</section>
+
+<section id="smr" data-toc="Teoria: máquinas de estados replicadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Teoria · Máquina de estados replicada</h2>
+  <div class="ah-prose">
+    <p>
+      A aplicação direta do consenso é a <strong>máquina de estados replicada</strong> (Schneider, 1990): todas as réplicas começam no mesmo
+      estado e aplicam a mesma sequência de comandos, na mesma ordem. Se o consenso decide a ordem dos comandos, e a aplicação é determinística, todas
+      as réplicas chegam ao mesmo estado. É assim que etcd (usado pelo Kubernetes), ZooKeeper (com o protocolo ZAB), Consul e CockroachDB guardam seus
+      dados de controle e de transação.
+    </p>
+    <p>
+      A consequência prática: o log é a fonte da verdade. Para recuperar uma réplica, basta reaplicar o log, ou restaurar um snapshot e reaplicar o que
+      veio depois. Snapshots e compactação do log são os mecanismos que impedem o crescimento sem limite.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>06-consenso-tolerancia-falhas.py · op:pede_votos</code></p>
+<pre class="ah-code"><code>def pede_votos(self, termo, candidato, alcancaveis):
+    votos = 1                       # o candidato vota em si mesmo
+    self.voto_no_termo[(termo, candidato)] = candidato
+    for s in alcancaveis:
+        if s == candidato:
+            continue
+        if (termo, s) not in self.voto_no_termo:   # voto único por termo
+            self.voto_no_termo[(termo, s)] = candidato
+            votos += 1
+    return votos &gt;= self.maioria</code></pre>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: eleição com partição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Maioria em partições aleatórias</h2>
+  <div class="ah-prose">
+    <p>
+      O programa simula cinco servidores com partições e até duas falhas aleatórias, em 5000 cenários. Em cada um, os lados pedem votos, e o programa
+      conta três resultados: um líder, nenhum líder, ou dois líderes no mesmo termo. O último nunca deve aparecer.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Cinco servidores, maioria = 3.
+  Sem partição, S1 pede votos: lidera? True
+  Partição {S1,S2} | {S3,S4,S5}:
+    S1 pede votos no lado A: lidera? False
+    S3 pede votos no lado B: lidera? True
+
+Simulação com 5000 cenários aleatórios (partição e até duas falhas):
+  com exatamente um líder: 2763
+  sem líder (nenhum lado tinha maioria): 2237
+  com dois líderes no mesmo termo: 0</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      No cenário determinístico, o lado {S1, S2} tem 2 de 5 e não elege. O lado {S3, S4, S5} tem 3 e elege S3. Na simulação, metade dos cenários termina
+      sem líder: é o comportamento correto, porque o sistema prefere ficar indisponível para escrita a arriscar dois líderes. Esse é o trade-off do
+      tópico 8, visto em forma de código.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Kubernetes</div>
+      <p class="text-xs text-slate-400">O plano de controle guarda seu estado em etcd, um cluster de Raft com três ou cinco nós. Se o líder do etcd cai, outro é eleito em segundos, e os pods continuam rodando enquanto isso.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Cluster de três nós</div>
+      <p class="text-xs text-slate-400">Um cluster de três nós tolera uma falha. Com duas falhas simultâneas, ele para as escritas. Por isso, manutenções são feitas um nó de cada vez, para não derrubar o quórum.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Transação em banco distribuído</div>
+      <p class="text-xs text-slate-400">CockroachDB e Spanner replicam cada faixa de dados com Raft ou Paxos. Uma transação só é confirmada quando a maioria da faixa a registra, o que dá durabilidade mesmo com a perda de uma região.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Eleição de líder e split brain</div>
+      <p class="text-xs text-slate-400">Um sistema com dois primários, cada um com metade dos clientes, é o split brain. A maioria existe justamente para impedi-lo: um lado sem quórum se cala, em vez de aceitar escritas conflitantes.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: quantos nós?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um serviço de coordenação deve tolerar duas falhas por crash. Quantos nós são necessários? E se as falhas forem bizantinas?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Por crash, n = 2f + 1 = 5, com maioria de 3. Por falhas bizantinas, n = 3f + 1 = 7, com quórum de 5 (pois 2f + 1 = 5 réplicas precisam concordar para que duas maiorias se intersectem em uma honesta). Note que 5 nós bastam para crash, mas são insuficientes para bizantino.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: por que dois nós não servem?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um administrador propõe um cluster de dois nós, para economizar. Explique o que acontece com uma falha de um nó.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A maioria de 2 nós é de 2. Com um nó falho, o outro não forma maioria, então o cluster não pode aceitar escritas. Dois nós tolerarão zero falhas, e ainda têm o custo de dois. Com a mesma infraestrutura, um terceiro nó tolera uma falha. Por isso a regra prática é sempre um número ímpar.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Em Raft, por que um candidato só vence se o próprio log estiver pelo menos tão atualizado quanto o de uma maioria? O que quebraria sem essa regra?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> sem essa regra, um servidor com log atrasado poderia ser eleito e sobrescrever entradas já confirmadas por uma maioria. A exigência garante que qualquer líder eleito contenha todas as entradas confirmadas, pois a maioria que confirmou a entrada se intersecta com a maioria que votou no novo líder.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Um cluster de cinco nós tem dois nós falhos e uma partição separa os três restantes dos dois falhos. Os três restantes elegem líder? Os dois falhos podem eleger líder se voltarem a funcionar em um mesmo termo?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> os três restantes formam maioria de 5 e podem eleger líder. Os dois falhos não formam maioria, mesmo que estejam vivos e juntos: são dois de cinco, e não podem eleger ninguém sozinhos. Os votos são únicos por termo, então não há dois líderes.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um sistema usa consenso para ordenar transações, mas a rede pode demorar indefinidamente. Qual propriedade do consenso o sistema sacrifica durante essas esperas, e por que é aceitável?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a terminação (vivacidade). O sistema pode parar de confirmar transações até a rede se acalmar. A segurança (acordo) continua garantida, então nenhuma transação confirmada é desfeita nem contradita. Preferir parar a decidir errado é o princípio de FLP e dos algoritmos de maioria.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Quantas réplicas são necessárias para tolerar 2 falhas por crash?</p>
+      <button class="ah-quiz-opt">3</button>
+      <button class="ah-quiz-opt">4</button>
+      <button class="ah-quiz-opt">5</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Crash exige n = 2f + 1 = 5, com maioria de 3. Falhas bizantinas exigiriam 3f + 1 = 7.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o resultado FLP afirma?</p>
+      <button class="ah-quiz-opt">Em rede assíncrona, nenhum algoritmo determinístico garante acordo e terminação com uma falha de crash</button>
+      <button class="ah-quiz-opt">Consenso é sempre possível com três nós</button>
+      <button class="ah-quiz-opt">Paxos é inseguro</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. FLP é um resultado de impossibilidade para o modelo assíncrono, e não diz que consenso é inviável na prática.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que dois líderes no mesmo termo são impossíveis em Raft?</p>
+      <button class="ah-quiz-opt">Porque o relógio de cada nó é sincronizado</button>
+      <button class="ah-quiz-opt">Porque duas maiorias se intersectam e cada servidor vota uma vez por termo</button>
+      <button class="ah-quiz-opt">Porque o líder é o nó de maior id</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A interseção das maiorias garante que um servidor comum tenha votado em dois candidatos, o que o voto único proíbe.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Consenso exige acordo, validade e terminação. Acordo é a propriedade que nunca se abre mão.</li>
+    <li>FLP mostra que terminação não é garantida em rede assíncrona. Paxos e Raft escolhem parar em vez de decidir errado.</li>
+    <li>Maioria: 2f + 1 réplicas para falhas de crash, 3f + 1 para bizantinas. Use número ímpar.</li>
+    <li>Uma máquina de estados replicada aplica o mesmo log na mesma ordem. Esse é o padrão por trás de etcd, ZooKeeper e bancos distribuídos.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>FISCHER, M. J.; LYNCH, N. A.; PATERSON, M. S. Impossibility of distributed consensus with one faulty process. <em>Journal of the ACM</em>, v. 32, n. 2, p. 374–382, 1985.</li>
+    <li>DWORK, C.; LYNCH, N.; STOCKMEYER, L. Consensus in the presence of partial synchrony. <em>Journal of the ACM</em>, v. 35, n. 2, p. 288–323, 1988.</li>
+    <li>CHANDRA, T. D.; TOUEG, S. Unreliable failure detectors for reliable distributed systems. <em>Journal of the ACM</em>, v. 43, n. 2, p. 225–267, 1996.</li>
+    <li>LAMPORT, L. The part-time parliament. <em>ACM Transactions on Computer Systems</em>, v. 16, n. 2, p. 133–169, 1998.</li>
+    <li>LAMPORT, L. Paxos made simple. <em>ACM SIGACT News</em>, v. 32, n. 4, p. 18–25, 2001.</li>
+    <li>ONGARO, D.; OUSTERHOUT, J. In search of an understandable consensus algorithm. In: <em>USENIX Annual Technical Conference</em>, 2014.</li>
+    <li>CASTRO, M.; LISKOV, B. Practical Byzantine fault tolerance. In: <em>3rd USENIX Symposium on Operating Systems Design and Implementation (OSDI)</em>, 1999.</li>
+    <li>SCHNEIDER, F. B. Implementing fault-tolerant services using the state machine approach: a tutorial. <em>ACM Computing Surveys</em>, v. 22, n. 4, p. 299–319, 1990.</li>
+    <li>CORBETT, J. C. et al. Spanner: Google's globally-distributed database. In: <em>10th USENIX OSDI</em>, 2012.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 9 (consenso e tolerância a falhas).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvRaft', ctl: 'ctlRaft', cap: 'capRaft',
+    desenha: SD.desenhaRaft, gera: SD.geraRaft, velocidade: 2200,
+    opcoes: [
+      { v: 'maioria', rotulo: 'Falhas de servidores' },
+      { v: 'particao', rotulo: 'Partição de rede' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>
