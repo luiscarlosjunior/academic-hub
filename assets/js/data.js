@@ -336,7 +336,10 @@ const AH_DATA = {
           tags: ['Roteamento', 'OSPF', 'BGP'], nivel: 'Intermediário', minutos: 65 },
         { id: '06-udp-tcp', titulo: 'Transporte: UDP, TCP, handshake e janela deslizante', icone: 'fa-right-left',
           resumo: 'Portas e a quádrupla de uma conexão, UDP sem garantias, handshake de três vias, ACK cumulativo, retransmissão e os estados do encerramento.',
-          tags: ['UDP', 'TCP', 'Handshake'], nivel: 'Intermediário', minutos: 65 }
+          tags: ['UDP', 'TCP', 'Handshake'], nivel: 'Intermediário', minutos: 65 },
+        { id: '07-congestionamento-qos', titulo: 'Controle de congestionamento e QoS: slow start, AIMD e balde de fichas', icone: 'fa-gauge-high',
+          resumo: 'Fluxo versus congestionamento, slow start e AIMD, Tahoe e Reno diante de perdas, bufferbloat, DiffServ e policiamento com balde de fichas.',
+          tags: ['Congestionamento', 'AIMD', 'QoS'], nivel: 'Avançado', minutos: 70 }
       ]
     }
   ]

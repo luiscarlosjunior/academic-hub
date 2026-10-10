@@ -365,6 +365,96 @@
     return { gera, desenha };
   }
 
+  /* ===================================================================
+     MOTOR DE CONGESTIONAMENTO — janela cwnd por RTT.
+     Espelha disciplinas/infraestrutura-redes/exemplos-python/07-congestionamento-qos.py:
+     slow start até ssthresh, depois +1 por RTT; perda no RTT 8.
+     =================================================================== */
+  function cgSimula(rtts, perdaEm, modo) {
+    let cwnd = 1, ssthresh = 16;
+    const linhas = [];
+    for (let t = 1; t <= rtts; t++) {
+      const usada = cwnd;
+      let evento;
+      if (t === perdaEm) {
+        ssthresh = Math.max(Math.floor(usada / 2), 2);
+        if (modo === 'reno') { cwnd = ssthresh; evento = '3 ACKs duplicados: cwnd = ssthresh'; }
+        else { cwnd = 1; evento = 'timeout: cwnd = 1'; }
+      } else if (cwnd < ssthresh) {
+        cwnd *= 2; evento = 'slow start: dobra';
+      } else {
+        cwnd += 1; evento = 'avoidance: +1 por RTT';
+      }
+      linhas.push({ t, usada, ssthresh, evento });
+    }
+    return linhas;
+  }
+
+  function criaCongestionamento() {
+    const RTTS = 12, PERDA = 8, YMAX = 24;
+
+    function gera(opcao) {
+      const modo = opcao === 'tahoe' ? 'tahoe' : 'reno';
+      const L = cgSimula(RTTS, PERDA, modo);
+      const q = [{ n: 0, linhas: [], t: 'Janela inicial de 1 segmento. Em slow start, a janela dobra a cada RTT até ssthresh (16). Depois, cresce 1 por RTT. A perda ocorre no RTT 8.' }];
+      L.forEach((l, i) => {
+        let t = 'RTT ' + l.t + ': janela de ' + l.usada + ' segmento(s). ' + l.evento + '.';
+        if (l.t === PERDA) {
+          t = 'Perda no RTT ' + PERDA + ': ' + (modo === 'reno'
+            ? 'três ACKs duplicados. O Reno reduz pela metade e segue em avoidance.'
+            : 'timeout. O Tahoe volta a 1 e refaz o slow start até o novo ssthresh.');
+        }
+        q.push({ n: i + 1, linhas: L.slice(0, i + 1), t, modo });
+      });
+      return q;
+    }
+
+    function desenha(ctx, w, h, q) {
+      limpa(ctx, w, h);
+      const esq = 44, dir = 16, topo = 18, base = h - 34;
+      const plotW = w - esq - dir, plotH = base - topo;
+      const Y = v => base - (v / YMAX) * plotH;
+      const slot = plotW / RTTS, barra = slot * 0.6;
+
+      [0, 8, 16, 24].forEach(v => {
+        ctx.save();
+        ctx.setLineDash([3, 4]);
+        ctx.strokeStyle = CORES.grade;
+        ctx.beginPath(); ctx.moveTo(esq, Y(v)); ctx.lineTo(w - dir, Y(v)); ctx.stroke();
+        ctx.restore();
+        rotulo(ctx, String(v), esq - 8, Y(v), CORES.mudo, 'right', 11);
+      });
+      rotulo(ctx, 'janela (segmentos)', esq, 8, CORES.mudo, 'left', 11);
+
+      q.linhas.forEach(l => {
+        const x = esq + (l.t - 0.5) * slot - barra / 2;
+        const perda = l.t === PERDA;
+        ctx.fillStyle = perda ? CORES.rosa : CORES.azul;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(x, Y(l.usada), barra, base - Y(l.usada));
+        ctx.globalAlpha = 1;
+        rotulo(ctx, String(l.usada), x + barra / 2, Y(l.usada) - 9, CORES.txt, 'center', 10);
+      });
+      for (let t = 1; t <= RTTS; t++) {
+        rotulo(ctx, String(t), esq + (t - 0.5) * slot, base + 14, CORES.mudo, 'center', 11);
+      }
+      rotulo(ctx, 'RTT', w - dir, base + 14, CORES.mudo, 'right', 11);
+
+      if (q.linhas.length) {
+        const ss = q.linhas[q.linhas.length - 1].ssthresh;
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = CORES.amarelo;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(esq, Y(ss)); ctx.lineTo(w - dir, Y(ss)); ctx.stroke();
+        ctx.restore();
+        rotulo(ctx, 'ssthresh = ' + ss, w - dir, Y(ss) - 9, CORES.amarelo, 'right', 11);
+      }
+    }
+
+    return { gera, desenha };
+  }
+
   global.IR = {
     CORES,
     limpa,
@@ -374,6 +464,7 @@
     criaSequencia,
     criaPilha,
     criaRoteamento,
+    criaCongestionamento,
     liga
   };
 })(window);

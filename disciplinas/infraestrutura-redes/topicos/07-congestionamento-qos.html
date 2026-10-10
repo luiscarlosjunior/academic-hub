@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de congestionamento e QoS: slow start, AIMD e balde de fichas · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Por que a rede congestiona, como o TCP reduz a janela com slow start, AIMD e recuperação rápida (Tahoe e Reno), bufferbloat e qualidade de serviço com DiffServ e balde de fichas, com animação, exemplo em Python e citações.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/07-congestionamento-qos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-emerald-400 mr-2"></i>Tópico 7 · Controle de congestionamento e QoS</h2>
+  <div class="ah-prose">
+    <p>
+      Congestionamento acontece quando mais tráfego chega a um enlace do que ele pode escoar. Os roteadores então enfileiram pacotes; quando a fila
+      enche, descartam. Se todos os remetentes continuarem enviando na mesma velocidade, a rede entra em um estado em que muito tráfego é
+      descartado, muito é retransmitido e pouca coisa útil passa. Esse estado tem nome: <strong>colapso de congestionamento</strong>.
+    </p>
+    <p>
+      O TCP evita o colapso sem nenhuma ajuda explícita da rede, deduzindo o congestionamento a partir das perdas e dos atrasos. Esta página
+      explica como ele faz isso, por que o algoritmo converge para uma divisão justa, e como a qualidade de serviço (QoS) tenta dar
+      prioridade ao que mais importa quando a rede está cheia.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>diferenciar controle de fluxo de controle de congestionamento;</li>
+      <li>explicar slow start, avoidance e a regra AIMD, e prever a janela após uma perda;</li>
+      <li>comparar Tahoe e Reno pela forma de reagir a três ACKs duplicados e a um timeout;</li>
+      <li>calcular a vazão de uma conexão a partir da janela e do RTT;</li>
+      <li>explicar o balde de fichas e a diferença entre policiar e moldar tráfego.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Em outubro de 1986, a Internet sofreu o primeiro de uma série de colapsos de congestionamento. Van Jacobson relata que a vazão entre o LBL e a
+      UC Berkeley, a 400 jardas uma da outra e separadas por dois saltos de IMP, caiu de 32 kb/s para 40 bit/s, porque as retransmissões ocupavam o
+      próprio enlace. Van Jacobson, que analisou o problema e propôs as correções,
+      publicou em 1988 o artigo <em>Congestion Avoidance and Control</em>, que introduziu slow start, avoidance e a regra de retransmissão
+      baseada no RTT. Essas ideias estão no TCP até hoje, com refinamentos.
+    </p>
+    <p>
+      O Tahoe, de 1988, foi a primeira versão com esses algoritmos. O Reno, de 1990, acrescentou a recuperação rápida. Hoje existem variantes como
+      NewReno (RFC 6582), CUBIC (RFC 8312), amplamente usado em sistemas operacionais, e BBR, do Google, que estima a largura de banda e o RTT
+      mínimo em vez de reagir apenas a perdas.
+    </p>
+  </div>
+</section>
+
+<section id="fluxo" data-toc="Teoria: fluxo × congestionamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Teoria · Fluxo e congestionamento: dois limites</h2>
+  <div class="ah-prose">
+    <p>
+      O remetente TCP respeita dois limites ao mesmo tempo, e o envio real é o menor dos dois:
+    </p>
+    <ul>
+      <li><strong>Janela anunciada</strong> (controle de fluxo): o receptor diz quanto espaço tem. Protege o receptor de ser sobrecarregado.</li>
+      <li><strong>Janela de congestionamento</strong> (cwnd): o remetente estima quanto a rede aguenta. Protege a rede de ser sobrecarregada.</li>
+    </ul>
+    <p>
+      A janela efetiva é min(janela anunciada, cwnd). O controle de fluxo é simples, porque o receptor informa diretamente. O congestionamento é
+      mais difícil: a rede não diz nada. O remetente precisa inferir o estado da rede a partir do que acontece com seus segmentos.
+    </p>
+    <p>
+      Van Jacobson resume a ideia central com uma expressão que se tornou clássica. Segundo ele, o fluxo de uma conexão TCP deve obedecer ao princípio
+      de conservação de pacotes:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "conservation of packets" principle
+    </blockquote>
+    <p class="text-xs text-slate-500">JACOBSON, V.; KARELS, M. J. <em>Congestion Avoidance and Control</em>, 1988. Tradução nossa: princípio de conservação de pacotes. A ideia: um pacote novo só entra na rede quando outro sai, o que mantém o número de pacotes em trânsito constante em regime.</p>
+  </div>
+</section>
+
+<section id="aimd" data-toc="Teoria: slow start e AIMD" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-emerald-400 mr-2"></i>Teoria · Slow start, avoidance e AIMD</h2>
+  <div class="ah-prose">
+    <p>
+      No <strong>slow start</strong>, a cwnd começa em 1 segmento e dobra a cada RTT: a cada ACK recebido, ela cresce em 1 segmento. Apesar do
+      nome, esse crescimento é exponencial. Ele continua até a cwnd atingir o <strong>ssthresh</strong> (limiar), ou até uma perda.
+    </p>
+    <p>
+      Depois do limiar, entra o <strong>congestion avoidance</strong>, com crescimento linear: cerca de +1 segmento por RTT. A regra geral é
+      <strong>AIMD</strong>: aumento aditivo (additive increase) e diminuição multiplicativa (multiplicative decrease). Ao detectar perda, a janela é
+      cortada pela metade, e depois cresce de novo, devagar.
+    </p>
+    <p>
+      Por que AIMD e não outras combinações? Chiu e Jain (1989) analisaram o problema em um espaço bidimensional, com a vazão de dois usuários no
+      plano. Concluíram que aumentos aditivos e diminuições multiplicativas levam o sistema à convergência para uma alocação justa e eficiente.
+      Aumentos multiplicativos ou diminuições aditivas não convergem. A regra simples é a que funciona.
+    </p>
+  </div>
+</section>
+
+<section id="tahoe-reno" data-toc="Teoria: Tahoe e Reno" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-emerald-400 mr-2"></i>Teoria · Tahoe e Reno: como reagir a uma perda</h2>
+  <div class="ah-prose">
+    <p>
+      Há dois sinais de perda, com gravidades diferentes. Três ACKs duplicados indicam que um segmento se perdeu, mas que os seguintes chegaram: a
+      rede ainda está passando dados. Um timeout indica silêncio prolongado, o sinal mais grave.
+    </p>
+    <ul>
+      <li><strong>Tahoe</strong> trata os dois da mesma forma: ssthresh = cwnd/2, cwnd = 1, e refaz o slow start. Simples, mas desperdiça a rede em
+      perdas leves.</li>
+      <li><strong>Reno</strong> distingue os casos. Com três ACKs duplicados, faz a retransmissão rápida, ssthresh = cwnd/2 e cwnd = ssthresh,
+      passando direto para o avoidance. Só com timeout volta a cwnd = 1.</li>
+    </ul>
+    <p>
+      A diferença aparece na animação: o Tahoe cai para 1 e leva quatro RTTs para voltar a 8. O Reno cai para 9 e segue crescendo sem parar o fluxo.
+      Nos dois casos, o ssthresh é o mesmo, porque é a metade da janela no momento da perda.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: janela por RTT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · A janela de congestionamento</h2>
+  <p class="ah-lead text-sm mb-4">Cada barra é a janela usada num RTT. O ssthresh é a linha tracejada. A perda ocorre no RTT 8, e o seletor troca entre Reno (reação a três ACKs duplicados) e Tahoe (reação a timeout). Avance um RTT de cada vez.</p>
+  <div class="ah-stage" style="height:360px"><canvas id="cvCong" style="height:360px"></canvas></div>
+  <div id="ctlCong" class="mt-4"></div>
+  <div id="capCong" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="vazao" data-toc="Teoria: vazão e produto atraso × banda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tachometer-alt text-emerald-400 mr-2"></i>Teoria · Vazão, janela e RTT</h2>
+  <div class="ah-prose">
+    <p>
+      Em regime, a vazão de uma conexão é aproximadamente <strong>cwnd × MSS / RTT</strong>: a janela de dados em trânsito, dividida pelo tempo de ida e
+      volta. Essa relação explica muitos fenômenos. Uma conexão de longa distância tem RTT alto, então precisa de janela grande para encher o enlace,
+      e cada perda reduz a janela e, com ela, a vazão.
+    </p>
+    <p>
+      Esse é o mesmo produto atraso × banda do tópico 2, agora para o TCP. Se a janela máxima anunciada for menor que a banda vezes o RTT, a vazão é
+      limitada pela janela, e não pela rede. Por isso o escalonamento de janela (RFC 7323) existe, e por isso um enlace de satélite com janela
+      pequena parece lento mesmo com banda sobrando.
+    </p>
+  </div>
+</section>
+
+<section id="bufferbloat" data-toc="Teoria: bufferbloat" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-database text-emerald-400 mr-2"></i>Teoria · Buffers grandes demais: bufferbloat</h2>
+  <div class="ah-prose">
+    <p>
+      Buffers grandes parecem bons: evitam perdas. Mas o TCP só reduz a janela quando percebe perda, e um buffer enorme atrasa essa percepção. O
+      resultado é uma fila longa e persistente, que aumenta a latência de tudo que compartilha o enlace, como uma chamada de voz travando durante um
+      download. Jim Gettys chamou esse efeito de <em>bufferbloat</em>, e o descreveu a partir de observações em seu próprio roteador doméstico, por volta
+      de 2010.
+    </p>
+    <p>
+      As soluções combinam dois caminhos: gerenciamento ativo de filas, como CoDel e FQ-CoDel, que descartam cedo para manter a fila curta; e
+      notificação explícita de congestionamento, a ECN (RFC 3168), em que o roteador marca o pacote em vez de descartá-lo.
+    </p>
+  </div>
+</section>
+
+<section id="qos" data-toc="Teoria: QoS, DiffServ e balde de fichas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-emerald-400 mr-2"></i>Teoria · Qualidade de serviço</h2>
+  <div class="ah-prose">
+    <p>
+      QoS é o conjunto de mecanismos que dão tratamento diferente a classes de tráfego. Uma chamada de voz precisa de baixo atraso e baixo jitter; um
+      backup pode esperar. Na prática, QoS aparece em três formas:
+    </p>
+    <ul>
+      <li><strong>Classificação e marcação:</strong> o pacote recebe uma classe, indicada no campo DSCP do cabeçalho IP (DiffServ, RFC 2474).</li>
+      <li><strong>Escalonamento:</strong> filas separadas por classe, servidas com prioridade ou por peso.</li>
+      <li><strong>Policiamento e moldagem:</strong> limitar a taxa de uma classe. O policiamento descarta o excesso; a moldagem o segura em fila.</li>
+    </ul>
+    <p>
+      O balde de fichas é o mecanismo clássico de policiamento. Fichas entram no balde a uma taxa constante, até uma capacidade máxima. Cada pacote
+      gasta fichas proporcionais ao seu tamanho. Se há fichas suficientes, o pacote passa; senão, é descartado (ou marcado). A capacidade permite
+      rajadas curtas, e a taxa limita a média de longo prazo.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: cwnd e balde de fichas em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Janela por RTT e policiamento</h2>
+  <div class="ah-prose">
+    <p>
+      O programa reproduz a animação: uma perda no RTT 8, com Tahoe e Reno, e um balde de fichas que policia uma sequência de pacotes. A saída
+      mostra, em cada caso, quem é aceito e quem é descartado.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>07-congestionamento-qos.py · simula_cwnd</code></p>
+<pre class="ah-code"><code>if t == perda_em:
+    ssthresh = max(usada // 2, 2)
+    if modo == "reno":
+        cwnd = ssthresh                   # 3 ACKs duplicados: recuperação rápida
+    else:
+        cwnd = 1                          # timeout: volta ao início
+elif cwnd < ssthresh:
+    cwnd *= 2                             # slow start
+else:
+    cwnd += 1                             # avoidance (AIMD)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: cwnd por RTT, perda no RTT 8
+  TAHOE
+    RTT  janela  ssthresh  evento
+      1       1        16  slow start: dobra
+      2       2        16  slow start: dobra
+      3       4        16  slow start: dobra
+      4       8        16  slow start: dobra
+      5      16        16  avoidance: +1 por RTT
+      6      17        16  avoidance: +1 por RTT
+      7      18        16  avoidance: +1 por RTT
+      8      19         9  timeout: cwnd = 1
+      9       1         9  slow start: dobra
+     10       2         9  slow start: dobra
+     11       4         9  slow start: dobra
+     12       8         9  slow start: dobra
+
+  RENO
+    RTT  janela  ssthresh  evento
+      1       1        16  slow start: dobra
+      2       2        16  slow start: dobra
+      3       4        16  slow start: dobra
+      4       8        16  slow start: dobra
+      5      16        16  avoidance: +1 por RTT
+      6      17        16  avoidance: +1 por RTT
+      7      18        16  avoidance: +1 por RTT
+      8      19         9  3 ACKs duplicados: cwnd = ssthresh
+      9       9         9  avoidance: +1 por RTT
+     10      10         9  avoidance: +1 por RTT
+     11      11         9  avoidance: +1 por RTT
+     12      12         9  avoidance: +1 por RTT
+
+Parte 2: balde de fichas, taxa 1 pacote/s, capacidade 3
+  pacote  1 em t=0: aceito (fichas restantes: 2)
+  pacote  2 em t=0: aceito (fichas restantes: 1)
+  pacote  3 em t=0: aceito (fichas restantes: 0)
+  pacote  4 em t=0: descartado (fichas restantes: 0)
+  pacote  5 em t=0: descartado (fichas restantes: 0)
+  pacote  6 em t=1: aceito (fichas restantes: 0)
+  pacote  7 em t=2: aceito (fichas restantes: 0)
+  pacote  8 em t=2: descartado (fichas restantes: 0)
+  pacote  9 em t=2: descartado (fichas restantes: 0)
+  pacote 10 em t=3: aceito (fichas restantes: 0)
+  pacote 11 em t=6: aceito (fichas restantes: 2)
+  pacote 12 em t=7: aceito (fichas restantes: 2)
+  aceitos 8 de 12</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Na parte 1, observe que o ssthresh vira 9 nos dois casos, e que a diferença está apenas na janela logo após a perda. Na parte 2, a capacidade de 3
+      permite a rajada inicial de três pacotes, e a taxa de 1 por segundo define o que passa depois. Os pacotes 11 e 12 passam porque o balde se
+      recarregou durante o intervalo de 3 segundos.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Download travando a chamada</div>
+      <p class="text-xs text-slate-400">Com buffers grandes e sem gerenciamento de fila, um download enche o buffer do roteador e a chamada de voz espera no fim da fila. A solução é o SQM (gerenciamento de fila) no roteador de casa, que limita a fila.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Plano de dados com limite</div>
+      <p class="text-xs text-slate-400">Um plano de internet de 100 Mb/s pode ter um balde que policia rajadas acima de uma taxa contratada. Um teste de velocidade curto pode passar, e um download longo cai para a taxa de longo prazo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Vídeo ao vivo com prioridade</div>
+      <p class="text-xs text-slate-400">Redes corporativas marcam o tráfego de videoconferência com DSCP e o colocam em fila de prioridade. Sem isso, um backup noturno faz a chamada cortar, mesmo com banda sobrando na média.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Link de satélite lento</div>
+      <p class="text-xs text-slate-400">Com RTT de 600 ms, a janela de crescimento demora muito para encher o enlace. Aceleradores de TCP, que dividem a conexão e usam slow start mais agressivo na parte de satélite, são uma resposta comum.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Calcule a vazão</div>
+      <p class="text-xs text-slate-400">Vazão ≈ janela × MSS / RTT. Se a vazão medida for muito menor que a banda, verifique primeiro a janela e o RTT, e só depois a rede.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Não confunda os limites</div>
+      <p class="text-xs text-slate-400">Janela anunciada pequena indica receptor limitado. Cwnd pequena indica perdas. Diagnósticos diferentes levam a correções diferentes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Meça a latência sob carga</div>
+      <p class="text-xs text-slate-400">Latência ociosa boa não garante nada. Meça o RTT durante um download; se ele sobe muito, há bufferbloat.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Policie na borda</div>
+      <p class="text-xs text-slate-400">Classifique e limite o tráfego onde ele entra na rede. Limitar no meio do caminho é mais difícil e menos efetivo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: janela após perda</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma conexão está com cwnd = 20 segmentos e ssthresh = 32, em avoidance. Ocorre perda detectada por três ACKs duplicados. Qual a cwnd e o ssthresh logo depois? E se a perda fosse timeout?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Três ACKs duplicados (Reno): ssthresh = 20/2 = 10, cwnd = 10. Timeout (Tahoe): ssthresh = 10, cwnd = 1. Em ambos, o ssthresh é 10. Com cwnd = 10 = ssthresh, a conexão entra em avoidance imediatamente, no caso Reno.</p>
+      <p><strong>Lição.</strong> O ssthresh é sempre metade da janela no momento da perda, nos dois algoritmos. O que muda é a janela imediata.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: vazão de uma conexão</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma conexão tem MSS de 1460 bytes, RTT de 100 ms e cwnd média de 10 segmentos. Qual a vazão aproximada, em Mb/s?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> cwnd × MSS = 10 × 1460 = 14.600 bytes por RTT. Por segundo, são 14.600 / 0,1 = 146.000 bytes/s, ou 146.000 × 8 = 1.168.000 bit/s, cerca de 1,17 Mb/s.</p>
+      <p><strong>Lição.</strong> Dobrar o RTT à mesma janela corta a vazão à metade. Por isso o RTT importa tanto quanto a banda.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um balde de fichas tem taxa de 2 fichas por segundo e capacidade de 5. Chegam 10 pacotes de 1 ficha no instante 0, e outros 2 no instante 1. Quantos são aceitos?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> no instante 0, o balde tem 5 fichas: passam 5, e 5 são descartados. No instante 1, entram 2 fichas (de 0 a 1 s, a taxa é 2), e os 2 pacotes passam. Total: 7 aceitos.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que um timeout é um sinal mais grave que três ACKs duplicados?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> três ACKs duplicados mostram que os segmentos seguintes chegaram, então a rede ainda está entregando. Um timeout mostra silêncio: o remetente não recebe nem ACK duplicado, o que sugere que a rede parou de entregar ou que o caminho falhou. A reação, portanto, deve ser mais forte.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Duas conexões TCP com RTT de 50 ms e 200 ms dividem um enlace gargalo. Em regime, qual tende a ter vazão maior, se ambas usam AIMD com o mesmo MSS?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a de RTT de 50 ms. Como a janela cresce em 1 segmento por RTT, a conexão de RTT menor ganha 4 vezes mais segmentos de crescimento no mesmo intervalo de tempo. É uma injustiça estrutural do AIMD com RTTs diferentes, e variantes como o CUBIC tentam corrigi-la.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Após uma perda detectada por timeout, o que o Tahoe faz com a cwnd?</p>
+      <button class="ah-quiz-opt">Reduz pela metade e segue em avoidance</button>
+      <button class="ah-quiz-opt">Mantém a cwnd e retransmite</button>
+      <button class="ah-quiz-opt">Volta a 1 e refaz o slow start</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. No Tahoe, qualquer perda leva a cwnd a 1. A recuperação rápida, que mantém a janela metade, é do Reno e só vale para três ACKs duplicados.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que significa AIMD?</p>
+      <button class="ah-quiz-opt">Aumento multiplicativo e diminuição aditiva</button>
+      <button class="ah-quiz-opt">Aumento aditivo e diminuição multiplicativa</button>
+      <button class="ah-quiz-opt">Aumento e diminuição sempre multiplicativos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A janela cresce em 1 por RTT e é cortada pela metade na perda. Chiu e Jain mostraram que essa combinação converge para uma divisão justa.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um balde de fichas tem capacidade de 10 e taxa de 1 por segundo. O que a capacidade controla?</p>
+      <button class="ah-quiz-opt">O tamanho da rajada que pode passar de uma vez</button>
+      <button class="ah-quiz-opt">A taxa média de longo prazo</button>
+      <button class="ah-quiz-opt">O tamanho máximo do pacote</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A capacidade define quantas fichas podem acumular, ou seja, quanto de rajada passa. A taxa define o que passa no longo prazo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Congestionamento é deduzido pelo TCP a partir de perdas e atrasos, sem sinal explícito da rede.</li>
+    <li>Slow start dobra a janela por RTT; avoidance soma 1 por RTT; a perda corta o limiar pela metade.</li>
+    <li>Reno reage a três ACKs duplicados sem voltar a 1; Tahoe volta a 1 em qualquer perda.</li>
+    <li>Vazão ≈ janela × MSS / RTT. RTT alto exige janela grande.</li>
+    <li>Balde de fichas: capacidade controla a rajada, taxa controla a média.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>JACOBSON, V.; KARELS, M. J. Congestion avoidance and control. In: <em>ACM SIGCOMM</em>, 1988.</li>
+    <li>CHIU, D.-M.; JAIN, R. Analysis of the increase and decrease algorithms for congestion avoidance in computer networks. <em>Computer Networks and ISDN Systems</em>, v. 17, n. 1, p. 1–14, 1989.</li>
+    <li>ALLMAN, M.; PAXSON, V.; BLANTON, E. <em>RFC 5681: TCP Congestion Control</em>. IETF, 2009.</li>
+    <li>BLANTON, E.; ALLMAN, M.; WANG, L.; JARVINEN, I.; KOJO, M.; NISHIDA, Y. <em>RFC 6582: The NewReno Modification to TCP's Fast Recovery Algorithm</em>. IETF, 2012.</li>
+    <li>NICHOLS, K.; BLAKE, S.; BAKER, F.; BLACK, D. <em>RFC 2474: Definition of the Differentiated Services Field</em>. IETF, 1998.</li>
+    <li>RAMAKRISHNAN, K.; FLOYD, S.; BLACK, D. <em>RFC 3168: The Addition of Explicit Congestion Notification (ECN) to IP</em>. IETF, 2001.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 3 (controle de congestionamento do TCP).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 6 (controle de congestionamento e qualidade de serviço).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Janela de congestionamento por RTT: Reno (três ACKs) ou Tahoe (timeout) na perda do RTT 8 */
+  IR.liga(IR.criaCongestionamento(), {
+    canvas: 'cvCong', ctl: 'ctlCong', cap: 'capCong', velocidade: 1400,
+    cenarios: { reno: {}, tahoe: {} },
+    rotulos: { reno: 'Reno: três ACKs duplicados', tahoe: 'Tahoe: timeout' }
+  });
+
+})();
+</script>
+</body>
+</html>
