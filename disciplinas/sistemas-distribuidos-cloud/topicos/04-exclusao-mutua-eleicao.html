@@ -327,6 +327,41 @@
   </div>
 </section>
 
+<section id="industria" data-toc="Na indústria: discussão de equipe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Na indústria · Uma discussão de equipe</h2>
+  <p class="ah-lead text-sm mb-4">Como a indústria resolve eleição e exclusão mútua no dia a dia. Os participantes são fictícios; os sistemas são públicos.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 1 · Eleição de líder com leases (Kubernetes e etcd)</div>
+    <p class="text-sm text-slate-300 mb-3">Os controladores do Kubernetes disputam um recurso chamado <em>lease</em>, guardado no etcd. Quem detém o lease é o líder e precisa renová-lo periodicamente. Se o líder para de renovar, outra réplica assume depois que o prazo expira. A duração do lease e o prazo de renovação são parâmetros de compromisso: precisam ser folgados em relação à latência normal do cluster.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de plataforma:</strong> "Um prazo curto demais gera trocas de líder à toa, e cada troca reinicia trabalho em andamento."</p>
+      <p><strong>Pessoa de confiabilidade:</strong> "E um prazo longo demais atrasa a recuperação. É o trade-off do timeout do tópico 1, em forma de configuração."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> o que impede o antigo líder de continuar escrevendo depois que o prazo venceu? Relacione com o fencing.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 2 · Um lock que não protegeu a seção (o argumento de Kleppmann sobre o Redlock)</div>
+    <p class="text-sm text-slate-300 mb-3">Em 2016, Martin Kleppmann publicou uma análise do algoritmo Redlock, usado por muitas equipes para locks distribuídos. Ele mostrou que uma pausa longa de um cliente, como um coletor de lixo, pode fazer o lock expirar enquanto o cliente ainda acredita tê-lo. A saída proposta é o número de geração, que o recurso compara antes de aceitar a escrita.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de backend:</strong> "Usamos lock para não processar a cobrança duas vezes. Se ele expira no meio, a cobrança sai duas vezes."</p>
+      <p><strong>Pessoa de arquitetura:</strong> "Então a proteção não pode estar só no lock. O banco precisa rejeitar a escrita do cliente com geração antiga."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> em qual componente do seu sistema o fencing token deveria ser verificado? Que mudança isso exige do armazenamento?</p>
+  </div>
+
+  <div class="ah-card p-5 border-l-4 border-sky-400">
+    <div class="text-xs font-bold text-sky-300 mb-2">Caso 3 · Exclusão mútua como serviço (Google Chubby)</div>
+    <p class="text-sm text-slate-300 mb-3">O Chubby, serviço de locks do Google descrito em 2006, serve como coordenador para muitos sistemas internos, com réplicas que usam consenso. Os clientes usam o serviço para eleger líderes e guardar pequenos arquivos de configuração, em vez de implementar exclusão mútua do zero.</p>
+    <div class="ah-prose text-sm">
+      <p><strong>Pessoa de engenharia:</strong> "Terceirizar a exclusão mútua para um serviço dedicado evita reinventar o algoritmo em cada sistema. O preço é uma dependência nova e crítica."</p>
+      <p><strong>Pessoa de SRE:</strong> "Se o serviço de locks cai, todos os sistemas dependentes travam juntos. Precisamos de um plano para isso."</p>
+    </div>
+    <p class="text-xs text-amber-300 mt-3"><strong>Para discutir:</strong> quais sistemas da sua empresa deveriam depender de um serviço de coordenação, e quais não deveriam?</p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
 
