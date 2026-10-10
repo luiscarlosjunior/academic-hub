@@ -165,6 +165,14 @@
     return 1 - (1 - a) ** k    # falhas independentes entre k zonas</code></pre>
 </section>
 
+<section id="custo-animacao" data-toc="Animação: custo em função do uso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Animação · Quando a reserva compensa</h2>
+  <p class="ah-lead text-sm mb-4">Uma instância custa 0,10 por hora sob demanda, proporcional ao tempo em uso, e 0,06 por hora na reserva, usada ou não. Avance para ver como a escolha muda conforme a utilização sobe de 10% a 100%.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvCusto" style="height:300px"></canvas></div>
+  <div id="ctlCusto" class="mt-4"></div>
+  <div id="capCusto" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: política de escalonamento" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Custo e perdas de três políticas</h2>
   <div class="ah-prose">
@@ -213,6 +221,32 @@ Disponibilidade de um serviço com réplica por zona (cada zona com 99%):
       <div class="text-xs font-bold text-sky-300 mb-1">Vizinho barulhento</div>
       <p class="text-xs text-slate-400">Em um servidor compartilhado, um cliente que roda um processo pesado reduz o desempenho dos outros. Os provedores impõem cotas de CPU e de disco por máquina virtual para limitar esse efeito.</p>
     </div>
+  </div>
+</section>
+
+<section id="otimizacao-custo" data-toc="Aprofundamento: otimização de custo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-piggy-bank text-sky-400 mr-2"></i>Aprofundamento · Otimização de custo na prática</h2>
+  <div class="ah-prose">
+    <p>
+      A conta da nuvem tem três partes que costumam ser confundidas: capacidade (instâncias, armazenamento provisionado), uso (transferência de dados e
+      requisições) e serviços gerenciados (bancos, filas, balanceadores). Cada uma responde a uma alavanca diferente. A animação mostrou a alavanca mais
+      conhecida, o modelo de compra: sob demanda para carga variável, reserva ou compromisso de uso para a base constante, e instâncias interrompíveis para
+      trabalho tolerante a interrupções, como processamento em lote.
+    </p>
+    <p>
+      O <strong>dimensionamento correto</strong> (rightsizing) costuma render mais que a troca de modelo. Uma instância ocupada a 10% da CPU é cara, qualquer
+      que seja o preço unitário. Medir a utilização real por alguns dias, e ajustar o tipo da máquina, é a primeira medida de custo a tomar. Em seguida, vem
+      desligar o que não é usado: ambientes de teste fora do horário, volumes de disco órfãos, snapshots antigos.
+    </p>
+    <p>
+      A <strong>transferência de dados saindo</strong> para a internet (egress) e entre zonas ou regiões muitas vezes é o item surpresa da fatura. Uma aplicação que
+      chama um serviço em outra região a cada requisição paga por essa travessia a cada vez. Manter dados e processamento próximos, e usar cache, reduz o custo
+      e a latência ao mesmo tempo.
+    </p>
+    <p>
+      Por fim, custo é um atributo do sistema, e não só das finanças. Marcar cada recurso com o time e o produto dono permite cobrar cada área pelo que usa,
+      e torna visível o efeito de uma mudança de arquitetura na conta. Sem essa informação, otimizar é adivinhar.
+    </p>
   </div>
 </section>
 
@@ -328,6 +362,11 @@ Disponibilidade de um serviço com réplica por zona (cada zona com 99%):
       { v: 'fixo', rotulo: 'Fixo (2 instâncias)' },
       { v: 'auto', rotulo: 'Automático (com atraso)' }
     ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvCusto', ctl: 'ctlCusto', cap: 'capCusto',
+    desenha: SD.desenhaCustoUso, gera: SD.geraCustoUso, velocidade: 1400
   });
 
 })();
