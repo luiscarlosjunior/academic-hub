@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDD Tático: Agregados, Invariantes e Eventos de Domínio · AcademicHub</title>
+<meta name="description" content="Como modelar fronteiras de consistência, por que a raiz do agregado é o único ponto de mudança e como eventos de domínio conectam partes do sistema sem acoplá-las.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="poo/ddd-agregados">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="fronteira" data-toc="Consistência tem fronteira" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Consistência tem fronteira</h2>
+  <div class="ah-prose">
+
+<p>Em um domínio complexo, nem tudo precisa ser consistente no mesmo instante. Um <strong>agregado</strong> é um grupo de objetos tratado como uma unidade de mudança: a <strong>raiz</strong> é a única porta de entrada, e os invariantes que envolvem o grupo são garantidos dentro dela (Evans, 2003).</p>
+<p>A regra prática que Vaughn Vernon popularizou: <strong>uma transação altera um agregado</strong>. Quando um caso de uso precisa tocar dois agregados, o acoplamento é resolvido com eventos, e não com uma transação distribuída.</p>
+
+  </div>
+</section>
+
+<section id="valor" data-toc="Entidades e objetos de valor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Entidades e objetos de valor</h2>
+  <div class="ah-prose">
+
+<p>Uma <strong>entidade</strong> tem identidade que persiste (a <code>Conta</code> com id <code>CC-1</code> continua sendo a mesma conta, mesmo com saldo diferente). Um <strong>objeto de valor</strong> não tem identidade: é definido pelos atributos, é imutável e se valida na criação. <code>Dinheiro</code> é o exemplo clássico: não existe um <code>Dinheiro</code> inválido, porque o construtor impede.</p>
+
+  </div>
+</section>
+
+<section id="modelo" data-toc="Modelo do agregado Conta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Modelo do agregado Conta</h2>
+  <div class="ah-prose">
+
+<div class="ah-diagram">
+<pre class="mermaid">
+classDiagram
+    class Conta {
+        &lt;&lt;aggregate root&gt;&gt;
+        -String id
+        -Dinheiro saldo
+        +debitar(valor, descricao) void
+        +pullEventos() List
+    }
+    class Lancamento {
+        &lt;&lt;entity interna&gt;&gt;
+        -String descricao
+        -Dinheiro valor
+    }
+    class Dinheiro {
+        &lt;&lt;value object&gt;&gt;
+        -long centavos
+    }
+    class EventoDeDominio {
+        &lt;&lt;sealed&gt;&gt;
+    }
+    Conta "1" *-- "0..*" Lancamento : registra
+    Conta --&gt; Dinheiro : mantém
+    Conta ..&gt; EventoDeDominio : emite
+</pre>
+</div>
+<p class="ah-diagram-cap">A composição marca a posse: o <code>Lancamento</code> só existe dentro da conta. O evento é emitido pela raiz e consumido fora dela.</p>
+
+  </div>
+</section>
+
+<section id="eventos" data-toc="Eventos de domínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Eventos de domínio</h2>
+  <div class="ah-prose">
+
+<p>Um evento de domínio é um fato passado, nomeado no passado (<code>SaldoDebitado</code>, não <code>DebitarSaldo</code>). A raiz registra os eventos durante a operação, e a infraestrutura os publica depois do commit. Isso separa a decisão (o agregado) da reação (outros agregados, notificações, projeções).</p>
+<p>Repare que a recusa também gera um evento (<code>DebitoRecusado</code>). Auditoria financeira precisa das tentativas, não só dos sucessos.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Contexto do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Contexto do exemplo</h2>
+  <div class="ah-prose">
+
+<p>O projeto mostra o caso de uso completo: carregar o agregado pelo repositório, executar o comando, obter os eventos e salvar. A segunda cobrança é recusada pela raiz, e o evento de recusa é registrado.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/avancado/ddd/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/avancado/ddd/Main.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/avancado/ddd
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>saldo após cobrança: R$ 10,20
+eventos: [SaldoDebitado[contaId=CC-1, valor=R$ 19,90]]
+recusado: saldo insuficiente na conta CC-1
+eventos: [DebitoRecusado[contaId=CC-1, valor=R$ 19,90]]
+lançamentos: [Lancamento[descricao=Assinatura Premium, valor=R$ 19,90]]
+objeto de valor inválido não existe: valor negativo</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * DDD tático: agregado com raiz, entidade, objeto de valor e evento de domínio.
+ * Regra de ouro: o estado do agregado só muda pela raiz, e a raiz garante os invariantes.
+ */
+public class Main {
+
+    /** Objeto de valor: sem identidade, imutável, igual por valor, sempre válido. */
+    record Dinheiro(long centavos) {
+        Dinheiro {
+            if (centavos &lt; 0) throw new IllegalArgumentException(&quot;valor negativo&quot;);
+        }
+        Dinheiro menos(Dinheiro outro) { return new Dinheiro(centavos - outro.centavos); }
+        boolean maiorOuIgual(Dinheiro outro) { return centavos &gt;= outro.centavos; }
+        @Override public String toString() { return String.format(&quot;R$ %d,%02d&quot;, centavos / 100, centavos % 100); }
+    }
+
+    /** Evento de domínio: fato que aconteceu no passado, nomeado no passado. */
+    sealed interface EventoDeDominio permits SaldoDebitado, DebitoRecusado {}
+    record SaldoDebitado(String contaId, Dinheiro valor) implements EventoDeDominio {}
+    record DebitoRecusado(String contaId, Dinheiro valor) implements EventoDeDominio {}
+
+    /** Agregado: Conta é a raiz. Lançamento é entidade interna, acessível só por dentro. */
+    static final class Conta {
+        private final String id;                 // identidade
+        private Dinheiro saldo;
+        private final List&lt;Lancamento&gt; lancamentos = new ArrayList&lt;&gt;();
+        private final List&lt;EventoDeDominio&gt; eventos = new ArrayList&lt;&gt;();
+
+        Conta(String id, Dinheiro saldoInicial) { this.id = id; this.saldo = saldoInicial; }
+
+        /** Comando: a raiz decide. O invariante &quot;saldo nunca negativo&quot; mora aqui. */
+        void debitar(Dinheiro valor, String descricao) {
+            if (!saldo.maiorOuIgual(valor)) {
+                eventos.add(new DebitoRecusado(id, valor));
+                throw new IllegalStateException(&quot;saldo insuficiente na conta &quot; + id);
+            }
+            saldo = saldo.menos(valor);
+            lancamentos.add(new Lancamento(descricao, valor));   // entidade interna
+            eventos.add(new SaldoDebitado(id, valor));
+        }
+
+        List&lt;EventoDeDominio&gt; pullEventos() {                     // consumidos pela infraestrutura
+            List&lt;EventoDeDominio&gt; copia = List.copyOf(eventos);
+            eventos.clear();
+            return copia;
+        }
+
+        String id() { return id; }
+        Dinheiro saldo() { return saldo; }
+        List&lt;Lancamento&gt; lancamentos() { return List.copyOf(lancamentos); }
+
+        /** Entidade interna: tem identidade local, mas só existe dentro do agregado. */
+        record Lancamento(String descricao, Dinheiro valor) {}
+    }
+
+    /** Repositório: opera sobre agregados inteiros, nunca sobre partes. */
+    interface RepositorioDeContas {
+        Optional&lt;Conta&gt; porId(String id);
+        void salvar(Conta conta);
+    }
+
+    static final class RepositorioEmMemoria implements RepositorioDeContas {
+        private final java.util.Map&lt;String, Conta&gt; dados = new java.util.HashMap&lt;&gt;();
+        public Optional&lt;Conta&gt; porId(String id) { return Optional.ofNullable(dados.get(id)); }
+        public void salvar(Conta conta) { dados.put(conta.id(), conta); }
+    }
+
+    public static void main(String[] args) {
+        RepositorioDeContas repo = new RepositorioEmMemoria();
+        repo.salvar(new Conta(&quot;CC-1&quot;, new Dinheiro(3010)));          // R$ 30,10
+
+        // Caso de uso: cobrar a assinatura (R$ 19,90) pelo agregado
+        Conta conta = repo.porId(&quot;CC-1&quot;).orElseThrow();
+        conta.debitar(new Dinheiro(1990), &quot;Assinatura Premium&quot;);
+        System.out.println(&quot;saldo após cobrança: &quot; + conta.saldo());
+        System.out.println(&quot;eventos: &quot; + conta.pullEventos());
+        repo.salvar(conta);
+
+        // Segunda cobrança: a raiz recusa e registra o evento de recusa
+        Conta outra = repo.porId(&quot;CC-1&quot;).orElseThrow();
+        try {
+            outra.debitar(new Dinheiro(1990), &quot;Assinatura Premium&quot;);
+        } catch (IllegalStateException e) {
+            System.out.println(&quot;recusado: &quot; + e.getMessage());
+        }
+        System.out.println(&quot;eventos: &quot; + outra.pullEventos());
+        System.out.println(&quot;lançamentos: &quot; + repo.porId(&quot;CC-1&quot;).orElseThrow().lancamentos());
+
+        // Objeto de valor: a validação acontece na criação; nunca existe Dinheiro inválido
+        try {
+            new Dinheiro(-1);
+        } catch (IllegalArgumentException e) {
+            System.out.println(&quot;objeto de valor inválido não existe: &quot; + e.getMessage());
+        }
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="armadilhas" data-toc="Armadilhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Armadilhas</h2>
+  <div class="ah-prose">
+
+<ul>
+<li><strong>Agregado gigante:</strong> se o agregado carrega toda a história da conta, toda transação disputa o mesmo registro. Mantenha o agregado pequeno e deixe o histórico para eventos ou projeções.</li>
+<li><strong>Referência direta entre agregados:</strong> prefira guardar o <em>id</em> do outro agregado. Assim não há grafo de objetos a carregar nem transação que atravesse as fronteiras.</li>
+<li><strong>Modelo anêmico com DDD:</strong> repositórios que devolvem dados e serviços que decidem fora da raiz recriam o problema que o agregado devia evitar.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Um cupom só pode ser usado uma vez por conta. Em qual agregado esse invariante vive?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> na própria <code>Conta</code>, que mantém o conjunto de cupons usados. O invariante envolve só a conta, então é consistência transacional dentro do agregado. Se o cupom fosse global, seria outro agregado, com outra fronteira.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Um pedimento de cobrança precisa debitar a conta e atualizar o ranking de cliente adimplente. Como modelar sem transação distribuída?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a conta debita e emite <code>SaldoDebitado</code>. O ranking é um agregado (ou projeção) que reage ao evento, com consistência eventual. O negócio precisa aceitar um atraso curto no ranking, e isso deve estar documentado no modelo.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul>
+<li>EVANS, Eric. <em>Domain-Driven Design</em>. Addison-Wesley, 2003. Partes sobre agregados e repositórios.</li>
+<li>VERNON, Vaughn. <em>Implementing Domain-Driven Design</em>. Addison-Wesley, 2013. Regras de tamanho de agregado.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
