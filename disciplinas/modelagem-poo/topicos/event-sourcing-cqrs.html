@@ -194,6 +194,126 @@ public class Main {
   </details>
 </section>
 
+<section id="cenario" data-toc="Cenário real: carteira digital com extrato auditável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Cenário real: carteira digital com extrato auditável</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Uma carteira digital precisa responder “quanto eu tinha em 15 de março?” para atendimento, disputas e auditoria. Além disso, o aplicativo quer um painel de gastos por categoria. Guardar só o saldo atual não responde a nenhuma das duas perguntas.</p><h3 class="ah-h3 mt-6 mb-2">Decisão de modelagem</h3>
+<p>O log de eventos é a fonte da verdade: <code>Creditado</code>, <code>DebitadoV1</code> e <code>DebitadoV2</code>. O saldo é derivado por dobra, e a projeção de gastos por categoria é um modelo separado de leitura. Quando o formato do débito mudou em 2026, os eventos antigos não foram reescritos: um <strong>upcaster</strong> converte o formato antigo na leitura.</p><h3 class="ah-h3 mt-6 mb-2">Snapshots e reconciliação</h3>
+<p>Reler dez anos de eventos a cada consulta é caro. Um snapshot guarda o saldo e a versão, e a reconstrução começa dele. A reconciliação compara a projeção com o log: se o painel de gastos e o saldo derivado não batem, há um bug de projeção, e ele é detectado automaticamente. O exemplo mostra a reconciliação passando.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Nomeie os eventos no passado (<code>Debitado</code>, não <code>DebitarSaldo</code>) e não os edite nunca.</li>
+<li>Crie um upcaster por mudança de formato, com teste que converte cada versão antiga.</li>
+<li>Crie um teste de reconciliação que roda em produção, em amostra, e alerta quando diverge.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Guardar dados pessoais dentro dos eventos. Quando a lei exige remoção, o log fica em conflito com a obrigação. A solução é guardar o dado sensível em outro lugar e referenciá-lo por id no evento.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Event sourcing aumenta o custo de evolução (versões, upcasters) e exige que a equipe pense em consistência eventual. Em troca, a auditoria é completa e a reconstrução de qualquer ponto no tempo é natural. Não use para tudo: um cadastro de cores de produto não precisa dessa complexidade.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/event-sourcing-carteira/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/event-sourcing-carteira/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/event-sourcing-carteira
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>saldo (fold completo): R$ 266.00, versão 5
+saldo (snapshot + 2 eventos): R$ 266.00
+snapshots são equivalentes ao fold: true
+gasto por categoria (projeção): {ALIMENTACAO=4500, NAO_CLASSIFICADO=12000, TRANSPORTE=9900}
+reconciliação: OK</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: carteira digital com extrato auditável.
+ * Em 2026 o evento Debitado passou a exigir categoria. Eventos antigos NÃO são reescritos:
+ * um upcaster converte o formato antigo na leitura. Snapshots evitam reler o histórico inteiro.
+ * Uma projeção de saldo por categoria atende o app. Reconciliação compara a projeção com o log.
+ */
+public class Main {
+
+    sealed interface Evento permits Creditado, DebitadoV1, DebitadoV2 {}
+    record Creditado(long centavos) implements Evento {}
+    record DebitadoV1(long centavos) implements Evento {}              // formato de 2024
+    record DebitadoV2(long centavos, String categoria) implements Evento {}  // formato de 2026
+
+    /** Upcaster: converte o formato antigo para o atual, sem mexer no log. */
+    static Evento atualizar(Evento e) {
+        if (e instanceof DebitadoV1 v1) return new DebitadoV2(v1.centavos(), &quot;NAO_CLASSIFICADO&quot;);
+        return e;
+    }
+
+    record Snapshot(long saldo, int versao) {}
+
+    static final class Carteira {
+        private long saldo;
+        private int versao;
+
+        void aplicar(Evento e) {
+            Evento atual = atualizar(e);
+            if (atual instanceof Creditado c) saldo += c.centavos();
+            else if (atual instanceof DebitadoV2 d) saldo -= d.centavos();
+            versao++;
+        }
+        Snapshot snapshot() { return new Snapshot(saldo, versao); }
+        long saldo() { return saldo; }
+        int versao() { return versao; }
+    }
+
+    /** Reconstrói a partir do último snapshot e aplica só o que veio depois. */
+    static Carteira reconstruir(List&lt;Evento&gt; log, Snapshot s) {
+        Carteira c = new Carteira();
+        if (s != null) { c.saldo = s.saldo(); c.versao = s.versao(); }
+        log.subList(s == null ? 0 : s.versao(), log.size()).forEach(c::aplicar);
+        return c;
+    }
+
+    /** Projeção de leitura: saldo gasto por categoria, para o app. */
+    static Map&lt;String, Long&gt; gastoPorCategoria(List&lt;Evento&gt; log) {
+        Map&lt;String, Long&gt; gasto = new TreeMap&lt;&gt;();
+        for (Evento e : log) {
+            Evento atual = atualizar(e);
+            if (atual instanceof DebitadoV2 d) gasto.merge(d.categoria(), d.centavos(), Long::sum);
+        }
+        return gasto;
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        List&lt;Evento&gt; log = new ArrayList&lt;&gt;(List.of(
+                new Creditado(50_000),           // R$ 500,00
+                new DebitadoV1(12_000),          // histórico de 2024, sem categoria
+                new Creditado(3_000)));
+        // Novos eventos de 2026 já com categoria
+        log.add(new DebitadoV2(4_500, &quot;ALIMENTACAO&quot;));
+        log.add(new DebitadoV2(9_900, &quot;TRANSPORTE&quot;));
+
+        Carteira completa = reconstruir(log, null);
+        System.out.printf(&quot;saldo (fold completo): R$ %.2f, versão %d%n&quot;, completa.saldo() / 100.0, completa.versao());
+
+        Carteira ate = new Carteira();
+        log.subList(0, 3).forEach(ate::aplicar);
+        Snapshot tomado = ate.snapshot();
+        Carteira viaSnapshot = reconstruir(log, tomado);
+        System.out.printf(&quot;saldo (snapshot + 2 eventos): R$ %.2f%n&quot;, viaSnapshot.saldo() / 100.0);
+        System.out.println(&quot;snapshots são equivalentes ao fold: &quot; + (viaSnapshot.saldo() == completa.saldo()));
+
+        System.out.println(&quot;gasto por categoria (projeção): &quot; + gastoPorCategoria(log));
+
+        // Reconciliação: o saldo derivado do log (créditos - débitos) deve bater com o fold.
+        long creditos = 0;
+        for (Evento e : log) if (e instanceof Creditado c) creditos += c.centavos();
+        long projetado = creditos - gastoPorCategoria(log).values().stream().mapToLong(Long::longValue).sum();
+        System.out.println(&quot;reconciliação: &quot; + (projetado == completa.saldo() ? &quot;OK&quot; : &quot;DIVERGÊNCIA&quot;));
+    }
+}
+</code></pre></details>
+</section>
+
 <section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-fuchsia-400 mr-2"></i>Exercícios</h2>
   <div class="ah-prose">

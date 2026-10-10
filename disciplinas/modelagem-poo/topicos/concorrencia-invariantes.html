@@ -188,6 +188,132 @@ public class Main {
   </div>
 </section>
 
+<section id="cenario" data-toc="Cenário real: venda do último lote de ingressos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Cenário real: venda do último lote de ingressos</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um evento com lotação limitada abre a venda. Milhares de compradores clicam ao mesmo tempo, e o sistema roda em várias instâncias. O requisito é simples e inegociável: <strong>nunca vender mais ingressos do que existem</strong>.</p><h3 class="ah-h3 mt-6 mb-2">O problema que aparece na venda</h3>
+<p>A primeira versão verificava a disponibilidade e depois decrementava. Em um teste de carga, o sistema vendeu mais ingressos que a lotação: a verificação de cada compra era verdadeira no mesmo instante, e todas as vendas passaram. Este é o padrão check-then-act: a regra é violada no intervalo entre o teste e a ação.</p><h3 class="ah-h3 mt-6 mb-2">Como resolver</h3>
+<p>Duas soluções corretas, com custos diferentes. O <strong>monitor</strong> (<code>synchronized</code>) torna check e venda uma operação atômica dentro de uma instância. A <strong>comparação e troca</strong> (<code>compareAndSet</code>) faz o mesmo sem bloquear, tentando de novo quando perde a corrida. Em um cluster com várias máquinas, nenhuma das duas basta: a regra precisa ser imposta no banco de dados (uma restrição ou uma atualização condicional).</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Identifique cada invariante e o lugar onde ela é lida e escrita.</li>
+<li>Escolha o escopo da proteção: uma instância (monitor), um processo (CAS) ou o banco (condição atômica no UPDATE).</li>
+<li>Teste com barreira, como no exemplo, para reproduzir o pior escalonamento sem depender de sorte.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Sincronizar só a escrita. Uma leitura sem sincronização pode devolver um valor antigo, e a interface mostra “ingresso disponível” para quem já comprou o último.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Monitores são simples e corretos, mas serializam as vendas: sob carga extrema, a fila de threads pode virar gargalo. CAS escala melhor com pouca contenção e piora com muita. A decisão deve ser tomada com medição, não por preferência.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/concorrencia-ingressos/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/concorrencia-ingressos/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/concorrencia-ingressos
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== Versão ingênua (check-then-act) ===
+ingressos vendidos: 10 de 5 existentes
+
+=== Monitor (synchronized) ===
+vendidos: 5, restantes: 0
+
+=== Compare-and-set (sem bloqueio) ===
+vendidos: 5, restantes: 0</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * CENÁRIO: venda do último lote de ingressos de um evento.
+ * 10 compradores tentam pegar um dos 5 ingressos restantes ao mesmo tempo.
+ * A versão ingênua vende mais ingressos do que existem (oversell).
+ * Versões corretas: monitor (synchronized) ou CAS (compareAndSet), sem perder vendas.
+ */
+public class Main {
+
+    static final int COMPRADORES = 10;
+    static final int INGRESSOS = 5;
+
+    /** Ingênua: verifica e vende em momentos distintos. A barreira força o pior escalonamento. */
+    static int venderIngenuo() throws Exception {
+        AtomicInteger disponiveis = new AtomicInteger(INGRESSOS);
+        AtomicInteger vendidos = new AtomicInteger();
+        CyclicBarrier barreira = new CyclicBarrier(COMPRADORES);
+        Thread[] ts = new Thread[COMPRADORES];
+        for (int i = 0; i &lt; COMPRADORES; i++) {
+            ts[i] = new Thread(() -&gt; {
+                try {
+                    boolean viu = disponiveis.get() &gt; 0;     // CHECK
+                    barreira.await();                        // todos já viram &quot;há ingresso&quot;
+                    if (viu) {
+                        disponiveis.decrementAndGet();      // ACT sobre um check obsoleto
+                        vendidos.incrementAndGet();
+                    }
+                } catch (Exception e) { throw new RuntimeException(e); }
+            });
+            ts[i].start();
+        }
+        for (Thread t : ts) t.join();
+        return vendidos.get();
+    }
+
+    /** Correta com monitor: check e venda são uma operação. */
+    static final class Bilheteria {
+        private int disponiveis = INGRESSOS;
+        synchronized boolean vender() {
+            if (disponiveis == 0) return false;
+            disponiveis--;
+            return true;
+        }
+        synchronized int disponiveis() { return disponiveis; }
+    }
+
+    /** Correta sem bloqueio: laço de compareAndSet. */
+    static final class BilheteriaCAS {
+        private final AtomicInteger disponiveis = new AtomicInteger(INGRESSOS);
+        boolean vender() {
+            while (true) {
+                int atual = disponiveis.get();
+                if (atual == 0) return false;
+                if (disponiveis.compareAndSet(atual, atual - 1)) return true;   // tenta de novo se perdeu a corrida
+            }
+        }
+        int disponiveis() { return disponiveis.get(); }
+    }
+
+    static int venderComBilheteria(java.util.function.BooleanSupplier venda) throws InterruptedException {
+        AtomicInteger vendidos = new AtomicInteger();
+        Thread[] ts = new Thread[COMPRADORES];
+        for (int i = 0; i &lt; COMPRADORES; i++) {
+            ts[i] = new Thread(() -&gt; { if (venda.getAsBoolean()) vendidos.incrementAndGet(); });
+            ts[i].start();
+        }
+        for (Thread t : ts) t.join();
+        return vendidos.get();
+    }
+
+    public static void main(String[] args) throws Exception {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        System.out.println(&quot;=== Versão ingênua (check-then-act) ===&quot;);
+        System.out.println(&quot;ingressos vendidos: &quot; + venderIngenuo() + &quot; de &quot; + INGRESSOS + &quot; existentes&quot;);
+
+        System.out.println(&quot;\n=== Monitor (synchronized) ===&quot;);
+        Bilheteria bilheteria = new Bilheteria();
+        int v1 = venderComBilheteria(bilheteria::vender);
+        System.out.println(&quot;vendidos: &quot; + v1 + &quot;, restantes: &quot; + bilheteria.disponiveis());
+
+        System.out.println(&quot;\n=== Compare-and-set (sem bloqueio) ===&quot;);
+        BilheteriaCAS cas = new BilheteriaCAS();
+        int v2 = venderComBilheteria(cas::vender);
+        System.out.println(&quot;vendidos: &quot; + v2 + &quot;, restantes: &quot; + cas.disponiveis());
+    }
+}
+</code></pre></details>
+</section>
+
 <section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-fuchsia-400 mr-2"></i>Exercícios</h2>
   <div class="ah-prose">

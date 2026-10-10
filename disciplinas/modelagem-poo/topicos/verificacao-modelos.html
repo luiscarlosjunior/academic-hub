@@ -220,6 +220,110 @@ public class Main {
   </div>
 </section>
 
+<section id="cenario" data-toc="Cenário real: cobrança recorrente com retentativas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Cenário real: cobrança recorrente com retentativas</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um serviço de assinatura cobra o cliente mensalmente por meio de um gateway externo. Quando a resposta demora demais, o sistema reenvia a cobrança. O gateway pode ter processado a primeira tentativa mesmo sem responder.</p><h3 class="ah-h3 mt-6 mb-2">O defeito que o modelo encontra</h3>
+<p>O checker explora todas as combinações de respostas: aprovação, recusa e timeout, nessa ordem e em qualquer ordem possível. O caminho mínimo que viola a regra “nunca cobrar duas vezes” é <code>enviar, recusar, enviar</code> (o modelo supõe que o gateway registra a primeira tentativa mesmo quando a resposta não chega ao sistema; o caso real mais comum é o timeout, que segue o mesmo caminho). Esse é o tipo de defeito que testes de caminho feliz não encontram.</p><h3 class="ah-h3 mt-6 mb-2">A correção: idempotência</h3>
+<p>Cada cobrança recebe uma <strong>chave de idempotência</strong> gerada uma vez. As retentativas reenviam a mesma chave, e o gateway devolve o resultado da primeira em vez de cobrar de novo. No modelo, isso corresponde a reutilizar a mesma cobrança. O checker verifica que, com a correção, nenhum estado alcançável tem duas cobranças.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Modele os estados e as respostas possíveis do sistema externo, inclusive as que você não controla.</li>
+<li>Escreva as propriedades de segurança (“nunca duas cobranças”) explicitamente, antes de implementar.</li>
+<li>Rode o checker sobre o modelo a cada mudança de fluxo, e use o caminho mínimo como caso de teste de regressão.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Modelar só o caminho feliz. Um modelo que não tem timeout nunca vai encontrar o defeito, porque o timeout é exatamente a situação em que o sistema não sabe o que aconteceu.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Ferramentas como TLA+ e Alloy exigem um investimento de aprendizado. O checker deste exemplo serve para modelos pequenos. Em sistemas grandes, o valor está em modelar a parte crítica (pagamento, estoque, identidade), e não o sistema inteiro.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/model-checking-cobranca/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/model-checking-cobranca/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/model-checking-cobranca
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== Sem chave de idempotência ===
+VIOLADO. Caminho mínimo: [enviar, recusar, enviar]
+
+=== Com chave de idempotência (retentativas reutilizam a mesma cobrança) ===
+  estados alcançáveis: 5
+OK: nenhuma cobrança duplicada em todo o espaço de estados</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: cobrança de assinatura com retentativas.
+ * Uma requisição pode dar timeout DEPOIS de o gateway já ter cobrado. Sem chave de idempotência,
+ * a retentativa cobra de novo: o cliente paga duas vezes. Este checker encontra o caminho
+ * que leva a essa situação, e verifica a versão com idempotência.
+ */
+public class Main {
+
+    enum Status { NOVO, PROCESSANDO, APROVADO, RECUSADO, TIMEOUT }
+
+    /** cobrancas = quantas cobranças reais o gateway registrou (limitado a 2 para tornar o espaço finito). */
+    record Estado(Status status, int cobrancas) {}
+    record Passo(String acao, Estado para) {}
+
+    static List&lt;Passo&gt; sucessores(Estado e, boolean comIdempotencia) {
+        List&lt;Passo&gt; out = new ArrayList&lt;&gt;();
+        // Enviar: novo envio ou retentativa após timeout/recusa
+        if (e.status() == Status.NOVO || e.status() == Status.TIMEOUT || e.status() == Status.RECUSADO) {
+            int cob = comIdempotencia ? Math.max(1, e.cobrancas()) : Math.min(e.cobrancas() + 1, 2);
+            out.add(new Passo(&quot;enviar&quot;, new Estado(Status.PROCESSANDO, cob)));
+        }
+        if (e.status() == Status.PROCESSANDO) {
+            out.add(new Passo(&quot;aprovar&quot;, new Estado(Status.APROVADO, e.cobrancas())));
+            out.add(new Passo(&quot;recusar&quot;, new Estado(Status.RECUSADO, e.cobrancas())));
+            out.add(new Passo(&quot;timeout&quot;, new Estado(Status.TIMEOUT, e.cobrancas())));
+        }
+        return out;
+    }
+
+    /** Verifica um invariante em todo estado alcançável (BFS). Devolve o caminho até a violação. */
+    static Optional&lt;List&lt;String&gt;&gt; verificar(boolean comIdempotencia, java.util.function.Predicate&lt;Estado&gt; inv) {
+        Estado inicio = new Estado(Status.NOVO, 0);
+        Set&lt;Estado&gt; visitados = new HashSet&lt;&gt;(Set.of(inicio));
+        ArrayDeque&lt;Map.Entry&lt;Estado, List&lt;String&gt;&gt;&gt; fila = new ArrayDeque&lt;&gt;();
+        fila.add(Map.entry(inicio, List.of()));
+        while (!fila.isEmpty()) {
+            var item = fila.poll();
+            if (!inv.test(item.getKey())) return Optional.of(item.getValue());
+            for (Passo p : sucessores(item.getKey(), comIdempotencia)) {
+                if (visitados.add(p.para())) {
+                    List&lt;String&gt; caminho = new ArrayList&lt;&gt;(item.getValue());
+                    caminho.add(p.acao());
+                    fila.add(Map.entry(p.para(), caminho));
+                }
+            }
+        }
+        System.out.println(&quot;  estados alcançáveis: &quot; + visitados.size());
+        return Optional.empty();
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        // Propriedade de segurança: nunca cobrar o cliente duas vezes pelo mesmo pedido
+        java.util.function.Predicate&lt;Estado&gt; cobradoUmaVez = e -&gt; e.cobrancas() &lt;= 1;
+
+        System.out.println(&quot;=== Sem chave de idempotência ===&quot;);
+        verificar(false, cobradoUmaVez).ifPresentOrElse(
+                caminho -&gt; System.out.println(&quot;VIOLADO. Caminho mínimo: &quot; + caminho),
+                () -&gt; System.out.println(&quot;OK&quot;));
+
+        System.out.println(&quot;\n=== Com chave de idempotência (retentativas reutilizam a mesma cobrança) ===&quot;);
+        verificar(true, cobradoUmaVez).ifPresentOrElse(
+                caminho -&gt; System.out.println(&quot;VIOLADO: &quot; + caminho),
+                () -&gt; System.out.println(&quot;OK: nenhuma cobrança duplicada em todo o espaço de estados&quot;));
+    }
+}
+</code></pre></details>
+</section>
+
 <section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-fuchsia-400 mr-2"></i>Exercícios</h2>
   <div class="ah-prose">

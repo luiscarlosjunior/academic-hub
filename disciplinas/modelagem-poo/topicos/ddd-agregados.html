@@ -240,6 +240,194 @@ public class Main {
   </div>
 </section>
 
+<section id="cenario" data-toc="Cenário real: checkout com estoque e saga" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Cenário real: checkout com estoque e saga</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um cliente confirma um pedido. Ao mesmo tempo, o sistema precisa reservar o estoque, registrar o faturamento e avisar o cliente. Estoque e pedido são lidos e alterados por equipes e serviços diferentes, e não podem compartilhar uma transação de banco longa.</p><h3 class="ah-h3 mt-6 mb-2">Decisão de modelagem</h3>
+<p><code>Pedido</code> e <code>Estoque</code> são <strong>agregados separados</strong>. O pedido garante seus próprios invariantes: total igual à soma dos itens, nenhuma mudança depois de confirmado, pedido não vazio. O estoque garante que a quantidade nunca fica negativa. A ligação entre os dois é um <strong>evento</strong> (<code>PedidoConfirmado</code>), não uma chamada direta.</p><h3 class="ah-h3 mt-6 mb-2">Saga: quando a reação falha</h3>
+<p>Se o estoque não tem saldo, o pedido já está confirmado. A solução não é desfazer nada no banco: é uma <strong>ação compensatória</strong>, que cancela o pedido por um evento próprio (<code>PedidoCancelado</code>). Esse é o padrão saga, usado quando uma operação de negócio atravessa agregados sem transação distribuída.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Defina a fronteira pelo invariante: o que precisa ser consistente no mesmo instante fica no mesmo agregado.</li>
+<li>Referencie outros agregados por <em>id</em>, nunca por objeto.</li>
+<li>Para cada reação que pode falhar, escreva a compensação antes de escrever a reação.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Um agregado “Pedido” que carrega o estoque inteiro, o histórico de preços e o cliente. Toda compra vira disputa pelo mesmo registro, e o sistema trava sob carga. Mantenha o agregado pequeno e deixe o resto para eventos e projeções.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>A consistência entre pedido e estoque passa a ser <strong>eventual</strong>: entre a confirmação e a reserva existe um intervalo em que o pedido está confirmado sem estoque garantido. O negócio precisa aceitar esse intervalo e informar o cliente (por exemplo, “pedido em processamento”).</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/ddd-pedido/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/ddd-pedido/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/ddd-pedido
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== Pedido 1: dentro do estoque ===
+total: R$ 99.80
+  estoque: reservado para PED-1
+status: CONFIRMADO, estoque disponível: 0
+
+=== Pedido 2: estoque esgotado, saga compensa ===
+  estoque: sem saldo para PED-2, compensando
+  evento publicado: PedidoCancelado[pedidoId=PED-2, motivo=estoque insuficiente]
+status final: CANCELADO
+
+=== Invariantes da raiz ===
+pedido vazio: pedido vazio não pode ser confirmado
+pedido confirmado não muda: pedido não está aberto</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+
+/**
+ * CENÁRIO: checkout de um e-commerce.
+ * Pedido é um agregado (itens e total só mudam pela raiz). Estoque é OUTRO agregado.
+ * A confirmação publica um evento; o estoque reage em outra transação. Se o estoque
+ * não tiver saldo, uma ação compensatória cancela o pedido (padrão saga).
+ */
+public class Main {
+
+    record Dinheiro(long centavos) {
+        Dinheiro {
+            if (centavos &lt; 0) throw new IllegalArgumentException(&quot;valor negativo&quot;);
+        }
+        Dinheiro somar(Dinheiro outro) { return new Dinheiro(centavos + outro.centavos); }
+        Dinheiro vezes(int quantidade) { return new Dinheiro(centavos * quantidade); }
+        @Override public String toString() { return String.format(&quot;R$ %.2f&quot;, centavos / 100.0); }
+    }
+
+    record ItemPedido(String sku, int quantidade, Dinheiro precoUnitario) {
+        ItemPedido {
+            if (quantidade &lt;= 0) throw new IllegalArgumentException(&quot;quantidade deve ser positiva&quot;);
+        }
+        Dinheiro subtotal() { return precoUnitario.vezes(quantidade); }
+    }
+
+    enum StatusPedido { ABERTO, CONFIRMADO, CANCELADO }
+
+    sealed interface Evento permits PedidoConfirmado, PedidoCancelado {}
+    record PedidoConfirmado(String pedidoId, List&lt;ItemPedido&gt; itens) implements Evento {}
+    record PedidoCancelado(String pedidoId, String motivo) implements Evento {}
+
+    /** Agregado raiz: os invariantes do pedido vivem aqui. */
+    static final class Pedido {
+        private final String id;
+        private final List&lt;ItemPedido&gt; itens = new ArrayList&lt;&gt;();
+        private StatusPedido status = StatusPedido.ABERTO;
+
+        Pedido(String id) { this.id = id; }
+
+        void adicionar(ItemPedido item) {
+            if (status != StatusPedido.ABERTO) throw new IllegalStateException(&quot;pedido não está aberto&quot;);
+            itens.add(item);
+        }
+
+        /** Invariante: total = soma dos itens, sempre calculado, nunca guardado. */
+        Dinheiro total() {
+            return itens.stream().map(ItemPedido::subtotal).reduce(new Dinheiro(0), Dinheiro::somar);
+        }
+
+        /** Comando: confirmar exige ao menos um item e muda o estado uma única vez. */
+        Evento confirmar() {
+            if (itens.isEmpty()) throw new IllegalStateException(&quot;pedido vazio não pode ser confirmado&quot;);
+            if (status != StatusPedido.ABERTO) throw new IllegalStateException(&quot;status &quot; + status);
+            status = StatusPedido.CONFIRMADO;
+            return new PedidoConfirmado(id, List.copyOf(itens));
+        }
+
+        Evento cancelarPorFalhaDeEstoque(String motivo) {
+            if (status != StatusPedido.CONFIRMADO) throw new IllegalStateException(&quot;só pedido confirmado é compensado&quot;);
+            status = StatusPedido.CANCELADO;
+            return new PedidoCancelado(id, motivo);
+        }
+
+        String id() { return id; }
+        StatusPedido status() { return status; }
+    }
+
+    /** Outro agregado: o estoque protege a própria invariante (quantidade nunca negativa). */
+    static final class Estoque {
+        private final Map&lt;String, Integer&gt; saldo = new HashMap&lt;&gt;();
+        void repor(String sku, int quantidade) { saldo.merge(sku, quantidade, Integer::sum); }
+        boolean reservar(List&lt;ItemPedido&gt; itens) {
+            for (ItemPedido i : itens) {
+                if (saldo.getOrDefault(i.sku(), 0) &lt; i.quantidade()) return false;
+            }
+            itens.forEach(i -&gt; saldo.merge(i.sku(), -i.quantidade(), Integer::sum));
+            return true;
+        }
+        int disponivel(String sku) { return saldo.getOrDefault(sku, 0); }
+    }
+
+    /** Reação ao evento: roda em transação própria, separada do pedido. */
+    static final class ReservaDeEstoque {
+        private final Estoque estoque;
+        private final Pedidos pedidos;
+        ReservaDeEstoque(Estoque estoque, Pedidos pedidos) { this.estoque = estoque; this.pedidos = pedidos; }
+
+        void tratar(PedidoConfirmado evento) {
+            if (estoque.reservar(evento.itens())) {
+                System.out.println(&quot;  estoque: reservado para &quot; + evento.pedidoId());
+            } else {
+                System.out.println(&quot;  estoque: sem saldo para &quot; + evento.pedidoId() + &quot;, compensando&quot;);
+                pedidos.compensar(evento.pedidoId(), &quot;estoque insuficiente&quot;);
+            }
+        }
+    }
+
+    /** Repositório com ações compensatórias (saga). */
+    static final class Pedidos {
+        private final Map&lt;String, Pedido&gt; dados = new HashMap&lt;&gt;();
+        void salvar(Pedido p) { dados.put(p.id(), p); }
+        Pedido porId(String id) { return dados.get(id); }
+        void compensar(String id, String motivo) {
+            Evento e = dados.get(id).cancelarPorFalhaDeEstoque(motivo);
+            System.out.println(&quot;  evento publicado: &quot; + e);
+        }
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        Estoque estoque = new Estoque();
+        estoque.repor(&quot;CAMISA-P&quot;, 2);
+        Pedidos pedidos = new Pedidos();
+        ReservaDeEstoque reserva = new ReservaDeEstoque(estoque, pedidos);
+
+        System.out.println(&quot;=== Pedido 1: dentro do estoque ===&quot;);
+        Pedido p1 = new Pedido(&quot;PED-1&quot;);
+        p1.adicionar(new ItemPedido(&quot;CAMISA-P&quot;, 2, new Dinheiro(4990)));
+        System.out.println(&quot;total: &quot; + p1.total());
+        pedidos.salvar(p1);
+        PedidoConfirmado e1 = (PedidoConfirmado) p1.confirmar();
+        reserva.tratar(e1);
+        System.out.println(&quot;status: &quot; + p1.status() + &quot;, estoque disponível: &quot; + estoque.disponivel(&quot;CAMISA-P&quot;));
+
+        System.out.println(&quot;\n=== Pedido 2: estoque esgotado, saga compensa ===&quot;);
+        Pedido p2 = new Pedido(&quot;PED-2&quot;);
+        p2.adicionar(new ItemPedido(&quot;CAMISA-P&quot;, 1, new Dinheiro(4990)));
+        pedidos.salvar(p2);
+        reserva.tratar((PedidoConfirmado) p2.confirmar());
+        System.out.println(&quot;status final: &quot; + pedidos.porId(&quot;PED-2&quot;).status());
+
+        System.out.println(&quot;\n=== Invariantes da raiz ===&quot;);
+        try {
+            new Pedido(&quot;PED-3&quot;).confirmar();
+        } catch (IllegalStateException e) {
+            System.out.println(&quot;pedido vazio: &quot; + e.getMessage());
+        }
+        try {
+            p1.adicionar(new ItemPedido(&quot;CAMISA-P&quot;, 1, new Dinheiro(4990)));
+        } catch (IllegalStateException e) {
+            System.out.println(&quot;pedido confirmado não muda: &quot; + e.getMessage());
+        }
+    }
+}
+</code></pre></details>
+</section>
+
 <section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes-stacked text-fuchsia-400 mr-2"></i>Exercícios</h2>
   <div class="ah-prose">

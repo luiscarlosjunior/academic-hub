@@ -192,6 +192,102 @@ public class Main {
   </div>
 </section>
 
+<section id="cenario" data-toc="Cenário real: barramento de eventos de um marketplace" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Cenário real: barramento de eventos de um marketplace</h2>
+  <div class="ah-prose">
+<div class="ah-callout ah-callout-info mb-4"><i class="fa-solid fa-circle-info"></i><div><strong>Cenário ilustrativo.</strong> Os casos a seguir são composições didáticas inspiradas em problemas comuns de plataformas de comércio, pagamentos e reservas. Não descrevem a arquitetura de nenhuma empresa específica.</div></div><h3 class="ah-h3 mt-6 mb-2">Contexto</h3>
+<p>Um marketplace publica eventos de domínio: <code>PedidoPago</code>, <code>PagamentoRecusado</code> e outros. Três consumidores precisam deles: a <strong>auditoria</strong> quer todos, o <strong>financeiro</strong> só quer pagamentos aprovados, e um <strong>painel de métricas</strong> conta eventos por tipo.</p><h3 class="ah-h3 mt-6 mb-2">O problema que aparece no código</h3>
+<p>A primeira versão do barramento recebia um <code>Consumer&lt;PedidoPago&gt;</code> genérico e exigia um <code>cast</code> em cada consumidor. Quando a auditoria tentou se inscrever como <code>Consumer&lt;Evento&gt;</code>, o compilador recusou, porque a assinatura não aceitava um supertipo. A equipe colocou <code>Object</code> em todo lugar, e perdeu a checagem de tipos.</p><h3 class="ah-h3 mt-6 mb-2">Como a variância resolve</h3>
+<p>A assinatura <code>assinar(Class&lt;T&gt;, Consumer&lt;? super T&gt;)</code> diz exatamente o que o assinante precisa: aceitar <code>T</code> ou um supertipo. Assim, um <code>Consumer&lt;Evento&gt;</code> serve para <code>PedidoPago</code> sem cast, e o compilador garante a compatibilidade. Do outro lado, <code>contarPorTipo(Collection&lt;? extends Evento&gt;)</code> aceita listas de qualquer subtipo, porque só lê.</p><h3 class="ah-h3 mt-6 mb-2">Como usar</h3>
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>Em parâmetros que <strong>consomem</strong> valores (assinantes, comparadores, validadores), use <code>? super T</code>.</li>
+<li>Em parâmetros que <strong>produzem</strong> valores (listas de leitura, fontes), use <code>? extends T</code>.</li>
+<li>Se a mesma API precisa ler e escrever, troque o wildcard por um parâmetro de tipo nomeado, como em <code>copiar</code> do exemplo.</li>
+</ol><h3 class="ah-h3 mt-6 mb-2">Armadilha comum</h3>
+<p>Usar <code>List&lt;Object&gt;</code> “para ser flexível”. Isso desliga a verificação de tipos, e os erros voltam a aparecer em produção, como <code>ClassCastException</code> no meio de um lote de pagamentos.</p><h3 class="ah-h3 mt-6 mb-2">Trade-offs</h3>
+<p>Wildcards deixam as assinaturas mais difíceis de ler. Em APIs públicas, vale a pena documentar o porquê de cada wildcard. Linguagens como Kotlin e C# evitam parte desse custo ao declarar a variância no tipo, mas o princípio é o mesmo.</p>
+  </div>
+</section>
+
+<section id="cenario-executavel" data-toc="Simulação do cenário (código)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-fuchsia-400 mr-2"></i>Simulação do cenário</h2>
+  <p class="ah-lead text-sm mb-5">O cenário acima roda como programa Java 17 (compila com <code>-Xlint:all</code> sem avisos). A saída é a execução real.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/cenarios/variancia-eventos/Main.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/cenarios/variancia-eventos/Main.java</code></a></div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/cenarios/variancia-eventos
+javac -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>financeiro: creditar R$ 199.90 do pedido PED-1
+financeiro: creditar R$ 45.00 do pedido PED-3
+auditoria recebeu 3 eventos
+contagem: {PagamentoRecusado=1, PedidoPago=2}
+contagem de só pagamentos: {PedidoPago=1}</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo do cenário</summary>
+<pre class="ah-code mt-3"><code>import java.util.*;
+import java.util.function.Consumer;
+
+/**
+ * CENÁRIO: barramento de eventos de um marketplace.
+ * Auditoria quer ver TODOS os eventos; o módulo financeiro só quer PedidoPago.
+ * O uso correto de wildcards deixa um único barramento servir aos dois sem cast.
+ */
+public class Main {
+
+    interface Evento { String tipo(); }
+    record PedidoPago(String pedidoId, long centavos) implements Evento {
+        public String tipo() { return &quot;PedidoPago&quot;; }
+    }
+    record PagamentoRecusado(String pedidoId, String motivo) implements Evento {
+        public String tipo() { return &quot;PagamentoRecusado&quot;; }
+    }
+
+    static final class BarramentoDeEventos {
+        private final List&lt;Consumer&lt;Evento&gt;&gt; roteadores = new ArrayList&lt;&gt;();
+
+        // Consumer&lt;? super T&gt;: o assinante aceita T ou qualquer supertipo (contravariância).
+        // Por isso, um auditor que recebe Evento pode se inscrever em PedidoPago.
+        &lt;T extends Evento&gt; void assinar(Class&lt;T&gt; tipo, Consumer&lt;? super T&gt; handler) {
+            roteadores.add(e -&gt; {
+                if (tipo.isInstance(e)) handler.accept(tipo.cast(e));
+            });
+        }
+
+        void publicar(Evento e) { roteadores.forEach(r -&gt; r.accept(e)); }
+    }
+
+    // Produtor de leitura: ? extends Evento aceita listas de qualquer subtipo (covariância).
+    static Map&lt;String, Integer&gt; contarPorTipo(Collection&lt;? extends Evento&gt; eventos) {
+        Map&lt;String, Integer&gt; contagem = new TreeMap&lt;&gt;();
+        for (Evento e : eventos) contagem.merge(e.tipo(), 1, Integer::sum);
+        return contagem;
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída reprodutível em qualquer máquina
+        BarramentoDeEventos barramento = new BarramentoDeEventos();
+        List&lt;Evento&gt; registro = new ArrayList&lt;&gt;();
+
+        // Auditoria: recebe qualquer Evento (Consumer&lt;Evento&gt; serve para Consumer&lt;? super PedidoPago&gt;)
+        Consumer&lt;Evento&gt; auditoria = registro::add;
+        barramento.assinar(Evento.class, auditoria);
+
+        // Financeiro: só pagamentos aprovados
+        barramento.assinar(PedidoPago.class, p -&gt;
+                System.out.printf(&quot;financeiro: creditar R$ %.2f do pedido %s%n&quot;, p.centavos() / 100.0, p.pedidoId()));
+
+        barramento.publicar(new PedidoPago(&quot;PED-1&quot;, 19990));
+        barramento.publicar(new PagamentoRecusado(&quot;PED-2&quot;, &quot;cartão sem limite&quot;));
+        barramento.publicar(new PedidoPago(&quot;PED-3&quot;, 4500));
+
+        System.out.println(&quot;auditoria recebeu &quot; + registro.size() + &quot; eventos&quot;);
+        System.out.println(&quot;contagem: &quot; + contarPorTipo(registro));
+        System.out.println(&quot;contagem de só pagamentos: &quot; + contarPorTipo(List.of(new PedidoPago(&quot;X&quot;, 1))));
+    }
+}
+</code></pre></details>
+</section>
+
 <section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-fuchsia-400 mr-2"></i>Exercícios</h2>
   <div class="ah-prose">
