@@ -1221,4 +1221,253 @@
     geraSnapshot, desenhaSnapshot,
     geraRicart, desenhaRicart
   });
+
+  /* ===================================================================
+     5b. FAILOVER COM REPLICAÇÃO ASSÍNCRONA × SÍNCRONA (tópico 5)
+     O líder grava w1 e confirma ao cliente. Em "assíncrona", o líder cai
+     antes de replicar, e w1 se perde com a promoção do seguidor. Em
+     "síncrona", o seguidor grava antes da confirmação, e w1 sobrevive.
+     =================================================================== */
+  function geraFailover(opcao) {
+    const sync = opcao === 'sincrona';
+    const q = (extra) => Object.assign({ logL: [], logS: [], liderFalhou: false, promovido: false, confirmado: false, leitura: null }, extra);
+    if (sync) {
+      return [
+        q({ tempo: 0, t: 'Estado inicial: líder L e seguidor S, ambos sem registros.' }),
+        q({ tempo: 1, logL: ['w1'], t: 'O cliente escreve w1 em L. Na replicação síncrona, L envia w1 a S e espera a confirmação antes de responder.' }),
+        q({ tempo: 2, logL: ['w1'], logS: ['w1'], confirmado: true, t: 'S grava w1 e confirma. Só agora L responde ao cliente: w1 existe em duas máquinas.' }),
+        q({ tempo: 3, logL: ['w1'], logS: ['w1'], confirmado: true, liderFalhou: true, t: 'L cai. S já tem w1, então nada que foi confirmado se perde.' }),
+        q({ tempo: 4, logS: ['w1'], confirmado: true, liderFalhou: true, promovido: true, t: 'S é promovido a líder, com w1 no log.' }),
+        q({ tempo: 5, logS: ['w1'], confirmado: true, liderFalhou: true, promovido: true, leitura: ['w1'], t: 'Leitura no novo líder devolve w1. A confirmação dada ao cliente continua verdadeira.' })
+      ];
+    }
+    return [
+      q({ tempo: 0, t: 'Estado inicial: líder L e seguidor S, ambos sem registros.' }),
+      q({ tempo: 1, logL: ['w1'], confirmado: true, t: 'O cliente escreve w1 em L. Na replicação assíncrona, L grava e responde ao cliente logo, sem esperar S.' }),
+      q({ tempo: 2, logL: ['w1'], confirmado: true, liderFalhou: true, t: 'L cai antes de enviar w1 a S. O cliente já recebeu "confirmado", mas w1 existe só em L.' }),
+      q({ tempo: 3, logL: ['w1'], confirmado: true, liderFalhou: true, t: 'L está fora do ar. S não recebeu nada e fica com o log vazio.' }),
+      q({ tempo: 4, confirmado: true, liderFalhou: true, promovido: true, t: 'S é promovido a líder, com o log vazio. A escrita confirmada se perdeu na promoção.' }),
+      q({ tempo: 5, confirmado: true, liderFalhou: true, promovido: true, leitura: [], t: 'Leitura no novo líder não devolve w1. O cliente viu "confirmado" e a escrita sumiu: perda de escrita confirmada.' })
+    ];
+  }
+
+  function desenhaFailover(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const caixas = [
+      { nome: 'L (líder)', x: w * 0.25, log: q.logL, falhou: q.liderFalhou, papel: q.liderFalhou ? 'fora do ar' : 'líder' },
+      { nome: 'S (seguidor)', x: w * 0.75, log: q.logS, falhou: false, papel: q.promovido ? 'promovido a líder' : 'seguidor' }
+    ];
+    const yc = h * 0.42, larg = 220, alt = 150;
+    caixas.forEach(c => {
+      const cor = c.falhou ? CORES.mudo : c.papel.indexOf('líder') >= 0 || c.papel.indexOf('promovido') >= 0 ? CORES.verde : CORES.azul;
+      global.AH.roundRect(ctx, c.x - larg / 2, yc - alt / 2, larg, alt, 12);
+      ctx.fillStyle = c.falhou ? '#0f172a' : '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash(c.falhou ? [5, 4] : []);
+      ctx.strokeStyle = c.falhou ? CORES.rosa : cor;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      rotulo(ctx, c.nome, c.x, yc - alt / 2 + 18, CORES.txt, 'center');
+      rotulo(ctx, c.papel, c.x, yc - alt / 2 + 36, c.falhou ? CORES.rosa : cor, 'center');
+      rotulo(ctx, 'log:', c.x - larg / 2 + 14, yc - 8, CORES.mudo);
+      if (c.log.length === 0) rotulo(ctx, '(vazio)', c.x, yc + 14, CORES.mudo, 'center');
+      c.log.forEach((e, i) => rotulo(ctx, e, c.x, yc + 14 + i * 18, CORES.amarelo, 'center'));
+    });
+    global.AH.arrow(ctx, w * 0.25 + larg / 2, yc, w * 0.75 - larg / 2, yc, q.logS.length ? CORES.verde : CORES.mudo, true);
+    rotulo(ctx, 'replicação', w / 2, yc - 10, CORES.mudo, 'center');
+    const conf = q.confirmado ? 'sim' : 'não';
+    rotulo(ctx, 'cliente recebeu confirmação: ' + conf, w / 2, h - 60, q.confirmado ? CORES.amarelo : CORES.mudo, 'center');
+    if (q.leitura) {
+      const achou = q.leitura.length > 0;
+      rotulo(ctx, 'leitura: ' + (achou ? q.leitura.join(', ') : 'w1 não existe mais'), w / 2, h - 36, achou ? CORES.verde : CORES.rosa, 'center');
+    }
+    rotulo(ctx, 'confirmação antes de replicar = risco de perda na falha', 16, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     6b. PAXOS COM PROPOSTA CONFLITANTE (tópico 6)
+     Três aceitadores. P1 propõe A com número 1 e decide. Depois P2 propõe B
+     com número 2, mas precisa adotar o valor já aceito (A). Opções:
+     "simples" (só P1) e "conflito" (P2 chega depois).
+     =================================================================== */
+  function geraPaxos(opcao) {
+    const acc0 = [{ prom: null, aceito: null }, { prom: null, aceito: null }, { prom: null, aceito: null }];
+    const copia = a => a.map(x => Object.assign({}, x));
+    const quadros = [];
+    const add = (acc, msg, txt, decidido) => quadros.push({ tempo: quadros.length, acc: copia(acc), msg, decidido: !!decidido, t: txt });
+    let acc = copia(acc0);
+    add(acc, null, 'Três aceitadores, sem promessas nem valores aceitos. Um proponente quer decidir.');
+    add(acc, 'P1: prepare(1)', 'P1 envia prepare(1) a todos. Pede que os aceitadores prometam não aceitar números menores que 1.');
+    acc[0].prom = 1; acc[1].prom = 1;
+    add(acc, 'promessas', 'A1 e A2 prometem. Com 2 de 3, P1 tem maioria e pode seguir para a fase de aceitação. Nenhum valor estava aceito antes.');
+    acc[0].aceito = [1, 'A']; acc[1].aceito = [1, 'A'];
+    add(acc, 'P1: accept(1, A)', 'P1 envia accept(1, A). Como nenhum valor anterior existia, P1 pode propor o próprio valor A.');
+    add(acc, null, 'Maioria aceitou (1, A). O valor A está decidido, e nenhum aceitador vai mudar isso depois.', true);
+    if (opcao === 'conflito') {
+      add(acc, 'P2: prepare(2)', 'Mais tarde, P2 quer propor B com número 2. Envia prepare(2) a todos.');
+      acc[0].prom = 2; acc[1].prom = 2;
+      add(acc, 'promessas com valor', 'A1 promete 2 e informa que já aceitou (1, A). A2 promete 2, sem valor. P2 tem maioria, mas precisa ver o valor de maior número aceito.');
+      add(acc, 'P2: accept(2, A)', 'Regra de Paxos: P2 deve propor A, não B. Ele adota o valor aceito de maior número. Propor B aqui violaria o acordo.');
+      acc[0].aceito = [2, 'A']; acc[1].aceito = [2, 'A'];
+      add(acc, null, 'Maioria aceitou (2, A). A decisão continua A: a proposta de número maior preservou o valor já decidido.', true);
+    }
+    return quadros;
+  }
+
+  function desenhaPaxos(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const nomes = ['A1', 'A2', 'A3'];
+    const yc = h * 0.5, larg = 180, alt = 110;
+    nomes.forEach((nome, i) => {
+      const x = w * (0.2 + i * 0.3);
+      const a = q.acc[i];
+      const cor = a.aceito ? CORES.verde : a.prom ? CORES.amarelo : 'rgba(148,163,184,.5)';
+      global.AH.roundRect(ctx, x - larg / 2, yc - alt / 2, larg, alt, 12);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = cor;
+      ctx.stroke();
+      rotulo(ctx, nome, x, yc - alt / 2 + 16, CORES.txt, 'center');
+      rotulo(ctx, 'prometido: ' + (a.prom !== null ? a.prom : '—'), x, yc - 8, a.prom !== null ? CORES.amarelo : CORES.mudo, 'center');
+      rotulo(ctx, 'aceito: ' + (a.aceito ? '(' + a.aceito[0] + ', ' + a.aceito[1] + ')' : '—'), x, yc + 14, a.aceito ? CORES.verde : CORES.mudo, 'center');
+    });
+    if (q.msg) rotulo(ctx, 'mensagem: ' + q.msg, w / 2, h * 0.16, CORES.azul, 'center');
+    if (q.decidido) rotulo(ctx, 'DECIDIDO: A', w / 2, h * 0.84, CORES.verde, 'center');
+    rotulo(ctx, 'maioria = 2 de 3 aceitadores', 16, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     7b. SAGA COM COMPENSAÇÃO (tópico 7)
+     Três passos locais. Se um falha, os anteriores são compensados em ordem
+     inversa. Opções: "ok", "falha-cobranca" (compensa estoque) e
+     "falha-envio" (compensa cobrança e depois estoque).
+     =================================================================== */
+  const PASSOS_SAGA = ['Reservar estoque', 'Cobrar cartão', 'Agendar envio'];
+
+  function geraSaga(opcao) {
+    const quadros = [];
+    const estado = ['pendente', 'pendente', 'pendente'];
+    const add = (txt, msg) => quadros.push({ tempo: quadros.length, estados: estado.slice(), msg: msg || null, t: txt });
+    add('Pedido com três passos locais. Cada passo é uma transação em um serviço diferente.');
+    estado[0] = 'feito'; add('Passo 1 concluído: o estoque está reservado.');
+    if (opcao === 'ok') {
+      estado[1] = 'feito'; add('Passo 2 concluído: o cartão foi cobrado.');
+      estado[2] = 'feito'; add('Passo 3 concluído: o envio foi agendado. A saga terminou sem compensações.');
+      return quadros;
+    }
+    if (opcao === 'falha-cobranca') {
+      estado[1] = 'falhou'; add('Passo 2 falhou: o banco recusou a cobrança. Começa a compensação.');
+      estado[0] = 'compensado'; add('Compensação: a reserva do estoque é liberada. O cartão nunca foi cobrado, então nada precisa ser estornado.', 'compensa');
+      return quadros;
+    }
+    estado[1] = 'feito'; add('Passo 2 concluído: o cartão foi cobrado.');
+    estado[2] = 'falhou'; add('Passo 3 falhou: a transportadora está indisponível. Começa a compensação, em ordem inversa.');
+    estado[1] = 'compensado'; add('Compensação do passo 2: o estorno é emitido. Ele aparece na fatura do cliente depois de alguns dias.', 'compensa');
+    estado[0] = 'compensado'; add('Compensação do passo 1: a reserva de estoque é liberada. O pedido termina cancelado.', 'compensa');
+    return quadros;
+  }
+
+  function desenhaSaga(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const larg = 160, alt = 70, gap = (w - 3 * larg) / 4;
+    const xDe = i => gap + i * (larg + gap);
+    const yc = h * 0.5;
+    const corDe = { pendente: 'rgba(148,163,184,.4)', feito: CORES.verde, falhou: CORES.rosa, compensado: CORES.amarelo };
+    q.estados.forEach((e, i) => {
+      const x = xDe(i);
+      global.AH.roundRect(ctx, x, yc - alt / 2, larg, alt, 12);
+      ctx.fillStyle = e === 'pendente' ? '#0f172a' : '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = corDe[e];
+      ctx.stroke();
+      rotulo(ctx, PASSOS_SAGA[i], x + larg / 2, yc - 10, e === 'pendente' ? CORES.mudo : CORES.txt, 'center');
+      rotulo(ctx, e, x + larg / 2, yc + 14, corDe[e], 'center');
+      if (i < 2) global.AH.arrow(ctx, x + larg, yc, x + larg + gap, yc, 'rgba(148,163,184,.5)', true);
+    });
+    if (q.msg === 'compensa') {
+      q.estados.forEach((e, i) => {
+        if (e !== 'compensado') return;
+        global.AH.arrow(ctx, xDe(i) + larg / 2, yc + alt / 2 + 6, xDe(i) + larg / 2, yc + alt / 2 + 40, CORES.rosa, true);
+        rotulo(ctx, 'desfaz', xDe(i) + larg / 2, yc + alt / 2 + 54, CORES.rosa, 'center');
+      });
+    }
+    rotulo(ctx, 'orquestrador: a saga envia cada passo e decide as compensações', 16, h - 14, CORES.mudo);
+  }
+
+  /* ===================================================================
+     8b. BALANCEAMENTO COM NÓS VIRTUAIS (tópico 8)
+     600 chaves em um anel; cada chave vai ao primeiro ponto no sentido
+     horário. Opção "poucos" (1 ponto por servidor) e "virtuais" (40 pontos).
+     Quadro 1: quatro servidores. Quadro 2: entra um quinto servidor.
+     =================================================================== */
+  function hashTexto(s) {
+    let x = 2166136261;
+    for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); }
+    x ^= x >>> 13; x = Math.imul(x, 0x5bd1e995); x ^= x >>> 15;
+    return (x >>> 0) / 4294967296;
+  }
+
+  function cargas(servidores, virtuais) {
+    const pontos = [];
+    servidores.forEach(s => {
+      for (let v = 0; v < virtuais; v++) pontos.push({ pos: hashTexto(s + '#' + v), nome: s });
+    });
+    pontos.sort((a, b) => a.pos - b.pos);
+    const carga = {};
+    servidores.forEach(s => (carga[s] = 0));
+    for (let i = 0; i < 600; i++) {
+      const k = hashTexto('chave' + i);
+      const dono = pontos.find(p => p.pos >= k) || pontos[0];
+      carga[dono.nome]++;
+    }
+    return carga;
+  }
+
+  function geraCargaVirtuais(opcao) {
+    const virtuais = opcao === 'virtuais' ? 40 : 1;
+    const quatro = ['A', 'B', 'C', 'D'];
+    const cinco = ['A', 'B', 'C', 'D', 'E'];
+    const c4 = cargas(quatro, virtuais);
+    const c5 = cargas(cinco, virtuais);
+    const max4 = Math.max(...Object.values(c4)), min4 = Math.min(...Object.values(c4));
+    const max5 = Math.max(...Object.values(c5)), min5 = Math.min(...Object.values(c5));
+    return [
+      { tempo: 0, nomes: quatro, carga: c4, ideal: 150, t: 'Com ' + (virtuais === 1 ? '1 ponto' : '40 pontos') + ' por servidor, 600 chaves se distribuem entre 4 servidores. Carga mínima ' + min4 + ', máxima ' + max4 + '.' },
+      { tempo: 1, nomes: cinco, carga: c5, ideal: 120, t: 'Entra o servidor E. Carga mínima ' + min5 + ', máxima ' + max5 + '. ' + (virtuais === 1 ? 'A distribuição ficou desigual: poucos pontos deixam arcos grandes e pequenos.' : 'Com muitos pontos, a carga se acomoda perto da média de 120 por servidor.') }
+    ];
+  }
+
+  function desenhaCargaVirtuais(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const base = h - 60, topo = 40, maxVal = 300;
+    const n = q.nomes.length;
+    const larg = (w - 80) / n;
+    const yDe = v => base - (v / maxVal) * (base - topo);
+    ctx.strokeStyle = CORES.amarelo;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(40, yDe(q.ideal)); ctx.lineTo(w - 40, yDe(q.ideal)); ctx.stroke();
+    ctx.setLineDash([]);
+    rotulo(ctx, 'média ideal ' + q.ideal, w - 40, yDe(q.ideal) - 10, CORES.amarelo, 'right');
+    q.nomes.forEach((nome, i) => {
+      const x = 40 + i * larg + larg * 0.2;
+      const bw = larg * 0.6;
+      const v = q.carga[nome];
+      const cor = Math.abs(v - q.ideal) > 60 ? CORES.rosa : CORES.azul;
+      ctx.fillStyle = cor;
+      ctx.fillRect(x, yDe(v), bw, base - yDe(v));
+      rotulo(ctx, String(v), x + bw / 2, yDe(v) - 10, CORES.txt, 'center');
+      rotulo(ctx, nome, x + bw / 2, base + 16, CORES.txt, 'center');
+    });
+    rotulo(ctx, 'rosa: mais de 60 chaves longe da média · azul: próximo da média', 16, h - 14, CORES.mudo);
+  }
+
+  Object.assign(global.SD, {
+    geraFailover, desenhaFailover,
+    geraPaxos, desenhaPaxos,
+    geraSaga, desenhaSaga,
+    geraCargaVirtuais, desenhaCargaVirtuais
+  });
 })(window);
