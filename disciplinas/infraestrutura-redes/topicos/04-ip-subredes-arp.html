@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Endereçamento IPv4, sub-redes, CIDR e ARP · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como o IPv4 identifica hosts, máscaras e CIDR, o cálculo de rede, broadcast e hosts úteis, a decisão entre envio direto e pelo gateway, e o ARP que traduz IP em MAC, com animação, exemplo em Python e citações de RFCs.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/04-ip-subredes-arp">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-location-dot text-emerald-400 mr-2"></i>Tópico 4 · Endereçamento IPv4, sub-redes e ARP</h2>
+  <div class="ah-prose">
+    <p>
+      Para um pacote chegar a um destino, cada salto precisa responder a duas perguntas: <strong>para onde</strong> ele vai (endereço IP) e
+      <strong>por qual dispositivo vizinho</strong> entregar (endereço MAC). A primeira é de camada 3; a segunda, de camada 2. Quem liga as duas
+      é o ARP, e quem decide se a entrega é direta ou feita por um roteador é a máscara de sub-rede.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>ler um endereço IPv4 com máscara ou prefixo CIDR e calcular rede, broadcast e número de hosts úteis;</li>
+      <li>dividir um bloco em sub-redes e dimensionar o prefixo para um número de hosts;</li>
+      <li>decidir, com AND bit a bit, se um destino é local ou exige o gateway;</li>
+      <li>explicar o funcionamento do ARP, da requisição em broadcast à entrada na tabela de cache;</li>
+      <li>identificar os intervalos privados e o que eles significam para a rota.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      No início da Internet, o endereço IPv4 de 32 bits era dividido em classes fixas: A, B e C, com o primeiro octeto decidindo a classe e o
+      tamanho da rede. Isso desperdiçava muito espaço: uma organização que precisava de 300 hosts recebia uma classe B com mais de 65 mil endereços.
+      Em 1993, o CIDR (RFC 1519) substituiu as classes por prefixos de tamanho variável, e permitiu agregar rotas, o que aliviou a tabela global.
+    </p>
+    <p>
+      Em 1996, a RFC 1918 reservou três blocos para redes privadas, que não precisam ser únicos no mundo. Essa decisão, combinada com NAT, adiou
+      a falta de endereços públicos por décadas. O tópico 10 mostra como.
+    </p>
+  </div>
+</section>
+
+<section id="ipv4" data-toc="Teoria: o endereço IPv4" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hashtag text-emerald-400 mr-2"></i>Teoria · O endereço IPv4 e a máscara</h2>
+  <div class="ah-prose">
+    <p>
+      Um endereço IPv4 tem 32 bits, escritos como quatro octetos decimais: <code>192.168.10.37</code>. Ele tem duas partes: a parte de rede, que
+      identifica a sub-rede, e a parte de host, que identifica a máquina dentro dela. A fronteira entre as duas é dada pela <strong>máscara</strong>:
+      uma sequência de 1s seguida de 0s. <code>255.255.255.192</code> é a mesma coisa que o prefixo <code>/26</code>, pois são 26 bits de rede.
+    </p>
+    <p>
+      Para saber a rede a que um endereço pertence, faça a operação <strong>AND</strong> bit a bit entre o endereço e a máscara. O resultado é o
+      endereço de rede. Os bits de host, zerados pelo AND, dão o número de hosts: com <em>h</em> bits de host, há 2<sup>h</sup> endereços, dos quais
+      dois são reservados. O primeiro é o endereço da rede, e o último é o broadcast da sub-rede. Sobram 2<sup>h</sup> − 2 hosts úteis.
+    </p>
+    <div class="overflow-x-auto ah-card mt-4">
+      <table class="ah-table">
+        <thead><tr><th>Prefixo</th><th>Máscara</th><th>Endereços</th><th>Hosts úteis</th><th>Uso típico</th></tr></thead>
+        <tbody>
+          <tr><td>/24</td><td>255.255.255.0</td><td>256</td><td>254</td><td>uma rede de escritório</td></tr>
+          <tr><td>/26</td><td>255.255.255.192</td><td>64</td><td>62</td><td>um andar ou uma VLAN pequena</td></tr>
+          <tr><td>/28</td><td>255.255.255.240</td><td>16</td><td>14</td><td>servidores de um serviço</td></tr>
+          <tr><td>/30</td><td>255.255.255.252</td><td>4</td><td>2</td><td>enlace ponto a ponto entre roteadores</td></tr>
+          <tr><td>/32</td><td>255.255.255.255</td><td>1</td><td>—</td><td>rota para um único host</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-4">
+      Note o caso do <code>/30</code>: são 4 endereços e 2 hosts úteis, exatamente o que um enlace entre dois roteadores precisa. Desperdício
+      mínimo, e sem ambiguidade sobre quem é o que.
+    </p>
+  </div>
+</section>
+
+<section id="subredes" data-toc="Teoria: sub-redes e CIDR" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Teoria · Dividindo blocos em sub-redes</h2>
+  <div class="ah-prose">
+    <p>
+      Uma sub-rede é um pedaço de um bloco maior, obtido emprestando bits da parte de host para a parte de rede. Dividir um <code>/24</code> em
+      quatro <code>/26</code> cria quatro sub-redes, cada uma com 64 endereços. Cada uma tem seu próprio endereço de rede, broadcast e
+      faixa de hosts, e o roteador enxerga cada uma como um destino diferente.
+    </p>
+    <p>
+      O inverso é a <strong>agregação</strong>: quatro redes contíguas podem ser anunciadas como uma só, <code>/24</code>, se pertencerem ao mesmo
+      bloco. Isso reduz o tamanho da tabela de roteamento. É por isso que o CIDR é a base do roteamento na Internet, e é o tema do tópico 5.
+    </p>
+    <p>
+      Projetar sub-redes é um exercício de previsão. Uma regra prática: escolha o menor prefixo que cabe no número de hosts previstos, com folga
+      moderada. Um <code>/22</code> para 50 hosts desperdiça espaço e aumenta o domínio de broadcast; um <code>/26</code> para 2000 hosts simplesmente
+      não cabe.
+    </p>
+    <p><strong>Endereços especiais.</strong> Alguns endereços não são de host:</p>
+    <ul>
+      <li><strong>Endereço de rede</strong> (todos os bits de host zerados): identifica a sub-rede.</li>
+      <li><strong>Broadcast da sub-rede</strong> (todos os bits de host em 1): entregue a todos os hosts.</li>
+      <li><strong>Loopback</strong> (<code>127.0.0.0/8</code>): o próprio host. O <code>127.0.0.1</code> é o mais conhecido.</li>
+      <li><strong>Privados</strong> (RFC 1918): <code>10.0.0.0/8</code>, <code>172.16.0.0/12</code> e <code>192.168.0.0/16</code>.</li>
+    </ul>
+    <p>
+      Sobre os privados, a RFC 1918 separa os hosts em categorias. A primeira delas é descrita assim:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "hosts that do not require access to hosts in other enterprises or the Internet at large"
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 1918 (Rekhter et al., 1996), seção 2, categoria 1. Tradução nossa: hosts que não precisam acessar hosts de outras organizações nem a Internet em geral.</p>
+    <p>
+      Um endereço privado não é roteável na Internet pública. Por isso, quando um host privado precisa sair, o NAT (tópico 10) troca o endereço
+      de origem por um público.
+    </p>
+  </div>
+</section>
+
+<section id="decisao" data-toc="Teoria: envio direto ou gateway" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Teoria · Envio direto ou pelo gateway</h2>
+  <div class="ah-prose">
+    <p>
+      Antes de enviar qualquer pacote, o host faz uma conta: aplica sua máscara ao próprio IP e ao IP de destino, e compara os resultados. Se forem
+      iguais, o destino está na mesma sub-rede, e o pacote vai diretamente, com o MAC do destino. Se forem diferentes, o pacote vai ao
+      <strong>gateway padrão</strong>, com o MAC do roteador. O IP de destino não muda; só o quadro é endereçado ao vizinho que vai encaminhar.
+    </p>
+    <p>
+      Essa conta é o motivo pelo qual uma configuração errada de máscara ou gateway causa sintomas tão estranhos. Um host com máscara <code>/16</code>
+      em vez de <code>/24</code> tenta enviar diretamente para destinos que estão em outra sub-rede. Ele envia um ARP para eles, não recebe resposta, e
+      parece que a Internet caiu, embora o gateway funcione.
+    </p>
+  </div>
+</section>
+
+<section id="arp" data-toc="Teoria: ARP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-location text-emerald-400 mr-2"></i>Teoria · ARP: de IP para MAC</h2>
+  <div class="ah-prose">
+    <p>
+      Depois de decidir o próximo salto, o host sabe o IP de quem deve receber o pacote, mas o quadro exige um MAC. O ARP (<em>Address Resolution
+      Protocol</em>) faz essa tradução. Ele é descrito na RFC 826, de 1982, cujo resumo define o problema assim:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "...decides, through protocol P's routing mechanism, that it wants to transmit to a target host T located some place on a connected piece of 10Mbit Ethernet cable."
+    </blockquote>
+    <p class="text-xs text-slate-500">PLUMMER, D. C. RFC 826 (1982), resumo. Tradução nossa: o protocolo decide, pelo mecanismo de roteamento, transmitir a um host alvo situado em algum ponto do mesmo cabo Ethernet.</p>
+    <p>
+      O processo tem três passos. Primeiro, o host verifica seu cache ARP. Se o IP estiver lá, usa o MAC armazenado. Se não, envia um <strong>ARP
+      request</strong> em broadcast perguntando "quem tem este IP?". Segundo, o dono do IP responde com um <strong>ARP reply</strong>, unicast, com seu
+      MAC. Terceiro, o host guarda o par IP–MAC no cache, por um tempo limitado, e envia o pacote.
+    </p>
+    <p>
+      Note que o ARP é um protocolo sem autenticação. Qualquer host pode responder por um IP que não é seu, e isso permite o <strong>ARP spoofing</strong>,
+      em que um atacante se coloca no meio do tráfego. Switches com inspeção dinâmica de ARP e a confiança em tabelas estáticas são as defesas
+      usuais, e o tópico 9 volta ao assunto.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-info mt-6">
+    <p class="text-sm"><strong>ARP gratuito.</strong> Um host pode anunciar seu próprio par IP–MAC sem ser perguntado. Isso atualiza caches de
+    outros hosts após uma troca de placa de rede, e também é usado para detectar conflito de IP. Um ARP gratuito com IP já em uso pela rede é um sinal
+    de alerta.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: ARP e primeiro pacote" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Do IP ao MAC</h2>
+  <p class="ah-lead text-sm mb-4">A é o host A, que quer enviar um pacote a 192.168.1.20 e não conhece o MAC desse destino. O ARP request sai em broadcast, B responde, e só então o pacote IP segue no quadro endereçado a B. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvARP" style="height:340px"></canvas></div>
+  <div id="ctlARP" class="mt-4"></div>
+  <div id="capARP" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: sub-redes em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Sub-redes e a decisão do host</h2>
+  <div class="ah-prose">
+    <p>
+      O programa usa o módulo <code>ipaddress</code> da biblioteca padrão para calcular a anatomia de um bloco e dividi-lo. A decisão de envio é
+      implementada à mão, com AND bit a bit, para que você veja a conta que o host faz. A última parte calcula o prefixo necessário para um
+      número de hosts.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>04-ip-subredes-arp.py · mesma_sub_rede</code></p>
+<pre class="ah-code"><code>def mesma_sub_rede(origem: str, destino: str, mascara: str) -> bool:
+    m = para_inteiro(mascara)
+    return (para_inteiro(origem) &amp; m) == (para_inteiro(destino) &amp; m)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: anatomia de uma sub-rede
+  rede:        192.168.10.0
+  broadcast:   192.168.10.63
+  máscara:     255.255.255.192
+  endereços:   64 (hosts úteis: 62)
+  primeiro host: 192.168.10.1, último host: 192.168.10.62
+
+Parte 2: dividindo 192.168.10.0/24 em sub-redes /26
+  192.168.10.0/26    hosts úteis: 62
+  192.168.10.64/26   hosts úteis: 62
+  192.168.10.128/26  hosts úteis: 62
+  192.168.10.192/26  hosts úteis: 62
+
+Parte 3: destino local ou pelo gateway? (host 192.168.10.10/26)
+  destino 192.168.10.55  -> envio direto; ARP para 192.168.10.55
+  destino 192.168.10.70  -> envio ao gateway; ARP para 192.168.10.1
+  destino 8.8.8.8        -> envio ao gateway; ARP para 192.168.10.1
+
+Parte 4: prefixo necessário para N hosts
+     10 hosts -> /28 (14 úteis)
+     50 hosts -> /26 (62 úteis)
+    100 hosts -> /25 (126 úteis)
+   1000 hosts -> /22 (1022 úteis)</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Observe a parte 3. O destino 192.168.10.70 parece próximo do host 192.168.10.10, mas está em outra sub-rede (a de .64/26), por isso o host
+      não o alcança diretamente. Esse é o erro que a máscara evita: a "proximidade" de números não é proximidade de rede.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Você recebe 192.168.0.x em casa</div>
+      <p class="text-xs text-slate-400">O roteador doméstico entrega endereços de um bloco privado com máscara /24, e o gateway é o próprio roteador (geralmente 192.168.0.1). Todos os dispositivos da casa fazem a mesma conta de máscara para decidir entre falar direto e pedir ao roteador.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">"Conflito de IP"</div>
+      <p class="text-xs text-slate-400">Dois dispositivos com o mesmo IP fazem o ARP responder de forma conflitante. O sintoma é uma conexão que cai e volta. O comando de ARP mostra qual MAC está associado ao IP naquele momento.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Máscara errada no servidor</div>
+      <p class="text-xs text-slate-400">Um servidor configurado com /16 acha que quase toda a rede é local. Ele envia um ARP para destinos externos, não recebe resposta e parece inacessível para metade do mundo. A correção é a máscara certa, não o firewall.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Nuvem: a VPC é uma sub-rede</div>
+      <p class="text-xs text-slate-400">Ao criar uma VPC com 10.0.0.0/16 e sub-redes /24, você está fazendo exatamente a divisão desta página. Sub-redes públicas e privadas são só blocos com tabelas de rota diferentes (tópico 12).</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Escreva em binário</div>
+      <p class="text-xs text-slate-400">Para qualquer cálculo de sub-rede, converta o octeto que muda para binário. A fronteira da máscara fica visível e o erro de conta cai.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte: local ou gateway?</div>
+      <p class="text-xs text-slate-400">Diante de qualquer "não alcança o destino", aplique a máscara aos dois IPs. Se o destino está fora, o problema é o gateway ou a rota, não o destino.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conte antes de alocar</div>
+      <p class="text-xs text-slate-400">Hosts úteis = 2<sup>h</sup> − 2. Sempre subtraia rede e broadcast antes de dimensionar uma sub-rede.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Desconfie de respostas ARP</div>
+      <p class="text-xs text-slate-400">Um IP que muda de MAC sem motivo pode ser um conflito ou um ataque. Registre a tabela ARP quando o problema for intermitente.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: sub-rede de 172.16.5.130/27</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Encontre o endereço de rede, o broadcast e a faixa de hosts úteis de 172.16.5.130/27. O endereço 172.16.5.130 é um host válido?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Um /27 tem 32 endereços (5 bits de host). O quarto octeto é 130 = 128 + 2. O bloco começa em múltiplos de 32: 128 é o início, e o bloco vai de 128 a 159. Rede: 172.16.5.128. Broadcast: 172.16.5.159. Hosts úteis: de 172.16.5.129 a 172.16.5.158, ou seja, 30 hosts. O endereço 130 é válido.</p>
+      <p><strong>Lição.</strong> Ache o início do bloco pelo múltiplo do tamanho do bloco. Para /27, o tamanho é 32, e os inícios são 0, 32, 64, 96, 128, 160…</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: envio direto ou gateway?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um host tem IP 10.1.2.3 e máscara /20. Ele quer enviar para 10.1.10.5 e para 10.1.20.5. Qual envio é direto?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A máscara /20 é 255.255.240.0. No terceiro octeto, 240 deixa os 4 bits altos. Para o terceiro octeto 2 do host: 2 AND 240 = 0. Para 10: 10 AND 240 = 0. Iguais, então 10.1.10.5 é local. Para 20: 20 AND 240 = 16 ≠ 0, então 10.1.20.5 está em outra sub-rede e vai ao gateway.</p>
+      <p><strong>Lição.</strong> No /20, o terceiro octeto é agrupado em blocos de 16. Ambos os destinos têm terceiro octeto diferente do host, mas só um está no mesmo bloco de 16.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Você precisa de sub-redes para 20 hosts, 100 hosts e 6 hosts em um bloco 192.168.50.0/24. Qual prefixo usar para cada uma? Quantos endereços sobram?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> 20 hosts → /27 (30 úteis); 100 hosts → /25 (126 úteis); 6 hosts → /29 (6 úteis). Usando 32 + 128 + 8 = 168 endereços do /24, sobram 88. Observe que os blocos devem ser alinhados: /25 em .0, /27 em .128, /29 em .160.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que um endereço de broadcast não pode ser atribuído a um host, mesmo que ele seja um endereço válido na faixa?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o broadcast da sub-rede é entregue a todos os hosts. Se um host o usasse, todo pacote endereçado a ele seria recebido por todos, o que quebra a entrega unicast. Por isso, ele é reservado.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um host envia um ARP request e não recebe resposta, embora o destino esteja ligado. Liste três causas plausíveis e como testar cada uma.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> (1) destino em outra sub-rede, por máscara errada: confira a conta de AND; (2) destino desligado ou com firewall bloqueando ARP: verifique com um host vizinho; (3) isolamento de cliente no Wi-Fi ou VLAN errada: confirme a VLAN da porta do switch. Discuta a ferramenta para cada teste.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Quantos hosts úteis há em uma sub-rede /26?</p>
+      <button class="ah-quiz-opt">64</button>
+      <button class="ah-quiz-opt">63</button>
+      <button class="ah-quiz-opt">62</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. São 2<sup>6</sup> = 64 endereços, menos a rede e o broadcast: 62.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o ARP faz?</p>
+      <button class="ah-quiz-opt">Traduz um endereço IP em um endereço MAC na mesma sub-rede</button>
+      <button class="ah-quiz-opt">Traduz um nome em endereço IP</button>
+      <button class="ah-quiz-opt">Escolhe o caminho entre redes diferentes</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Nome vira IP com DNS (tópico 8); caminho entre redes é roteamento (tópico 5).</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um host com 192.168.10.10/26 quer enviar para 192.168.10.100. O que ele faz?</p>
+      <button class="ah-quiz-opt">Envia diretamente, porque o endereço começa com 192.168.10</button>
+      <button class="ah-quiz-opt">Envia ao gateway, porque .100 está fora da sub-rede .0/26</button>
+      <button class="ah-quiz-opt">Envia em broadcast para toda a rede</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A sub-rede é .0 a .63. O .100 pertence à sub-rede .64/26 ou acima, então o pacote vai ao gateway. A parte comum dos números não define a rede; a máscara define.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>A máscara separa rede e host. O AND entre IP e máscara dá a rede.</li>
+    <li>Hosts úteis = 2<sup>h</sup> − 2; rede e broadcast são reservados.</li>
+    <li>O host decide entre envio direto e gateway comparando redes, não números.</li>
+    <li>O ARP traduz IP em MAC na sub-rede por broadcast e resposta unicast, e não tem autenticação.</li>
+    <li>Endereços privados (RFC 1918) não são roteáveis na Internet pública; o NAT faz a ponte.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>POSTEL, J. <em>RFC 791: Internet Protocol</em>. IETF, 1981. Formato do cabeçalho IPv4.</li>
+    <li>PLUMMER, D. C. <em>RFC 826: An Ethernet Address Resolution Protocol</em>. IETF, 1982.</li>
+    <li>REKHTER, Y.; LI, T. <em>RFC 1519: Classless Inter-Domain Routing (CIDR)</em>. IETF, 1993.</li>
+    <li>REKHTER, Y. et al. <em>RFC 1918: Address Allocation for Private Internets</em>. IETF, 1996.</li>
+    <li>FULLER, V.; LI, T. <em>RFC 4632: Classless Inter-domain Routing (CIDR)</em>. IETF, 2006.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 4 (endereçamento IPv4 e sub-redes).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 5 (camada de rede: endereçamento e ARP).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Host A (0), switch (1) e host B (2), com o destino 192.168.1.20 */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Host A', 'Switch', 'Host B (192.168.1.20)'],
+    intro: 'A quer enviar um pacote a 192.168.1.20, mas o cache ARP está vazio. Ele precisa descobrir o MAC desse IP.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'ARP request', cap: 'A envia ARP request em broadcast: "quem tem 192.168.1.20?".', fim: 'O quadro chega ao switch com destino ff:ff:ff:ff:ff:ff.' },
+      { de: 1, para: 2, rotulo: 'broadcast', cap: 'O switch inunda o broadcast para todas as portas, exceto a de entrada.', fim: 'B confere o IP pedido e reconhece o próprio endereço.' },
+      { de: 2, para: 1, rotulo: 'ARP reply', cap: 'B responde em unicast a A, informando o próprio MAC.', fim: 'O switch aprende o MAC de B na porta 3 e encaminha só para A.' },
+      { de: 1, para: 0, rotulo: 'reply → A', cap: 'A recebe a resposta e guarda o par IP–MAC no cache, com tempo de vida.', fim: 'Cache de A: 192.168.1.20 → MAC de B.' },
+      { de: 0, para: 2, rotulo: 'pacote IP', cap: 'Agora A encapsula o pacote IP num quadro com o MAC de B como destino.', fim: 'B recebe o pacote. O switch já conhece a porta de B, e não há flood.' }
+    ]
+  }), {
+    canvas: 'cvARP', ctl: 'ctlARP', cap: 'capARP', velocidade: 2200
+  });
+
+})();
+</script>
+</body>
+</html>

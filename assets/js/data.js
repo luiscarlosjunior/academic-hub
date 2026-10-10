@@ -327,7 +327,10 @@ const AH_DATA = {
           tags: ['Enlace', 'CRC', 'Janela deslizante'], nivel: 'Fundamental', minutos: 55 },
         { id: '03-ethernet-switch', titulo: 'Ethernet, switches e VLANs: aprendizado de MAC e isolamento', icone: 'fa-ethernet',
           resumo: 'Quadro Ethernet e endereço MAC, aprendizado e flood em switches, loops e spanning tree, e VLANs com etiqueta 802.1Q.',
-          tags: ['Ethernet', 'Switch', 'VLAN'], nivel: 'Fundamental', minutos: 50 }
+          tags: ['Ethernet', 'Switch', 'VLAN'], nivel: 'Fundamental', minutos: 50 },
+        { id: '04-ip-subredes-arp', titulo: 'Endereçamento IPv4, sub-redes, CIDR e ARP', icone: 'fa-location-dot',
+          resumo: 'Máscara e prefixo, cálculo de rede e broadcast, divisão em sub-redes, a decisão entre envio direto e gateway, e o ARP que traduz IP em MAC.',
+          tags: ['IPv4', 'Sub-redes', 'ARP'], nivel: 'Fundamental', minutos: 60 }
       ]
     }
   ]
