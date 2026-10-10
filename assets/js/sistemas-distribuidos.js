@@ -629,11 +629,110 @@
     rotulo(ctx, 'maioria = 3 de 5 · setas amarelas: votos · tracejado: partição da rede', 16, h - 14, CORES.mudo);
   }
 
+  /* ===================================================================
+     0g. COMMIT EM DUAS FASES (2PC)
+     Um coordenador pede votos (fase 1) e envia a decisão (fase 2).
+     Opções: "sucesso" (todos votam SIM), "aborta" (um vota NÃO) e
+     "bloqueio" (o coordenador cai depois dos votos SIM).
+     =================================================================== */
+  const PARTICIPANTES_2PC = ['P1', 'P2', 'P3'];
+
+  function geraDoisFases(opcao) {
+    const voto = opcao === 'aborta' ? ['SIM', 'NÃO', 'SIM'] : ['SIM', 'SIM', 'SIM'];
+    const decisao = voto.every(v => v === 'SIM') ? 'COMMIT' : 'ABORT';
+    const preparados = voto.map(v => (v === 'SIM' ? 'preparado (trava)' : 'vota NÃO'));
+    const quadros = [
+      { msg: null, coord: 'pronto', part: ['pronto', 'pronto', 'pronto'], t: 'Transação T1 com três participantes. Cada um guarda uma parte dos dados.' },
+      { msg: 'PREPARE', coord: 'pede votos', part: ['pronto', 'pronto', 'pronto'], t: 'Fase 1: o coordenador pede a cada participante que se prepare. Ele grava no log e trava os dados que vai alterar.' },
+      { msg: 'VOTO', coord: 'coleta votos', part: preparados, t: 'Cada participante responde. SIM quer dizer "consigo confirmar, e já travei meus dados". NÃO quer dizer "não consigo".' }
+    ];
+
+    if (opcao === 'bloqueio') {
+      quadros.push({ msg: null, coord: 'FALHOU', falho: true, part: preparados, t: 'O coordenador cai antes de decidir. Os participantes estão presos: não podem confirmar nem desfazer, e os dados seguem travados.' });
+      quadros.push({ msg: null, coord: 'FALHOU', falho: true, part: preparados, t: 'Enquanto o coordenador não voltar com a decisão no log, a transação continua pendente. Esse é o bloqueio do 2PC, e é o motivo de ele não ser usado sozinho em sistemas de alta disponibilidade.' });
+      return quadros;
+    }
+
+    quadros.push({
+      msg: decisao, coord: 'decide ' + decisao, part: preparados,
+      t: decisao === 'COMMIT'
+        ? 'Todos votaram SIM. O coordenador grava COMMIT no log, e só depois avisa os participantes.'
+        : 'Um participante votou NÃO. O coordenador decide ABORT e avisa todos, que desfazem o que fizeram.'
+    });
+    quadros.push({
+      msg: null, coord: 'concluída', part: voto.map(() => decisao === 'COMMIT' ? 'commit' : 'abort'),
+      t: decisao === 'COMMIT'
+        ? 'Os participantes confirmam e liberam as travas. A transação foi atômica: todos aplicaram a mudança.'
+        : 'Os participantes desfazem o que tinham feito e liberam as travas. Nenhuma mudança ficou aplicada: a transação foi atômica, mas não executou.'
+    });
+    return quadros;
+  }
+
+  function desenhaDoisFases(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const xC = w / 2, yC = h * 0.2, yP = h * 0.72;
+    const xP = i => w * (0.2 + i * 0.3);
+    const larg = 150, alt = 50;
+
+    /* Coordenador */
+    global.AH.roundRect(ctx, xC - larg / 2, yC - alt / 2, larg, alt, 10);
+    ctx.fillStyle = '#1e293b';
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = q.falho ? CORES.rosa : CORES.azul;
+    ctx.setLineDash(q.falho ? [5, 4] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = q.falho ? CORES.mudo : CORES.txt;
+    ctx.font = '600 13px "Fira Code", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Coordenador', xC, yC - 8);
+    rotulo(ctx, q.coord, xC, yC + 12, q.falho ? CORES.rosa : CORES.amarelo, 'center');
+
+    /* Mensagens: PREPARE (para baixo), VOTO (para cima), decisão (para baixo) */
+    PARTICIPANTES_2PC.forEach((nome, i) => {
+      const x = xP(i);
+      if (q.msg === 'PREPARE' || q.msg === 'COMMIT' || q.msg === 'ABORT') {
+        const cor = q.msg === 'ABORT' ? CORES.rosa : q.msg === 'COMMIT' ? CORES.verde : CORES.azul;
+        global.AH.arrow(ctx, xC + (x - xC) * 0.15, yC + alt / 2, x, yP - alt / 2 - 2, cor, true);
+      }
+      if (q.msg === 'VOTO') {
+        const cor = q.part[i] === 'vota NÃO' ? CORES.rosa : CORES.verde;
+        global.AH.arrow(ctx, x, yP - alt / 2 - 2, xC + (x - xC) * 0.15, yC + alt / 2, cor, true);
+      }
+    });
+
+    /* Participantes */
+    PARTICIPANTES_2PC.forEach((nome, i) => {
+      const x = xP(i);
+      const estado = q.part[i];
+      const cor = estado === 'commit' ? CORES.verde : estado === 'abort' ? CORES.rosa
+        : estado === 'vota NÃO' ? CORES.rosa : estado.indexOf('trava') >= 0 ? CORES.amarelo : CORES.azul;
+      global.AH.roundRect(ctx, x - larg / 2, yP - alt / 2, larg, alt, 10);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = cor;
+      ctx.stroke();
+      ctx.fillStyle = CORES.txt;
+      ctx.font = '600 13px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(nome, x, yP - 8);
+      rotulo(ctx, estado, x, yP + 12, cor, 'center');
+    });
+
+    rotulo(ctx, 'fase 1: votos · fase 2: decisão · amarelo: dados travados', 16, h - 14, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraDoisFases,
+    desenhaDoisFases,
     geraRaft,
     desenhaRaft,
     geraQuorum,
