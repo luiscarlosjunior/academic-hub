@@ -205,6 +205,41 @@
   </div>
 </section>
 
+<section id="saga-animacao" data-toc="Animação: saga com compensação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate-left text-sky-400 mr-2"></i>Animação · Saga: falhar e desfazer em ordem inversa</h2>
+  <p class="ah-lead text-sm mb-4">Um pedido tem três passos locais. Escolha onde a falha acontece. Repare em como a compensação desfaz apenas o que já foi concluído, na ordem inversa.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvSaga" style="height:300px"></canvas></div>
+  <div id="ctlSaga" class="mt-4"></div>
+  <div id="capSaga" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="isolamento-sagas" data-toc="Aprofundamento: isolamento em sagas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-shield text-sky-400 mr-2"></i>Aprofundamento · Anomalias do isolamento em sagas</h2>
+  <div class="ah-prose">
+    <p>
+      Como uma saga confirma cada passo imediatamente, outras transações podem ler estados intermediários. Garcia-Molina e Salem (1987) chamam essas situações de
+      <strong>leituras sujas</strong> da saga. Um exemplo: o estoque aparece reservado para o pedido 42, e outro pedido vê o estoque baixo e recusa uma compra
+      legítima. Quando o pedido 42 é cancelado, a recusa já foi dada ao cliente. A anomalia não corrompe dados, mas quebra a expectativa de quem lê.
+    </p>
+    <p>
+      Há contramedidas conhecidas, e a escolha depende da tolerância do negócio. A primeira é o <strong>estado pendente</strong>: a reserva é gravada com um
+      status "pendente", que outras transações tratam como indisponível de forma explícita, e não como ocupada. A segunda é o <strong>bloqueio semântico</strong>:
+      o registro fica marcado pela saga, e outras operações sobre ele esperam ou falham de forma previsível. A terceira é a <strong>releitura</strong>: antes de
+      um passo final, a saga verifica de novo a condição que justificou os passos anteriores.
+    </p>
+    <p>
+      A literatura também separa os passos em três tipos. Os passos <strong>compensáveis</strong> podem ser desfeitos. O <strong>pivô</strong> é o passo que decide o
+      resultado: depois dele, a saga só avança. Os passos <strong>repetíveis</strong> vêm depois do pivô e precisam ser tentados até dar certo. Esse desenho
+      permite escolher o pivô de propósito, por exemplo colocando a cobrança depois de tudo que pode falhar e é compensável, e antes do envio, que nunca é desfeito.
+    </p>
+    <p>
+      Por fim, é preciso projetar o próprio orquestrador. Ele precisa guardar o estado de cada saga em um registro durável, antes de disparar cada passo. Se
+      ele cai no meio, retoma de onde parou, e as compensações precisam ser idempotentes, pois podem ser reexecutadas. Esse é o mesmo problema de confiabilidade
+      do tópico 2, agora em um nível acima.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
 
@@ -318,6 +353,16 @@
       { v: 'sucesso', rotulo: 'Todos confirmam' },
       { v: 'aborta', rotulo: 'Um recusa' },
       { v: 'bloqueio', rotulo: 'Coordenador cai' }
+    ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvSaga', ctl: 'ctlSaga', cap: 'capSaga',
+    desenha: SD.desenhaSaga, gera: SD.geraSaga, velocidade: 1900,
+    opcoes: [
+      { v: 'ok', rotulo: 'Tudo certo' },
+      { v: 'falha-cobranca', rotulo: 'Falha na cobrança' },
+      { v: 'falha-envio', rotulo: 'Falha no envio' }
     ]
   });
 
