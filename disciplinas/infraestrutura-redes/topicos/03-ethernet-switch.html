@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ethernet, switches e VLANs: aprendizado de MAC e isolamento · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Endereços MAC, quadros Ethernet, como um switch aprende onde cada host está, flood e unicast, spanning tree e VLANs com 802.1Q, com animação de um switch, exemplo em Python com saída real e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/03-ethernet-switch">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ethernet text-emerald-400 mr-2"></i>Tópico 3 · Ethernet, switches e VLANs</h2>
+  <div class="ah-prose">
+    <p>
+      Em um escritório, centenas de computadores, impressoras e telefones IP precisam se falar sem configuração manual. A tecnologia que
+      faz isso na maioria das redes locais é a <strong>Ethernet</strong>, e o equipamento que a organiza é o <strong>switch</strong>. Esta
+      página mostra como um switch descobre onde cada máquina está, por que ele às vezes inunda a rede inteira, e como as <strong>VLANs</strong>
+      dividem uma mesma infraestrutura física em redes lógicas isoladas.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever a estrutura de um quadro Ethernet e a função do endereço MAC;</li>
+      <li>explicar o aprendizado de endereços e a diferença entre flood, unicast e broadcast;</li>
+      <li>explicar por que loops de camada 2 são perigosos e o que o spanning tree faz;</li>
+      <li>configurar mentalmente uma VLAN e prever o que ela isola;</li>
+      <li>diferenciar um hub de um switch pelo comportamento, e não pelo aspecto.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      Robert Metcalfe e David Boggs descreveram a Ethernet em 1976, no Xerox PARC, como uma forma de conectar computadores em um barramento
+      compartilhado de cabo coaxial. O padrão IEEE 802.3, de 1983, a tornou aberta. O hub, que repetia o sinal para todas as portas, foi
+      o equipamento típico da década de 1990. Em 1990, a ideia de encaminhar quadros só para a porta do destino, o switch, mudou a rede local:
+      cada porta passou a ter seu próprio domínio de colisão.
+    </p>
+    <p>
+      Radia Perlman publicou em 1985 o algoritmo de spanning tree, que resolveu o problema de loops em redes com caminhos redundantes. O
+      padrão IEEE 802.1Q, de 1998, definiu a marcação de quadros com etiquetas de VLAN. Essas três contribuições explicam quase tudo o que um
+      switch faz hoje.
+    </p>
+  </div>
+</section>
+
+<section id="quadro" data-toc="Teoria: o quadro Ethernet" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box text-emerald-400 mr-2"></i>Teoria · O quadro Ethernet e o endereço MAC</h2>
+  <div class="ah-prose">
+    <p>
+      Um endereço MAC tem 48 bits, escritos em seis pares hexadecimais, como <code>3c:22:fb:01:02:03</code>. Os primeiros 24 bits identificam o
+      fabricante (OUI) e os últimos 24 identificam o dispositivo. O endereço é atribuído de fábrica, mas pode ser alterado por software, o que
+      é usado em privacidade de Wi-Fi e em testes.
+    </p>
+    <p>
+      O quadro Ethernet tem o endereço de destino (6 bytes), o de origem (6 bytes), um campo de tipo ou tamanho (2 bytes), a carga útil (de 46 a
+      1500 bytes) e o FCS de 4 bytes, que você conheceu no tópico 2. O endereço MAC de destino é o que decide o que o switch faz com o quadro.
+    </p>
+    <div class="overflow-x-auto ah-card mt-4">
+      <table class="ah-table">
+        <thead><tr><th>Campo</th><th>Tamanho</th><th>Para que serve</th></tr></thead>
+        <tbody>
+          <tr><td>Destino</td><td>6 bytes</td><td>MAC do destinatário; <code>ff:ff:ff:ff:ff:ff</code> é broadcast</td></tr>
+          <tr><td>Origem</td><td>6 bytes</td><td>MAC de quem enviou; é o que o switch aprende</td></tr>
+          <tr><td>Tipo / tamanho</td><td>2 bytes</td><td>protocolo da carga útil (0x0800 para IPv4, 0x0806 para ARP)</td></tr>
+          <tr><td>Carga útil</td><td>46 a 1500 bytes</td><td>o pacote IP, ou outro protocolo</td></tr>
+          <tr><td>FCS</td><td>4 bytes</td><td>CRC-32 para detecção de erro</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-4">
+      O mínimo de 46 bytes de carga útil é herança do CSMA/CD: a colisão precisava ser detectada antes do fim da transmissão do menor quadro.
+      Quando a carga é menor, a placa completa com zeros (<em>padding</em>), e o protocolo de cima precisa saber o tamanho real.
+    </p>
+  </div>
+</section>
+
+<section id="switch" data-toc="Teoria: aprendizado de MAC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-list text-emerald-400 mr-2"></i>Teoria · Como o switch aprende</h2>
+  <div class="ah-prose">
+    <p>
+      O switch mantém uma <strong>tabela de endereços</strong> (CAM) que associa cada MAC à porta por onde ele foi visto. A regra tem duas partes,
+      e as duas acontecem para cada quadro recebido:
+    </p>
+    <ol>
+      <li><strong>Aprender:</strong> grave o MAC de origem com a porta de entrada. Essa informação é sempre atualizada, e cada entrada expira após um tempo sem tráfego.</li>
+      <li><strong>Encaminhar:</strong> se o MAC de destino está na tabela, envie só pela porta associada (<em>unicast</em>). Se não está, ou se é broadcast, envie por todas as portas, exceto a de entrada (<em>flood</em>).</li>
+    </ol>
+    <p>
+      O flood é a causa de muita lentidão em redes mal projetadas. Um quadro para um host que nunca falou ainda chega a todas as máquinas. E um
+      broadcast, como o ARP que você verá no tópico 4, também. O switch só isola o tráfego quando já aprendeu quem está em cada porta.
+    </p>
+    <p>
+      Um hub faz sempre o flood, sem aprender nada. Um switch aprende e encaminha. A diferença aparece na prática: em um hub, duas máquinas que
+      transmitem simultaneamente colidem; em um switch full-duplex, cada porta tem seu próprio canal e a colisão desaparece.
+    </p>
+  </div>
+</section>
+
+<section id="loops" data-toc="Teoria: loops e spanning tree" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-infinity text-emerald-400 mr-2"></i>Teoria · Loops de camada 2 e spanning tree</h2>
+  <div class="ah-prose">
+    <p>
+      Redundância é desejável: dois switches ligados por dois cabos evitam que uma falha derrube a rede. Mas, na camada 2, não há campo de
+      tempo de vida como o TTL do IP. Um quadro de broadcast que entra num loop circula para sempre, e cada switch o copia de novo. Em
+      minutos, a rede inteira fica saturada. Esse é o <strong>broadcast storm</strong>.
+    </p>
+    <p>
+      O spanning tree (IEEE 802.1D, e suas versões rápidas RSTP e MSTP) resolve isso: os switches trocam mensagens de controle (BPDUs), elegem uma
+      raiz e bloqueiam as portas que formariam um ciclo. As portas bloqueadas ficam prontas para assumir se o caminho principal cair. O custo é
+      que parte da capacidade física fica ociosa, e a convergência leva tempo.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-6">
+    <p class="text-sm"><strong>Sintoma clássico.</strong> Uma rede lenta de repente, com luzes piscando em todas as portas e cerca de 100% de uso de
+    link, costuma ser um loop. Desligar um cabo redundante ou ativar o spanning tree nas portas de acesso resolve o problema.</p>
+  </div>
+</section>
+
+<section id="vlan" data-toc="Teoria: VLANs e 802.1Q" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Teoria · VLANs: uma rede física, várias redes lógicas</h2>
+  <div class="ah-prose">
+    <p>
+      Uma VLAN (<em>virtual LAN</em>) é um domínio de broadcast lógico. Hosts na mesma VLAN se enxergam como se estivessem no mesmo fio, mesmo
+      que estejam em switches diferentes. Hosts em VLANs diferentes não se falam na camada 2, mesmo que partilhem o mesmo switch. A comunicação
+      entre VLANs exige um roteador ou um switch de camada 3.
+    </p>
+    <p>
+      Há dois tipos de porta. A <strong>porta de acesso</strong> pertence a uma única VLAN, e o quadro que sai dela não carrega etiqueta. A
+      <strong>porta tronco</strong> carrega quadros de várias VLANs, cada um com a etiqueta IEEE 802.1Q, de 4 bytes, que inclui o identificador de
+      12 bits da VLAN. Por isso, uma VLAN pode existir em todos os switches da rede, sem cabos novos.
+    </p>
+    <p>
+      VLANs são uma forma de segmentação, não de segurança. Elas reduzem o broadcast e separam departamentos, mas um atacante com acesso físico
+      pode explorar a configuração. Uma boa prática é nunca colocar portas de acesso na VLAN nativa, e desligar as portas não usadas.
+    </p>
+    <p>
+      Sobre a ideia de criar camadas adicionais para resolver um problema, o RFC 1925 afirma, na regra 6a:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "It is always possible to add another level of indirection."
+    </blockquote>
+    <p class="text-xs text-slate-500">RFC 1925 (Callon, 1996), regra 6a. Tradução nossa: é sempre possível acrescentar mais um nível de indireção. A VLAN é uma indireção sobre a topologia física, e o túnel que você verá no tópico 11 é outra.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: aprendizado no switch" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Flood, aprendizado e unicast</h2>
+  <p class="ah-lead text-sm mb-4">H1 envia para H2 sem que o switch conheça H2. O quadro é inundado; H3 o descarta. Quando H2 responde, o switch aprende onde ele está, e a próxima comunicação segue só pela porta certa. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvSwitch" style="height:340px"></canvas></div>
+  <div id="ctlSwitch" class="mt-4"></div>
+  <div id="capSwitch" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: switch em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Um switch que aprende</h2>
+  <div class="ah-prose">
+    <p>
+      O programa implementa a regra de aprendizado e encaminhamento de um switch com VLANs. Na primeira parte, quatro hosts trocam quadros e
+      você vê o flood desaparecer depois do aprendizado. Na segunda, duas VLANs isolam o broadcast: o quadro de H1 não chega a H3.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>03-ethernet-switch.py · recebe</code></p>
+<pre class="ah-code"><code>def recebe(self, porta_entrada, origem, destino):
+    vlan = self.vlan_por_porta[porta_entrada]
+    self.tabela[(vlan, origem)] = porta_entrada          # aprendizado
+    if destino != BROADCAST and (vlan, destino) in self.tabela:
+        return f"unicast para porta {self.tabela[(vlan, destino)]}"
+    saida = [p for p in self.portas
+             if p != porta_entrada and self.vlan_por_porta[p] == vlan]
+    return f"flood para portas {saida}"
+</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Note a sequência da execução. Antes de H2 responder, o switch não sabe onde ele está, e por isso inunda. Depois da resposta, ele aprende a
+      porta 2, e o quadro seguinte de H1 vira unicast. A segunda parte mostra que a VLAN restringe o flood: o broadcast de H1 só alcança a porta 2,
+      que está na mesma VLAN, e o de H3 só alcança a porta 4.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Impressora que "some" da rede</div>
+      <p class="text-xs text-slate-400">Um computador da VLAN de funcionários não enxerga a impressora da VLAN de finanças. Isso não é um defeito: é o isolamento funcionando. A solução é liberar a rota entre as VLANs, não colocar as duas na mesma.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Cabo puxado para o ponto de acesso</div>
+      <p class="text-xs text-slate-400">Um cabo que liga dois switches de um escritório pode criar um loop se houver outro caminho. O spanning tree bloqueia uma porta, e a rede segue. Sem ele, a primeira tempestade de broadcast derruba tudo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Wi-Fi de visitantes</div>
+      <p class="text-xs text-slate-400">Redes de convidados são VLANs separadas, com tráfego roteado para a Internet e bloqueado para a rede interna. Assim, um visitante com um celular infectado não alcança impressoras nem servidores de arquivos.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Telefone IP com computador na mesma porta</div>
+      <p class="text-xs text-slate-400">Muitos telefones têm uma porta de computador. A porta do switch é tronco: o telefone usa uma VLAN de voz, e o computador, a VLAN de dados. Os dois quadros viajam pelo mesmo cabo, marcados de forma diferente.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte: onde o MAC está?</div>
+      <p class="text-xs text-slate-400">Para qualquer problema de conectividade local, a tabela de MAC do switch responde a pergunta. Se o host não aparece na porta esperada, a falha está antes do switch.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conte os domínios de broadcast</div>
+      <p class="text-xs text-slate-400">Cada VLAN é um domínio de broadcast. Muitas VLANs pequenas reduzem o tráfego; uma VLAN gigante vira um flood permanente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Trate loop como emergência</div>
+      <p class="text-xs text-slate-400">Um loop de camada 2 não se resolve sozinho. Se a rede está saturada sem motivo visível, procure ciclos antes de olhar qualquer outra coisa.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Separe por função, não por andar</div>
+      <p class="text-xs text-slate-400">VLANs funcionam melhor quando correspondem a funções ou riscos (voz, convidados, servidores), e não a localizações físicas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: quantos quadros o switch envia?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um switch de 4 portas, sem VLANs, recebe um quadro com destino desconhecido pela porta 1. Quantas cópias são enviadas? E se o destino estiver na porta 3?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Com destino desconhecido, o flood envia por todas as portas exceto a de entrada: 3 cópias (portas 2, 3 e 4). Se o destino está na porta 3, o unicast envia 1 cópia, pela porta 3.</p>
+      <p><strong>Lição.</strong> O custo de um destino desconhecido é multiplicado pelo número de portas. Em um switch de 48 portas, são 47 cópias.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: o que acontece com dois switches e dois cabos</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Dois switches são ligados por dois cabos, sem spanning tree. Um host envia um broadcast. Descreva o que acontece.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O broadcast chega aos dois switches por caminhos diferentes. Cada switch o inunda para o outro pelo cabo que não é de entrada, e o quadro volta ao switch de origem pelo segundo cabo. Como o quadro não tem TTL, ele circula indefinidamente, e cada cópia gera novas cópias. Em instantes, os links ficam saturados.</p>
+      <p><strong>Lição.</strong> Redundância física sem spanning tree na camada 2 é uma tempestade esperando para acontecer.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um switch tem 3 VLANs: 10 (portas 1–2), 20 (portas 3–4) e 30 (porta 5). Um host na porta 1 envia broadcast. Por quais portas o quadro sai?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> apenas pela porta 2, que é a única outra porta da VLAN 10. As portas 3 a 5 não recebem nada.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que o switch não aprende o MAC de destino a partir do quadro que ele está encaminhando?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o aprendizado usa o MAC de <em>origem</em>, porque é ele que indica onde o remetente está. O destino só diz quem deve receber. Aprender o destino daria a porta errada, pois indicaria onde o destinatário é esperado, e não onde ele está.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um telefone IP e um computador compartilham uma porta de switch tronco. Descreva como cada quadro é marcado e por que isso não é ambíguo para o switch.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> cada quadro carrega a etiqueta 802.1Q com o identificador da VLAN (voz ou dados). O switch lê a etiqueta e encaminha o quadro para a VLAN correspondente. Como a etiqueta é explícita, não há ambiguidade. Discuta o papel do quadro sem etiqueta (VLAN nativa).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um switch recebe um quadro cujo MAC de destino não está na tabela. O que ele faz?</p>
+      <button class="ah-quiz-opt">Descarta o quadro</button>
+      <button class="ah-quiz-opt">Inunda por todas as portas, exceto a de entrada</button>
+      <button class="ah-quiz-opt">Envia ao gateway padrão</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Destino desconhecido causa flood. O gateway padrão é conceito de camada 3, e o switch não o usa.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual campo do quadro o switch usa para aprender onde um host está?</p>
+      <button class="ah-quiz-opt">O MAC de destino</button>
+      <button class="ah-quiz-opt">O endereço IP de origem</button>
+      <button class="ah-quiz-opt">O MAC de origem</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O MAC de origem indica quem enviou e por qual porta o quadro entrou.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um loop de camada 2 é mais grave que um loop de IP?</p>
+      <button class="ah-quiz-opt">Porque o quadro não tem TTL, e nada o remove do ciclo</button>
+      <button class="ah-quiz-opt">Porque o IP não permite endereços repetidos</button>
+      <button class="ah-quiz-opt">Porque o switch usa tabelas de roteamento</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O IP tem TTL que zera e descarta o pacote. O quadro Ethernet não tem esse campo, então um broadcast em loop se multiplica sem limite.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>O switch aprende pelo MAC de origem e encaminha pelo MAC de destino.</li>
+    <li>Destino desconhecido e broadcast causam flood; destino conhecido causa unicast.</li>
+    <li>Loops de camada 2 não expiram sozinhos. O spanning tree bloqueia os caminhos redundantes.</li>
+    <li>Uma VLAN é um domínio de broadcast lógico; a comunicação entre VLANs exige roteamento.</li>
+    <li>O quadro com etiqueta 802.1Q é o que transporta várias VLANs por um mesmo tronco.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>METCALFE, R. M.; BOGGS, D. R. Ethernet: distributed packet switching for local computer networks. <em>Communications of the ACM</em>, v. 19, n. 7, p. 395–404, 1976.</li>
+    <li>PERLMAN, R. An algorithm for distributed computation of a spanning tree in an extended LAN. In: <em>ACM SIGCOMM</em>, 1985.</li>
+    <li>IEEE. <em>IEEE Std 802.1D: Media Access Control (MAC) Bridges</em>; e <em>IEEE Std 802.1Q: Bridges and Bridged Networks</em> (VLANs). Edições correntes.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. Cap. 6 (redes locais, switches e VLANs).</li>
+    <li>TANENBAUM, A. S.; WETHERALL, D. J. <em>Redes de Computadores</em>. 5. ed. São Paulo: Pearson, 2011. Cap. 4 (sub-camada MAC, Ethernet e pontes).</li>
+    <li>CALLON, R. <em>RFC 1925: The Twelve Networking Truths</em>. IETF, 1996. Regra 6a.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Switch com quatro portas: H1 (0), SW (1), H2 (2), H3 (3) */
+  IR.liga(IR.criaSequencia({
+    participantes: ['H1 (porta 1)', 'Switch', 'H2 (porta 2)', 'H3 (porta 3)'],
+    intro: 'O switch começa com a tabela de MAC vazia. Ele só sabe aprender pelo tráfego que observa.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'quadro → H2', cap: 'H1 envia um quadro para H2. O switch ainda não conhece o MAC de H2.', fim: 'O switch grava o MAC de H1 na porta 1 e procura o destino na tabela: não está lá.' },
+      { de: 1, para: 2, rotulo: 'flood', cap: 'Destino desconhecido: o switch inunda, e H2 recebe o quadro.', fim: 'H2 recebe e reconhece o próprio MAC.' },
+      { de: 1, para: 3, rotulo: 'flood', cap: 'O flood também chega a H3.', fim: 'H3 recebe, verifica o MAC de destino e descarta, pois o quadro não é para ele.' },
+      { de: 2, para: 1, rotulo: 'resposta → H1', cap: 'H2 responde a H1. Agora o switch vê o MAC de H2 como origem.', fim: 'O switch aprende: MAC de H2 está na porta 2.' },
+      { de: 1, para: 0, rotulo: 'unicast', cap: 'O quadro de resposta segue só para H1, porta 1, que já está na tabela.', fim: 'H1 recebe a resposta. A partir daqui, o tráfego entre H1 e H2 não é mais inundado.' }
+    ]
+  }), {
+    canvas: 'cvSwitch', ctl: 'ctlSwitch', cap: 'capSwitch', velocidade: 2200
+  });
+
+})();
+</script>
+</body>
+</html>

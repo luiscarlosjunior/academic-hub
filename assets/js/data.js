@@ -324,7 +324,10 @@ const AH_DATA = {
           tags: ['OSI', 'TCP/IP', 'Encapsulamento'], nivel: 'Introdutório', minutos: 50 },
         { id: '02-fisica-enlace', titulo: 'Camada física e de enlace: quadros, CRC e controle de erro', icone: 'fa-bolt',
           resumo: 'Transmissão, propagação e a razão a; enquadramento; CRC-32 e o que ele garante; Go-Back-N, repetição seletiva e a janela de 1 + 2a.',
-          tags: ['Enlace', 'CRC', 'Janela deslizante'], nivel: 'Fundamental', minutos: 55 }
+          tags: ['Enlace', 'CRC', 'Janela deslizante'], nivel: 'Fundamental', minutos: 55 },
+        { id: '03-ethernet-switch', titulo: 'Ethernet, switches e VLANs: aprendizado de MAC e isolamento', icone: 'fa-ethernet',
+          resumo: 'Quadro Ethernet e endereço MAC, aprendizado e flood em switches, loops e spanning tree, e VLANs com etiqueta 802.1Q.',
+          tags: ['Ethernet', 'Switch', 'VLAN'], nivel: 'Fundamental', minutos: 50 }
       ]
     }
   ]
