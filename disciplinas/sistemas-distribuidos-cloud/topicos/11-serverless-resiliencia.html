@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Serverless, filas e padrões de resiliência: disjuntor, backoff com jitter e tempestades de reenvio · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Computação sem servidor e seus limites, mensageria com filas, e os padrões de resiliência que sustentam serviços em produção: timeout, retry com backoff e jitter, disjuntor, bulkhead e degradação, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/11-serverless-resiliencia">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Tópico 11 · Serverless e padrões de resiliência</h2>
+  <div class="ah-prose">
+    <p>
+      Este é o último tópico, e ele junta o que os anteriores mostraram. Um serviço em produção falha o tempo todo: um nó cai, uma dependência fica lenta,
+      uma rede se congestiona. A pergunta deixa de ser "como evitar falhas" e passa a ser "como o sistema se comporta quando elas acontecem". As respostas
+      são padrões, aprendidos com incidentes reais, que limitam o dano de uma falha e a deixam se recuperar.
+    </p>
+    <p>
+      A computação sem servidor (<em>serverless</em>) é o outro lado do tema. O desenvolvedor envia funções, e a plataforma decide quando e onde executá-las.
+      Isso simplifica a operação, mas impõe limites que mudam o desenho: funções sem estado, inícios a frio e execução orientada a eventos, com filas no meio.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever o modelo de computação sem servidor, seus benefícios e seus limites, incluindo o início a frio;</li>
+      <li>explicar a função de uma fila de mensagens e as garantias de entrega que ela oferece;</li>
+      <li>configurar timeout, retry com backoff exponencial e jitter, e justificar cada valor;</li>
+      <li>explicar a máquina de estados do disjuntor (fechado, aberto e meio-aberto);</li>
+      <li>combinar bulkhead, limitação de taxa e degradação para proteger um serviço sob carga.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="serverless" data-toc="Teoria: computação sem servidor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-sky-400 mr-2"></i>Teoria · Computação sem servidor</h2>
+  <div class="ah-prose">
+    <p>
+      No modelo <strong>FaaS</strong> (function as a service), você escreve uma função que recebe um evento e devolve um resultado. A plataforma cria
+      instâncias conforme os eventos chegam, e as destrói quando ficam ociosas. A cobrança é por invocação e por tempo de execução, sem custo para o tempo
+      ocioso. Escalar de zero a milhares de instâncias é responsabilidade da plataforma.
+    </p>
+    <p>
+      Esse modelo tem consequências técnicas que o desenvolvedor precisa conhecer:
+    </p>
+    <ul>
+      <li><strong>Funções sem estado:</strong> nada é garantido entre duas invocações, porque a instância pode ser outra. O estado vai para um banco ou um cache externo.</li>
+      <li><strong>Início a frio (cold start):</strong> quando não há instância pronta, a plataforma precisa criar uma, carregar o código e inicializar o runtime. Isso pode levar centenas de milissegundos ou mais. É o custo de escalar a partir de zero.</li>
+      <li><strong>Limites de execução:</strong> cada invocação tem tempo máximo e memória máxima. Trabalho longo deve ser dividido, ou executado em outro modelo.</li>
+      <li><strong>Concorrência e custo:</strong> um pico pode gerar milhares de instâncias simultâneas, e cada uma acessa o banco. O banco vira o gargalo, e a conta de invocações cresce junto com ele.</li>
+    </ul>
+  </div>
+  <div class="ah-card p-5 mt-6 border-l-4 border-amber-400">
+    <p class="text-sm text-slate-300"><strong>Exemplo do cotidiano.</strong> Uma função que redimensiona fotos enviadas por usuários é um caso típico: o tráfego é irregular, cada execução é curta e não há estado entre elas. Serverless é adequado. Já um servidor de jogo, com conexões longas e estado em memória, não se encaixa bem no modelo.</p>
+  </div>
+</section>
+
+<section id="filas" data-toc="Teoria: filas e mensageria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-inbox text-sky-400 mr-2"></i>Teoria · Filas e mensageria</h2>
+  <div class="ah-prose">
+    <p>
+      Uma fila de mensagens desacopla o produtor do consumidor no tempo: o produtor deposita a mensagem e segue, mesmo que o consumidor esteja fora. Isso
+      absorve picos, porque a fila cresce enquanto o consumidor trabalha no seu ritmo. Também permite escalar consumidores de forma independente.
+    </p>
+    <p>
+      A garantia de entrega mais comum é <strong>pelo menos uma vez</strong> (at-least-once, tópico 2): a mensagem é reenviada se o consumidor não confirmar,
+      e portanto pode chegar duas vezes. O consumidor precisa ser idempotente. Alguns sistemas oferecem entrega ordenada por chave, o que restringe o paralelismo
+      em troca da ordem.
+    </p>
+    <p>
+      Mensagens que falham repetidamente, por um erro de dados que não se resolve sozinho, devem ser desviadas para uma <strong>fila de mensagens mortas</strong>
+      (dead letter queue). Assim, elas não travam o consumo das demais, e podem ser analisadas depois. Sem essa proteção, uma única mensagem malformada pode
+      bloquear um consumidor inteiro.
+    </p>
+  </div>
+</section>
+
+<section id="timeout" data-toc="Teoria: timeout e backoff" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stopwatch text-sky-400 mr-2"></i>Teoria · Timeout, retry com backoff e jitter</h2>
+  <div class="ah-prose">
+    <p>
+      Todo cliente de um serviço remoto precisa de três decisões: quanto esperar (<strong>timeout</strong>), se e quantas vezes tentar de novo
+      (<strong>retry</strong>), e quanto esperar entre as tentativas. Cada uma tem um modo de falha conhecido:
+    </p>
+    <ul>
+      <li><strong>Sem timeout:</strong> uma thread presa em um serviço lento esgota o pool de conexões, e o problema se propaga para os clientes desse cliente.</li>
+      <li><strong>Retry sem limite:</strong> multiplica a carga justamente quando o serviço está mais fraco. Um retry por cliente, com dez clientes, já é dez vezes mais carga.</li>
+      <li><strong>Backoff fixo ou sem backoff:</strong> espaça pouco as tentativas, e o serviço não tem tempo de se recuperar.</li>
+      <li><strong>Backoff sem jitter:</strong> clientes que falharam juntos esperam o mesmo tempo, e reenviam juntos. Forma-se uma tempestade sincronizada.</li>
+    </ul>
+    <p>
+      A solução usual é o <strong>backoff exponencial com jitter</strong>. A espera cresce como 2<sup>k</sup> a cada tentativa, até um teto, e é sorteada
+      dentro desse intervalo. Brooker (2015), na AWS, comparou variantes e concluiu que o jitter total, sorteando de 0 até o teto, espalha melhor a carga. O
+      número de tentativas deve ser limitado, e o retry só deve ser feito para erros que podem melhorar: uma falha de validação não melhora com o tempo.
+    </p>
+    <p>
+      Dean e Barroso (2013) mostraram um caso relacionado em <em>The Tail at Scale</em>: as respostas mais lentas (a cauda da distribuição de latência)
+      dominam a experiência do usuário quando um pedido depende de muitos serviços. Técnicas como pedidos com redundância, enviados a uma segunda réplica
+      depois de um atraso, reduzem a cauda com pouco custo extra.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>11-serverless-resiliencia.py · op:simula_reenvio</code></p>
+<pre class="ah-code"><code>espera = min(8 * 2 ** tentativas[i], 256)      # backoff exponencial com base 8
+proxima[i] = t + (rng.randint(1, espera) if jitter else espera)</code></pre>
+</section>
+
+<section id="disjuntor" data-toc="Teoria: disjuntor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug-circle-xmark text-sky-400 mr-2"></i>Teoria · O disjuntor (circuit breaker)</h2>
+  <div class="ah-prose">
+    <p>
+      Nygard (2007, 2. ed. 2018, <em>Release It!</em>) propôs o disjuntor, inspirado nos disjuntores elétricos. Ele envolve as chamadas a um serviço
+      e tem três estados:
+    </p>
+    <ul>
+      <li><strong>Fechado:</strong> as chamadas passam. O disjuntor conta as falhas seguidas.</li>
+      <li><strong>Aberto:</strong> após um limite de falhas, as chamadas são rejeitadas na hora, sem chegar ao serviço. O cliente recebe um erro rápido, ou um valor de contingência.</li>
+      <li><strong>Meio-aberto:</strong> depois de um tempo de espera, uma chamada de teste é enviada. Se der certo, o disjuntor fecha; se falhar, reabre e a espera recomeça.</li>
+    </ul>
+    <p>
+      O benefício é duplo. O serviço doente recebe menos carga, o que lhe dá tempo de se recuperar. E o cliente não gasta threads e tempo esperando por
+      uma resposta que não virá. O erro é mais útil: "indisponível agora" é melhor que um timeout de 30 segundos. A animação abaixo mostra os dois caminhos.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-6 border-l-4 border-sky-400">
+    <p class="text-sm text-slate-300"><strong>Atenção ao limite.</strong> Um disjuntor com limite de uma falha reage a qualquer instabilidade e abre com frequência. Um limite alto demais demora a proteger. O valor certo depende da taxa normal de erro do serviço, e deve ser medido, não adivinhado.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: estados do disjuntor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · O disjuntor abre e se recupera</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Em "Teste dá certo", o disjuntor fecha de novo. Em "Teste falha", ele reabre e a espera recomeça. Repare em quantas chamadas chegam ao serviço doente.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvDisjuntor" style="height:320px"></canvas></div>
+  <div id="ctlDisjuntor" class="mt-4"></div>
+  <div id="capDisjuntor" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="isolamento" data-toc="Teoria: bulkhead, limite e degradação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ship text-sky-400 mr-2"></i>Teoria · Isolamento, limite de taxa e degradação</h2>
+  <div class="ah-prose">
+    <p>
+      O nome <strong>bulkhead</strong> vem dos compartimentos de um navio: se um casco vaza, a água fica num compartimento. Em software, um bulkhead separa
+      recursos por dependência, como pools de threads ou conexões distintos para cada serviço externo. Um serviço lento consome apenas o seu pool, e as
+      demais funções continuam.
+    </p>
+    <p>
+      A <strong>limitação de taxa</strong> (rate limiting) protege um serviço de clientes que enviam mais do que deveriam. O algoritmo do balde de fichas
+      (token bucket) permite rajadas curtas e impõe um ritmo médio. Quando a carga excede a capacidade, o serviço pode recusar pedidos excedentes com
+      uma resposta explícita, em vez de aceitar todos e degradar para todos. Isso é <strong>load shedding</strong>: descartar com controle para preservar o
+      que importa.
+    </p>
+    <p>
+      A <strong>degradação graciosa</strong> é a resposta com menos funcionalidade, em vez de nenhuma. Uma página de produto sem avaliações, mas com preço e
+      estoque, é melhor que uma página de erro. Escolher o que pode ser degradado é uma decisão de negócio, que deve estar escrita antes da falha.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: disjuntor e tempestade de reenvio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Disjuntor e reenvio com jitter</h2>
+  <div class="ah-prose">
+    <p>
+      O programa simula um disjuntor com limite de três falhas e espera de quatro instantes, sobre um serviço fora do ar entre os instantes 4 e 12. Em
+      seguida, simula 1000 clientes que falham quando o serviço cai, e reenviam com backoff exponencial de base 8, até um teto de 256. Compara o reenvio
+      sem jitter com o jitter total. A primeira onda, em que todos falham no mesmo instante, é comum às duas políticas, e por isso não entra na medida do pico.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Disjuntor: serviço fora do ar entre os instantes 4 e 12
+  instante:estado/resultado
+   0:fech/ok   1:fech/ok   2:fech/ok   3:fech/ok   4:fech/falh
+   5:fech/falh   6:aber/falh   7:aber/reje   8:aber/reje   9:aber/reje
+  10:aber/falh  11:aber/reje  12:aber/reje  13:aber/reje  14:fech/ok
+  15:fech/ok  16:fech/ok  17:fech/ok  18:fech/ok  19:fech/ok
+  pedidos que chegaram ao serviço: 14 de 20
+
+Reenvio de 1000 clientes após uma queda de 10 instantes (capacidade 200 por instante):
+  sem jitter         pico de chamadas em um instante: 1000   todos atendidos no instante: 496
+  com jitter total   pico de chamadas em um instante:   88   todos atendidos no instante: 112</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      No disjuntor, das 20 chamadas, 6 foram rejeitadas sem chegar ao serviço enquanto ele estava aberto, e o serviço recebeu 14. O disjuntor abriu no
+      instante 6 e voltou a fechar no 14, depois do primeiro teste bem-sucedido.
+    </p>
+    <p>
+      No reenvio, sem jitter, o pico é de 1000 chamadas em um único instante: a tempestade. Com jitter, o pico cai para 88, e o último cliente é atendido no
+      instante 112, contra 496 sem jitter. Os dois valores mostram o mesmo mecanismo por ângulos diferentes: o jitter não muda o total de reenvios, mas muda
+      quando eles acontecem.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Oscilação de um meio de pagamento</div>
+      <p class="text-xs text-slate-400">Quando a conexão com uma operadora de cartão fica lenta, o disjuntor abre e o app mostra "pagamento indisponível, tente em instantes". Sem disjuntor, cada tentativa espera o timeout, e o app inteiro fica travado.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Notificações em fila</div>
+      <p class="text-xs text-slate-400">Um e-mail de confirmação entra numa fila. Se o serviço de e-mail falha, a mensagem fica na fila e é reprocessada, com backoff. Após várias falhas, vai para a fila de mensagens mortas, onde um operador a examina.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Pico de compra de ingressos</div>
+      <p class="text-xs text-slate-400">Com milhares de usuários tentando comprar ao mesmo tempo, o sistema recusa pedidos excedentes com uma fila de espera visível. Isso é load shedding com degradação: o usuário sabe onde está, em vez de ver uma página que não carrega.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Previsão do tempo em um app</div>
+      <p class="text-xs text-slate-400">Se o serviço de clima falha, o app mostra a última previsão em cache, com a data. É degradação graciosa: o usuário perde o dado mais recente, mas não perde a tela.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: sequência de esperas</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um cliente usa backoff exponencial com base 8 e teto de 256 instantes, sem jitter. Qual a espera antes de cada uma das 6 primeiras tentativas de reenvio? Quando o teto passa a valer?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A espera da tentativa k é min(8 · 2<sup>k</sup>, 256): 16, 32, 64, 128, 256, 256. O teto passa a valer na quinta tentativa, porque 8 · 2<sup>5</sup> = 256 já atinge o limite; a partir daí, a espera é sempre 256.</p>
+      <p><strong>Lição.</strong> O teto impede que a espera cresça sem limite, o que faria um cliente desistir na prática por tempo. Sem teto, a décima tentativa esperaria mais de 8 mil instantes.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: escolher o limite do disjuntor</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um serviço tem uma taxa normal de erro de 1%. Um disjuntor com limite de 3 falhas seguidas abre sem que o serviço esteja realmente fora do ar? Estime a probabilidade de três falhas seguidas com taxa de 1%.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Supondo erros independentes, a probabilidade de três falhas seguidas em um ponto é 0,01³ = 10<sup>−6</sup>. Em 1 milhão de chamadas, isso ocorre cerca de uma vez, ou seja, o disjuntor raramente abre sem motivo. Com limite de 1 falha, a probabilidade sobe para 1%, e o disjuntor abriria a cada 100 chamadas. Mas a independência raramente vale: falhas reais vêm em rajadas, então o limite deve ser medido sobre dados reais.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que o disjuntor precisa de um estado meio-aberto, e não voltar direto para fechado após a espera?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> se voltasse direto para fechado, todo o tráfego acumulado chegaria de uma vez ao serviço, que pode ainda estar fraco. O meio-aberto envia apenas uma chamada de teste, e só libera o tráfego depois que ela der certo. É uma transição cautelosa que evita reabrir a tempestade.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Uma função serverless processa mensagens de uma fila. Ela falha para uma mensagem específica, e a plataforma a reenvia indefinidamente. Quais mecanismos da aula resolvem isso, e por que a idempotência é necessária?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> um limite de tentativas, com a mensagem desviada para a fila de mensagens mortas após o último reenvio, impede o ciclo infinito. A idempotência é necessária porque mensagens podem ser reentregues, e o consumidor pode ter processado parte do trabalho antes de falhar. Sem ela, o reprocessamento pode duplicar efeitos.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Descreva uma degradação graciosa para uma página de loja que depende de cinco serviços: preço, estoque, avaliações, recomendações e frete. Quais deles são críticos e quais podem ser degradados?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> resposta livre. Preço e estoque costumam ser críticos, porque vender sem saber o preço ou o estoque causa erro financeiro. Avaliações e recomendações podem ser omitidas ou servidas de cache. O frete pode mostrar uma estimativa padrão, com aviso. A justificativa deve tratar do dano de exibir dado errado versus não exibir o dado.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o jitter é usado junto com o backoff exponencial?</p>
+      <button class="ah-quiz-opt">Para aumentar o número de tentativas permitidas</button>
+      <button class="ah-quiz-opt">Para garantir que a primeira tentativa sempre dê certo</button>
+      <button class="ah-quiz-opt">Para espalhar no tempo os reenvios de clientes que falharam juntos, evitando uma tempestade sincronizada</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem jitter, clientes com o mesmo histórico reenviam no mesmo instante, e a carga volta a derrubar o serviço.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em qual estado do disjuntor as chamadas são rejeitadas sem chegar ao serviço?</p>
+      <button class="ah-quiz-opt">Fechado</button>
+      <button class="ah-quiz-opt">Aberto</button>
+      <button class="ah-quiz-opt">Meio-aberto, em todas as chamadas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. No estado aberto, o disjuntor rejeita na hora. No meio-aberto, só uma chamada de teste é enviada.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual a garantia de entrega mais comum em filas de mensagens?</p>
+      <button class="ah-quiz-opt">Pelo menos uma vez, o que exige consumidores idempotentes</button>
+      <button class="ah-quiz-opt">Exatamente uma vez, sem nenhuma exigência do consumidor</button>
+      <button class="ah-quiz-opt">No máximo uma vez, com perda garantida</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A mensagem é reenviada até ser confirmada, e por isso pode chegar mais de uma vez. O consumidor precisa tratar as duplicatas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Serverless simplifica a operação, mas impõe funções sem estado, início a frio e limites de execução.</li>
+    <li>Filas desacoplam no tempo. A entrega é pelo menos uma vez, então o consumidor deve ser idempotente, e mensagens venenosas vão para a fila de mensagens mortas.</li>
+    <li>Todo retry precisa de timeout, limite de tentativas, backoff exponencial e jitter. Sem jitter, a recuperação vira tempestade.</li>
+    <li>O disjuntor protege o serviço doente e o cliente. Bulkhead, limite de taxa e degradação graciosa completam o conjunto.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>NYGARD, M. T. <em>Release It!: Design and Deploy Production-Ready Software</em>. 2. ed. Raleigh: Pragmatic Bookshelf, 2018. Padrões de disjuntor, bulkhead e timeout.</li>
+    <li>BROOKER, M. Exponential backoff and jitter. <em>AWS Architecture Blog</em>, 2015.</li>
+    <li>DEAN, J.; BARROSO, L. A. The tail at scale. <em>Communications of the ACM</em>, v. 56, n. 2, p. 74–80, 2013.</li>
+    <li>HOHPE, G.; WOOLF, B. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003. Canal de mensagens mortas e padrões de mensageria.</li>
+    <li>BEYER, B. et al. <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly, 2016. Capítulos sobre sobrecarga e cascatas de falhas.</li>
+    <li>ROBERTS, M.; CHAPIN, J. <em>Serverless Architectures on AWS</em>. 2. ed. Shelter Island: Manning, 2022.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 11 (processamento de fluxos e mensageria).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvDisjuntor', ctl: 'ctlDisjuntor', cap: 'capDisjuntor',
+    desenha: SD.desenhaCircuito, gera: SD.geraCircuito, velocidade: 2200,
+    opcoes: [
+      { v: 'recupera', rotulo: 'Teste dá certo' },
+      { v: 'reabre', rotulo: 'Teste falha' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

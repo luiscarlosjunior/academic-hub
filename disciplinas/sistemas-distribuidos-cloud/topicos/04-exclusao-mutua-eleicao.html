@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exclusão mútua e eleição de líder: token, Ricart-Agrawala, Bully e Chang-Roberts · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Algoritmos distribuídos de exclusão mútua (centralizado, token em anel, Ricart-Agrawala, Maekawa) e de eleição de líder (Bully e Chang-Roberts), com animação, exemplo em Python, bloqueios distribuídos e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/04-exclusao-mutua-eleicao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-lock text-sky-400 mr-2"></i>Tópico 4 · Exclusão mútua e eleição de líder</h2>
+  <div class="ah-prose">
+    <p>
+      Dois problemas aparecem sempre que vários processos compartilham algo que só pode ser usado por um de cada vez. O primeiro é a
+      <strong>exclusão mútua</strong>: impedir que dois processos entrem ao mesmo tempo em uma seção crítica, como atualizar o mesmo saldo ou
+      escrever no mesmo arquivo. O segundo é a <strong>eleição</strong>: escolher, entre vários nós iguais, um que coordene o trabalho, como o primário de
+      um banco replicado ou o responsável por um job agendado. Os dois problemas são parentes: uma eleição costuma ser implementada como exclusão
+      mútua sobre o papel de líder.
+    </p>
+    <p>
+      Em um sistema com um único computador, um semáforo ou um mutex resolvem o problema. Em um sistema distribuído, não há memória comum para
+      guardar o semáforo, e cada decisão depende de mensagens que podem atrasar ou se perder. A pergunta é: quantas mensagens são necessárias, e
+      o que acontece quando um nó falha no meio do protocolo?
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>enunciar as propriedades de segurança, vivacidade e justiça para exclusão mútua;</li>
+      <li>comparar os algoritmos centralizado, de token em anel, de Ricart e Agrawala e de Maekawa em número de mensagens e em tolerância a falhas;</li>
+      <li>executar o algoritmo de eleição de Chang e Roberts em um anel e explicar por que o maior id vence;</li>
+      <li>explicar o algoritmo Bully e as condições em que ele elege o nó de maior id;</li>
+      <li>identificar os riscos de bloqueios distribuídos baseados em tempo, e o papel dos tokens de confirmação (fencing).</li>
+    </ul>
+  </div>
+</section>
+
+<section id="propriedades" data-toc="Teoria: propriedades" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · O que um algoritmo de exclusão mútua garante</h2>
+  <div class="ah-prose">
+    <p>Um algoritmo correto de exclusão mútua satisfaz três propriedades:</p>
+    <ul>
+      <li><strong>Segurança:</strong> no máximo um processo está na seção crítica em cada instante. É a propriedade que o algoritmo <em>não pode</em> violar, nem sob atraso ou reordenação de mensagens.</li>
+      <li><strong>Vivacidade (liveness):</strong> todo pedido de entrada é eventualmente atendido. Um algoritmo que nunca deixa ninguém entrar é seguro, mas inútil.</li>
+      <li><strong>Justiça (fairness):</strong> os pedidos são atendidos na ordem em que foram feitos, ou dentro de um limite conhecido. Sem justiça, um processo lento pode ser ultrapassado indefinidamente.</li>
+    </ul>
+    <p>
+      Note que a segurança é a propriedade mais importante. Um sistema que perde vivacidade trava; um que perde segurança corrompe dados. Por isso,
+      algoritmos reais preferem travar a arriscar uma violação.
+    </p>
+  </div>
+</section>
+
+<section id="centralizado" data-toc="Teoria: algoritmo centralizado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Teoria · Coordenador central</h2>
+  <div class="ah-prose">
+    <p>
+      O caso mais simples: um nó coordenador concede a permissão. Um processo que quer entrar envia um pedido, espera o "ok" e, ao sair, envia
+      uma liberação. O coordenador mantém uma fila de pedidos, o que garante justiça. São três mensagens por entrada: pedido, permissão e liberação.
+    </p>
+    <p>
+      O problema é o coordenador. Se ele cai, nenhum processo sabe se pode entrar, e um coordenador recuperado pode ter perdido a fila. Em
+      sistemas reais, o coordenador é substituído por um serviço replicado com consenso (tópico 6), e não por um nó único.
+    </p>
+  </div>
+</section>
+
+<section id="token" data-toc="Teoria: token em anel" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-sky-400 mr-2"></i>Teoria · Token em anel</h2>
+  <div class="ah-prose">
+    <p>
+      Os processos formam um anel, e um único token circula. Só o processo que tem o token pode entrar na seção crítica. Ao sair, ele repassa o
+      token ao vizinho. A segurança é imediata: existe um único token, então existe no máximo uma entrada. A justiça vem da volta do token: todo
+      pedido é atendido em, no máximo, uma volta.
+    </p>
+    <p>
+      O custo é de mensagens: o token viaja mesmo quando ninguém quer entrar, e uma entrada pode exigir até <em>N</em> repasses. A falha é perigosa:
+      se o token se perde, o sistema trava; se dois tokens são criados, a segurança quebra. Detectar e recriar o token exige um algoritmo de eleição,
+      que é o assunto da segunda parte desta página.
+    </p>
+  </div>
+</section>
+
+<section id="ricart" data-toc="Teoria: Ricart e Agrawala" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope text-sky-400 mr-2"></i>Teoria · Ricart e Agrawala (permissão por todos)</h2>
+  <div class="ah-prose">
+    <p>
+      Ricart e Agrawala (1981) fazem uma proposta totalmente distribuída, baseada nos carimbos de Lamport do tópico 3. Quando um processo quer entrar,
+      envia um pedido com seu carimbo a <strong>todos</strong> os outros. Cada receptor responde imediatamente, <em>a não ser que</em> esteja dentro da
+      seção crítica ou tenha um pedido anterior no seu próprio carimbo. Nesse caso, ele guarda a resposta até sair. O processo entra quando recebe
+      <em>N − 1</em> respostas.
+    </p>
+    <p>
+      O pedido com carimbo menor vence. Como os carimbos são totalmente ordenados (Lamport com desempate pelo id), a decisão é consistente em todos os
+      nós. Cada entrada custa <strong>2(N − 1)</strong> mensagens. A vantagem é não ter ponto central. A desvantagem é que cada processo precisa
+      conhecer todos os outros, e a falha de qualquer um bloqueia o sistema, a menos que se adote um detector de falhas.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Algoritmo</th><th>Mensagens por entrada</th><th>Ponto de falha</th><th>Justiça</th></tr></thead>
+      <tbody>
+        <tr><td>Centralizado</td><td>3</td><td>o coordenador</td><td>sim, por fila no coordenador</td></tr>
+        <tr><td>Token em anel</td><td>1 a N</td><td>o token (perda ou duplicação)</td><td>sim, por volta do token</td></tr>
+        <tr><td>Ricart e Agrawala</td><td>2(N − 1)</td><td>qualquer processo, sem detector</td><td>sim, por carimbo de Lamport</td></tr>
+        <tr><td>Maekawa (quóruns)</td><td>cerca de 3√N a 5√N</td><td>um membro do quórum</td><td>parcial</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="maekawa" data-toc="Teoria: quóruns de Maekawa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-sky-400 mr-2"></i>Teoria · Quóruns de Maekawa</h2>
+  <div class="ah-prose">
+    <p>
+      Maekawa (1985) reduz o número de mensagens pedindo permissão não a todos, mas a um <strong>quórum</strong>: um subconjunto de nós. Os quóruns são
+      escolhidos de modo que cada par de quóruns tenha pelo menos um nó em comum. Como para entrar é preciso a permissão de todos os nós do quórum,
+      dois processos não podem entrar ao mesmo tempo: o nó comum dá sua permissão a apenas um deles. O tamanho típico do quórum é √N, o que leva
+      a cerca de 3√N mensagens por entrada.
+    </p>
+    <p>
+      A propriedade de interseção de quóruns reaparece, com outras finalidades, na replicação (tópico 5) e no consenso (tópico 6). É uma das ideias
+      mais úteis de todo o curso.
+    </p>
+  </div>
+</section>
+
+<section id="eleicao" data-toc="Teoria: eleição de líder" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-crown text-sky-400 mr-2"></i>Teoria · Eleição de líder</h2>
+  <div class="ah-prose">
+    <p>
+      Um algoritmo de eleição deve garantir que, ao final, exatamente um nó (o de maior prioridade, em geral) se considere líder, e que todos os demais
+      saibam quem é. Ele precisa começar de qualquer nó, pois qualquer um pode detectar a falha do líder. Duas abordagens clássicas:
+    </p>
+    <ul>
+      <li><strong>Bully (Garcia-Molina, 1982):</strong> quando um nó detecta a falha do líder, envia uma mensagem de eleição a todos os nós com id maior. Se algum responde, ele assume a eleição; senão, o nó se proclama líder e avisa os demais. O nó de maior id sempre vence, e o nome vem de o maior "intimidar" os menores.</li>
+      <li><strong>Anel (Chang e Roberts, 1979):</strong> os nós formam um anel, e cada um envia o próprio id no sentido horário. Um nó repassa o id maior que o seu e descarta o menor. O id que volta ao próprio dono elege o líder. Veja a animação abaixo.</li>
+    </ul>
+    <p>
+      Os dois algoritmos supõem que o maior id é o mais prioritário, e que as falhas são do tipo crash-stop durante a eleição. Com falhas arbitrárias, ou com
+      partições, a eleição pode produzir dois líderes em lados diferentes da rede. A solução real, em sistemas como Raft e Paxos, é exigir um quórum de votos
+      (tópico 6).
+    </p>
+  </div>
+</section>
+
+<section id="animacao-eleicao" data-toc="Animação: eleição em anel" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Chang e Roberts, passo a passo</h2>
+  <p class="ah-lead text-sm mb-4">Cinco nós com ids 3, 7, 1, 5 e 2 no anel. Cada rodada mostra as mensagens em trânsito e quais foram repassadas ou descartadas. O 7 elege-se ao voltar para si.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvEleicao" style="height:320px"></canvas></div>
+  <div id="ctlEleicao" class="mt-4"></div>
+  <div id="capEleicao" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="animacao-token" data-toc="Animação: token e seção crítica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-sky-400 mr-2"></i>Animação · Token em anel</h2>
+  <p class="ah-lead text-sm mb-4">O token passa de nó em nó. P1 e P3 pedem a seção crítica. Só quem está com o token entra, e a entrada de cada um ocorre na sua vez.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvToken" style="height:320px"></canvas></div>
+  <div id="ctlToken" class="mt-4"></div>
+  <div id="capToken" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: eleição e token em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Chang e Roberts e token em anel</h2>
+  <div class="ah-prose">
+    <p>
+      O primeiro trecho executa a eleição de Chang e Roberts sobre os ids da animação e mostra as mensagens de cada rodada. O segundo trecho calcula
+      o pior caso, com ids em ordem decrescente, que é quadrático em n. O terceiro simula o token com pedidos em rodadas e mostra quanto cada nó espera.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>04-exclusao-mutua-eleicao.py · op:chang_roberts</code></p>
+<pre class="ah-code"><code>def chang_roberts(ids):
+    n = len(ids)
+    msgs = [(i, (i + 1) % n, ids[i]) for i in range(n)]   # (de, para, id)
+    rodadas, total, lider = [], 0, None
+    while msgs and lider is None:
+        rodadas.append(list(msgs))
+        total += len(msgs)
+        prox = []
+        for de, para, id_msg in msgs:
+            if id_msg == ids[para]:
+                lider = para                  # o id deu a volta completa
+            elif id_msg &gt; ids[para]:
+                prox.append((para, (para + 1) % n, id_msg))
+        msgs = prox
+    return lider, rodadas, total</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>--- Eleição em anel: ids no sentido horário ---
+  rodada 1: 3(nó 0->1), 7(nó 1->2), 1(nó 2->3), 5(nó 3->4), 2(nó 4->0)
+  rodada 2: 7(nó 2->3), 5(nó 4->0)
+  rodada 3: 7(nó 3->4), 5(nó 0->1)
+  rodada 4: 7(nó 4->0)
+  rodada 5: 7(nó 0->1)
+  líder: nó 1 com id 7
+  total de mensagens: 11
+
+--- Pior caso: ids em ordem decrescente ---
+  n =  4: 10 mensagens
+  n =  8: 36 mensagens
+  n = 16: 136 mensagens
+
+--- Exclusão mútua com token (4 nós) ---
+  aguardando ao fim: []
+  entradas (rodada, nó, rodadas de espera):
+    rodada 1: P1 entrou após 1 rodada(s)
+    rodada 3: P3 entrou após 2 rodada(s)
+    rodada 4: P0 entrou após 0 rodada(s)
+    rodada 6: P2 entrou após 2 rodada(s)</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      No pior caso, ids em ordem decrescente fazem cada mensagem percorrer muitos nós antes de ser descartada ou repassada. Os valores 10, 36 e 136 para
+      n = 4, 8 e 16 seguem n(n+1)/2, ou seja, crescem com n². Chang e Roberts (1979) mostram que a média, para ids aleatórios, é de cerca de n log n mensagens.
+    </p>
+    <p>
+      No token, P1 pede na rodada 0 mas só entra na rodada 1, quando o token chega. Ele espera uma rodada. O ponto é que a espera é limitada pelo tamanho do
+      anel: nenhum nó espera mais que uma volta completa do token, o que dá a justiça da propriedade anterior.
+    </p>
+  </div>
+</section>
+
+<section id="bloqueios" data-toc="Teoria: bloqueios distribuídos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Teoria · Bloqueios distribuídos na prática</h2>
+  <div class="ah-prose">
+    <p>
+      Na prática, exclusão mútua aparece como <strong>bloqueio distribuído</strong>: um serviço (ZooKeeper, etcd, Chubby) concede um lease a um cliente
+      por um tempo limitado. Enquanto o lease é válido, o cliente acha que tem o lock. Bloqueios com expiração são úteis, porque um cliente que cai não
+      trava o sistema para sempre.
+    </p>
+    <p>
+      Kleppmann (2016) mostrou o problema central. Suponha que o cliente A obtém o lock, entra em pausa longa (um coletor de lixo, por exemplo), e o lease expira.
+      O cliente B obtém o lock e escreve. Quando A acorda, ainda acredita que tem o lock e escreve também. Duas escritas, uma sobre a outra, com segurança
+      quebrada, mesmo com um serviço de lock correto. A defesa é o <strong>fencing token</strong>: cada concessão recebe um número crescente, e o recurso
+      rejeita escritas com número menor que o último visto. A segurança passa a depender do recurso, e não do relógio do cliente.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-6 border-l-4 border-amber-400">
+    <p class="text-sm text-slate-300"><strong>Exemplo do cotidiano.</strong> Um job de faturamento roda em três servidores, e só um deve executar por vez. Se o job usa lock com expiração de 30 s e uma pausa de 40 s na JVM de um deles faz esse servidor achar que ainda tem o lock, dois faturamentos podem ser emitidos. Gravar o número do fencing token junto com a fatura resolve, porque o banco rejeita o job antigo.</p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Impressora de escritório</div>
+      <p class="text-xs text-slate-400">Vários computadores enviam trabalhos à mesma impressora. A fila no spooler é uma exclusão mútua centralizada: o trabalho é impresso um de cada vez, na ordem de chegada.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Cluster com um primário</div>
+      <p class="text-xs text-slate-400">Em um banco replicado, um nó é o primário e aceita escritas. Quando ele cai, os demais elegem outro. Duas eleições concorrentes criariam dois primários, o chamado split brain, que o quórum existe para evitar.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Tarefa agendada duplicada</div>
+      <p class="text-xs text-slate-400">Um cron rodando em várias réplicas dispara o mesmo relatório três vezes. A solução é um lock distribuído com fencing, ou uma eleição que deixe um único nó responsável pelo agendamento.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Aplicativo de caronas</div>
+      <p class="text-xs text-slate-400">Dois motoristas não podem aceitar a mesma corrida. O servidor da corrida age como coordenador da exclusão mútua: o primeiro pedido concede o recurso, e os demais recebem "indisponível".</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: mensagens por entrada</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Em um sistema com N = 25 processos, quantas mensagens por entrada custam o algoritmo centralizado, Ricart e Agrawala e Maekawa (com quóruns de tamanho √N = 5)?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Centralizado: 3 mensagens (pedido, permissão, liberação). Ricart e Agrawala: 2(N − 1) = 2 × 24 = 48. Maekawa: cerca de 3 × 5 = 15 mensagens no caso usual (pedido a 5 nós, respostas, liberação), que é o que a regra de 3√N indica.</p>
+      <p><strong>Leitura.</strong> O centralizado é o mais barato, mas tem ponto único de falha. Ricart e Agrawala escala mal com N. Maekawa é o compromisso: escala com √N e não tem coordenador, ao custo de quóruns mais complexos.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quem vence a eleição de Bully?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Seis nós com ids de 1 a 6. O líder atual, de id 6, falha. O nó 2 detecta a falha e inicia uma eleição. Qual nó vence, e quais mensagens são trocadas?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> O nó 2 envia "eleição" aos nós 3, 4, 5 e 6. O 6 está morto, então não responde. Os nós 3, 4 e 5 respondem e assumem a eleição, cada um enviando sua própria mensagem aos maiores. O nó 5, o maior vivo, não recebe resposta de ninguém e se proclama líder, avisando todos os demais.</p>
+      <p><strong>Ponto de atenção.</strong> Se o nó 6 voltasse, ele iniciaria uma nova eleição e assumiria a liderança, pois tem o maior id. Bully privilegia o maior id, mesmo que o líder atual esteja funcionando bem.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. No algoritmo de Chang e Roberts, por que o id que volta ao próprio dono precisa ser o maior? Mostre o que acontece se o nó de id 7 fosse removido do anel de exemplo.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> todo id maior que o do nó receptor é repassado, e menor é descartado. Assim, só sobrevive o maior id, que nunca é descartado; ao completar a volta, ele chega ao dono. Sem o 7, o maior restante é o 5: ele seria repassado por todos e voltaria ao nó de id 5, que se elegeria.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Prove que, em Ricart e Agrawala, dois processos não podem entrar ao mesmo tempo na seção crítica.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> suponha que P e Q entrem juntos. Cada um recebeu resposta de todos, inclusive um do outro. Sem perda de mensagens, um deles, digamos P, respondeu a Q, então ao menos um dos pedidos esteve adiado. Pela regra do carimbo, quem tem o carimbo menor responde imediatamente e o outro espera. Logo, um dos dois não recebeu a resposta do outro antes de entrar, contradizendo a hipótese.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Explique por que um fencing token precisa ser verificado pelo recurso, e não pelo cliente.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o cliente é justamente o componente que pode estar pausado e achar que ainda tem o lock. Qualquer verificação feita por ele pode estar desatualizada no momento da escrita. Só o recurso, que recebe a escrita, sabe qual é o maior token já aceito, e pode rejeitar o token antigo.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual propriedade o algoritmo de exclusão mútua nunca pode violar?</p>
+      <button class="ah-quiz-opt">Vivacidade</button>
+      <button class="ah-quiz-opt">Justiça</button>
+      <button class="ah-quiz-opt">Segurança: no máximo um processo na seção crítica</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Segurança é a propriedade que nunca pode ser violada. Perder vivacidade trava o sistema; perder segurança corrompe dados.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No algoritmo de Chang e Roberts, quando um nó descarta uma mensagem?</p>
+      <button class="ah-quiz-opt">Quando o id recebido é menor que o próprio</button>
+      <button class="ah-quiz-opt">Quando o id recebido é maior que o próprio</button>
+      <button class="ah-quiz-opt">Quando o nó é o líder</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Id menor não tem chance de vencer, então é descartado. Id maior é repassado.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Para que serve o fencing token?</p>
+      <button class="ah-quiz-opt">Para acelerar a rede</button>
+      <button class="ah-quiz-opt">Para o recurso rejeitar escritas feitas por um detentor de lock já expirado</button>
+      <button class="ah-quiz-opt">Para eleger um líder sem votação</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Um detentor pausado pode acreditar que ainda tem o lock; o número crescente permite ao recurso descartar a escrita antiga.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Segurança (no máximo um na seção crítica) é a propriedade que nunca pode ser violada. Vivacidade e justiça vêm depois.</li>
+    <li>Centralizado é barato, mas tem ponto único de falha. Ricart e Agrawala elimina o coordenador ao custo de 2(N − 1) mensagens.</li>
+    <li>Eleição em anel e Bully elegem o maior id. Em rede com partição, isso não basta: é preciso quórum.</li>
+    <li>Lock com expiração não garante exclusão. Use fencing tokens e deixe o recurso verificar a ordem.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>LAMPORT, L. Time, clocks, and the ordering of events in a distributed system. <em>Communications of the ACM</em>, v. 21, n. 7, 1978. Inclui o algoritmo de exclusão mútua por carimbos.</li>
+    <li>RICART, G.; AGRAWALA, A. K. An optimal algorithm for mutual exclusion in computer networks. <em>Communications of the ACM</em>, v. 24, n. 1, p. 9–17, 1981.</li>
+    <li>MAEKAWA, M. A √N algorithm for mutual exclusion in decentralized systems. <em>ACM Transactions on Computer Systems</em>, v. 3, n. 2, p. 145–159, 1985.</li>
+    <li>CHANG, E.; ROBERTS, R. An improved algorithm for decentralized extrema-finding in circular configurations of processes. <em>Communications of the ACM</em>, v. 22, n. 5, p. 281–283, 1979.</li>
+    <li>GARCIA-MOLINA, H. Elections in a distributed computing system. <em>IEEE Transactions on Computers</em>, v. C-31, n. 1, p. 48–59, 1982.</li>
+    <li>BURROWS, M. The Chubby lock service for loosely-coupled distributed systems. In: <em>7th USENIX Symposium on Operating Systems Design and Implementation (OSDI)</em>, 2006.</li>
+    <li>HUNT, P. et al. ZooKeeper: wait-free coordination for internet-scale systems. In: <em>USENIX Annual Technical Conference</em>, 2010.</li>
+    <li>KLEPPMANN, M. How to do distributed locking. Blog, 2016. Disponível em martin.kleppmann.com.</li>
+    <li>COULOURIS, G. et al. <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Cap. 15 (coordenação e acordo).</li>
+    <li>TANENBAUM, A. S.; VAN STEEN, M. <em>Distributed Systems</em>. 3. ed. 2017. Cap. 6 (sincronização, exclusão mútua e eleição).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvEleicao', ctl: 'ctlEleicao', cap: 'capEleicao',
+    desenha: SD.desenhaEleicao, gera: SD.geraEleicao, velocidade: 2200
+  });
+  ED.criaAnimacao({
+    canvas: 'cvToken', ctl: 'ctlToken', cap: 'capToken',
+    desenha: SD.desenhaToken, gera: SD.geraToken, velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>

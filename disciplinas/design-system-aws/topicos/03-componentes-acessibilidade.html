@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Componentes, acessibilidade (WCAG) e Storybook · Design System em AWS · AcademicHub</title>
+<meta name="description" content="API de componentes com variantes, contraste e foco segundo WCAG 2.2, documentação no Storybook e testes automatizados de acessibilidade com axe-core.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/03-componentes-acessibilidade">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-universal-access text-orange-400 mr-2"></i>Tópico 3 · Componentes, acessibilidade e Storybook</h2>
+  <div class="ah-prose">
+    <p>
+      Um componente é o contrato entre o design e o código: ele expõe <strong>propriedades</strong> para variar, <strong>estados</strong>
+      previsíveis e um comportamento que funciona com teclado e leitores de tela. Quando o componente é bem feito, o produto herda
+      acessibilidade de graça. Quando é mal feito, cada time precisa reinventar a correção, e o erro se repete em todo o portfólio.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>projetar a API de um componente com variantes, tamanhos e estados;</li>
+      <li>verificar contraste e foco com os critérios do WCAG 2.2 de nível AA;</li>
+      <li>documentar o componente como história no Storybook;</li>
+      <li>automatizar a checagem de acessibilidade no pipeline com axe-core.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: API, WCAG e ARIA" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: contrato, princípios WCAG e papéis ARIA</h2>
+  <div class="ah-prose">
+    <p>
+      As diretrizes WCAG 2.2 (W3C, 2023) se organizam em quatro princípios, lembrados pela sigla <strong>POUR</strong>: conteúdo
+      <strong>perceptível</strong>, <strong>operável</strong>, <strong>compreensível</strong> e <strong>robusto</strong>. A conformidade
+      comum exigida em editais e na indústria é o nível <strong>AA</strong>. Para componentes, os critérios mais frequentes são:
+    </p>
+    <ul>
+      <li><strong>1.4.3 Contraste mínimo:</strong> texto normal com razão de 4,5:1; texto grande com 3:1.</li>
+      <li><strong>1.4.11 Contraste não textual:</strong> bordas e ícones essenciais com 3:1.</li>
+      <li><strong>2.4.7 Foco visível</strong> e <strong>2.4.11 Foco não obscurecido</strong> (novo no 2.2): o foco nunca some atrás de um cabeçalho fixo.</li>
+      <li><strong>2.5.8 Tamanho mínimo do alvo:</strong> 24 × 24 px no mínimo para controles.</li>
+      <li><strong>4.1.2 Nome, função e valor:</strong> o componente informa ao leitor de tela o que é e em que estado está.</li>
+    </ul>
+    <p>
+      Para os padrões de interação, o <strong>WAI-ARIA Authoring Practices Guide</strong> do W3C descreve como montar caixas de diálogo, abas,
+      menus e combobox com teclado. Use a semântica HTML antes de ARIA: um <code>&lt;button&gt;</code> já tem papel, foco e ativação com
+      Enter e Espaço. ARIA só complementa o que o HTML não oferece.
+    </p>
+  </div>
+</section>
+
+<section id="api" data-toc="Operação 1: API e variantes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-orange-400 mr-2"></i>Operação 1 · Projetar a API do componente</h2>
+  <div class="ah-prose">
+    <p>
+      A API tem três ideias. Variantes são opções fechadas (<code>primaria</code>, <code>secundaria</code>), para que o time não invente
+      estilos fora do sistema. Tamanhos seguem a mesma lógica. Estados como carregando e desabilitado viram propriedades, não classes
+      improvisadas. Por fim, o componente repassa os atributos HTML e a referência, porque o consumidor sempre vai precisar de algo a mais.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (React) · <code>Button.tsx</code></p>
+<pre class="ah-code"><code>import { forwardRef, type ButtonHTMLAttributes } from 'react';
+
+type Variante = 'primaria' | 'secundaria' | 'perigo';
+type Tamanho = 'sm' | 'md';
+
+export interface ButtonProps extends ButtonHTMLAttributes&lt;HTMLButtonElement&gt; {
+  variante?: Variante;
+  tamanho?: Tamanho;
+  carregando?: boolean;
+}
+
+export const Button = forwardRef&lt;HTMLButtonElement, ButtonProps&gt;(
+  ({ variante = 'primaria', tamanho = 'md', carregando = false, disabled, children, ...rest }, ref) => (
+    &lt;button
+      ref={ref}
+      type="button"
+      data-variante={variante}
+      data-tamanho={tamanho}
+      aria-busy={carregando || undefined}
+      disabled={disabled || carregando}
+      {...rest}
+    &gt;
+      {children}
+    &lt;/button&gt;
+  )
+);</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      Observe <code>aria-busy</code>: ele só aparece quando <code>carregando</code> é verdadeiro, e assim o leitor de tela anuncia que a ação
+      está em andamento. O <code>disabled</code> impede o clique, mas um botão com <code>aria-disabled</code> seria a escolha para manter o
+      elemento focável, dependendo do caso.
+    </p>
+  </div>
+</section>
+
+<section id="contraste" data-toc="Operação 2: contraste WCAG" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-half-stroke text-orange-400 mr-2"></i>Operação 2 · Calcular o contraste</h2>
+  <div class="ah-prose">
+    <p>
+      A razão de contraste compara a luminância relativa de duas cores: <code>(L maior + 0,05) / (L menor + 0,05)</code>. Cada canal RGB é
+      linearizado antes de ser ponderado. Por isso, o cinza claro parece legível e reprova: a percepção humana não é linear. Use o seletor
+      para trocar entre texto normal e texto grande e veja quais pares passam.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: pares de cores e o limite WCAG</h3>
+  <p class="ah-lead text-sm mb-4">A barra mostra a razão calculada; a linha amarela marca o limite do critério escolhido.</p>
+  <div class="ah-stage" style="height:320px"><canvas id="cvContraste" style="height:320px"></canvas></div>
+  <div id="ctlContraste" class="mt-4"></div>
+  <div id="capContraste" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="foco" data-toc="Operação 3: foco e teclado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-keyboard text-orange-400 mr-2"></i>Operação 3 · Foco visível com tokens</h2>
+  <div class="ah-prose">
+    <p>
+      Um dos erros mais comuns é remover o contorno do foco por estética. O correto é estilizá-lo com <code>:focus-visible</code>, que
+      aparece para teclado e não para clique do mouse, e tratá-lo como um token, para que o tema escuro também tenha foco legível.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em CSS · <code>button.css</code></p>
+<pre class="ah-code"><code>.btn {
+  min-height: 24px;                 /* 2.5.8: alvo mínimo */
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--color-focus);   /* token, não cor fixa */
+  outline-offset: 2px;
+}
+
+.btn[data-variante='primaria'] {
+  background: var(--color-action-primary);
+  color: var(--color-on-action);           /* par já validado no contraste */
+}</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      Note que a cor de texto do botão é um token (<code>--color-on-action</code>), e não um branco fixo. Isso permite validar o par de
+      contraste uma única vez, no arquivo de tokens, e não em cada componente.
+    </p>
+  </div>
+</section>
+
+<section id="storybook" data-toc="Operação 4: Storybook e axe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open-reader text-orange-400 mr-2"></i>Operação 4 · Documentação viva e teste automatizado</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>Storybook</strong> renderiza cada componente isolado, com os estados possíveis como histórias. Ele também é o site de
+      documentação que vai para o S3 (tópico 4). O addon de acessibilidade roda o axe-core em cada história, e um teste de ponta a ponta
+      pode falhar o pipeline se aparecer uma violação.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>Button.stories.tsx</code></p>
+<pre class="ah-code"><code>import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+
+const meta: Meta&lt;typeof Button&gt; = {
+  title: 'Componentes/Button',
+  component: Button,
+  tags: ['autodocs'],
+  parameters: { a11y: { test: 'error' } },
+};
+export default meta;
+
+type Story = StoryObj&lt;typeof Button&gt;;
+
+export const Primaria: Story = { args: { children: 'Confirmar' } };
+export const Carregando: Story = { args: { children: 'Salvando', carregando: true } };</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>button.a11y.spec.ts</code> (Playwright + axe)</p>
+<pre class="ah-code"><code>import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+test('botão primário não tem violações WCAG 2.2 AA', async ({ page }) => {
+  await page.goto('http://localhost:6006/iframe.html?id=componentes-button--primaria&amp;viewMode=story');
+  const resultado = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag22aa'])
+    .analyze();
+  expect(resultado.violations).toEqual([]);
+});</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      O axe-core encontra apenas parte dos problemas de acessibilidade. Ordem lógica de foco, textos alternativos com sentido e clareza
+      de linguagem exigem teste manual com teclado e leitor de tela. Por isso, a automação é um piso, não um atestado de conformidade.
+    </p>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Acessibilidade como critério de aceite:</strong> o componente só entra na biblioteca com história no Storybook, teste axe e checagem de teclado.</li>
+      <li><strong>Declaração de acessibilidade por componente:</strong> o Carbon (IBM) e o Primer (GitHub) documentam o comportamento de teclado e ARIA de cada peça.</li>
+      <li><strong>Testes visuais junto dos de acessibilidade:</strong> uma captura por história, comparada a cada alteração (tópico 6).</li>
+      <li><strong>Revisão com pessoas usuárias:</strong> testes com leitores de tela (NVDA, VoiceOver, TalkBack) completam a automação.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um texto cinza <code>#94a3b8</code> sobre fundo branco é usado num rótulo de 14 px normal. Ele passa no critério AA?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não. O texto é normal (14 px sem negrito não chega a 18,66 px), então exige 4,5:1. A razão de <code>#94a3b8</code> sobre branco fica abaixo de 3:1, e a animação mostra o mesmo resultado. A correção é escurecer o token de texto secundário, não o componente.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Por que <code>&lt;button&gt;</code> é preferível a <code>&lt;div role="button"&gt;</code>?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o botão nativo já é focável, responde a Enter e Espaço, e expõe papel e estado ao leitor de tela. Com <code>div</code>, cada um desses comportamentos precisa ser reimplementado com <code>tabindex</code> e eventos de teclado, e quase sempre algo fica de fora.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Implemente um componente <code>Badge</code> com três variantes e verifique o contraste de cada par com a animação desta página.</li>
+    <li>Escreva a história <code>Carregando</code> de um campo de texto e confirme, com o addon de acessibilidade, se o rótulo está associado ao campo.</li>
+    <li>Navegue por um menu de abas usando somente o teclado, comparando o comportamento com o padrão de abas da APG do W3C.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Acessibilidade não é tema das provas AWS. O ponto de contato é a <strong>entrega</strong>: o site de documentação é um serviço em
+      produção, e a prova DVA-C03 cobre implantação, observabilidade e configuração de aplicações. Um componente que quebra o teclado é um
+      incidente de produto, e o pipeline do tópico 6 é o lugar de impedi-lo.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a razão mínima de contraste para texto normal no critério AA do WCAG 2.2?</p>
+      <button class="ah-quiz-opt">3:1</button>
+      <button class="ah-quiz-opt">4,5:1</button>
+      <button class="ah-quiz-opt">7:1</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Texto normal exige 4,5:1 no AA; 7:1 é o nível AAA. Texto grande exige 3:1.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual seletor CSS deve estilizar o foco para não aparecer no clique do mouse?</p>
+      <button class="ah-quiz-opt">:focus-visible</button>
+      <button class="ah-quiz-opt">:hover</button>
+      <button class="ah-quiz-opt">:active</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. <code>:focus-visible</code> mostra o foco para navegação por teclado e evita o contorno em cliques.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual afirmação sobre axe-core é correta?</p>
+      <button class="ah-quiz-opt">Ele substitui completamente o teste manual</button>
+      <button class="ah-quiz-opt">Ele só funciona com componentes React</button>
+      <button class="ah-quiz-opt">Ele automatiza parte das checagens, e o teste com teclado e leitor de tela continua necessário</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A automação encontra uma parte das violações; o restante exige revisão humana.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Componente é contrato: variantes fechadas, estados como propriedades e repasse de atributos.</li>
+    <li>Contraste: 4,5:1 para texto normal, 3:1 para texto grande, pelo WCAG 2.2 AA.</li>
+    <li>Use HTML semântico antes de ARIA; <code>:focus-visible</code> para o foco.</li>
+    <li>Storybook documenta e o axe-core automatiza; nenhum dos dois substitui o teste com pessoas.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>W3C. <em>Web Content Accessibility Guidelines (WCAG) 2.2</em>. Recomendação, 2023. w3.org/TR/WCAG22.</li>
+    <li>W3C. <em>WAI-ARIA Authoring Practices Guide (APG)</em>. w3.org/WAI/ARIA/apg.</li>
+    <li>PICKERING, Heydon. <em>Inclusive Components</em>. Smashing Magazine, 2018.</li>
+    <li>STORYBOOK. <em>Documentação oficial</em>, incluindo o addon de acessibilidade. storybook.js.org/docs.</li>
+    <li>DEQUE SYSTEMS. <em>axe-core</em>. Documentação em deque.com/axe.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('contraste');
+})();
+</script>
+</body>
+</html>

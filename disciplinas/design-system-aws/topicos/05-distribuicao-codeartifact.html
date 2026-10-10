@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribuição com CodeArtifact e versionamento semântico · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Publicar o pacote do design system num repositório privado do AWS CodeArtifact, versionar com SemVer e usar changesets para gerar versões e changelog.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/05-distribuicao-codeartifact">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box-archive text-orange-400 mr-2"></i>Tópico 5 · Distribuição de pacotes</h2>
+  <div class="ah-prose">
+    <p>
+      Para os produtos consumirem o design system, ele precisa ser um <strong>pacote</strong> com versão. O AWS <strong>CodeArtifact</strong>
+      é um repositório de pacotes gerenciado, com acesso por IAM, que aceita npm, pip, Maven e outros formatos. Assim, o pacote fica privado,
+      mas continua instalável com o gerenciador comum do time. A versão é o contrato: quem depende de <code>^1.4.2</code> precisa saber o que
+      muda quando o número sobe.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar a hierarquia domínio → repositório → upstream do CodeArtifact;</li>
+      <li>autenticar o npm no repositório com credenciais temporárias;</li>
+      <li>escolher entre patch, minor e major com base no impacto para os consumidores;</li>
+      <li>automatizar versões e changelog com changesets.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: domínio, repositório e SemVer" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: hierarquia do CodeArtifact e versionamento</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>domínio</strong> do CodeArtifact agrupa repositórios e define a criptografia com AWS KMS. Um <strong>repositório</strong>
+      guarda os pacotes e pode ter um <strong>upstream</strong>: se o pacote não existe no repositório privado, a busca segue para outro
+      repositório ou para o registro público do npm. Essa ligação permite que o time instale dependências públicas e privadas pelo mesmo
+      endereço, com uma única configuração.
+    </p>
+    <p>
+      O <strong>Versionamento Semântico (SemVer)</strong>, definido por Tom Preston-Werner, usa três números: <code>MAJOR.MINOR.PATCH</code>.
+      Uma mudança <em>patch</em> corrige algo sem alterar a interface. Uma <em>minor</em> acrescenta funcionalidade compatível. Uma
+      <em>major</em> quebra a compatibilidade, por exemplo ao remover ou renomear uma propriedade. Em dependências npm, o intervalo
+      <code>^1.4.2</code> aceita qualquer versão de <code>1.4.2</code> até antes de <code>2.0.0</code>.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Mudança</th><th>Exemplo</th><th>Versão</th></tr></thead>
+      <tbody>
+        <tr><td>Correção de bug visual</td><td>Foco do botão sumia no Safari</td><td>Patch: 1.4.2 → 1.4.3</td></tr>
+        <tr><td>Nova variante</td><td>Botão com variante <code>fantasma</code></td><td>Minor: 1.4.3 → 1.5.0</td></tr>
+        <tr><td>Remoção de prop</td><td><code>tamanho</code> vira <code>size</code></td><td>Major: 1.5.0 → 2.0.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="publicar" data-toc="Operação 1: autenticar e publicar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-orange-400 mr-2"></i>Operação 1 · Autenticar e publicar no repositório</h2>
+  <div class="ah-prose">
+    <p>
+      O comando <code>aws codeartifact login</code> obtém um token temporário, válido por até 12 horas, e grava a configuração do npm
+      para o repositório. Não há senha no projeto. Em um pipeline, quem executa esse passo é um papel IAM assumido por OIDC (tópico 6).
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · publicação manual para teste</p>
+<pre class="ah-code"><code># configura o npm para o repositório privado (token temporário)
+aws codeartifact login --tool npm \
+  --domain ds-dominio \
+  --domain-owner 123456789012 \
+  --repository ds-pacotes
+
+# confere o registro ativo e publica a versão do package.json
+npm config get registry
+npm publish --access restricted</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · <code>package.json</code> do consumidor</p>
+<pre class="ah-code"><code>{
+  "name": "meu-produto-web",
+  "dependencies": {
+    "@sua-org/design-system": "^1.4.2"
+  }
+}</code></pre>
+</section>
+
+<section id="semver" data-toc="Operação 2: escolher a versão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-orange-400 mr-2"></i>Operação 2 · Escolher o tipo de mudança</h2>
+  <div class="ah-prose">
+    <p>
+      A pergunta que define a versão é: <strong>um consumidor que já usa a versão atual precisa mudar o código para continuar funcionando?</strong>
+      Se não precisa, é patch ou minor. Se precisa, é major. Selecione cada tipo na animação e observe o que acontece com o consumidor
+      que declarou <code>^1.4.2</code>.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: da alteração ao consumidor</h3>
+  <p class="ah-lead text-sm mb-4">Escolha o tipo de mudança no seletor. No caso de major, observe que o consumidor não é atualizado automaticamente.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvPublicacao" style="height:300px"></canvas></div>
+  <div id="ctlPublicacao" class="mt-4"></div>
+  <div id="capPublicacao" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="changesets" data-toc="Operação 3: changesets" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-pen text-orange-400 mr-2"></i>Operação 3 · Versionar com changesets</h2>
+  <div class="ah-prose">
+    <p>
+      A ferramenta <strong>changesets</strong>, muito usada em monorepos, separa duas decisões: quem escreve registra a <em>intenção</em>
+      (um arquivo markdown com o tipo da mudança), e o processo de release calcula a versão e gera o changelog. Assim, ninguém edita o
+      número na mão, e o histórico fica legível para os consumidores.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · fluxo de release</p>
+<pre class="ah-code"><code># 1. quem muda o componente registra a intenção (patch, minor ou major)
+npx changeset
+
+# 2. no release: aplica as versões e gera o CHANGELOG.md
+npx changeset version
+
+# 3. publica no registro configurado (CodeArtifact)
+npx changeset publish</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Markdown · arquivo gerado em <code>.changeset/</code></p>
+<pre class="ah-code"><code>---
+"@sua-org/design-system": major
+---
+
+O prop `tamanho` do Button foi renomeado para `size`.
+Migração: troque `tamanho="sm"` por `size="sm"` em todos os usos.</code></pre>
+</section>
+
+<section id="programa" data-toc="Programa completo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-orange-400 mr-2"></i>Programa completo</h2>
+  <div class="ah-prose">
+    <p>
+      Em <code>disciplinas/design-system-aws/exemplos/</code> está o <code>package.json</code> do pacote, com <code>publishConfig</code>
+      apontando para o repositório, e o script de release. Ele reproduz os três passos da operação 3 e pode ser chamado pelo pipeline.
+    </p>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. O time quer trocar a cor do foco para atender ao WCAG. Patch, minor ou major?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> patch. A API (props, nomes, comportamento de uso) não muda, e o consumidor não precisa alterar código para continuar funcionando. Ainda assim, vale registrar no changelog a mudança visual, para que o time de produto saiba que o contraste foi ajustado.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. A versão publicada tem um bug grave. Podemos republicar 1.4.2 com o conserto?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não. Versões publicadas são imutáveis: consumidores com lockfile já instalaram aquele conteúdo. A correção é publicar 1.4.3 com o conserto, e, se necessário, marcar a 1.4.2 como depreciada com uma mensagem.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Um consumidor declara <code>~1.4.2</code>. Quais versões ele recebe? Compare com <code>^1.4.2</code> e explique a diferença.</li>
+    <li>Crie um changeset de minor para uma nova variante e um de major para uma prop renomeada. Rode <code>changeset version</code> e confira o número gerado.</li>
+    <li>Calcule o custo mensal de armazenamento de 2 GB de pacotes e de 100 mil requisições, consultando a página de preços do CodeArtifact.</li>
+  </ol>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Changelog como interface:</strong> o consumidor decide o que atualizar lendo as notas; por isso, toda major tem guia de migração.</li>
+      <li><strong>Atualização automatizada:</strong> Dependabot ou Renovate abrem pull requests quando sai uma minor ou patch; majors geralmente exigem revisão manual.</li>
+      <li><strong>Pacote com escopo:</strong> o nome <code>@org/design-system</code> separa o pacote de bibliotecas públicas e facilita a política de acesso.</li>
+      <li><strong>Lockfile versionado:</strong> cada produto fixa a versão exata no <code>package-lock.json</code>, e atualiza em ritmo próprio.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Os guias de estudo da AWS tratam serviços de artefatos e de implantação com foco no DVA-C03, e a prova cobra a ideia de que o artefato é
+      versionado, autenticado e publicado por processo automatizado. Confira a lista de serviços do guia oficial da versão vigente, porque
+      ela muda com as revisões. O conceito de credencial temporária, que aparece aqui, é cobrado em todas as certificações de IAM.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um consumidor declara <code>^1.4.2</code>. Qual é a versão mais alta que ele instala, dado que existem 1.5.0, 1.9.1 e 2.0.0?</p>
+      <button class="ah-quiz-opt">1.9.1</button>
+      <button class="ah-quiz-opt">2.0.0</button>
+      <button class="ah-quiz-opt">1.4.2</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. <code>^1.4.2</code> aceita qualquer versão de 1.4.2 até antes de 2.0.0. A 2.0.0 é major e fica fora do intervalo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual comando configura o npm para usar um repositório do CodeArtifact?</p>
+      <button class="ah-quiz-opt">aws s3 login --tool npm</button>
+      <button class="ah-quiz-opt">npm login --aws</button>
+      <button class="ah-quiz-opt">aws codeartifact login --tool npm</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O comando obtém o token temporário e grava a configuração do registro para o npm.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um bug grave foi encontrado em 1.4.2, já publicada. Qual é a ação correta?</p>
+      <button class="ah-quiz-opt">Republicar 1.4.2 com o conserto</button>
+      <button class="ah-quiz-opt">Publicar 1.4.3 com a correção</button>
+      <button class="ah-quiz-opt">Apagar a 1.4.2 e manter o número</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Versões publicadas são imutáveis; a correção sai em nova versão de patch.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>CodeArtifact guarda pacotes privados; o login usa token temporário, sem senha no projeto.</li>
+    <li>SemVer: patch corrige, minor acrescenta compatível, major quebra. Decida pelo impacto no consumidor.</li>
+    <li>Versão publicada é imutável: corrige-se com nova versão.</li>
+    <li>Changesets separa a intenção da mudança do cálculo de versão e do changelog.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>PRESTON-WERNER, Tom. <em>Semantic Versioning 2.0.0</em>. semver.org.</li>
+    <li>AWS. <em>AWS CodeArtifact User Guide</em>. docs.aws.amazon.com/codeartifact.</li>
+    <li>CHANGESETS. <em>Documentação oficial da ferramenta</em>. github.com/changesets/changesets.</li>
+    <li>NPM. <em>Documentação do npm</em>, seções sobre intervalos de versão e publicação. docs.npmjs.com.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('publicacao');
+})();
+</script>
+</body>
+</html>

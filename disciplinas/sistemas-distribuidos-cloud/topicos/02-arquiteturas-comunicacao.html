@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquiteturas e comunicação: RPC, mensagens, REST e semântica de entrega · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Arquiteturas de sistemas distribuídos (cliente-servidor, camadas, peer-to-peer, microsserviços, eventos) e os mecanismos de comunicação: sockets, RPC, mensagens, REST e gRPC, com semântica de entrega e idempotência.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/02-arquiteturas-comunicacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-sky-400 mr-2"></i>Tópico 2 · Arquiteturas e comunicação</h2>
+  <div class="ah-prose">
+    <p>
+      Antes de falar de algoritmos, é preciso decidir <strong>como as partes conversam</strong>. Um sistema pode ser organizado em um servidor central,
+      em camadas, em serviços independentes ou em eventos que se propagam. Cada escolha muda o que é fácil, o que é caro e o que falha junto.
+      Este tópico cobre os dois lados dessa decisão: a <strong>arquitetura</strong>, que define os componentes e suas responsabilidades, e a
+      <strong>comunicação</strong>, que define como as mensagens são trocadas e quais garantias o programador recebe.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>comparar arquiteturas cliente-servidor, em camadas, peer-to-peer, microsserviços e orientadas a eventos, com seus trade-offs;</li>
+      <li>explicar o que é uma chamada remota (RPC), quais etapas ela esconde e por que ela não se comporta como uma chamada local;</li>
+      <li>distinguir as semânticas de entrega <em>at-most-once</em>, <em>at-least-once</em> e o efeito de <em>exactly-once</em>;</li>
+      <li>projetar operações idempotentes e justificar o uso de identificadores em cobranças e pedidos;</li>
+      <li>escolher entre sockets, RPC, filas de mensagens, REST e gRPC para um problema concreto.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="arquiteturas" data-toc="Teoria: arquiteturas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-sky-400 mr-2"></i>Teoria · Estilos arquiteturais</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>arquitetura</strong> é a organização dos componentes de um sistema e das relações entre eles. Garlan e Shaw (1993) e Bass,
+      Clements e Kazman (2012) tratam a arquitetura como decisão que restringe propriedades de qualidade, como desempenho, disponibilidade e
+      modificabilidade. Os estilos mais relevantes para sistemas distribuídos são:
+    </p>
+    <ul>
+      <li><strong>Cliente-servidor:</strong> um processo (servidor) oferece um serviço a muitos clientes. Simples de entender e de operar, mas o servidor é um gargalo e um ponto único de falha, a menos que seja replicado.</li>
+      <li><strong>Em camadas (n-tier):</strong> apresentação, lógica de negócio e dados em níveis separados. Separa responsabilidades e permite escalar cada camada. Os três níveis clássicos aparecem em quase todo sistema bancário.</li>
+      <li><strong>Peer-to-peer (P2P):</strong> todos os nós são clientes e servidores ao mesmo tempo. Não há ponto central; a dificuldade passa a ser encontrar o nó certo, como em redes de compartilhamento de arquivos e BitTorrent.</li>
+      <li><strong>Orientada a serviços e microsserviços:</strong> a aplicação é um conjunto de serviços pequenos, cada um dono de seus dados e implantado separadamente. Newman (2015) discute os ganhos em autonomia de equipes e os custos em comunicação e operação. O tópico 10 aprofunda o tema.</li>
+      <li><strong>Orientada a eventos (publicação e assinatura):</strong> produtores publicam fatos ("pedido pago") e consumidores reagem a eles, sem que o produtor conheça os consumidores. Reduz o acoplamento temporal, ao custo de consistência eventual e de mais difícil depuração.</li>
+    </ul>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Estilo</th><th>Acoplamento</th><th>Ponto de falha</th><th>Exemplo cotidiano</th></tr></thead>
+      <tbody>
+        <tr><td>Cliente-servidor</td><td>alto (cliente conhece o servidor)</td><td>o servidor, se não replicado</td><td>um sistema de notas acadêmicas</td></tr>
+        <tr><td>Em camadas</td><td>médio (camadas conversam em ordem)</td><td>cada camada</td><td>internet banking com app, API e banco</td></tr>
+        <tr><td>P2P</td><td>baixo (nós são iguais)</td><td>depende da descoberta de nós</td><td>compartilhamento de arquivos</td></tr>
+        <tr><td>Microsserviços</td><td>médio (contratos entre serviços)</td><td>cada serviço e cada chamada entre eles</td><td>checkout de e-commerce com serviços separados</td></tr>
+        <tr><td>Eventos</td><td>baixo (só o evento é conhecido)</td><td>o broker de mensagens</td><td>notificação de "pedido enviado"</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="sockets" data-toc="Teoria: sockets e protocolos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>Teoria · Sockets, TCP e UDP</h2>
+  <div class="ah-prose">
+    <p>
+      Na base de toda comunicação está o <strong>socket</strong>: uma abstração do sistema operacional que representa um ponto final de comunicação,
+      identificado por endereço IP e porta. Sobre ele, o programador escolhe um protocolo de transporte:
+    </p>
+    <ul>
+      <li><strong>TCP:</strong> orientado a conexão, entrega confiável e em ordem dentro de uma conexão, com controle de fluxo e de congestionamento. Garante que os bytes chegam, mas não garante que a <em>aplicação</em> processou a mensagem: se a conexão cai, o remetente não sabe o que foi feito.</li>
+      <li><strong>UDP:</strong> sem conexão, sem garantia de entrega nem de ordem. Mais leve, usado em streaming, jogos e DNS, onde a aplicação prefere tratar perdas por conta própria.</li>
+    </ul>
+    <p>
+      Uma confusão comum: o TCP entrega <strong>bytes</strong> com confiabilidade, e não <strong>efeitos</strong>. Se um pagamento foi enviado por TCP e a
+      conexão caiu antes da resposta, o pagamento pode ter sido processado ou não. O problema de semântica de entrega aparece aqui, acima do transporte.
+    </p>
+  </div>
+</section>
+
+<section id="rpc" data-toc="Teoria: chamada remota (RPC)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-sky-400 mr-2"></i>Teoria · Chamada remota de procedimento (RPC)</h2>
+  <div class="ah-prose">
+    <p>
+      Birrell e Nelson (1984), no artigo que popularizou a ideia, propuseram que um programa chamasse uma função em outra máquina com a mesma sintaxe
+      de uma chamada local. Para isso, o sistema gera <strong>stubs</strong>: no cliente, um procedimento que empacota os argumentos (<em>marshalling</em>),
+      envia a mensagem, espera a resposta e desempacota o resultado. No servidor, um procedimento equivalente recebe, desempacota, executa e responde.
+    </p>
+    <p>
+      A abstração vaza. Uma chamada local ou retorna, ou lança exceção, ou não termina. Uma chamada remota pode também <strong>retornar sem ter
+      executado</strong> (a requisição se perdeu), <strong>executar sem que o cliente saiba</strong> (a resposta se perdeu), ou <strong>executar
+      mais de uma vez</strong> (reenvio). Esses três casos são a origem de quase todos os bugs de sistemas distribuídos em produção.
+    </p>
+    <p>
+      Hoje o RPC aparece em formas diferentes: gRPC, com contratos em Protocol Buffers e HTTP/2; Thrift, usado internamente em grandes empresas; e
+      as APIs REST, que não são RPC, mas são muitas vezes usadas como tal. Kleppmann (2017, cap. 4) compara formatos de codificação, como JSON e
+      Protocol Buffers, e explica por que a evolução de contratos exige compatibilidade para frente e para trás.
+    </p>
+  </div>
+</section>
+
+<section id="semantica" data-toc="Teoria: semântica de entrega" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope-circle-check text-sky-400 mr-2"></i>Teoria · Semânticas de entrega</h2>
+  <div class="ah-prose">
+    <p>
+      Quando o cliente recebe ou não recebe resposta, ele precisa saber o que isso significa para o efeito da operação. Há três semânticas básicas,
+      dependendo da política de reenvio e de deduplicação do lado do servidor:
+    </p>
+    <ul>
+      <li><strong>At-most-once (no máximo uma vez):</strong> o cliente não reenvia. Se a resposta não chega, o efeito pode ou não ter ocorrido. Nunca duplica, mas pode perder.</li>
+      <li><strong>At-least-once (pelo menos uma vez):</strong> o cliente reenvia até receber resposta. Nunca perde a intenção, mas o servidor pode executar mais de uma vez.</li>
+      <li><strong>Exactly-once (exatamente uma vez):</strong> a intenção é processada uma única vez. Na prática, é implementada como <strong>at-least-once + deduplicação</strong>: reenvia-se, e o servidor descarta o que já fez. Não há garantia de rede que substitua essa combinação.</li>
+    </ul>
+    <p>
+      A frase "exactly-once" aparece muito em marketing. Em termos rigorosos, o que se obtém é o <strong>efeito</strong> exatamente uma vez sobre o estado
+      do sistema, dado que a operação é idempotente ou tem um identificador que permite deduplicar. Essa é a ideia central do próximo bloco.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Semântica</th><th>Reenvia?</th><th>Pode perder?</th><th>Pode duplicar o efeito?</th><th>Quando faz sentido</th></tr></thead>
+      <tbody>
+        <tr><td>At-most-once</td><td>não</td><td>sim</td><td>não</td><td>telemetria e métricas, em que uma perda pontual é aceitável</td></tr>
+        <tr><td>At-least-once</td><td>sim</td><td>não</td><td>sim</td><td>envio de notificações, desde que a duplicata seja tolerada</td></tr>
+        <tr><td>Efeito exactly-once</td><td>sim</td><td>não</td><td>não</td><td>cobranças, pedidos e transferências, com identificador e deduplicação</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="idempotencia" data-toc="Teoria: idempotência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-sky-400 mr-2"></i>Teoria · Idempotência</h2>
+  <div class="ah-prose">
+    <p>
+      Uma operação é <strong>idempotente</strong> quando executá-la várias vezes produz o mesmo efeito que executá-la uma vez. Em matemática, <code>abs(abs(x)) = abs(x)</code>.
+      Em sistemas, a diferença é entre operações de <em>definir</em> e operações de <em>somar</em>:
+    </p>
+    <ul>
+      <li><strong>Idempotentes:</strong> "definir o saldo como 300", "apagar o arquivo 42", "marcar o pedido 7 como enviado". Repetir não muda o resultado.</li>
+      <li><strong>Não idempotentes:</strong> "debitar 100", "incrementar o contador", "criar um novo pedido". Cada execução muda o estado.</li>
+    </ul>
+    <p>
+      A solução usual é transformar a operação não idempotente em uma idempotente, por meio de um <strong>identificador de requisição</strong>. O cliente
+      gera um id único para a intenção e o reenvia junto com o pedido. O servidor guarda, em um registro durável, o par (id, resposta). Ao receber o
+      mesmo id de novo, devolve a resposta guardada e não executa outra vez. Stripe, por exemplo, documenta a chave de idempotência em suas APIs de pagamento.
+    </p>
+    <p>
+      Dois cuidados. Primeiro, o registro dos ids precisa ser <strong>durável e atômico</strong> com o efeito: se o servidor executa o débito e cai antes
+      de guardar o id, a deduplicação falha. Segundo, os ids precisam ter validade, senão o registro cresce sem limite.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>02-arquiteturas-comunicacao.py · op:debita</code></p>
+<pre class="ah-code"><code>def debita(self, id_req, valor):
+    if self.idempotencia and id_req in self.processados:
+        return self.processados[id_req]   # repetição: devolve a resposta, sem debitar
+    self.saldo -= valor
+    self.execucoes += 1
+    resposta = "ok"
+    if self.idempotencia:
+        self.processados[id_req] = resposta
+    return resposta</code></pre>
+</section>
+
+<section id="animacao" data-toc="Animação: RPC com resposta perdida" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Débito com resposta perdida</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário no seletor. Na primeira execução o débito é aplicado, mas a resposta se perde. O cliente reenvia. O que acontece depende de haver ou não um identificador.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvRPC" style="height:340px"></canvas></div>
+  <div id="ctlRPC" class="mt-4"></div>
+  <div id="capRPC" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: efeito da idempotência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Reenvio sem e com identificador</h2>
+  <div class="ah-prose">
+    <p>
+      O programa faz 20 pedidos de débito de 10 unidades. Em cada um, a resposta se perde com probabilidade de 30%, e o cliente reenvia até receber
+      resposta, com até cinco tentativas. Ao final, compara o saldo com o esperado (300). A semente é fixa, então a execução é reproduzível.
+      A diferença entre as duas execuções é só a presença do identificador de idempotência.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>sem identificador:
+  reenvios feitos pelo cliente: 10
+  débitos aplicados: 30 (pedidos de origem: 20)
+  saldo final: 200 (esperado: 300)
+com identificador (idempotente):
+  reenvios feitos pelo cliente: 10
+  débitos aplicados: 20 (pedidos de origem: 20)
+  saldo final: 300 (esperado: 300)</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Sem identificador, o cliente fez 10 reenvios, e o servidor debitou 30 vezes para 20 pedidos. Com identificador, os mesmos 10 reenvios resultaram em
+      20 débitos, e o saldo bate com o esperado. A rede e o cliente se comportaram exatamente igual nos dois casos. A diferença está no servidor.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Botão "pagar" que clicou duas vezes</div>
+      <p class="text-xs text-slate-400">Um clique repetido no checkout gera dois pedidos de pagamento. Sem identificador de pedido, o cliente é cobrado duas vezes. Com identificador, o segundo clique devolve o pedido já existente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Envio de e-mail de confirmação</div>
+      <p class="text-xs text-slate-400">Reenviar um e-mail de confirmação é aceitável: a duplicata é só incômodo. Por isso sistemas de notificação costumam usar at-least-once, sem deduplicação rigorosa.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Leitura de um saldo</div>
+      <p class="text-xs text-slate-400">Consultar o saldo é idempotente. Pode ser reenviada à vontade, sem efeito colateral. Um app bem projetado reenvia leituras automaticamente e exige cuidado apenas com escritas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Dispositivos IoT enviando telemetria</div>
+      <p class="text-xs text-slate-400">Um sensor de temperatura envia leituras a cada minuto. Perder uma leitura é tolerável; a série temporal fica com um buraco. At-most-once basta, e economiza tráfego e energia.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de comunicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-sky-400 mr-2"></i>Padrões de comunicação</h2>
+  <p class="ah-prose text-sm mb-4">Hohpe e Woolf (2003), em <em>Enterprise Integration Patterns</em>, catalogam os padrões de mensagens que reaparecem em integrações. Quatro deles são a base de quase todo sistema distribuído:</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Requisição-resposta</div>
+      <p class="text-xs text-slate-400">O cliente espera a resposta. Acoplamento temporal alto: se o servidor cair, o cliente espera ou falha.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Fila de mensagens (ponto a ponto)</div>
+      <p class="text-xs text-slate-400">O produtor deposita a mensagem; um consumidor a retira. Desacopla no tempo: o produtor segue mesmo se o consumidor estiver fora.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Publicação e assinatura</div>
+      <p class="text-xs text-slate-400">Um fato é publicado em um tópico; todos os assinantes o recebem. Útil para fan-out, como atualizar cache, busca e analytics a partir de um mesmo evento.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Mensagem de correção (dead letter)</div>
+      <p class="text-xs text-slate-400">Mensagens que falham repetidamente são desviadas para uma fila separada, para análise. Evita que uma mensagem envenenada trave o consumidor.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: escolher a semântica</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um sistema precisa (a) enviar o e-mail de boas-vindas e (b) registrar uma transferência bancária. Qual semântica usar em cada caso?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> (a) At-least-once é aceitável: um e-mail duplicado é incômodo, mas não perigoso. (b) Exige efeito exactly-once: at-least-once com identificador da transferência e deduplicação no servidor. Perder a transferência viola o negócio, e duplicá-la também.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quantas tentativas?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Cada tentativa de chamada falha com probabilidade p = 0,3 (independentemente). Quantas tentativas k são necessárias para que a probabilidade de receber pelo menos uma resposta seja de 99%?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> A probabilidade de todas as k tentativas falharem é p<sup>k</sup>. Queremos 1 − p<sup>k</sup> ≥ 0,99, ou seja, 0,3<sup>k</sup> ≤ 0,01. Calculando: 0,3<sup>3</sup> = 0,027 (não basta); 0,3<sup>4</sup> = 0,0081 (basta). Logo, k = 4 tentativas.</p>
+      <p><strong>Ressalva.</strong> A conta supõe falhas independentes. Em uma rede congestionada, as falhas são correlacionadas, e tentativas seguidas falham juntas. Por isso o reenvio deve ter backoff, como o tópico 11 explica.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um serviço expõe a operação "definir o limite de crédito como 2000". Ela é idempotente? E a operação "aumentar o limite em 500"?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a primeira é idempotente, porque repetir o comando deixa o limite em 2000. A segunda não é: cada execução soma 500. Para torná-la segura, transforme-a em "definir o limite como X", com X calculado pelo cliente a partir de uma leitura, ou use um identificador de requisição.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que o servidor deve guardar o identificador da requisição na mesma transação que o efeito? O que acontece se ele guardar o id antes e cair antes de executar?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> se o id for guardado e o servidor cair antes do efeito, o reenvio encontra o id e devolve "ok" sem ter feito nada: a operação se perde. Se o efeito for feito e o id não for guardado, o reenvio executa de novo. Só a atomicidade entre as duas coisas garante o efeito uma vez.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Descreva um sistema real (um app de transporte, por exemplo) e classifique cada uma de suas interações como requisição-resposta, fila ou publicação-assinatura. Justifique.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> resposta livre. Deve justificar, por exemplo, que a consulta de preço é requisição-resposta (o usuário espera o valor), que o envio da corrida ao motorista é fila (uma entrega, um consumidor), e que o evento "corrida concluída" é publicação-assinatura (vários interessados: pagamento, avaliação, analytics).</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um cliente reenvia um pedido de débito sem identificador, e a resposta anterior tinha se perdido. Qual o risco?</p>
+      <button class="ah-quiz-opt">O pedido nunca chega ao servidor</button>
+      <button class="ah-quiz-opt">O TCP recusa a segunda conexão</button>
+      <button class="ah-quiz-opt">O débito pode ser aplicado duas vezes</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem um identificador, o servidor não distingue repetição de um novo pedido, e executa de novo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que "exactly-once" é, na prática, uma combinação de outras duas garantias?</p>
+      <button class="ah-quiz-opt">Porque é at-least-once (reenvio) combinado com deduplicação no servidor</button>
+      <button class="ah-quiz-opt">Porque o TCP garante a entrega única da aplicação</button>
+      <button class="ah-quiz-opt">Porque o servidor nunca falha</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A rede não oferece exactly-once. O efeito exactly-once vem do reenvio, que garante ao menos uma tentativa, mais do registro de identificadores, que impede a execução repetida.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual operação é idempotente?</p>
+      <button class="ah-quiz-opt">Incrementar o contador de visitas em 1</button>
+      <button class="ah-quiz-opt">Definir o status do pedido 7 como "enviado"</button>
+      <button class="ah-quiz-opt">Criar um novo pedido sem identificador</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Definir um valor fixo repetido deixa o estado igual. Incrementar e criar mudam o estado a cada execução.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>A arquitetura define acoplamento, pontos de falha e custo de evolução. Escolha por esses critérios, não pela moda.</li>
+    <li>RPC esconde a rede, mas não esconde suas falhas. Resposta perdida é o caso mais perigoso.</li>
+    <li>At-least-once com deduplicação dá o efeito exactly-once. Não existe exactly-once gratuito.</li>
+    <li>Operações de escrita devem ser idempotentes ou carregar um identificador de requisição, guardado de forma atômica com o efeito.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BIRRELL, A. D.; NELSON, B. J. Implementing remote procedure calls. <em>ACM Transactions on Computer Systems</em>, v. 2, n. 1, p. 39–59, 1984.</li>
+    <li>COULOURIS, G. <em>et al.</em> <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Cap. 5 (comunicação entre processos) e cap. 6 (invocação remota).</li>
+    <li>FIELDING, R. T. <em>Architectural Styles and the Design of Network-based Software Architectures</em>. Tese de doutorado, Universidade da Califórnia, Irvine, 2000. Cap. 5 (REST).</li>
+    <li>GARLAN, D.; SHAW, M. An introduction to software architecture. In: AMBRIOLA, V.; TORTORA, G. (ed.). <em>Advances in Software Engineering and Knowledge Engineering</em>. World Scientific, 1993.</li>
+    <li>BASS, L.; CLEMENTS, P.; KAZMAN, R. <em>Software Architecture in Practice</em>. 3. ed. Boston: Addison-Wesley, 2012.</li>
+    <li>HOHPE, G.; WOOLF, B. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 4 (codificação e evolução de esquemas).</li>
+    <li>NEWMAN, S. <em>Building Microservices</em>. 2. ed. Sebastopol: O'Reilly, 2021.</li>
+    <li>STRIPE. <em>Idempotent requests</em>. Documentação da API. Documentação pública: stripe.com/docs/api/idempotent_requests.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvRPC', ctl: 'ctlRPC', cap: 'capRPC',
+    desenha: SD.desenhaRPC, gera: SD.geraRPC, velocidade: 2200,
+    opcoes: [
+      { v: 'sem', rotulo: 'Sem identificador' },
+      { v: 'com', rotulo: 'Com identificador (idempotente)' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introdução a sistemas distribuídos: modelos, falhas e a rede que não avisa · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="O que é um sistema distribuído, suas metas, os modelos de sincronia e de falha, as falácias da rede e uma animação de entrega de mensagens em rede assíncrona, com exemplos e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/01-sistemas-distribuidos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cloud text-sky-400 mr-2"></i>Tópico 1 · Introdução a sistemas distribuídos</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>sistema distribuído</strong> é um conjunto de computadores independentes, ligados por uma rede, que colaboram por troca de
+      mensagens e se apresentam ao usuário como um sistema único e coerente. Quando você envia um Pix, a operação passa por aplicações e bancos de dados
+      em máquinas diferentes; quando uma página de notícias carrega, dezenas de servidores em continentes distintos contribuem para a resposta.
+      Esta disciplina estuda como projetar esses sistemas para que sejam corretos, rápidos e disponíveis mesmo quando máquinas e redes falham.
+    </p>
+    <p>
+      A dificuldade central não é de programação, e sim de <strong>informação incompleta</strong>. Um processo só conhece o estado dos outros pelas mensagens
+      que recebe, e essas mensagens podem atrasar, se perder, chegar duplicadas ou em outra ordem. Em um computador só, uma chamada de função
+      sempre retorna ou lança erro. Na rede, uma chamada pode ficar sem resposta para sempre, e você não consegue distinguir, do seu lado, se o
+      outro lado caiu, se a mensagem se perdeu ou se a resposta está apenas atrasada.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>definir sistema distribuído e enumerar as metas que motivam sua construção (compartilhamento, escala, abertura, transparência);</li>
+      <li>descrever os modelos de sincronia (síncrono, assíncrono, parcialmente síncrono) e de falha (crash, omissão, bizantino);</li>
+      <li>explicar por que um remetente não consegue saber, sozinho, se uma mensagem foi entregue;</li>
+      <li>identificar, em um sistema real, qual modelo de falha e qual modelo de sincronia ele assume.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-sky-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      A área nasceu da necessidade de compartilhar recursos caros. Nos anos 1960 e 1970, redes como a ARPANET ligavam computadores de universidades
+      e laboratórios, e protocolos como o TCP/IP (padronizado nos anos 1980) tornaram a comunicação entre máquinas heterogêneas rotineira. Nas décadas
+      seguintes, três forças ampliaram o campo: a <strong>web</strong>, que expôs serviços a milhões de clientes; o <strong>armazenamento replicado</strong> em
+      data centers, que exigiu responder à pergunta "qual é o valor correto?" quando há cópias; e a <strong>cloud</strong>, que transformou
+      infraestrutura em serviço medido e sob demanda, tema dos tópicos 9 a 11.
+    </p>
+    <p>
+      Quatro artigos fundacionais aparecem em praticamente toda bibliografia da área. Lamport (1978) formalizou a ordem de eventos, tema do
+      tópico 3. Pease, Shostak e Lamport (1982) introduziram o problema dos generais bizantinos, que modela falhas arbitrárias. Fischer, Lynch e Paterson
+      (1985) provaram que, em rede assíncrona, nenhum algoritmo determinístico garante consenso se até um processo puder falhar. Brewer (2000) e Gilbert
+      e Lynch (2002) formalizaram o trade-off entre consistência e disponibilidade, tema do tópico 8.
+    </p>
+  </div>
+</section>
+
+<section id="definicao" data-toc="Definição e metas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-sky-400 mr-2"></i>Teoria · Metas de um sistema distribuído</h2>
+  <div class="ah-prose">
+    <p>
+      Coulouris, Dollimore, Kindberg e Blair (2011, cap. 1) listam quatro metas que justificam distribuir um sistema. Cada uma tem um custo, e a
+      maior parte da disciplina é sobre pagar esse custo com cuidado:
+    </p>
+    <ul>
+      <li><strong>Compartilhamento de recursos:</strong> impressoras, dados e serviços acessíveis a partir de qualquer ponto da rede.</li>
+      <li><strong>Escalabilidade:</strong> aumentar a capacidade acrescentando máquinas, em vez de trocar uma máquina por outra mais cara. Exige particionar dados e carga.</li>
+      <li><strong>Abertura:</strong> interfaces públicas e protocolos padronizados, para que componentes de fornecedores diferentes conversem entre si.</li>
+      <li><strong>Transparência:</strong> o usuário não percebe a distribuição. Coulouris et al. listam formas de transparência, entre elas acesso, localização, concorrência, replicação e falha.</li>
+    </ul>
+    <p>
+      A transparência é o objetivo mais caro. Esconder totalmente a distribuição é impossível: a latência entre continentes existe, e uma falha parcial não
+      pode ser perfeitamente mascarada. O projetista escolhe quais aspectos esconder e quais expor ao usuário ou à aplicação.
+    </p>
+  </div>
+</section>
+
+<section id="modelos" data-toc="Teoria: modelos de sincronia e falha" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-sky-400 mr-2"></i>Teoria · Modelos formais: sincronia e falha</h2>
+  <div class="ah-prose">
+    <p>
+      Um algoritmo distribuído só pode ser provado correto em relação a um <strong>modelo</strong>, que fixa o que é garantido sobre tempo e falhas.
+      Mudar o modelo muda o que é possível. Há dois eixos principais.
+    </p>
+    <p><strong>Sincronia.</strong> Pergunta: existe um limite conhecido para o tempo de entrega de uma mensagem e para a velocidade relativa dos processos?</p>
+    <ul>
+      <li><strong>Síncrono:</strong> há limites conhecidos para ambos. Um timeout bem escolhido nunca dispara por engano. Raro na prática, mas útil como referência.</li>
+      <li><strong>Assíncrono:</strong> não há limite algum. Uma mensagem pode demorar qualquer tempo finito. Não é possível distinguir "lento" de "morto". É o modelo mais realista para a Internet, e o mais restritivo para algoritmos.</li>
+      <li><strong>Parcialmente síncrono</strong> (Dwork, Lynch e Stockmeyer, 1988): os limites existem, mas são desconhecidos ou só valem após um instante incerto. A maioria dos sistemas reais se encaixa aqui. Raft e Paxos se beneficiam desse modelo.</li>
+    </ul>
+    <p><strong>Falha.</strong> Pergunta: como um processo pode se comportar de forma errada?</p>
+    <ul>
+      <li><strong>Crash-stop:</strong> o processo para e não volta. Simples de raciocinar, e é a suposição de muitos algoritmos de consenso.</li>
+      <li><strong>Crash-recovery:</strong> o processo para e pode voltar, com ou sem o estado guardado em disco. Mais realista e mais difícil.</li>
+      <li><strong>Omissão:</strong> o processo ignora mensagens que deveria responder ou envia mensagens que não deveria, sem mentir.</li>
+      <li><strong>Bizantina:</strong> o processo pode se comportar de qualquer forma, inclusive mentir de modo coordenado. Exige mais réplicas: com <em>f</em> nós bizantinos, são necessários pelo menos 3<em>f</em> + 1 nós para chegar a acordo.</li>
+    </ul>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Modelo de falha</th><th>O que o nó pode fazer</th><th>Exemplo cotidiano</th></tr></thead>
+      <tbody>
+        <tr><td>Crash-stop</td><td>parar e não voltar</td><td>um disco que queima</td></tr>
+        <tr><td>Crash-recovery</td><td>parar e reiniciar, talvez sem memória</td><td>um servidor reiniciado após queda de energia</td></tr>
+        <tr><td>Omissão</td><td>deixar de responder algumas mensagens</td><td>um roteador que descarta pacotes sob congestionamento</td></tr>
+        <tr><td>Bizantina</td><td>enviar respostas contraditórias</td><td>um nó comprometido por invasão, ou um bug que corrompe dados</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="falacias" data-toc="Teoria: as falácias da rede" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Teoria · As falácias da computação distribuída</h2>
+  <div class="ah-prose">
+    <p>
+      Peter Deutsch e colegas da Sun Microsystems, no início dos anos 1990, listaram suposições que programadores costumam fazer e que são falsas.
+      Cada uma aponta para um modelo que o projeto precisa tratar explicitamente:
+    </p>
+    <ul>
+      <li><strong>"A rede é confiável."</strong> Pacotes se perdem e chegam duplicados. Modelo: omissão e duplicação.</li>
+      <li><strong>"A latência é zero."</strong> Uma chamada entre regiões custa dezenas de milissegundos; uma local, nanossegundos.</li>
+      <li><strong>"A largura de banda é infinita."</strong> Transferir um banco de dados inteiro pela rede pode levar horas.</li>
+      <li><strong>"A rede é segura."</strong> Qualquer nó intermediário pode ler ou alterar mensagens não cifradas.</li>
+      <li><strong>"A topologia não muda."</strong> Servidores entram, saem e mudam de endereço. Pense em como um cliente descobre o serviço.</li>
+      <li><strong>"Existe um administrador."</strong> Políticas, domínios administrativos e custos diferem entre organizações.</li>
+      <li><strong>"O custo do transporte é zero."</strong> Serializar, transmitir e desserializar consome CPU e dinheiro, principalmente na cloud.</li>
+      <li><strong>"A rede é homogênea."</strong> Versões de protocolo, sistemas operacionais e formatos de dados variam.</li>
+    </ul>
+    <p>
+      Note que a lista é sobre <em>suposições</em>, não sobre tecnologias. Quase todos os capítulos seguintes respondem a uma dessas falácias: o tópico 2
+      trata da comunicação, o 3 da ordem, o 5 e o 8 da consistência e da partição, e o 11 de falhas em cascata.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: entrega em rede assíncrona" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope-open-text text-sky-400 mr-2"></i>Animação · Três mensagens, uma perdida</h2>
+  <p class="ah-lead text-sm mb-4">Cada mensagem tem um atraso diferente. Repare em m2, que chega antes de m1, e em m3, que nunca chega. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvEntregas" style="height:300px"></canvas></div>
+  <div id="ctlEntregas" class="mt-4"></div>
+  <div id="capEntregas" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: simulação de uma rede" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Simulando uma rede assíncrona</h2>
+  <div class="ah-prose">
+    <p>
+      O programa abaixo transmite oito mensagens por uma rede com perda de 20%, duplicação de 10% e atraso entre 1 e 6 unidades de tempo, sorteado
+      de forma reproduzível. Como a semente é fixa, a saída é sempre a mesma. A simulação mostra três fatos do modelo assíncrono: mensagens podem
+      chegar fora de ordem, podem ser entregues mais de uma vez e podem nunca chegar. Em nenhum momento o remetente é avisado.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>01-sistemas-distribuidos.py · op:transmite</code></p>
+<pre class="ah-code"><code>def transmite(self, mensagem, envio):
+    chegadas = []
+    copias = 2 if self.rng.random() &lt; self.duplicacao else 1
+    for _ in range(copias):
+        if self.rng.random() &lt; self.perda:
+            continue                          # perdida: ninguém avisa o remetente
+        chegadas.append((envio + self.rng.randint(*self.atraso), mensagem))
+    return chegadas</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Chegadas, na ordem em que acontecem:
+  t= 3  m3
+  t= 4  m4
+  t= 7  m7
+  t= 9  m8
+  t=10  m6
+Perdidas (nunca chegaram): ['m1', 'm2', 'm5']
+Pares fora de ordem na chegada: 2</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Leia a saída como um remetente leria: ele enviou oito mensagens e só sabe que recebeu cinco. Ele não sabe quais foram perdidas, e não há no
+      protocolo nada que lhe diga isso. Para resolver, é preciso adicionar confirmação (ACK) e retransmissão, o que é o tema do tópico 2.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Pix</div>
+      <p class="text-xs text-slate-400">Um pagamento envolve o aplicativo, o banco do pagador, o arranjo de liquidação e o banco do recebedor. Se a resposta do banco destino demora, o aplicativo não sabe se o pagamento foi feito. Por isso o Pix usa identificadores únicos e consultas de status, para não cobrar duas vezes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Mensagens de aplicativo</div>
+      <p class="text-xs text-slate-400">Ao enviar uma mensagem, o aplicativo mostra o "relógio" até que o servidor confirme. Uma mensagem pode chegar ao destinatário fora de ordem em relação a outra; o aplicativo reordena pelo carimbo do servidor.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Caixa eletrônico</div>
+      <p class="text-xs text-slate-400">Um saque é uma operação distribuída: a máquina conversa com o servidor do banco. Se a conexão cai depois que o banco debitou e antes do dinheiro sair, a máquina precisa de um mecanismo para resolver o estado. A falha não pode ser ignorada.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Catálogo de e-commerce</div>
+      <p class="text-xs text-slate-400">A página do produto é montada por vários serviços: preço, estoque, avaliações e frete. Se o serviço de avaliações estiver lento, a página pode aparecer sem ele. Essa é uma escolha de projeto: degradar a funcionalidade em vez de travar a página inteira.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de projeto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-sky-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Assuma falha</div>
+      <p class="text-xs text-slate-400">Para cada chamada remota, pergunte: e se ela não voltar? Qual o timeout? O que o cliente faz depois?</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Identifique o modelo</div>
+      <p class="text-xs text-slate-400">Antes de escolher um algoritmo, escreva a sincronia e o modelo de falha que você assume. Um algoritmo correto em modelo síncrono pode falhar na Internet real.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Use identificadores</div>
+      <p class="text-xs text-slate-400">Como mensagens podem ser repetidas, toda operação que altera estado deve ter um identificador único. Isso permite descartar a duplicata.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Meça, não suponha</div>
+      <p class="text-xs text-slate-400">Latência, perda e disponibilidade devem ser medidas em produção. A intuição sobre rede costuma errar por ordens de grandeza.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: disponibilidade em série</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um pedido só é concluído se três serviços em série estiverem disponíveis: autenticação (99,9%), pagamento (99,5%) e estoque (99,0%). Supondo falhas independentes, qual a disponibilidade do pedido?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Em série, a disponibilidade é o produto: 0,999 × 0,995 × 0,990 ≈ 0,9840, isto é, cerca de 98,4%. O sistema é menos disponível que qualquer um dos componentes.</p>
+      <p><strong>Lição.</strong> Cada dependência síncrona multiplica a indisponibilidade. Por isso serviços críticos evitam cadeias longas de chamadas síncronas, e usam réplicas e degradação.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: classificando a falha</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um servidor de cálculo de juros, em um cluster de cinco réplicas, às vezes responde valores diferentes dos das outras réplicas, sem nunca parar. Qual o modelo de falha? Quantas réplicas são necessárias para tolerar um nó com esse comportamento?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Não é crash-stop, porque o nó continua respondendo. Não é omissão, porque ele responde, e a resposta está errada. É falha <strong>bizantina</strong>, pois o nó envia informações inconsistentes. Para tolerar f = 1 nó bizantino, são necessários 3f + 1 = 4 nós, e o cluster de 5 satisfaz a condição. Note que para falhas de crash bastariam 2f + 1 = 3 nós.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um serviço replica uma chamada em duas réplicas independentes, cada uma com disponibilidade de 99%. Qual a disponibilidade do conjunto se basta uma réplica responder? E se ambas precisarem responder?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> se basta uma: 1 − (0,01 × 0,01) = 0,9999, ou 99,99%. Se ambas precisam: 0,99 × 0,99 ≈ 0,9801, ou 98,01%. A replicação paralela melhora a disponibilidade; a dependência em série a piora.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que, em rede assíncrona, um timeout não pode provar que um nó caiu?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o timeout apenas diz que a resposta não chegou no prazo. A mensagem pode ter sido perdida, o nó pode estar lento, ou a resposta pode estar a caminho. Sem limite para o atraso, não há como concluir que o nó morreu. Isso é a essência do modelo assíncrono.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Escolha um sistema que você usa (um aplicativo de mensagens, um banco, uma loja). Liste três falácias da computação distribuída que ele precisa tratar e diga, para cada uma, como o projeto lida com ela.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> resposta livre, mas deve citar uma falácia concreta, um sintoma observável pelo usuário e um mecanismo (timeout, retransmissão, identificador único, cache, réplica). Exemplo: "a rede é confiável", tratada por confirmação e reenvio de mensagens.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em um modelo assíncrono, o que um processo pode concluir ao não receber resposta em 5 segundos?</p>
+      <button class="ah-quiz-opt">Que o servidor certamente caiu</button>
+      <button class="ah-quiz-opt">Nada com certeza: a resposta pode estar atrasada, perdida ou o servidor pode estar lento</button>
+      <button class="ah-quiz-opt">Que a mensagem foi entregue e a resposta se perdeu</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem limite conhecido para o atraso, o silêncio é ambíguo. Por isso o timeout só pode disparar uma ação de recuperação, não uma conclusão sobre o estado remoto.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Quantos nós são necessários para tolerar 2 nós bizantinos?</p>
+      <button class="ah-quiz-opt">4</button>
+      <button class="ah-quiz-opt">5</button>
+      <button class="ah-quiz-opt">7</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A regra é 3f + 1 = 3 × 2 + 1 = 7. Para falhas de crash, bastariam 2f + 1 = 5.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Três serviços em série, cada um com 99% de disponibilidade, têm disponibilidade aproximada de:</p>
+      <button class="ah-quiz-opt">97%</button>
+      <button class="ah-quiz-opt">99%</button>
+      <button class="ah-quiz-opt">99,9%</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. 0,99³ ≈ 0,9703. A disponibilidade cai com cada dependência síncrona adicionada.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Um sistema distribuído é um conjunto de nós independentes que aparece ao usuário como um sistema só.</li>
+    <li>Toda decisão de projeto depende do modelo de sincronia e do modelo de falha assumidos.</li>
+    <li>Em rede assíncrona, silêncio não prova falha. Timeout só dispara recuperação.</li>
+    <li>Mensagens podem ser perdidas, duplicadas e reordenadas. A solução é identificar, confirmar e reenviar.</li>
+    <li>Dependências síncronas em série multiplicam a indisponibilidade.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>COULOURIS, G.; DOLLIMORE, J.; KINDBERG, T.; BLAIR, G. <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Cap. 1 (introdução, metas e transparência).</li>
+    <li>TANENBAUM, A. S.; VAN STEEN, M. <em>Distributed Systems: Principles and Paradigms</em>. 2. ed. Upper Saddle River: Pearson, 2007. Cap. 1 (introdução e metas).</li>
+    <li>PEASE, M.; SHOSTAK, R.; LAMPORT, L. Reaching agreement in the presence of faults. <em>Journal of the ACM</em>, v. 27, n. 2, p. 228–234, 1980.</li>
+    <li>LAMPORT, L.; SHOSTAK, R.; PEASE, M. The Byzantine generals problem. <em>ACM Transactions on Programming Languages and Systems</em>, v. 4, n. 3, p. 382–401, 1982.</li>
+    <li>FISCHER, M. J.; LYNCH, N. A.; PATERSON, M. S. Impossibility of distributed consensus with one faulty process. <em>Journal of the ACM</em>, v. 32, n. 2, p. 374–382, 1985.</li>
+    <li>DWORK, C.; LYNCH, N.; STOCKMEYER, L. Consensus in the presence of partial synchrony. <em>Journal of the ACM</em>, v. 35, n. 2, p. 288–323, 1988.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 8 (problemas com o sistema distribuído: falhas parciais, relógios e rede).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvEntregas', ctl: 'ctlEntregas', cap: 'capEntregas',
+    desenha: SD.desenhaEntregas, gera: SD.geraEntregas, velocidade: 2200
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transações distribuídas: ACID, commit em duas fases e sagas · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Transações que atravessam vários sistemas: propriedades ACID, commit em duas fases (2PC) e seu bloqueio, três fases, Paxos Commit, sagas com compensação e o padrão outbox, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/07-transacoes-distribuidas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-sky-400 mr-2"></i>Tópico 7 · Transações distribuídas</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>transação</strong> agrupa operações que devem acontecer todas ou nenhuma. Uma transferência de R$ 100 debita uma conta e
+      credita outra: se apenas uma das operações ocorrer, o dinheiro some ou surge do nada. Em um banco de dados, isso é garantido pelas
+      propriedades ACID. Quando as contas estão em bancos diferentes, ou quando um pedido envolve estoque, pagamento e transportadora, a
+      garantia precisa atravessar a rede. É o problema da <strong>transação distribuída</strong>.
+    </p>
+    <p>
+      A solução clássica, o commit em duas fases, garante atomicidade, mas tem um custo: pode bloquear participantes quando o coordenador falha.
+      A alternativa moderna, as <strong>sagas</strong>, abre mão do isolamento em troca de disponibilidade, e desfaz o trabalho feito com
+      operações de compensação. Entender essa troca é entender por que a maioria dos grandes sistemas não usa uma transação distribuída única
+      para tudo.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>enunciar as propriedades ACID e distinguir atomicidade, consistência, isolamento e durabilidade;</li>
+      <li>descrever as fases do commit em duas fases (2PC), seu log e a condição em que ele bloqueia;</li>
+      <li>explicar por que três fases e Paxos Commit reduzem, mas não eliminam, o problema;</li>
+      <li>projetar uma saga com compensações, e justificar a ordem inversa de desfazer;</li>
+      <li>aplicar o padrão outbox para publicar um evento de forma consistente com a transação local.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="acid" data-toc="Teoria: propriedades ACID" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · As propriedades ACID</h2>
+  <div class="ah-prose">
+    <p>
+      Haerder e Reuter (1983) cunharam o termo ACID para as garantias de uma transação:
+    </p>
+    <ul>
+      <li><strong>Atomicidade:</strong> ou todas as operações são aplicadas, ou nenhuma é. Um estado parcial nunca é visível.</li>
+      <li><strong>Consistência:</strong> a transação leva o banco de um estado válido a outro, respeitando as restrições definidas pela aplicação (saldo não negativo, chave estrangeira). Note que essa "consistência" é da aplicação, diferente da consistência de réplicas do tópico 5.</li>
+      <li><strong>Isolamento:</strong> transações concorrentes se comportam como se fossem executadas uma após a outra. A forma mais forte é a <em>serializabilidade</em>, geralmente obtida com travas de duas fases (2PL).</li>
+      <li><strong>Durabilidade:</strong> depois do commit, a mudança sobrevive a falhas, em geral porque foi gravada em um log antes de ser confirmada.</li>
+    </ul>
+    <p>
+      Em uma única máquina, o log e as travas resolvem tudo. Em um sistema distribuído, o log está em várias máquinas, e a decisão de confirmar
+      ou desfazer precisa ser a mesma em todas. É esse ponto que o 2PC resolve, e onde ele falha.
+    </p>
+  </div>
+</section>
+
+<section id="2pc" data-toc="Teoria: commit em duas fases" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-handshake text-sky-400 mr-2"></i>Teoria · Commit em duas fases (2PC)</h2>
+  <div class="ah-prose">
+    <p>
+      Gray (1978) e Lampson e Sturgis (1979) propuseram o protocolo. Um <strong>coordenador</strong> conduz a transação entre os
+      <strong>participantes</strong>, cada um responsável por uma parte dos dados. O protocolo tem duas fases:
+    </p>
+    <ul>
+      <li><strong>Fase 1 (votação):</strong> o coordenador envia PREPARE. Cada participante grava no log que está preparado, trava os dados que vai alterar, e responde SIM (pode confirmar) ou NÃO (deve desfazer). Um voto SIM é uma promessa: o participante não pode mais decidir sozinho.</li>
+      <li><strong>Fase 2 (decisão):</strong> se todos votaram SIM, o coordenador grava COMMIT no seu log e avisa os participantes. Caso contrário, grava ABORT. Os participantes aplicam a decisão e liberam as travas.</li>
+    </ul>
+    <p>
+      A regra decisiva é que o coordenador grava a decisão <strong>antes</strong> de avisar qualquer participante. Assim, se ele cair depois de decidir,
+      basta reenviar a decisão ao voltar. Ao mesmo tempo, o participante preparado não pode decidir sozinho, porque outro participante pode ter
+      votado NÃO.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-6 border-l-4 border-rose-400">
+    <p class="text-sm text-slate-300"><strong>O bloqueio.</strong> Se o coordenador cai depois dos votos SIM e antes de decidir, os participantes ficam presos. Cada um sabe que está preparado, mas não sabe se a decisão foi COMMIT ou ABORT. Não podem confirmar sem risco de divergir de outro participante, nem desfazer sem risco de divergir de um que já tenha confirmado. Os dados permanecem travados até o coordenador voltar. É a fraqueza central do 2PC.</p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Mensagens com n participantes</th><th>Quantidade</th></tr></thead>
+      <tbody>
+        <tr><td>PREPARE do coordenador</td><td>n</td></tr>
+        <tr><td>Votos dos participantes</td><td>n</td></tr>
+        <tr><td>Decisão COMMIT ou ABORT</td><td>n</td></tr>
+        <tr><td>Confirmações (ACK)</td><td>n</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>4n</strong>, com pelo menos 2 gravações forçadas no log por participante</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: 2PC e bloqueio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Três cenários do 2PC</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Em "Todos confirmam", a transação é atômica e todos aplicam a mudança. Em "Um recusa", todos desfazem. Em "Coordenador cai", os participantes ficam com os dados travados.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cv2PC" style="height:340px"></canvas></div>
+  <div id="ctl2PC" class="mt-4"></div>
+  <div id="cap2PC" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="tres-fases" data-toc="Teoria: três fases e Paxos Commit" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Teoria · Alternativas ao 2PC</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Commit em três fases (3PC, Skeen, 1981)</strong> acrescenta uma fase de pré-commit, que deixa os participantes saberem que a decisão
+      será COMMIT antes de aplicá-la. Com isso, um participante que perde o coordenador pode decidir sozinho, pela regra dos sobreviventes. O
+      resultado é não bloqueante, mas só sob um modelo de sincronia com limites conhecidos. Com partições de rede, 3PC pode gerar decisões
+      divergentes. Por isso, pouco se usa na prática.
+    </p>
+    <p>
+      <strong>Paxos Commit</strong> (Gray e Lamport, 2006) substitui o coordenador único por um conjunto de réplicas que decidem por consenso
+      (tópico 6). Se o coordenador falha, outra réplica assume, lendo os votos já registrados. Não há bloqueio enquanto houver maioria. O custo é
+      mais mensagens. É a base de bancos como Spanner e de sistemas que replicam o coordenador com Raft.
+    </p>
+  </div>
+</section>
+
+<section id="sagas" data-toc="Teoria: sagas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Teoria · Sagas e compensação</h2>
+  <div class="ah-prose">
+    <p>
+      Garcia-Molina e Salem (1987) propuseram as <strong>sagas</strong> para transações longas, que não cabem em bloqueios. Uma saga é uma sequência de
+      transações locais, T1, T2, ..., Tn, cada uma com uma <strong>compensação</strong> Ci que desfaz seu efeito semanticamente. Cada Ti é confirmada
+      imediatamente, sem bloquear os outros sistemas. Se Tk falha, as compensações Ck−1, ..., C1 são executadas em ordem inversa.
+    </p>
+    <p>
+      Duas consequências importantes. Primeiro, uma saga <strong>não é isolada</strong>: outra operação pode ver o estado intermediário, por exemplo um
+      estoque já reservado mas não cobrado. Segundo, a compensação precisa ser <strong>semântica</strong>, não física. Não se "apaga" um e-mail enviado; se
+      envia um cancelamento. E a compensação deve ser idempotente (tópico 2), porque também pode ser repetida.
+    </p>
+    <p>
+      Há duas formas de coordenar uma saga. Na <strong>coreografia</strong>, cada serviço reage a eventos dos outros, sem um controlador central. Na
+      <strong>orquestração</strong>, um orquestrador conduz os passos e decide as compensações. A orquestração é mais fácil de entender e de depurar; a
+      coreografia evita um ponto central, ao custo de um fluxo mais difícil de rastrear.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>07-transacoes-distribuidas.py · op:executa</code></p>
+<pre class="ah-code"><code>def executa(self):
+    feitos = []
+    for nome, acao, compensa in self.passos:
+        try:
+            acao()
+            feitos.append((nome, compensa))
+        except RuntimeError as erro:
+            for nome_c, comp in reversed(feitos):   # ordem inversa
+                comp()
+            return "desfeita"
+    return "concluída"</code></pre>
+</section>
+
+<section id="outbox" data-toc="Teoria: padrão outbox" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-inbox text-sky-400 mr-2"></i>Teoria · O problema da dupla escrita</h2>
+  <div class="ah-prose">
+    <p>
+      Um problema que aparece em quase toda saga é publicar um evento depois de gravar no banco. Se o serviço grava o pedido e cai antes de publicar
+      "pedido criado", o restante do sistema nunca fica sabendo. Se publica primeiro e a gravação falha, outros serviços agem sobre um pedido que
+      não existe. Não há como fazer duas escritas em sistemas diferentes de forma atômica sem um 2PC, que muitas vezes não está disponível.
+    </p>
+    <p>
+      O <strong>padrão outbox</strong> resolve isso: o evento é gravado em uma tabela <em>outbox</em> dentro da mesma transação local que altera o
+      pedido. Um processo separado lê a outbox e publica os eventos no broker, marcando-os como enviados. Como a gravação é atômica, ou o pedido e o
+      evento existem juntos, ou nenhum existe. A publicação pode ser repetida, por isso os consumidores também precisam ser idempotentes.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Compra de passagem com hotel</div>
+      <p class="text-xs text-slate-400">Reservar voo e hotel é uma saga. Se o hotel não tem vaga após o voo ser reservado, o sistema cancela a reserva do voo. Você vê, por alguns segundos, uma reserva que depois desaparece.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Cobrança e envio</div>
+      <p class="text-xs text-slate-400">Um pedido cobra o cartão e agenda o envio. Se a transportadora recusa, a cobrança é estornada. O estorno aparece na fatura dias depois, o que é uma compensação real, e não um rollback.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Transferência entre bancos</div>
+      <p class="text-xs text-slate-400">Um pagamento entre instituições diferentes não usa um 2PC sobre as contas. Ele é um conjunto de mensagens com confirmações e estornos, em que cada banco mantém sua própria atomicidade local.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Pedido de e-commerce</div>
+      <p class="text-xs text-slate-400">Cada etapa (estoque, pagamento, nota fiscal, envio) é um serviço com seu banco. Sem um 2PC global, um padrão outbox garante que cada evento sai junto com a mudança que o causou.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: onde o 2PC bloqueia?</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Três participantes votam SIM. O coordenador grava COMMIT no log e, antes de enviar a decisão, cai. Os participantes bloqueiam? E se a falha tivesse ocorrido antes da gravação da decisão?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Como a decisão já está gravada no log do coordenador, ela não está perdida: quando o coordenador voltar, reenvia COMMIT e o bloqueio termina. Os participantes ainda ficam presos durante a queda, mas o protocolo não os deixa presos para sempre. Se a falha ocorrer antes da gravação da decisão, o coordenador, ao voltar, não encontra decisão no log e pode decidir ABORT, desde que nenhum participante tenha confirmado. O bloqueio real acontece quando o coordenador cai sem ter gravado nada e a recuperação exige sua presença.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: ordem das compensações</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma saga executa T1 (reservar estoque), T2 (cobrar), T3 (criar nota fiscal) e T4 (agendar envio). T4 falha. Quais compensações são executadas, e em que ordem?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Executam-se C3 (cancelar nota fiscal), depois C2 (estornar cobrança), depois C1 (liberar estoque). A ordem inversa é necessária porque cada passo pode depender do anterior: a nota fiscal referencia a cobrança, e a cobrança exige o estoque reservado. Desfazer na ordem direta poderia deixar um passo sem a base de que precisa.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que o participante que votou SIM no 2PC não pode decidir sozinho desfazer a transação se o coordenador demorar a responder?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> outro participante pode ter recebido COMMIT e já confirmado. Se o primeiro desfizer, os dois terão decisões diferentes, violando atomicidade. Por isso o participante preparado precisa esperar a decisão do coordenador, ou a de outro participante que já a tenha recebido.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Uma compensação de "enviar e-mail de confirmação" pode ser "enviar e-mail de cancelamento". Explique por que essa compensação é semântica e não física, e dê outro exemplo.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o e-mail já saiu e não pode ser recolhido da caixa do destinatário; a compensação cria um novo fato, que corrige o efeito para quem o recebeu. Outro exemplo: um pedido de compra enviado a um fornecedor é compensado por um pedido de cancelamento, e não por uma remoção do pedido original.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Sem o padrão outbox, descreva uma sequência de falhas em que um pedido é gravado e nenhum evento "pedido criado" é publicado. Como o outbox evita isso?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o serviço grava o pedido no banco, e cai antes de publicar o evento no broker. Ao reiniciar, não há registro da intenção de publicar, e o evento se perde. Com o outbox, a gravação do evento na tabela ocorre na mesma transação do pedido. Se a transação confirma, o evento existe e será publicado pelo processo de envio; se não confirma, nenhum dos dois existe.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual a principal fraqueza do commit em duas fases?</p>
+      <button class="ah-quiz-opt">Não garante atomicidade quando há três participantes</button>
+      <button class="ah-quiz-opt">Pode bloquear participantes preparados se o coordenador cair após os votos</button>
+      <button class="ah-quiz-opt">Exige que os participantes usem o mesmo idioma de programação</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Um participante que votou SIM não pode decidir sozinho, e fica com os dados travados até a decisão chegar.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em uma saga com falha no quarto passo, em que ordem as compensações são executadas?</p>
+      <button class="ah-quiz-opt">Na mesma ordem em que os passos foram executados</button>
+      <button class="ah-quiz-opt">Em ordem aleatória</button>
+      <button class="ah-quiz-opt">Na ordem inversa, do último passo concluído ao primeiro</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada passo pode depender dos anteriores, então o desfazer segue a ordem inversa.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual o objetivo do padrão outbox?</p>
+      <button class="ah-quiz-opt">Gravar a mudança local e o evento de forma atômica, na mesma transação</button>
+      <button class="ah-quiz-opt">Eliminar a necessidade de idempotência nos consumidores</button>
+      <button class="ah-quiz-opt">Aumentar o isolamento de transações concorrentes</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A outbox torna a publicação do evento parte da mesma transação local, evitando a dupla escrita sem atomicidade.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Atomicidade entre sistemas exige decisão comum. O 2PC garante isso, mas pode bloquear.</li>
+    <li>Um voto SIM no 2PC é uma promessa: o participante preparado não decide sozinho.</li>
+    <li>Sagas trocam isolamento por disponibilidade, e desfazem o trabalho com compensações semânticas em ordem inversa.</li>
+    <li>Compensações e eventos podem se repetir: torne-os idempotentes. O padrão outbox junta a mudança e o evento na mesma transação local.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>GRAY, J. Notes on data base operating systems. In: BAYER, R.; GRAHAM, R. M.; SEEGMÜLLER, G. (ed.). <em>Operating Systems: An Advanced Course</em>. Springer, 1978.</li>
+    <li>LAMPSON, B.; STURGIS, H. Crash recovery in a distributed data storage system. Relatório técnico, Xerox PARC, 1979.</li>
+    <li>HAERDER, T.; REUTER, A. Principles of transaction-oriented database recovery. <em>ACM Computing Surveys</em>, v. 15, n. 4, p. 287–317, 1983.</li>
+    <li>SKEEN, D. Nonblocking commit protocols. In: <em>ACM SIGMOD International Conference on Management of Data</em>, 1981.</li>
+    <li>GARCIA-MOLINA, H.; SALEM, K. Sagas. In: <em>ACM SIGMOD International Conference on Management of Data</em>, 1987.</li>
+    <li>GRAY, J.; LAMPORT, L. Consensus on transaction commit. <em>ACM Transactions on Database Systems</em>, v. 31, n. 1, p. 133–160, 2006.</li>
+    <li>CORBETT, J. C. et al. Spanner: Google's globally-distributed database. In: <em>10th USENIX OSDI</em>, 2012.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 7 (transações) e cap. 9 (commit atômico).</li>
+    <li>RICHARDSON, C. <em>Microservices Patterns</em>. Shelter Island: Manning, 2018. Padrões de saga e transactional outbox.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cv2PC', ctl: 'ctl2PC', cap: 'cap2PC',
+    desenha: SD.desenhaDoisFases, gera: SD.geraDoisFases, velocidade: 2200,
+    opcoes: [
+      { v: 'sucesso', rotulo: 'Todos confirmam' },
+      { v: 'aborta', rotulo: 'Um recusa' },
+      { v: 'bloqueio', rotulo: 'Coordenador cai' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

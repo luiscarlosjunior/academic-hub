@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD com GitHub Actions, OIDC e testes visuais · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Pipeline de lint, testes, build do Storybook, teste visual e promoção para produção com aprovação, autenticando na AWS por OIDC, sem chaves de longa duração.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/06-cicd-github-actions-oidc">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-orange-400 mr-2"></i>Tópico 6 · CI/CD, OIDC e testes visuais</h2>
+  <div class="ah-prose">
+    <p>
+      Um design system só é confiável se cada mudança passa pelas mesmas verificações antes de chegar aos produtos. O <strong>pipeline de
+      CI/CD</strong> faz isso: roda lint, testes, build, testes visuais, publica em homologação e, depois de uma aprovação humana, publica em
+      produção. Para falar com a AWS, o pipeline usa <strong>OIDC</strong>: pede credenciais temporárias ao STS em troca de um token do
+      provedor, sem guardar nenhuma chave de acesso no repositório.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>ordenar as etapas de um pipeline e justificar a ordem (falha rápida primeiro);</li>
+      <li>configurar um papel IAM que confia no token OIDC de um repositório e de uma branch;</li>
+      <li>usar environments do GitHub para aprovação antes de produção;</li>
+      <li>tratar falhas de teste visual sem aceitar diferenças por reflexo.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: pipeline e confiança" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: ordem das etapas e confiança entre sistemas</h2>
+  <div class="ah-prose">
+    <p>
+      A ordem das etapas segue um princípio: <strong>o que é barato e rápido falha primeiro</strong>. Lint leva segundos; o teste visual leva
+      minutos. Se o lint reprova, nenhum minuto é gasto com o resto. Cada etapa só roda se a anterior passou, e isso é expresso no
+      pipeline com dependências explícitas (<code>needs</code>).
+    </p>
+    <p>
+      O OIDC resolve um problema antigo: chaves de acesso de longa duração vazam, não expiram e são difíceis de rotacionar. Com OIDC, a AWS
+      confia em um emissor externo (o GitHub) e entrega credenciais que duram uma hora. A <strong>trust policy</strong> do papel IAM define
+      quem pode assumi-lo, e a condição <code>sub</code> limita o repositório, a branch ou o environment. Se a condição for frouxa, qualquer
+      branch, inclusive de um fork, consegue publicar em produção.
+    </p>
+    <p>
+      O <strong>teste visual</strong> compara uma captura atual de cada história com uma referência aprovada. A diferença de um pixel reprova
+      o build. Isso protege contra regressões de estilo que nenhum teste funcional enxerga.
+    </p>
+  </div>
+</section>
+
+<section id="pipeline" data-toc="Operação 1: pipeline por etapas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-orange-400 mr-2"></i>Operação 1 · Montar o pipeline</h2>
+  <div class="ah-prose">
+    <p>
+      O workflow abaixo tem quatro jobs encadeados. A publicação em produção só começa depois de staging, e o environment
+      <code>producao</code> exige um revisor humano configurado no GitHub. Note também a permissão <code>id-token: write</code>, sem a
+      qual o job não consegue pedir o token OIDC.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: do commit à produção</h3>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Com a falha, o pipeline para na etapa visual, e nada chega à homologação.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvPipeline" style="height:300px"></canvas></div>
+  <div id="ctlPipeline" class="mt-4"></div>
+  <div id="capPipeline" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em YAML · <code>.github/workflows/publicar.yml</code></p>
+<pre class="ah-code"><code>name: publicar-design-system
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write          # obrigatório para pedir o token OIDC
+
+jobs:
+  qualidade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npx playwright test --project=visual
+
+  storybook:
+    needs: qualidade
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run build-storybook
+      - uses: actions/upload-artifact@v4
+        with: { name: storybook-static, path: storybook-static }
+
+  staging:
+    needs: storybook
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: storybook-static, path: storybook-static }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/ds-deploy-staging
+          aws-region: sa-east-1
+      - run: aws s3 sync storybook-static s3://ds-docs-staging --delete
+
+  producao:
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: producao     # revisores obrigatórios configurados no GitHub
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: storybook-static, path: storybook-static }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/ds-deploy-producao
+          aws-region: sa-east-1
+      - run: aws s3 sync storybook-static s3://ds-docs-producao --delete</code></pre>
+</section>
+
+<section id="oidc" data-toc="Operação 2: confiança por OIDC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-shield text-orange-400 mr-2"></i>Operação 2 · Papel IAM que confia no token</h2>
+  <div class="ah-prose">
+    <p>
+      Antes do workflow funcionar, a conta AWS precisa de um provedor OIDC para o GitHub e de um papel cuja trust policy restrinja a origem.
+      A animação mostra o que acontece com uma branch permitida e com uma branch de funcionalidade que não está na condição.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: troca do token por credenciais</h3>
+  <p class="ah-lead text-sm mb-4">Troque entre as duas branches e compare o quadro em que o STS emite credenciais.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvOidc" style="height:300px"></canvas></div>
+  <div id="ctlOidc" class="mt-4"></div>
+  <div id="capOidc" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em JSON · trust policy do papel <code>ds-deploy-producao</code></p>
+<pre class="ah-code"><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:sua-org/design-system:environment:producao"
+        }
+      }
+    }
+  ]
+}</code></pre>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      Para o papel de staging, o <code>sub</code> seria <code>repo:sua-org/design-system:ref:refs/heads/main</code>. Restringir por
+      <em>environment</em> é mais forte, porque a aprovação do GitHub passa a ser parte da condição de acesso.
+    </p>
+  </div>
+</section>
+
+<section id="visual" data-toc="Operação 3: teste visual" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-image text-orange-400 mr-2"></i>Operação 3 · Teste visual com referência aprovada</h2>
+  <div class="ah-prose">
+    <p>
+      O Playwright compara capturas com as imagens de referência guardadas no repositório. Quando a mudança é intencional, a referência é
+      atualizada de forma explícita, com um comando, e revisada no pull request. Atualizar a referência sem olhar o diff é o erro mais
+      comum: transforma o teste em um carimbo.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>botao.visual.spec.ts</code></p>
+<pre class="ah-code"><code>import { test, expect } from '@playwright/test';
+
+test('botão primário mantém a aparência de referência', async ({ page }) => {
+  await page.goto('http://localhost:6006/iframe.html?id=componentes-button--primaria&amp;viewMode=story');
+  await expect(page.locator('#storybook-root')).toHaveScreenshot('botao-primario.png', {
+    maxDiffPixelRatio: 0
+  });
+});</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · atualizar a referência de forma intencional</p>
+<pre class="ah-code"><code># só depois de revisar o diff gerado no relatório
+npx playwright test --project=visual --update-snapshots</code></pre>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Pipeline como código:</strong> o arquivo do workflow fica no repositório, passa por revisão e tem histórico, como qualquer código.</li>
+      <li><strong>Proteção de branch:</strong> <code>main</code> só recebe mudança por pull request com a CI verde e revisão obrigatória.</li>
+      <li><strong>Sem chaves de longa duração:</strong> OIDC é o padrão recomendado pela AWS e pelo GitHub para pipelines que acessam a conta.</li>
+      <li><strong>Plataforma:</strong> o CodeCommit deixou de aceitar novos clientes em 2024. Por isso, o código costuma estar no GitHub ou GitLab, e a AWS entra no deploy, com CodeBuild e CodePipeline como alternativas gerenciadas.</li>
+      <li><strong>Visual testing como serviço:</strong> Chromatic e Percy automatizam a revisão de diferenças em pull requests.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Por que guardar <code>AWS_ACCESS_KEY_ID</code> como segredo do repositório é pior do que OIDC?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a chave é de longa duração: não expira sozinha, vale para quem a obtiver e precisa de rotação manual. Um segredo vazado em um log, um fork ou uma dependência comprometida dá acesso até alguém perceber. Com OIDC, a credencial dura uma hora, e a trust policy limita quem pode obtê-la.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. O teste visual falhou num botão, mas a mudança era intencional. O que fazer?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> abrir o relatório do Playwright, conferir que a diferença é exatamente a esperada, atualizar a referência com <code>--update-snapshots</code> e registrar a mudança no pull request, para que a revisão aprove a nova aparência. Nunca atualizar sem olhar o diff.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Altere a condição <code>sub</code> para aceitar qualquer branch e explique por que isso é perigoso. Depois, restrinja de novo.</li>
+    <li>Adicione um job de acessibilidade (axe, do tópico 3) antes da etapa de staging e descreva o que acontece quando ele falha.</li>
+    <li>Reordene o workflow colocando o teste visual antes dos testes unitários. Compare o tempo médio de falha nos dois casos.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      O DVA-C03 cobre implantação e automação com serviços como CodeBuild, CodePipeline e CodeDeploy; use este tópico para entender o
+      <em>porquê</em> desses serviços, além do <em>como</em>. Para o SAA-C03 e o CLF-C02, o ponto central é IAM: papéis, credenciais temporárias
+      e o princípio do privilégio mínimo. Confira os guias oficiais para a lista de serviços e os pesos de cada domínio.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual permissão o workflow precisa para pedir um token OIDC ao GitHub?</p>
+      <button class="ah-quiz-opt">contents: write</button>
+      <button class="ah-quiz-opt">actions: admin</button>
+      <button class="ah-quiz-opt">id-token: write</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem <code>id-token: write</code>, o job não consegue solicitar o token que a AWS usa para validar a identidade.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a condição <code>sub</code> da trust policy deve ser restrita?</p>
+      <button class="ah-quiz-opt">Para que só o repositório, a branch ou o environment indicados consigam assumir o papel</button>
+      <button class="ah-quiz-opt">Para deixar o token mais rápido</button>
+      <button class="ah-quiz-opt">Porque o STS exige o nome do usuário IAM</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem restrição, qualquer origem que obtenha um token válido do provedor pode assumir o papel.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um teste visual reprova uma diferença inesperada. Qual é a ação correta?</p>
+      <button class="ah-quiz-opt">Atualizar a referência imediatamente para o build passar</button>
+      <button class="ah-quiz-opt">Analisar o diff e corrigir o código, atualizando a referência só se a mudança for intencional</button>
+      <button class="ah-quiz-opt">Desativar o teste visual</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A referência é a aprovação da aparência; atualizá-la sem revisão apaga o valor do teste.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Ordene as etapas do mais barato para o mais caro; use <code>needs</code> para encadear.</li>
+    <li>OIDC substitui chaves de longa duração por credenciais que expiram em uma hora.</li>
+    <li>Restrinja a trust policy por repositório, branch ou environment.</li>
+    <li>Teste visual exige revisão do diff antes de atualizar a referência.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>GITHUB. <em>GitHub Actions Documentation</em>, seções sobre OIDC e environments. docs.github.com/actions.</li>
+    <li>AWS. <em>IAM User Guide</em>, seção sobre federação OIDC e <code>AssumeRoleWithWebIdentity</code>. docs.aws.amazon.com/IAM.</li>
+    <li>MICROSOFT. <em>Playwright</em>, documentação de testes visuais (snapshots). playwright.dev.</li>
+    <li>KIM, Gene et al. <em>The DevOps Handbook</em>. Portland: IT Revolution, 2016. Capítulos sobre pipeline de implantação.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('pipeline');
+  DSA.monta('oidc');
+})();
+</script>
+</body>
+</html>

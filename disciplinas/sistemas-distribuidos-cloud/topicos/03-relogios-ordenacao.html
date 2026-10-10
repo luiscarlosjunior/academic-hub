@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relógios e ordenação de eventos: happened-before, Lamport e vetorial · Sistemas Distribuídos e em Cloud · AcademicHub</title>
+<meta name="description" content="Por que relógios físicos não bastam, a relação happened-before, relógios lógicos de Lamport, relógios vetoriais para detectar concorrência e snapshots globais, com animação, exemplo em Python e referências.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sd/03-relogios-ordenacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clock text-sky-400 mr-2"></i>Tópico 3 · Relógios e ordenação de eventos</h2>
+  <div class="ah-prose">
+    <p>
+      Em um sistema com um único computador, a pergunta "qual evento veio antes?" tem resposta: basta olhar o relógio do processador. Em um sistema
+      distribuído, cada máquina tem seu próprio relógio, e eles não concordam. Um servidor pode estar 40 milissegundos adiantado em relação a outro,
+      e um mesmo instante físico pode ser registrado com horários diferentes. Ainda assim, precisamos decidir a ordem de um pagamento e de um
+      estorno, de uma edição e de uma remoção, de uma mensagem e de sua resposta.
+    </p>
+    <p>
+      Este tópico mostra que a ordem <strong>que importa</strong> é a <strong>causal</strong>, e não a física, e constrói os instrumentos para
+      trabalhar com ela. Lamport (1978) definiu a relação <em>happened-before</em>; Fidge e Mattern (1988–1989) criaram os relógios vetoriais, que
+      a tornam decidível em todos os casos.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar por que sincronizar relógios físicos não basta para ordenar eventos, e o que o NTP garante e não garante;</li>
+      <li>definir a relação happened-before e distinguir causalidade de concorrência;</li>
+      <li>calcular carimbos de Lamport e vetores para um traço de mensagens;</li>
+      <li>usar o vetor para decidir se dois eventos são causalmente ordenados ou concorrentes;</li>
+      <li>entender por que um snapshot consistente depende de causalidade, com o algoritmo de Chandy e Lamport.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="fisico" data-toc="Teoria: relógios físicos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stopwatch text-sky-400 mr-2"></i>Teoria · Relógios físicos e seus limites</h2>
+  <div class="ah-prose">
+    <p>
+      Cada máquina tem um oscilador de cristal, que conta ciclos e produz um tempo local. Esses osciladores derivam: a frequência varia com a
+      temperatura e com a idade do componente, e a taxa típica de desvio é da ordem de partes por milhão. Em um dia, isso são dezenas de milissegundos
+      de diferença. Para corrigir, usa-se um protocolo de sincronização:
+    </p>
+    <ul>
+      <li><strong>Algoritmo de Cristian (1989):</strong> um cliente pergunta a hora a um servidor, mede o tempo de ida e volta <em>T</em> e ajusta a resposta para aproximadamente <em>hora + T/2</em>. O erro é limitado por <em>T/2</em>, e o método supõe que a ida e a volta duram o mesmo tempo.</li>
+      <li><strong>NTP (Network Time Protocol):</strong> hierarquia de servidores (estratos) que refina a estimativa com várias amostras e filtros. Na prática, atinge precisão de milissegundos na Internet, e de microssegundos em redes locais bem configuradas.</li>
+      <li><strong>PTP e relógios atômicos:</strong> protocolos de precisão para redes locais e GPS ou relógios atômicos em data centers, quando a ordem precisa ser garantida com precisão de microssegundos ou menos.</li>
+    </ul>
+    <p>
+      Mesmo com precisão alta, o relógio físico <strong>não</strong> resolve o problema de ordem. Dois eventos causalmente ligados podem ter carimbos
+      físicos invertidos se o relógio do emissor estiver adiantado. E dois eventos sem relação causal têm sempre algum carimbo físico que os ordena,
+      o que cria uma ordem falsa. Por isso, sistemas que dependem de ordem usam relógios lógicos, pelo menos como complemento.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-6 border-l-4 border-amber-400">
+    <p class="text-sm text-slate-300"><strong>Exemplo do cotidiano.</strong> Um banco registra um saque às 10:00:00,050 no servidor A e um depósito às 10:00:00,020 no servidor B. Se os relógios de A e B diferirem em 40 ms, a ordem física pode estar errada. O saldo final é o mesmo se as operações forem comutativas, mas um estorno que depende do saque pode ser aplicado antes dele.</p>
+  </div>
+</section>
+
+<section id="happened" data-toc="Teoria: happened-before" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-sky-400 mr-2"></i>Teoria · A relação happened-before</h2>
+  <div class="ah-prose">
+    <p>
+      Lamport (1978) define uma relação <strong>→</strong> (lê-se "aconteceu antes") entre eventos, a menor relação que satisfaz três regras:
+    </p>
+    <ul>
+      <li>se <em>a</em> e <em>b</em> são eventos do mesmo processo, e <em>a</em> vem antes de <em>b</em> na execução, então <em>a → b</em>;</li>
+      <li>se <em>a</em> é o envio de uma mensagem e <em>b</em> é o recebimento dela, então <em>a → b</em>;</li>
+      <li>se <em>a → b</em> e <em>b → c</em>, então <em>a → c</em> (transitividade).</li>
+    </ul>
+    <p>
+      Dois eventos são <strong>concorrentes</strong> (escrito <em>a ∥ b</em>) quando nem <em>a → b</em> nem <em>b → a</em>. A concorrência não significa
+      que os eventos aconteceram ao mesmo tempo. Significa que não há caminho de causa entre eles: nenhum dos dois poderia ter influenciado o outro.
+    </p>
+    <p>
+      Esta é a forma correta de pensar sobre "antes" em sistemas distribuídos. Ela é uma <strong>ordem parcial</strong>: nem todo par de eventos é comparável.
+      Um algoritmo que precisa de uma ordem total deve construí-la a partir da parcial, escolhendo arbitrariamente a ordem entre os concorrentes.
+    </p>
+  </div>
+</section>
+
+<section id="lamport" data-toc="Teoria: relógio de Lamport" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hashtag text-sky-400 mr-2"></i>Teoria · Relógio lógico de Lamport</h2>
+  <div class="ah-prose">
+    <p>
+      O relógio de Lamport atribui a cada evento um inteiro <em>L</em>, com as regras:
+    </p>
+    <ul>
+      <li>cada processo incrementa <em>L</em> antes de cada evento local ou envio;</li>
+      <li>o envio carrega o valor de <em>L</em> na mensagem;</li>
+      <li>no recebimento, <code>L = max(L local, L da mensagem) + 1</code>.</li>
+    </ul>
+    <p>
+      <strong>Teorema (Lamport, 1978).</strong> Se <em>a → b</em>, então <em>L(a) &lt; L(b)</em>. Demonstração por indução no comprimento do caminho de causa:
+      cada aresta do caminho aumenta o relógio pelo menos em 1, pela regra do incremento ou pela regra do máximo mais um. Portanto, a ordem causal
+      é preservada.
+    </p>
+    <p>
+      <strong>A recíproca é falsa.</strong> <em>L(a) &lt; L(b)</em> não implica <em>a → b</em>. Um relógio de Lamport não distingue concorrência de
+      causalidade. Para ordenar eventos sem ambiguidade, Lamport propõe desempatar carimbos iguais pelo identificador do processo, o que gera uma
+      <strong>ordem total</strong> consistente com a causal, mas que pode inventar uma ordem entre eventos concorrentes.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Ordem total com desempate</th><th>Uso típico</th></tr></thead>
+      <tbody>
+        <tr><td>(L, id do processo) em ordem lexicográfica</td><td>exclusão mútua e filas distribuídas em que é preciso que todos concordem sobre a ordem</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="vetorial" data-toc="Teoria: relógio vetorial" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-sky-400 mr-2"></i>Teoria · Relógio vetorial</h2>
+  <div class="ah-prose">
+    <p>
+      Fidge (1988) e Mattern (1989) propõem que cada processo <em>i</em> mantenha um vetor <em>V</em> com uma posição por processo. A regra é:
+    </p>
+    <ul>
+      <li>evento local ou envio: <code>V[i] = V[i] + 1</code>;</li>
+      <li>recebimento de um vetor <em>W</em>: <code>V[k] = max(V[k], W[k])</code> para todo <em>k</em>, e depois <code>V[i] = V[i] + 1</code>.</li>
+    </ul>
+    <p>
+      <strong>Teorema.</strong> <em>a → b</em> se e somente se <em>V(a) ≤ V(b)</em> em todas as posições, com pelo menos uma estritamente menor. Como a
+      relação vale nos dois sentidos, o vetor <strong>decide</strong> a concorrência: se nem <em>V(a) ≤ V(b)</em> nem <em>V(b) ≤ V(a)</em>, então
+      <em>a ∥ b</em>.
+    </p>
+    <p>
+      O custo é o tamanho do vetor, proporcional ao número de processos. Em sistemas com milhares de nós, isso é caro. Técnicas como version vectors e
+      dotted version vectors reduzem o custo para o caso de réplicas, e são usadas em bancos de dados replicados, como o Dynamo e o Riak.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Em Python · <code>03-relogios-ordenacao.py · op:recebe</code></p>
+<pre class="ah-code"><code>def recebe(self, vetor_msg):
+    self.v = [max(a, b) for a, b in zip(self.v, vetor_msg)]
+    self.v[self.i] += 1
+    return list(self.v)
+
+def compara(a, b):
+    menor_ou_igual_ab = all(x &lt;= y for x, y in zip(a, b))
+    menor_ou_igual_ba = all(y &lt;= x for x, y in zip(a, b))
+    if a == b:
+        return "igual"
+    if menor_ou_igual_ab:
+        return "antes (a -&gt; b)"
+    if menor_ou_igual_ba:
+        return "depois (b -&gt; a)"
+    return "concorrentes"</code></pre>
+</section>
+
+<section id="animacao" data-toc="Animação: Lamport × vetorial" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · O mesmo traço com dois relógios</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o relógio no seletor. Com Lamport, e2 e e6 têm carimbo 3 e você não sabe qual veio antes. Com o vetor, a comparação é direta.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvRelogios" style="height:280px"></canvas></div>
+  <div id="ctlRelogios" class="mt-4"></div>
+  <div id="capRelogios" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: Lamport e vetor no mesmo traço" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Calculando os dois relógios</h2>
+  <div class="ah-prose">
+    <p>
+      O programa executa o traço da animação: P1 faz um evento local e envia uma mensagem a P2; P2 recebe, e depois envia a P3; P3 recebe; P1 faz
+      mais um evento local. Para cada evento, calcula o carimbo de Lamport e o vetor. No final, compara três pares de eventos.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Lamport (L) e vetorial ([P1,P2,P3]) em cada evento:
+  e0 P1 local          L = 1  v = [1, 0, 0]
+  e1 P1 envia m        L = 2  v = [2, 0, 0]
+  e2 P2 recebe m       L = 3  v = [2, 1, 0]
+  e3 P3 local          L = 1  v = [0, 0, 1]
+  e4 P2 envia m'       L = 4  v = [2, 2, 0]
+  e5 P3 recebe m'      L = 5  v = [2, 2, 2]
+  e6 P1 local          L = 3  v = [3, 0, 0]
+
+Relação entre eventos, com vetores:
+  e2 e e6: concorrentes
+  e3 e e4: concorrentes
+  e1 e e5: antes (a -> b)
+
+Com Lamport, a comparação L(e2)=3 e L(e6)=3 não diz nada:
+  L(e2) &lt; L(e6)? False   L(e6) &lt; L(e2)? False</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Repare que e3 tem L = 1, menor que L(e2) = 3, mas os dois são concorrentes: a ordem dos carimbos não diz nada sobre causa. Já e1 e e5 são
+      causalmente ordenados, e o vetor confirma isso sem ambiguidade.
+    </p>
+  </div>
+</section>
+
+<section id="snapshot" data-toc="Teoria: snapshot global" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-camera text-sky-400 mr-2"></i>Teoria · Estado global consistente</h2>
+  <div class="ah-prose">
+    <p>
+      Um dos usos mais importantes da causalidade é capturar o <strong>estado global</strong> de um sistema que não tem relógio comum. Chandy e Lamport
+      (1985) mostraram como fazer isso com mensagens comuns: um processo grava seu estado e envia um marcador por todos os canais de saída. Ao receber
+      um marcador pela primeira vez, cada processo grava seu estado e começa a registrar as mensagens que chegam pelos canais ainda não marcados. Ao final,
+      o conjunto de estados locais e de mensagens em trânsito forma um <strong>corte consistente</strong>: nenhuma mensagem aparece como recebida sem ter sido enviada.
+    </p>
+    <p>
+      Esse resultado é a base de checkpointing em sistemas de processamento de fluxo (como o Flink, que usa uma variante dos marcadores de Chandy e Lamport)
+      e de detecção de deadlock e de terminação em sistemas distribuídos.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-sky-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Histórico do Git</div>
+      <p class="text-xs text-slate-400">Cada commit aponta para o pai, e um merge tem dois pais. O grafo de commits é exatamente uma ordem parcial: dois commits em ramos diferentes são concorrentes, e a ordem entre eles só é definida pelo merge.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Edição colaborativa de documento</div>
+      <p class="text-xs text-slate-400">Duas pessoas editam o mesmo parágrafo ao mesmo tempo. As edições são concorrentes e precisam ser combinadas. Editores colaborativos usam relógios lógicos para decidir o que é "depois" e o que é concorrente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Resposta a uma mensagem</div>
+      <p class="text-xs text-slate-400">Em um grupo de mensagens, sua resposta a uma mensagem é causalmente posterior a ela. Se ela chega a um participante antes da original, o aplicativo deve esperar a original para exibir a resposta.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-sky-400">
+      <div class="text-xs font-bold text-sky-300 mb-1">Logs de sistema de vários servidores</div>
+      <p class="text-xs text-slate-400">Ao juntar logs de dez servidores para investigar um incidente, o horário de cada linha pode estar errado por milissegundos. A ordem real exige carimbos causais, como os que os sistemas de rastreamento distribuído propagam entre chamadas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-sky-400 mr-2"></i>Exercícios resolvidos</h2>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: carimbos de Lamport</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> P1 envia uma mensagem para P2 no seu evento de número 2, com L = 2. P2, cujo relógio local vale 1, recebe. Qual o carimbo do recebimento? E se P2 valesse 5?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Com P2 em 1: <code>L = max(1, 2) + 1 = 3</code>. Com P2 em 5: <code>L = max(5, 2) + 1 = 6</code>. Nos dois casos o recebimento é maior que o envio, como exige o teorema.</p>
+      <p><strong>Ponto de atenção.</strong> No segundo caso, a mensagem não altera o relógio de P2; só o incremento do recebimento conta. O <code>max</code> é o que garante que o relógio nunca volta.</p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: concorrência com vetores</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Três processos têm os vetores de eventos a = [2, 0, 1], b = [2, 1, 1] e c = [1, 0, 3]. Diga a relação entre cada par.</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> a ≤ b, porque 2 ≤ 2, 0 ≤ 1 e 1 ≤ 1, e a é diferente de b. Logo a → b. Para a e c: a = [2,0,1] e c = [1,0,3] têm 2 &gt; 1 e 1 &lt; 3, então nenhum é menor ou igual ao outro: são concorrentes. Para b e c: 2 &gt; 1 e 1 &lt; 3, também concorrentes.</p>
+      <p><strong>Leitura.</strong> Note que c tem o maior valor na posição 3, mas nenhum evento de c precede b. O vetor mostra exatamente o que o carimbo de Lamport esconderia.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Um sistema usa relógios de Lamport com desempate pelo id do processo. Dois eventos têm L = 7: um do processo 2 e outro do processo 5. Qual vem primeiro na ordem total? Essa ordem reflete alguma causalidade real?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o do processo 2, pela ordem lexicográfica (7, 2) &lt; (7, 5). Não necessariamente reflete causalidade: se os dois eventos forem concorrentes, a ordem foi escolhida arbitrariamente. A ordem total é consistente com a causal, mas pode inventar ordens entre concorrentes.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Prove que, com relógios vetoriais, a relação a → b implica V(a) ≤ V(b). Use as regras de envio e recebimento.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta esperada:</strong> indução no caminho de causa. Para eventos locais consecutivos, o vetor só cresce, pois o incremento é positivo e as outras posições não mudam. Para uma mensagem de a (envio) a b (recebimento), V(b) recebe o máximo com V(a) e depois incrementa, então V(b) ≥ V(a) em todas as posições e estritamente maior na posição de b. A transitividade fecha a prova.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P3. Um banco com três agências replica o saldo com relógios físicos sincronizados por NTP, com erro de 5 ms. Duas transferências concorrentes, de agências diferentes, têm carimbos separados por 2 ms. Explique por que o carimbo físico não basta para decidir qual foi primeiro.</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o erro de 5 ms é maior que a separação de 2 ms. A ordem física pode estar invertida em relação à real, e, se as transferências forem concorrentes, não há ordem real a recuperar. O sistema precisa de um mecanismo causal (vetores ou um consenso sobre a ordem) para tratar o caso.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Se L(a) &lt; L(b) com relógios de Lamport, o que se pode concluir?</p>
+      <button class="ah-quiz-opt">que a → b</button>
+      <button class="ah-quiz-opt">nada sobre causalidade: a e b podem ser concorrentes</button>
+      <button class="ah-quiz-opt">que b aconteceu antes de a</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Lamport garante a → b ⇒ L(a) &lt; L(b), e não o contrário. Por isso não há como detectar concorrência com um inteiro só.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com vetores V(a) = [1, 2, 0] e V(b) = [2, 1, 0], qual é a relação?</p>
+      <button class="ah-quiz-opt">a → b</button>
+      <button class="ah-quiz-opt">b → a</button>
+      <button class="ah-quiz-opt">concorrentes</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Na posição 1, a é menor; na posição 2, a é maior. Nenhum vetor é menor ou igual ao outro.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o algoritmo de Cristian mede o tempo de ida e volta?</p>
+      <button class="ah-quiz-opt">Para estimar o atraso da rede e corrigir a hora recebida</button>
+      <button class="ah-quiz-opt">Para medir a velocidade do processador</button>
+      <button class="ah-quiz-opt">Para eliminar a necessidade de relógios locais</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Assumindo atrasos simétricos, a hora recebida é corrigida em cerca de metade do tempo de ida e volta, com erro limitado por essa metade.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Relógio físico sincronizado não resolve ordem causal. Ele tem erro, e pode inverter eventos ligados.</li>
+    <li>Happened-before é uma ordem parcial. Concorrência não é "simultaneidade": é ausência de caminho causal.</li>
+    <li>Lamport preserva a causalidade, mas não a detecta. Use-o para ordem total com desempate.</li>
+    <li>Vetores detectam concorrência exatamente, ao custo de um vetor por processo.</li>
+    <li>Snapshots consistentes dependem de causalidade: nenhuma mensagem pode ser recebida sem ter sido enviada no corte.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>LAMPORT, L. Time, clocks, and the ordering of events in a distributed system. <em>Communications of the ACM</em>, v. 21, n. 7, p. 558–565, 1978.</li>
+    <li>FIDGE, C. J. Timestamps in message-passing systems that preserve the partial ordering. In: <em>Proceedings of the 11th Australian Computer Science Conference</em>, 1988.</li>
+    <li>MATTERN, F. Virtual time and global states of distributed systems. In: COSNARD, M. <em>et al.</em> (ed.). <em>Parallel and Distributed Algorithms</em>. North-Holland, 1989.</li>
+    <li>CHANDY, K. M.; LAMPORT, L. Distributed snapshots: determining global states of distributed systems. <em>ACM Transactions on Computer Systems</em>, v. 3, n. 1, p. 63–75, 1985.</li>
+    <li>CRISTIAN, F. Probabilistic clock synchronization. <em>Distributed Computing</em>, v. 3, n. 3, p. 146–158, 1989.</li>
+    <li>MILLS, D. L. et al. Network Time Protocol version 4: protocol and algorithms specification. RFC 5905, 2010.</li>
+    <li>COULOURIS, G. et al. <em>Distributed Systems: Concepts and Design</em>. 5. ed. Boston: Addison-Wesley, 2011. Cap. 14 (sincronização de relógios e ordenação de eventos).</li>
+    <li>TANENBAUM, A. S.; VAN STEEN, M. <em>Distributed Systems</em>. 3. ed. 2017. Cap. 6 (sincronização).</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Cap. 8 (relógios e ordenação).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/sistemas-distribuidos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* O motor ED.criaAnimacao (estrutura-dados.js) fornece os controles e a legenda */
+  ED.criaAnimacao({
+    canvas: 'cvRelogios', ctl: 'ctlRelogios', cap: 'capRelogios',
+    desenha: SD.desenhaLamport, gera: SD.geraLamport, velocidade: 1800,
+    opcoes: [
+      { v: 'lamport', rotulo: 'Relógio de Lamport (L)' },
+      { v: 'vetorial', rotulo: 'Relógio vetorial ([P1,P2,P3])' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>
