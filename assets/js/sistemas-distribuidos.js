@@ -866,11 +866,82 @@
     rotulo(ctx, 'o controlador compara os dois valores e age até igualar', 16, h - 14, CORES.mudo);
   }
 
+  /* ===================================================================
+     0j. DISJUNTOR (CIRCUIT BREAKER)
+     Três estados: fechado (chamadas passam), aberto (chamadas são rejeitadas
+     na hora) e meio-aberto (uma chamada de teste decide o próximo estado).
+     Opções: "recupera" (o teste dá certo) e "reabre" (o teste falha).
+     =================================================================== */
+  function geraCircuito(opcao) {
+    const reabre = opcao === 'reabre';
+    const base = [
+      { estado: 'fechado', falhas: 0, req: [], t: 'Estado normal: as chamadas passam e o serviço responde.' },
+      { estado: 'fechado', falhas: 1, req: ['falha'], t: 'Primeira falha. O disjuntor conta, mas ainda deixa as chamadas passarem.' },
+      { estado: 'fechado', falhas: 2, req: ['falha'], t: 'Segunda falha seguida. Ainda fechado: um erro isolado não deve derrubar o caminho.' },
+      { estado: 'aberto', falhas: 3, req: ['falha'], t: 'Terceira falha seguida. O disjuntor abre: as chamadas são rejeitadas na hora, sem tocar no serviço.' },
+      { estado: 'aberto', falhas: 3, req: ['rejeitada'], t: 'Nova chamada: rejeição imediata (fail fast). O serviço ganha tempo para se recuperar, e o cliente não fica preso esperando.' }
+    ];
+    const teste = reabre
+      ? [
+          { estado: 'meio-aberto', falhas: 3, req: ['teste'], t: 'Passou o tempo de espera. Uma chamada de teste é enviada ao serviço.' },
+          { estado: 'aberto', falhas: 3, req: ['falha'], t: 'O teste falhou. O disjuntor reabre e a espera recomeça. Nenhuma outra chamada chega ao serviço.' }
+        ]
+      : [
+          { estado: 'meio-aberto', falhas: 3, req: ['teste'], t: 'Passou o tempo de espera. Uma chamada de teste é enviada ao serviço.' },
+          { estado: 'fechado', falhas: 0, req: ['ok'], t: 'O teste deu certo: o disjuntor fecha e o tráfego volta ao normal.' }
+        ];
+    return base.concat(teste);
+  }
+
+  function desenhaCircuito(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const estados = [
+      { nome: 'fechado', cor: CORES.verde, x: w * 0.2 },
+      { nome: 'meio-aberto', cor: CORES.amarelo, x: w * 0.5 },
+      { nome: 'aberto', cor: CORES.rosa, x: w * 0.8 }
+    ];
+    const yc = h * 0.36, larg = 150, alt = 60;
+
+    estados.forEach(e => {
+      const ativo = e.nome === q.estado;
+      global.AH.roundRect(ctx, e.x - larg / 2, yc - alt / 2, larg, alt, 12);
+      ctx.fillStyle = ativo ? 'rgba(255,255,255,.06)' : '#0f172a';
+      ctx.fill();
+      ctx.lineWidth = ativo ? 3 : 1.5;
+      ctx.strokeStyle = ativo ? e.cor : 'rgba(148,163,184,.3)';
+      ctx.stroke();
+      rotulo(ctx, e.nome, e.x, yc, ativo ? e.cor : CORES.mudo, 'center');
+    });
+
+    /* Setas de transição, só ilustrativas */
+    global.AH.arrow(ctx, estados[0].x + larg / 2, yc - 10, estados[1].x - larg / 2, yc - 10, 'rgba(148,163,184,.4)', true);
+    global.AH.arrow(ctx, estados[1].x - larg / 2, yc + 10, estados[0].x + larg / 2, yc + 10, 'rgba(148,163,184,.4)', true);
+    global.AH.arrow(ctx, estados[1].x + larg / 2, yc - 10, estados[2].x - larg / 2, yc - 10, 'rgba(148,163,184,.4)', true);
+    global.AH.arrow(ctx, estados[2].x - larg / 2, yc + 10, estados[1].x + larg / 2, yc + 10, 'rgba(148,163,184,.4)', true);
+
+    /* Contador de falhas: uma barra com 3 marcas (limite do disjuntor) */
+    const yBar = h * 0.66, x0 = w * 0.2, x1 = w * 0.8;
+    rotulo(ctx, 'falhas seguidas: ' + q.falhas + ' de 3 (limite)', x0, yBar - 18, CORES.mudo);
+    ctx.fillStyle = 'rgba(148,163,184,.2)';
+    ctx.fillRect(x0, yBar, x1 - x0, 10);
+    ctx.fillStyle = q.falhas >= 3 ? CORES.rosa : CORES.amarelo;
+    ctx.fillRect(x0, yBar, (x1 - x0) * Math.min(q.falhas, 3) / 3, 10);
+
+    /* Resultado da chamada atual */
+    const r = q.req.length ? q.req[q.req.length - 1] : null;
+    const texto = { falha: 'chamada: falhou', rejeitada: 'chamada: rejeitada sem chegar ao serviço', teste: 'chamada de teste enviada', ok: 'chamada de teste: ok' }[r];
+    const cor = { falha: CORES.rosa, rejeitada: CORES.amarelo, teste: CORES.azul, ok: CORES.verde }[r] || CORES.mudo;
+    if (texto) rotulo(ctx, texto, w / 2, h - 30, cor, 'center');
+    rotulo(ctx, 'fechado: tráfego normal · aberto: rejeição imediata · meio-aberto: um teste decide', 16, h - 12, CORES.mudo);
+  }
+
   global.SD = {
     CORES,
     EVENTOS,
     geraRPC,
     desenhaRPC,
+    geraCircuito,
+    desenhaCircuito,
     geraReconcilia,
     desenhaReconcilia,
     geraElasticidade,
