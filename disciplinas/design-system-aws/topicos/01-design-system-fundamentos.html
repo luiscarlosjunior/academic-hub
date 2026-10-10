@@ -155,6 +155,102 @@ grep -rhoE "import \{[^}]+\} from '@sua-org/design-system'" apps/ \
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos abaixo mostram como a teoria aparece no trabalho do dia a dia: decompor uma tela, escrever uma proposta e retirar uma API antiga sem quebrar ninguém.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Decompondo a tela de checkout</h3>
+  <div class="ah-prose">
+    <p>
+      Imagine uma tela de finalização de compra. Antes de criar qualquer componente, liste cada bloco visível e pergunte: <em>se eu mover
+      este bloco para outra tela, o que vem junto?</em> A resposta indica o nível. Um campo sozinho é átomo; um conjunto que se move
+      inteiro é organismo; a moldura da página é template.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Bloco na tela</th><th>Nível</th><th>Critério que decide</th></tr></thead>
+      <tbody>
+        <tr><td>Campo de CEP com botão “Buscar”</td><td>Molécula</td><td>Um input e um botão, sem regra de negócio própria</td></tr>
+        <tr><td>Resumo do pedido: itens, frete e total</td><td>Organismo</td><td>Seção completa que se move como bloco e formata valores</td></tr>
+        <tr><td>Etapas: Carrinho, Entrega, Pagamento</td><td>Organismo</td><td>Reaproveitado em todas as etapas do fluxo</td></tr>
+        <tr><td>Cabeçalho, conteúdo e resumo lateral</td><td>Template</td><td>Estrutura de página sem dados reais</td></tr>
+        <tr><td>Checkout com o pedido 12345 carregado</td><td>Página</td><td>Template preenchido com dados concretos</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o critério de “o que vem junto” evita dois erros comuns. O primeiro é colocar regra de negócio em
+      átomo, o que impede o reuso em outra tela. O segundo é criar organismo para algo que só existe uma vez, o que transforma o sistema em
+      um depósito de peças sem uso.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Uma proposta no estilo RFC</h3>
+  <div class="ah-prose">
+    <p>
+      Toda mudança de API deve chegar ao core team com esta estrutura. O documento é curto, e o campo <em>alternativas consideradas</em> é o
+      mais importante: ele mostra que a decisão foi pensada e registra por que as outras opções foram recusadas.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Markdown · <code>rfcs/0014-variante-fantasma.md</code></p>
+<pre class="ah-code"><code># RFC-0014: variante "fantasma" para o Button
+
+## Problema
+Times de produto criam botões secundários com CSS próprio. Cada cópia
+ignora o foco visível e o contraste definidos no tópico 3.
+
+## Proposta
+Adicionar a variante `fantasma` ao `Button`, com contraste validado.
+Tipo de mudança: minor (1.5.0), sem quebra de API.
+
+## Alternativas consideradas
+1. Criar um componente `GhostButton` separado. Recusado: duplica a API
+   e obriga cada time a aprender dois componentes.
+2. Usar `variante="secundaria"` com sobrescrita de cor. Recusado: a
+   sobrescrita quebra o par de contraste já validado.
+
+## Impacto
+- Consumidores: nenhuma alteração obrigatória.
+- Acessibilidade: texto com 4,5:1 sobre o fundo da página.
+
+## Decisão
+Aprovado pelo core team. Lançamento na versão 1.5.0.</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a seção de alternativas recusadas evita a mesma discussão daqui a seis meses. Quem chegar depois
+      vê a decisão e o motivo, em vez de reabrir a conversa do zero.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Depreciando uma prop sem quebrar ninguém</h3>
+  <div class="ah-prose">
+    <p>
+      Antes de remover algo, o sistema passa por uma janela de depreciação. Durante essa janela, a prop antiga continua funcionando e
+      aparece como depreciada no editor de código. A remoção só acontece na próxima major.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>Button.tsx</code></p>
+<pre class="ah-code"><code>export interface ButtonProps {
+  /** @deprecated Use `size` no lugar de `tamanho`. Remoção prevista na 3.0.0. */
+  tamanho?: 'sm' | 'md';
+  size?: 'sm' | 'md';
+}
+
+// dentro do componente: aceita as duas, prefere a nova
+const tamanhoFinal = size ?? tamanho ?? 'md';</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o JSDoc <code>@deprecated</code> risca a prop no editor de quem usa, sem alterar a execução. O
+      operador <code>??</code> garante que código antigo continua funcionando. Acompanhe a adoção da prop antiga com a medição da operação 2
+      e só remova quando ela deixar de aparecer nos produtos.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

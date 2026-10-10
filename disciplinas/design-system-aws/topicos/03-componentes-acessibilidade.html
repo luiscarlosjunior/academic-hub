@@ -219,6 +219,117 @@ test('botão primário não tem violações WCAG 2.2 AA', async ({ page }) => {
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Três padrões de acessibilidade aparecem em quase todo formulário e diálogo: campo com erro anunciado, diálogo com foco preso e uma prova automatizada desse comportamento.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Campo com rótulo e erro anunciado</h3>
+  <div class="ah-prose">
+    <p>
+      Um campo precisa de três ligações para funcionar com leitor de tela. O <code>label</code> aponta para o campo pelo <code>id</code>.
+      <code>aria-invalid</code> informa que o valor está errado. <code>aria-describedby</code> liga a mensagem de erro ao campo, para que o
+      leitor a leia junto. A mensagem usa <code>role="alert"</code> para ser anunciada quando aparece.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (React) · <code>Campo.tsx</code></p>
+<pre class="ah-code"><code>import type { InputHTMLAttributes } from 'react';
+
+type CampoProps = {
+  id: string;
+  rotulo: string;
+  erro?: string;
+} &amp; Omit&lt;InputHTMLAttributes&lt;HTMLInputElement&gt;, 'id'&gt;;
+
+export function Campo({ id, rotulo, erro, ...rest }: CampoProps) {
+  const erroId = id + '-erro';
+  return (
+    &lt;div&gt;
+      &lt;label htmlFor={id}&gt;{rotulo}&lt;/label&gt;
+      &lt;input
+        id={id}
+        aria-invalid={erro ? true : undefined}
+        aria-describedby={erro ? erroId : undefined}
+        {...rest}
+      /&gt;
+      {erro &amp;&amp; &lt;p id={erroId} role="alert"&gt;{erro}&lt;/p&gt;}
+    &lt;/div&gt;
+  );
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o <code>aria-invalid</code> só aparece quando há erro, porque <code>undefined</code> não gera
+      atributo no HTML. Assim, o leitor de tela não anuncia “inválido” em campos que ainda não foram preenchidos. Note também que o rótulo
+      não é substituído pelo placeholder: o placeholder desaparece ao digitar, e o rótulo precisa continuar visível.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Diálogo com foco preso</h3>
+  <div class="ah-prose">
+    <p>
+      Um diálogo modal precisa manter o foco dentro dele enquanto estiver aberto. Sem isso, a tecla Tab leva o usuário para trás do
+      diálogo, para elementos que ele não está vendo. O código abaixo faz o foco circular entre o primeiro e o último elemento focável.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JavaScript · <code>prender-foco.js</code></p>
+<pre class="ah-code"><code>const FOCAVEIS = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function prenderFoco(dialogo) {
+  dialogo.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const itens = dialogo.querySelectorAll(FOCAVEIS);
+    const primeiro = itens[0];
+    const ultimo = itens[itens.length - 1];
+
+    if (e.shiftKey &amp;&amp; document.activeElement === primeiro) {
+      e.preventDefault();
+      ultimo.focus();
+    } else if (!e.shiftKey &amp;&amp; document.activeElement === ultimo) {
+      e.preventDefault();
+      primeiro.focus();
+    }
+  });
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o código só intercepta a tecla Tab nas pontas da lista. No meio, o navegador move o foco
+      normalmente. Lembre também do que o código não faz: ele não fecha o diálogo com Escape nem devolve o foco ao botão que o abriu. Esses
+      dois comportamentos completam o padrão. Em projetos novos, o elemento nativo <code>&lt;dialog&gt;</code> com <code>showModal()</code> já
+      faz o trabalho de prender o foco e restaurá-lo, e costuma ser a escolha mais simples.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Provando o erro com um teste automático</h3>
+  <div class="ah-prose">
+    <p>
+      A melhor forma de garantir que o campo anuncia o erro é um teste que renderiza o estado de erro e roda o axe. O teste abaixo usa
+      uma história do Storybook com a mensagem já preenchida. Ele falha se o rótulo sumir ou se a mensagem não estiver associada ao campo.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>campo.a11y.spec.ts</code></p>
+<pre class="ah-code"><code>import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+test('campo com erro mantém rótulo e mensagem associada', async ({ page }) => {
+  await page.goto('http://localhost:6006/iframe.html?id=componentes-campo--com-erro&amp;viewMode=story');
+
+  const resultado = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(resultado.violations).toEqual([]);
+
+  const campo = page.getByLabel('E-mail');
+  await expect(campo).toHaveAttribute('aria-invalid', 'true');
+  await expect(campo).toHaveAccessibleDescription('Informe um e-mail válido.');
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o axe verifica as regras gerais, e as duas últimas linhas verificam o que é específico deste
+      componente. <code>getByLabel</code> só encontra o campo se o rótulo estiver associado a ele. Essa separação é útil: a automação cobre
+      o que é verificável, e o teste manual com leitor de tela cobre a qualidade da frase de erro.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

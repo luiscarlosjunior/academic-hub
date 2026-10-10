@@ -194,6 +194,95 @@ await sd.buildAllPlatforms();</code></pre>
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os três exemplos mostram tokens compostos, a troca de tema em código e uma verificação automática que impede valores fora da fonte única.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Token composto de tipografia</h3>
+  <div class="ah-prose">
+    <p>
+      Títulos usam várias propriedades juntas: família, tamanho, peso e altura de linha. O DTCG permite um token do tipo
+      <code>typography</code>, cujo valor é um objeto. As referências internas continuam valendo, então trocar a fonte base muda todos os títulos.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · <code>tokens/typography.json</code></p>
+<pre class="ah-code"><code>{
+  "font": {
+    "family": { "sans": { "$value": "Inter, system-ui, sans-serif", "$type": "fontFamily" } },
+    "size":   { "2xl": { "$value": "24px", "$type": "dimension" } }
+  },
+  "heading": {
+    "$type": "typography",
+    "$value": {
+      "fontFamily": "{font.family.sans}",
+      "fontSize": "{font.size.2xl}",
+      "fontWeight": 600,
+      "lineHeight": 1.25
+    }
+  }
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o token composto garante que todos os títulos tenham as mesmas quatro propriedades. Sem ele, cada
+      componente repete a combinação, e a primeira divergência aparece como um título com altura de linha diferente. A forma exata de saída
+      depende do <em>transform</em> escolhido no Style Dictionary: alguns grupos geram variáveis separadas, outros uma classe pronta.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Trocando o tema em React</h3>
+  <div class="ah-prose">
+    <p>
+      O tema é uma preferência do usuário. O hook abaixo lê a preferência do sistema operacional na primeira visita, aplica o atributo
+      <code>data-theme</code> no elemento raiz e atualiza o atributo sempre que o tema muda. Os componentes não sabem que existe tema.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (React) · <code>useTema.ts</code></p>
+<pre class="ah-code"><code>import { useEffect, useState } from 'react';
+
+export function useTema() {
+  const preferido = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
+  const [tema, setTema] = useState(preferido);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', tema === 'escuro' ? 'dark' : 'light');
+  }, [tema]);
+
+  return { tema, setTema };
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a regra <code>[data-theme="dark"]</code> do tópico vale para toda a página, e nenhum componente
+      precisa de um <code>if</code>. Um detalhe prático: se o tema for aplicado só depois da renderização, a tela pisca em branco antes de
+      escurecer. A solução de produção é um pequeno script no <code>&lt;head&gt;</code> que aplica o atributo antes do primeiro desenho.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Bloqueando cores fora dos tokens</h3>
+  <div class="ah-prose">
+    <p>
+      O melhor tratamento para um hexadecimal solto é impedir que ele entre no repositório. Um comando de busca no pipeline falha quando
+      encontra cor literal fora da pasta de tokens. Ele é simples, rápido e fácil de entender.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · etapa de lint de tokens</p>
+<pre class="ah-code"><code>#!/usr/bin/env bash
+# falha se encontrar hexadecimal fora da pasta tokens/
+if grep -rnE "#[0-9a-fA-F]{6}\b" src/ --include="*.tsx" --include="*.css" ; then
+  echo "Cor literal encontrada: use um token semântico."
+  exit 1
+fi
+echo "OK: nenhuma cor literal fora dos tokens."</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a busca só olha <code>src/</code>, onde os componentes vivem, e não toca em <code>tokens/</code>, onde
+      os valores são definidos. Isso faz a regra ser exata: a cor pode existir na fonte, mas não pode aparecer no uso. Quando a regra
+      atrapalhar uma exceção legítima, a melhor saída é criar um token novo, e não desligar a verificação.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">

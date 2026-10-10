@@ -221,6 +221,122 @@ npx playwright test --project=visual --update-snapshots</code></pre>
   </div>
 </section>
 
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos cobrem três situações de pipeline real: impedir dois deploys simultâneos, levar o relatório visual para o pull request e diagnosticar uma falha de OIDC lendo o token.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Dois deploys não se atropelam</h3>
+  <div class="ah-prose">
+    <p>
+      Se dois commits entram em <code>main</code> em sequência, dois jobs de deploy podem rodar ao mesmo tempo e escrever no mesmo bucket.
+      O bloco <code>concurrency</code> coloca os jobs de um mesmo grupo em fila. O ponto importante é <code>cancel-in-progress: false</code>:
+      um deploy já iniciado nunca é cancelado no meio, porque isso deixaria o bucket com arquivos misturados de duas versões.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em YAML · trecho do job de produção</p>
+<pre class="ah-code"><code>jobs:
+  producao:
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: producao
+    concurrency:
+      group: deploy-producao
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: storybook-static, path: storybook-static }
+      - run: aws s3 sync storybook-static s3://ds-docs-producao --delete</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> com <code>cancel-in-progress: true</code>, o segundo commit cancelaria o deploy do primeiro no meio
+      do <code>sync</code>, e o bucket ficaria parcialmente atualizado. Com <code>false</code>, o segundo deploy espera o primeiro terminar e
+      depois publica a versão mais nova. Essa é a configuração recomendada para deploys, e o cancelamento fica para testes de pull request.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Relatório visual no pull request</h3>
+  <div class="ah-prose">
+    <p>
+      Quando o teste visual falha num pull request, quem revisa precisa ver a diferença sem rodar o projeto localmente. O workflow abaixo
+      roda só quando arquivos de interface mudam e envia o relatório do Playwright como artefato, que pode ser baixado na página da execução.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em YAML · <code>.github/workflows/pr-visual.yml</code></p>
+<pre class="ah-code"><code>name: pr-visual
+
+on:
+  pull_request:
+    paths: ['src/**', '.storybook/**']
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=visual
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: relatorio-visual
+          path: playwright-report/</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o filtro <code>paths</code> evita rodar o teste visual em mudanças de documentação, o que economiza
+      minutos de execução. <code>if: failure()</code> envia o relatório só quando há falha, para não lotar o armazenamento com execuções
+      verdes. O relatório HTML mostra lado a lado a referência, a captura atual e a diferença destacada.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 3 · Lendo o token OIDC para diagnosticar</h3>
+  <div class="ah-prose">
+    <p>
+      Quando a AWS recusa a troca de token com <em>Not authorized to perform sts:AssumeRoleWithWebIdentity</em>, a causa quase sempre está
+      no claim <code>sub</code>. O token é um JWT: três partes em base64 separadas por ponto. A parte do meio é o payload, que contém o
+      <code>sub</code>. Decodificá-la mostra exatamente o que a trust policy precisa aceitar. Nunca imprima o token completo em log, pois
+      ele dá acesso enquanto estiver válido.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · inspeção segura do claim (sem imprimir o token)</p>
+<pre class="ah-code"><code># dentro de um passo de depuração temporário, com o token em variável de ambiente
+PAYLOAD=$(echo "$ID_TOKEN" | cut -d. -f2 | tr '_-' '/+')
+# acrescenta o padding de base64 que o decodificador exige
+while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="$PAYLOAD="; done
+echo "$PAYLOAD" | base64 --decode 2>/dev/null | jq '{sub, aud, ref}'</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o comando extrai só três claims. O <code>sub</code> diz de qual repositório e branch veio o pedido,
+      o <code>aud</code> deve ser <code>sts.amazonaws.com</code>, e o <code>ref</code> mostra a branch. Comparar esses valores com a trust
+      policy acha a diferença em segundos. Remova o passo de depuração assim que o problema for resolvido.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 4 · Tabela de falhas de OIDC</h3>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Mensagem ou sintoma</th><th>Causa provável</th><th>Correção</th></tr></thead>
+      <tbody>
+        <tr><td>Not authorized, <code>sub</code> não confere</td><td>Job rodando em outra branch ou em environment não listado na trust policy</td><td>Ajustar a condição <code>sub</code> para o caso real</td></tr>
+        <tr><td>Error: Could not load credentials / Token not found</td><td>Falta <code>id-token: write</code> no bloco <code>permissions</code></td><td>Adicionar a permissão no workflow ou no job</td></tr>
+        <tr><td>Not authorized, <code>aud</code> diferente</td><td>Condição de audiência ausente ou com valor errado</td><td>Usar <code>sts.amazonaws.com</code> em <code>:aud</code></td></tr>
+        <tr><td>Provedor não encontrado</td><td>Provedor OIDC do GitHub não criado na conta</td><td>Criar o provedor <code>token.actions.githubusercontent.com</code> na conta</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> cada linha separa uma camada do problema: o provedor, a permissão do job, a audiência e a condição
+      de identidade. Seguir a tabela de cima para baixo evita o hábito de afrouxar a trust policy “para testar”, que é justamente o erro que
+      o tópico 8 proíbe.
+    </p>
+  </div>
+</section>
+
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
   <div class="space-y-5">
