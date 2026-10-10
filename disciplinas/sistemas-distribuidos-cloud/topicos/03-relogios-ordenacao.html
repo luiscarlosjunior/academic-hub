@@ -179,6 +179,14 @@ def compara(a, b):
   <div id="capRelogios" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
 
+<section id="snapshot-animacao" data-toc="Animação: snapshot de Chandy e Lamport" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-camera text-sky-400 mr-2"></i>Animação · Um snapshot consistente, passo a passo</h2>
+  <p class="ah-lead text-sm mb-4">P1 inicia o snapshot. O marcador percorre os canais, e cada processo grava seu estado na primeira vez que recebe um marcador. O canal C32 guarda a mensagem m, que estava em trânsito quando o snapshot começou.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvSnapshot" style="height:340px"></canvas></div>
+  <div id="ctlSnapshot" class="mt-4"></div>
+  <div id="capSnapshot" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
 <section id="exemplo" data-toc="Exemplo: Lamport e vetor no mesmo traço" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo · Calculando os dois relógios</h2>
   <div class="ah-prose">
@@ -247,6 +255,32 @@ Com Lamport, a comparação L(e2)=3 e L(e6)=3 não diz nada:
       <div class="text-xs font-bold text-sky-300 mb-1">Logs de sistema de vários servidores</div>
       <p class="text-xs text-slate-400">Ao juntar logs de dez servidores para investigar um incidente, o horário de cada linha pode estar errado por milissegundos. A ordem real exige carimbos causais, como os que os sistemas de rastreamento distribuído propagam entre chamadas.</p>
     </div>
+  </div>
+</section>
+
+<section id="entrega-causal" data-toc="Aprofundamento: snapshots e entrega causal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Aprofundamento · Snapshots e entrega causal</h2>
+  <div class="ah-prose">
+    <p>
+      O algoritmo de Chandy e Lamport (1985) depende de uma hipótese que costuma ser esquecida: os canais precisam ser <strong>FIFO</strong>, ou seja, mensagens
+      entre o mesmo par de processos chegam na ordem em que foram enviadas. Sem essa propriedade, o marcador poderia ultrapassar uma mensagem anterior, e o
+      canal gravado estaria incompleto. Protocolos como o TCP oferecem FIFO por conexão, e é por isso que o algoritmo é implementado sobre eles.
+    </p>
+    <p>
+      Um <strong>corte</strong> é consistente quando, para cada mensagem registrada como recebida, a mensagem de envio também está registrada. O conjunto dos
+      estados locais e das mensagens em trânsito forma um corte consistente se, e somente se, não existe mensagem recebida antes do corte cujo envio é posterior ao corte.
+      Essa é a definição que torna o snapshot útil: um estado que nunca existiu, em que um pagamento foi recebido mas nunca enviado, é inútil para diagnóstico
+      e para recuperação.
+    </p>
+    <p>
+      A entrega causal generaliza a ideia para comunicação: uma mensagem só é entregue a um processo depois de todas as mensagens que a precederam causalmente.
+      Birman e Joseph (1987) propuseram protocolos de comunicação em grupo com essa garantia, usando relógios vetoriais para decidir quando segurar uma
+      mensagem que chegou antes da sua causa. Sistemas de chat e de edição colaborativa usam esse mecanismo para que uma resposta nunca apareça antes da pergunta.
+    </p>
+    <p>
+      O custo da entrega causal é a espera: uma mensagem pode ficar retida enquanto uma causa não chega, e o atraso pode crescer se a causa se perder. Por isso,
+      a maioria dos sistemas de grande escala usa causalidade apenas por chave ou por sessão, e não globalmente.
+    </p>
   </div>
 </section>
 
@@ -366,6 +400,11 @@ Com Lamport, a comparação L(e2)=3 e L(e6)=3 não diz nada:
       { v: 'lamport', rotulo: 'Relógio de Lamport (L)' },
       { v: 'vetorial', rotulo: 'Relógio vetorial ([P1,P2,P3])' }
     ]
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvSnapshot', ctl: 'ctlSnapshot', cap: 'capSnapshot',
+    desenha: SD.desenhaSnapshot, gera: SD.geraSnapshot, velocidade: 2000
   });
 
 })();
