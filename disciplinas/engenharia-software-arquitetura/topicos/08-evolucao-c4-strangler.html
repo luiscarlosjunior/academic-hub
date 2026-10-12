@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evolução de sistemas: documentação C4 e o padrão Strangler Fig · Arquitetura de Software · AcademicHub</title>
+<meta name="description" content="Como documentar a arquitetura em níveis com o modelo C4, como tratar sistemas legados com testes de caracterização e costuras, e como migrar aos poucos com o padrão Strangler Fig, com animação da migração.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/08-evolucao-c4-strangler">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Poucos engenheiros começam um sistema do zero. A maioria herda um sistema que já existe, com anos de decisões, com parte da lógica em um lugar que
+      ninguém sabe, com documentação desatualizada e com clientes que dependem de cada comportamento, inclusive dos defeitos. A arquitetura, nesse
+      contexto, é menos sobre desenhar algo novo e mais sobre <strong>evoluir o que existe sem parar o negócio</strong>.
+    </p>
+    <p>
+      Esta página fecha a trilha de Arquitetura com duas ferramentas. A primeira é o modelo <strong>C4</strong>, que documenta a arquitetura em níveis de
+      zoom que as pessoas conseguem ler. A segunda é o padrão <strong>Strangler Fig</strong>, que substitui um sistema legado peça por peça, em vez de
+      reescrevê-lo de uma vez.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever a arquitetura de um sistema nos quatro níveis do modelo C4, com o público de cada nível;</li>
+      <li>explicar por que reescritas completas costumam falhar e quais alternativas existem;</li>
+      <li>preparar um sistema legado para mudança com testes de caracterização e costuras;</li>
+      <li>planejar uma migração incremental com fachada, roteamento e critério de conclusão.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="c4" data-toc="Documentação com o modelo C4" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-sky-400 mr-2"></i>Teoria · Documentação em níveis: o modelo C4</h2>
+  <div class="ah-prose">
+    <p>
+      Brown propôs o <strong>modelo C4</strong> (contexto, contêineres, componentes e código) como uma forma simples de documentar a arquitetura. A ideia é
+      que cada nível responde a uma pergunta diferente e é lido por um público diferente:
+    </p>
+    <ul>
+      <li><strong>Contexto:</strong> o sistema como uma caixa, cercado pelos usuários e pelos sistemas externos com os quais ele conversa. Público: todos, inclusive quem não é técnico.</li>
+      <li><strong>Contêineres:</strong> as aplicações e os armazenamentos que compõem o sistema (um site, uma API, um banco, uma fila). Público: desenvolvedores e operadores. Um “contêiner” aqui é uma unidade executável, não necessariamente um Docker.</li>
+      <li><strong>Componentes:</strong> as partes principais dentro de um contêiner (um módulo de pedidos, um serviço de autenticação). Público: quem vai trabalhar naquele contêiner.</li>
+      <li><strong>Código:</strong> classes e funções. Quase nunca vale a pena desenhar à mão; ele é melhor deixado para a própria IDE ou para o código.</li>
+    </ul>
+    <p>
+      A regra mais útil do modelo é a disciplina de não misturar níveis. Um diagrama de contexto que mostra tabelas do banco confunde o executivo. Um
+      diagrama de componentes que mostra a rede entre datacenters confunde o desenvolvedor. Cada diagrama deve ter um título que diga o nível e um
+      conjunto de legendas consistente, com as mesmas formas e cores em todos os diagramas.
+    </p>
+    <p>
+      Documentação de arquitetura deve morar perto do código e ser revisada com ele. Diagramas escritos como código (por exemplo, em Mermaid ou
+      PlantUML) ficam versionados, passam por revisão e não viram um arquivo de slides esquecido.
+    </p>
+  </div>
+</section>
+
+<section id="legado" data-toc="Tratando o legado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box-archive text-sky-400 mr-2"></i>Teoria · Tratando o legado com segurança</h2>
+  <div class="ah-prose">
+    <p>
+      Feathers (2004) define <strong>código legado</strong> de forma prática: é código sem testes. Não importa a idade ou a tecnologia. Antes de mudar um
+      código legado, é preciso criar uma rede de segurança, e isso começa com os <strong>testes de caracterização</strong>. Eles não dizem qual deveria
+      ser o comportamento correto. Eles registram o comportamento atual, inclusive os estranhos, para que qualquer mudança seja percebida. Se o sistema
+      cobra 2,5% de juros quando deveria cobrar 2%, o teste de caracterização registra os 2,5%, e a decisão de corrigir fica explícita e separada.
+    </p>
+    <p>
+      Feathers também descreve as <strong>costuras</strong> (<em>seams</em>): pontos onde é possível alterar o comportamento de um trecho sem editar o
+      código ali. Uma costura pode ser uma injeção de dependência, uma interface extraída ou um ponto de configuração. Sem costuras, testar o legado exige
+      mexer nele antes de testá-lo, o que é justamente o que se quer evitar.
+    </p>
+    <p>
+      Em sistemas com modelos de domínio confusos, Evans (2003) propõe a <strong>camada anticorrupção</strong>: um tradutor entre o sistema legado e o novo,
+      que impede que o vocabulário e as decisões antigas contaminem o código novo. Sem essa camada, cada serviço novo passa a falar a língua do legado, e
+      a migração vira apenas uma mudança de embalagem.
+    </p>
+  </div>
+</section>
+
+<section id="reescrita" data-toc="Por que reescritas falham" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hammer text-sky-400 mr-2"></i>Teoria · Por que a reescrita total costuma falhar</h2>
+  <div class="ah-prose">
+    <p>
+      A tentação de reescrever tudo é forte: o código antigo é feio, a tecnologia está ultrapassada, e o projeto novo parece uma folha em branco. Na prática,
+      reescritas grandes costumam atrasar, entregar menos do que o sistema antigo e reproduzir defeitos antigos que o sistema antigo havia aprendido a evitar.
+      Há três razões principais:
+    </p>
+    <ul>
+      <li>O sistema antigo é a única especificação completa do comportamento real, e ninguém conseguiu escrevê-la inteira.</li>
+      <li>Durante a reescrita, o sistema antigo continua recebendo mudanças. A equipe precisa manter dois sistemas, e o novo alcança o antigo em um ritmo que raramente se cumpre.</li>
+      <li>Nenhum valor chega ao usuário até o fim da reescrita, o que torna o projeto vulnerável a cortes de orçamento.</li>
+    </ul>
+    <p>
+      Fowler (2004) descreveu uma alternativa que ficou conhecida como <strong>Strangler Fig</strong> (figueira estranguladora). A figueira cresce ao redor de
+      uma árvore hospedeira até substituí-la, sem derrubá-la de uma vez. A migração segue o mesmo princípio.
+    </p>
+  </div>
+</section>
+
+<section id="strangler" data-toc="Strangler Fig: a migração gradual" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-seedling text-sky-400 mr-2"></i>Teoria · O padrão Strangler Fig em quatro movimentos</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Interpor uma fachada.</strong> Um roteador (um proxy, um gateway de API) passa a ficar na frente do sistema legado. No início, ele encaminha tudo para o legado. Nada muda para o usuário, mas agora existe um ponto onde as rotas podem ser redirecionadas.</li>
+      <li><strong>Escolher uma fatia.</strong> Escolha uma funcionalidade com fronteira razoavelmente clara e com valor visível, como o catálogo de produtos. Evite começar pela parte mais central e arriscada.</li>
+      <li><strong>Construir e validar a fatia nova.</strong> Implemente a funcionalidade no novo serviço, com testes de contrato que confirmem o mesmo comportamento do legado. Coloque a nova versão em produção para uma parcela pequena do tráfego, se possível, e compare as respostas.</li>
+      <li><strong>Redirecionar e repetir.</strong> Quando a fatia estiver validada, a fachada passa a enviar aquelas rotas para o novo serviço. A fatia do legado é removida depois de um período de segurança. O ciclo recomeça com a próxima fatia.</li>
+    </ul>
+    <p>
+      O critério de conclusão deve ser definido desde o início. Um legado “quase todo migrado” é, na prática, um sistema com dois lugares para manter. Defina
+      quando o legado será desligado, quem decide e o que acontece com os dados que ainda dependem dele.
+    </p>
+    <p>
+      A animação desta página mostra a progressão da migração: a fachada no topo, o monólito encolhendo e os novos serviços ocupando o espaço, em
+      incrementos de 25% do tráfego.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: a migração em fases" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · O monólito encolhe, o novo cresce</h2>
+  <p class="ah-lead text-sm mb-4">Avance as fases. A fachada não muda em nenhum momento: o que muda é a fatia do tráfego que chega ao código novo.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvEstrangulamento" style="height:300px"></canvas></div>
+  <div id="ctlEstrangulamento" class="mt-4"></div>
+  <div id="capEstrangulamento" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: a regra de roteamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo prático · A fachada decidindo para onde ir</h2>
+  <div class="ah-prose">
+    <p>
+      A essência da fachada é uma tabela de rotas migradas. O exemplo abaixo mostra a lógica em Python, de forma simplificada. Em produção, a mesma regra
+      costuma viver em um gateway de API ou em um proxy reverso, e não no código da aplicação.
+    </p>
+    <pre class="ah-code"><code># fachada.py
+MONOLITO = "https://monolito.faculdade.local"
+
+# Cada fatia migrada entra aqui somente depois de validada.
+ROTAS_MIGRADAS = {
+    "/catalogo": "https://catalogo.faculdade.local",
+    "/avaliacoes": "https://avaliacoes.faculdade.local",
+}
+
+def destino(caminho):
+    # Prefixos mais específicos primeiro: "/catalogo/busca" deve ir ao novo.
+    for prefixo in sorted(ROTAS_MIGRADAS, key=len, reverse=True):
+        if caminho == prefixo or caminho.startswith(prefixo + "/"):
+            return ROTAS_MIGRADAS[prefixo]
+    return MONOLITO                  # tudo o que ainda não migrou
+
+assert destino("/catalogo/busca?q=sql") == "https://catalogo.faculdade.local"
+assert destino("/catalogo-antigo") == MONOLITO    # não é o prefixo, mesmo começando igual
+assert destino("/pedidos/42") == MONOLITO         # ainda no legado</code></pre>
+    <p>
+      Os asserts documentam dois detalhes que costumam causar defeitos. O primeiro é a ordem de avaliação: rotas mais específicas devem ser verificadas
+      antes das gerais. O segundo é a fronteira do prefixo: <code>/catalogo-antigo</code> não pertence ao <code>/catalogo</code>, e uma comparação ingênua
+      por <code>startswith</code> os confundiria. Por isso, o código exige o separador <code>/</code>.
+    </p>
+    <p>
+      Em uma migração real, essa tabela também deveria ser alterada por configuração, com uma forma de voltar ao legado rapidamente. Quando um serviço novo
+      apresentar problema, reverter a rota deve ser uma mudança de um minuto, e não uma nova implantação.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-sky-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Escreva testes de caracterização antes de tocar no legado.</strong> Eles são a única forma de saber, depois, se a mudança alterou o comportamento sem querer.</li>
+      <li><strong>Migre por fatias de valor, não por camadas técnicas.</strong> “Migrar o banco primeiro” não entrega nada ao usuário e deixa o risco para o fim.</li>
+      <li><strong>Compare respostas do legado e do novo.</strong> Em tráfego real, a comparação em sombra (<em>shadow traffic</em>) revela diferenças que nenhum teste previu.</li>
+      <li><strong>Tenha reversão.</strong> Cada redirecionamento deve poder ser desfeito rapidamente. Sem isso, a migração é uma aposta.</li>
+      <li><strong>Documente o estado da migração no próprio repositório.</strong> Um ADR por fatia, com a data, o critério de conclusão e o que ainda depende do legado.</li>
+      <li><strong>Desligue o legado de verdade.</strong> Código morto que “pode ser útil um dia” é dívida técnica (tópico 4) com custo de manutenção todo mês.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>A reescrita já dura dois anos e não entregou nada</td><td>Reescrita total sem entrega incremental</td><td>Interpor fachada e migrar a primeira fatia com valor visível</td></tr>
+        <tr><td>Serviço novo retorna resultado diferente do legado</td><td>Comportamento do legado não foi caracterizado</td><td>Testes de caracterização e comparação em sombra</td></tr>
+        <tr><td>Dados duplicados entre legado e novo, divergindo</td><td>Dupla escrita sem dono do dado</td><td>Definir um dono por dado e sincronizar por evento (tópico 7)</td></tr>
+        <tr><td>Migração “quase pronta” há um ano</td><td>Ausência de critério de conclusão</td><td>Definir a data de desligamento e o responsável</td></tr>
+        <tr><td>Modelo novo copiou os nomes e as regras confusas do legado</td><td>Falta de camada anticorrupção</td><td>Criar um tradutor e modelar o domínio com a linguagem do negócio</td></tr>
+        <tr><td>Diagramas de arquitetura desatualizados</td><td>Documentação fora do repositório</td><td>Diagramas como código, revisados junto com as mudanças</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> migrar o código sem migrar os dados. Enquanto o legado e o novo escreverem na mesma tabela, ou em tabelas que se copiam, a separação é apenas aparente. Defina o dono de cada dado antes de cada fatia.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-sky-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Em um projeto da disciplina, escolha um sistema pequeno que você mesmo escreveu no início do curso e trate-o como legado. Escreva testes de
+      caracterização para as funções principais, crie uma fachada que encaminha tudo para a versão atual e reescreva uma única funcionalidade atrás dela.
+      O exercício ensina mais sobre evolução do que qualquer leitura, porque o código é seu, e os erros de decisão são visíveis.
+    </p>
+    <p>
+      Para documentar a arquitetura do projeto final, faça ao menos o diagrama de contexto e o de contêineres. Um bom diagrama de contexto cabe em uma
+      página e pode ser entendido em um minuto por alguém de fora do projeto.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual nível do modelo C4 é o mais adequado para mostrar o sistema a um gestor que não é da área técnica?</p>
+      <button class="ah-quiz-opt">Código</button>
+      <button class="ah-quiz-opt">Contexto</button>
+      <button class="ah-quiz-opt">Componentes</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. O diagrama de contexto mostra o sistema como uma caixa e seus usuários e sistemas externos, sem detalhes internos.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Antes de alterar um trecho de código legado sem testes, qual é o primeiro passo recomendado?</p>
+      <button class="ah-quiz-opt">Corrigir os defeitos que parecem óbvios</button>
+      <button class="ah-quiz-opt">Refatorar o trecho inteiro para ficar mais limpo</button>
+      <button class="ah-quiz-opt">Escrever testes de caracterização que registrem o comportamento atual</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. Sem testes, não há como saber se a mudança preservou o comportamento. Os testes de caracterização fixam o que o sistema faz hoje, inclusive o que parece errado.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>O modelo C4 documenta a arquitetura em quatro níveis, cada um para um público. Não misture níveis.</li>
+    <li>Legado é código sem testes. Antes de mudar, caracterize o comportamento atual.</li>
+    <li>Reescritas totais costumam atrasar e reproduzir defeitos. Prefira migração incremental.</li>
+    <li>O Strangler Fig interpõe uma fachada e migra fatias validadas, com reversão e critério de conclusão.</li>
+    <li>Migrar código sem definir o dono dos dados não separa nada de verdade.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BROWN, S. <em>The C4 model for visualising software architecture</em>. c4model.com. Definição dos níveis de contexto, contêineres, componentes e código.</li>
+    <li>FOWLER, M. <em>StranglerFigApplication</em>. martinfowler.com, 2004. Descrição do padrão de migração incremental.</li>
+    <li>FEATHERS, M. <em>Working Effectively with Legacy Code</em>. Upper Saddle River: Prentice Hall, 2004. Definição de legado, testes de caracterização e costuras.</li>
+    <li>EVANS, E. <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em>. Boston: Addison-Wesley, 2003. Camada anticorrupção e contextos delimitados.</li>
+    <li>FORD, N.; PARSONS, R.; KUA, P. <em>Building Evolutionary Architectures</em>. Sebastopol: O'Reilly, 2017. Arquiteturas que evoluem com funções de adequação.</li>
+    <li>NYGARD, M. <em>Documenting Architecture Decisions</em>. Cognitect Blog, 2011. Registro das decisões que sustentam a evolução.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvEstrangulamento', ctl: 'ctlEstrangulamento', cap: 'capEstrangulamento',
+    desenha: ENG.desenhaEstrangulamento, gera: ENG.geraEstrangulamento, velocidade: 2800
+  });
+
+})();
+</script>
+</body>
+</html>

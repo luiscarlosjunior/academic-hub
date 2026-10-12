@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integração entre sistemas: APIs, filas, eventos e mensagens mortas · Arquitetura de Software · AcademicHub</title>
+<meta name="description" content="Comunicação síncrona e assíncrona, filas e eventos, entrega pelo menos uma vez, idempotência, retentativas com backoff e fila de mensagens mortas, com animação do fluxo de um evento e exemplo em Python.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/07-integracao-mensageria">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Nenhum sistema de negócio vive sozinho. Um pedido precisa de estoque, de pagamento, de nota fiscal e de uma notificação ao cliente. A forma como
+      esses sistemas se falam determina quanto o conjunto é resistente a falhas, quão fácil é evoluí-lo e quanto dele some quando um componente cai.
+      <strong>Integração</strong> é a disciplina que decide essas formas de comunicação.
+    </p>
+    <p>
+      Esta página compara a comunicação síncrona, na qual quem chama espera a resposta, com a assíncrona, na qual uma mensagem é deixada para ser processada
+      depois. Ela mostra os cuidados necessários para que as mensagens não se percam, não se repitam de forma prejudicial e não travem o sistema quando
+      algo der errado.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>escolher entre comunicação síncrona e assíncrona com base em acoplamento, latência e tolerância a falhas;</li>
+      <li>diferenciar fila (um consumidor por mensagem) de tópico ou evento (vários interessados);</li>
+      <li>explicar por que a entrega “exatamente uma vez” é, na prática, “pelo menos uma vez” com consumidor idempotente;</li>
+      <li>projetar retentativas com backoff e jitter, e usar a fila de mensagens mortas para o que não pode ser processado;</li>
+      <li>identificar e corrigir as armadilhas mais comuns de integração por eventos.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="sincrono" data-toc="Síncrono × assíncrono" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-sky-400 mr-2"></i>Teoria · Comunicação síncrona e assíncrona</h2>
+  <div class="ah-prose">
+    <p>
+      Na comunicação <strong>síncrona</strong>, o cliente envia uma requisição (uma chamada HTTP, uma chamada gRPC) e espera a resposta. É o modelo
+      mais simples de raciocinar: a resposta chega, e o fluxo continua. O custo é o acoplamento temporal: se o serviço chamado está lento ou fora do ar,
+      o chamador fica preso, e a falha se propaga pela cadeia de chamadas.
+    </p>
+    <p>
+      Na comunicação <strong>assíncrona</strong>, o remetente deposita uma mensagem em um intermediário, como uma fila ou um barramento de eventos, e
+      segue em frente. O destinatário processa quando puder. O ganho é o desacoplamento temporal: o produtor não precisa que o consumidor esteja no ar
+      naquele instante. O custo é a complexidade: a resposta não é imediata, a ordem pode não ser preservada, e é preciso lidar com repetições.
+    </p>
+    <p>
+      A regra prática: use comunicação síncrona quando o chamador <strong>precisa</strong> da resposta para continuar, como consultar o saldo antes de
+      autorizar um pagamento. Use assíncrona quando o chamador só precisa que algo aconteça, como enviar um e-mail ou atualizar um índice de busca.
+    </p>
+  </div>
+</section>
+
+<section id="filas" data-toc="Filas, tópicos e eventos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Teoria · Filas, tópicos e eventos</h2>
+  <div class="ah-prose">
+    <p>
+      Hohpe e Woolf (2003) catalogaram os padrões de integração que ainda orientam o assunto. Dois deles são fundamentais para entender a diferença entre
+      fila e tópico:
+    </p>
+    <ul>
+      <li><strong>Fila (point-to-point):</strong> cada mensagem é entregue a um único consumidor. Serve para distribuir trabalho entre instâncias de um mesmo serviço, como processar cinco mil relatórios com dez workers.</li>
+      <li><strong>Tópico ou publicação-assinatura (pub/sub):</strong> cada mensagem é entregue a todos os assinantes interessados. Serve para anunciar fatos, como “pedido criado”, para vários serviços que reagem de formas diferentes.</li>
+    </ul>
+    <p>
+      A distinção é também semântica. Uma <strong>mensagem de comando</strong> diz o que deve ser feito (“envie este e-mail”) e tem um destinatário claro.
+      Um <strong>evento</strong> diz o que aconteceu (“o pedido 42 foi criado”), no passado, e não sabe quem vai reagir. Essa diferença determina o
+      acoplamento: eventos reduzem o conhecimento que o produtor precisa ter sobre os consumidores.
+    </p>
+  </div>
+</section>
+
+<section id="entrega" data-toc="Garantias de entrega" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope-circle-check text-sky-400 mr-2"></i>Teoria · Garantias de entrega: a repetição é inevitável</h2>
+  <div class="ah-prose">
+    <p>
+      Há três garantias possíveis para a entrega de mensagens:
+    </p>
+    <ul>
+      <li><strong>No máximo uma vez:</strong> a mensagem pode se perder, mas nunca chega duplicada. Útil para telemetria, em que perder um ponto é aceitável.</li>
+      <li><strong>Pelo menos uma vez:</strong> a mensagem nunca se perde, mas pode chegar mais de uma vez. É a garantia mais comum em brokers reais, porque o produtor reenvia quando não recebe confirmação, e um consumidor pode processar e cair antes de confirmar.</li>
+      <li><strong>Exatamente uma vez:</strong> cada mensagem tem efeito único. Em sistemas distribuídos, isso não é oferecido pela infraestrutura de forma geral. Na prática, é obtido com <strong>pelo menos uma vez somado a idempotência</strong> no consumidor.</li>
+    </ul>
+    <p>
+      A consequência é que o consumidor precisa ser <strong>idempotente</strong>: processar a mesma mensagem duas vezes deve produzir o mesmo efeito que
+      processá-la uma vez. A técnica mais usada é guardar um identificador único de cada mensagem já processada e ignorar as repetições. Sem isso, um
+      e-mail de cobrança é enviado duas vezes, ou um pagamento é debitado em dobro.
+    </p>
+    <p>
+      Essa é a ideia por trás do tópico 2 de Sistemas Distribuídos: a repetição de requisições só é segura quando o efeito é idempotente ou quando há um
+      identificador que permite reconhecer a repetição.
+    </p>
+  </div>
+</section>
+
+<section id="retentativas" data-toc="Retentativas, backoff e mensagens mortas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate-left text-sky-400 mr-2"></i>Teoria · Retentativas e fila de mensagens mortas</h2>
+  <div class="ah-prose">
+    <p>
+      Muitas falhas são transitórias: uma conexão caiu, um serviço reiniciou, um banco estava sobrecarregado por um instante. Nesses casos, tentar de
+      novo resolve. A estratégia tem três cuidados:
+    </p>
+    <ul>
+      <li><strong>Limite de tentativas:</strong> retentar para sempre transforma uma falha permanente em um laço infinito e um consumo de recursos sem fim.</li>
+      <li><strong>Backoff exponencial:</strong> espere 1 segundo, depois 2, depois 4. Se todos os consumidores retentarem no mesmo instante, eles derrubam o serviço que estava se recuperando.</li>
+      <li><strong>Jitter:</strong> acrescente uma variação aleatória ao intervalo, para que os retries de clientes diferentes não se sincronizem.</li>
+    </ul>
+    <p>
+      Quando o limite é atingido, a mensagem não deve ser descartada em silêncio. Ela vai para uma <strong>fila de mensagens mortas</strong> (DLQ, do inglês
+      <em>dead letter queue</em>). Lá ela fica disponível para inspeção, correção e reprocessamento. Mensagens com dados inválidos, por exemplo, nunca
+      vão funcionar, e devem ser separadas das falhas transitórias.
+    </p>
+    <p>
+      A animação desta página mostra a sequência completa: a mensagem é publicada, o consumidor de estoque confirma, o consumidor de e-mail falha
+      sucessivamente e a mensagem termina na DLQ.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: evento, falha e DLQ" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Um evento, dois consumidores e uma falha</h2>
+  <p class="ah-lead text-sm mb-4">O produtor publica o pedido 42. Acompanhe os passos: a confirmação do estoque, as tentativas do e-mail e o destino final da mensagem que não pôde ser processada.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvMensageria" style="height:300px"></canvas></div>
+  <div id="ctlMensageria" class="mt-4"></div>
+  <div id="capMensageria" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: consumidor idempotente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo prático · Consumidor idempotente com retentativas</h2>
+  <div class="ah-prose">
+    <p>
+      O código abaixo simula um consumidor de pedidos. Ele registra os identificadores já processados, para ignorar repetições, aplica retentativas com
+      backoff exponencial e jitter, e envia para a DLQ quando esgota as tentativas. Para manter o exemplo autocontido, a “fila” é uma lista em memória;
+      em produção, seria um broker real.
+    </p>
+    <pre class="ah-code"><code>import random
+import time
+
+MAX_TENTATIVAS = 3
+processados = set()           # em produção: tabela no banco, com chave única
+dlq = []                      # fila de mensagens mortas
+
+def processar(mensagem):
+    if mensagem["valor"] < 0:
+        raise ValueError("valor negativo: falha permanente")
+    if random.random() < 0.3:
+        raise ConnectionError("servidor de e-mail indisponível")  # transitória
+    print("e-mail enviado para o pedido", mensagem["id"])
+
+def consumir(mensagem):
+    if mensagem["id"] in processados:           # idempotência: repetição ignorada
+        return
+    for tentativa in range(1, MAX_TENTATIVAS + 1):
+        try:
+            processar(mensagem)
+            processados.add(mensagem["id"])     # marca só depois de dar certo
+            return
+        except ConnectionError:                 # falha transitória: tenta de novo
+            espera = (2 ** (tentativa - 1)) * random.uniform(0.5, 1.0)  # backoff + jitter
+            time.sleep(min(espera, 0.01))       # encurtado para o exemplo
+        except ValueError:                      # falha permanente: não adianta repetir
+            break
+    dlq.append(mensagem)                        # esgotou ou não tem conserto
+
+for msg in [{"id": 42, "valor": 80}, {"id": 43, "valor": -5}, {"id": 42, "valor": 80}]:
+    consumir(msg)
+
+print("DLQ:", [m["id"] for m in dlq])</code></pre>
+    <p>
+      Três detalhes merecem atenção. O identificador é marcado como processado <em>depois</em> do sucesso: se o processo cair entre o envio e a marcação,
+      a mensagem será reprocessada, o que é aceitável, desde que o envio seja idempotente ou que a marcação e o efeito estejam na mesma transação. A
+      mensagem repetida (id 42, segunda vez) é ignorada. A falha permanente (valor negativo) vai direto para a DLQ, sem gastar tentativas.
+    </p>
+  </div>
+</section>
+
+<section id="outbox" data-toc="Publicar sem perder: o padrão outbox" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-inbox text-sky-400 mr-2"></i>Teoria · O problema da dupla escrita e o padrão outbox</h2>
+  <div class="ah-prose">
+    <p>
+      Um erro sutil aparece quando o serviço precisa gravar um dado no banco <em>e</em> publicar um evento. Se ele grava e cai antes de publicar, o evento
+      nunca sai. Se publica e depois falha ao gravar, o evento anuncia algo que não aconteceu. Não há como fazer as duas operações atômicas sem uma
+      coordenação distribuída, que é cara.
+    </p>
+    <p>
+      O <strong>padrão outbox</strong> resolve isso na mesma transação: o serviço grava o dado de negócio e, em uma tabela de saída (<em>outbox</em>),
+      o evento correspondente. Um processo separado lê a tabela e publica os eventos, marcando-os como enviados. Como o evento e o dado estão na mesma
+      transação, ou os dois existem, ou nenhum. A publicação passa a ser pelo menos uma vez, o que reforça a necessidade de consumidores idempotentes.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-sky-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Versione os contratos de mensagem.</strong> Um evento publicado é uma API. Adicione campos com cuidado e nunca mude o significado de um campo existente sem nova versão.</li>
+      <li><strong>Inclua identificador único e data em cada mensagem.</strong> Sem identificador, não há como detectar repetições; sem data, não há como reordenar nem depurar.</li>
+      <li><strong>Não dependa de ordem global.</strong> Filas paralelas não garantem ordem. Quando a ordem importa, use uma chave de partição (por exemplo, o id do pedido) para manter a ordem por entidade.</li>
+      <li><strong>Monitore o tamanho da fila e a idade da mensagem mais antiga.</strong> Uma fila crescendo é o primeiro sinal de um consumidor doente.</li>
+      <li><strong>Trate a DLQ como um recurso operado.</strong> Ela precisa de alerta, de dono e de um procedimento de reprocessamento. Uma DLQ esquecida é um vazamento de dados silencioso.</li>
+      <li><strong>Prefira eventos que carregam o estado necessário.</strong> Um consumidor que precisa chamar de volta a origem para saber o que mudou fica acoplado à disponibilidade dela.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Cliente recebe o e-mail de confirmação duas vezes</td><td>Consumidor não idempotente</td><td>Registrar o id processado e ignorar repetições</td></tr>
+        <tr><td>Pedido aparece no banco, mas o evento nunca chega</td><td>Dupla escrita sem coordenação</td><td>Padrão outbox na mesma transação</td></tr>
+        <tr><td>Mensagens de um mesmo pedido processadas fora de ordem</td><td>Consumidores paralelos sem chave de partição</td><td>Particionar por id da entidade</td></tr>
+        <tr><td>Fila cresce sem parar após uma madrugada</td><td>Consumidor falhando em loop, sem limite de tentativas</td><td>Limitar tentativas, usar backoff e alertar sobre a idade da fila</td></tr>
+        <tr><td>Retentativas derrubam o serviço que estava se recuperando</td><td>Retentativas sem backoff nem jitter</td><td>Backoff exponencial com jitter e limite de concorrência</td></tr>
+        <tr><td>Mensagens na DLQ ninguém olha</td><td>DLQ sem dono nem processo</td><td>Alerta, responsável e reprocessamento periódico</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> achar que “exatamente uma vez” é uma opção de configuração do broker e ignorar a idempotência. Mesmo com configurações rigorosas, o efeito colateral (um e-mail enviado, uma API externa chamada) acontece fora do broker, e só o consumidor pode evitar a duplicidade.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-sky-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Em um projeto da disciplina, comece com um único evento de domínio importante (“pedido criado”, por exemplo), um consumidor e uma tabela de
+      mensagens processadas. Só depois de testar a idempotência com repetições deliberadas, acrescente retentativas e a DLQ. Essa ordem evita o erro de
+      criar uma infraestrutura complexa para um problema que ainda não foi entendido.
+    </p>
+    <p>
+      Em um teste automatizado, entregue a mesma mensagem duas vezes e verifique o efeito uma única vez. Esse teste é simples de escrever e pega a maior
+      parte dos defeitos de integração.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um broker oferece entrega pelo menos uma vez. Como garantir que um pagamento não seja debitado em duplicidade?</p>
+      <button class="ah-quiz-opt">Confiar que a entrega “exatamente uma vez” do broker resolve</button>
+      <button class="ah-quiz-opt">Tornar o consumidor idempotente, registrando os identificadores já processados</button>
+      <button class="ah-quiz-opt">Aumentar o número de consumidores para processar mais rápido</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. A repetição é uma propriedade da entrega; o efeito único precisa ser garantido pelo consumidor, com um identificador que reconhece a repetição.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o backoff exponencial deve ser combinado com jitter nas retentativas?</p>
+      <button class="ah-quiz-opt">Para evitar que muitos consumidores retentem no mesmo instante e sobrecarreguem o serviço em recuperação</button>
+      <button class="ah-quiz-opt">Para garantir que as mensagens cheguem em ordem</button>
+      <button class="ah-quiz-opt">Para eliminar a necessidade de uma fila de mensagens mortas</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. Sem jitter, retentativas sincronizadas formam ondas de carga. A aleatoriedade espalha as tentativas no tempo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Comunicação síncrona exige que o chamador espere; assíncrona desacopla no tempo, mas aumenta a complexidade.</li>
+    <li>Fila distribui trabalho entre consumidores; tópico anuncia fatos para vários interessados.</li>
+    <li>Na prática, a entrega é “pelo menos uma vez”, e o efeito único depende de consumidores idempotentes.</li>
+    <li>Retentativas precisam de limite, backoff e jitter. O que não pode ser processado vai para a DLQ, com dono.</li>
+    <li>Gravar no banco e publicar um evento exige o padrão outbox, para não perder nem inventar eventos.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>HOHPE, G.; WOOLF, B. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003. Padrões de mensagens, canais e roteamento.</li>
+    <li>RICHARDSON, C. <em>Microservices Patterns</em>. Shelter Island: Manning, 2018. Padrão outbox e sagas.</li>
+    <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017. Capítulos sobre transmissão de eventos e entrega de mensagens.</li>
+    <li>AMAZON WEB SERVICES. <em>Architecture Blog: Exponential Backoff and Jitter</em>. 2015. Análise do efeito das retentativas sincronizadas.</li>
+    <li>NEWMAN, S. <em>Building Microservices</em>. 2. ed. Sebastopol: O'Reilly, 2021. Capítulos sobre integração e contratos.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvMensageria', ctl: 'ctlMensageria', cap: 'capMensageria',
+    desenha: ENG.desenhaMensageria, gera: ENG.geraMensageria, velocidade: 2600
+  });
+
+})();
+</script>
+</body>
+</html>

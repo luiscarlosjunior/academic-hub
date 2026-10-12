@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atributos de qualidade, trade-offs e decisões registradas (ADR) · Arquitetura de Software · AcademicHub</title>
+<meta name="description" content="Como transformar requisitos não funcionais em cenários medidos, por que toda decisão arquitetural é um trade-off e como registrar decisões em ADRs, com animação de escolha entre monólito, modular e microsserviços.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/05-atributos-trade-offs-adr">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      A arquitetura de um sistema é o conjunto de decisões estruturais que são caras de mudar depois. Qual é a linguagem, quais partes existem e como elas
+      conversam, onde fica o banco, quem chama quem. Bass, Clements e Kazman (2012) definem a arquitetura pelas estruturas do sistema, pelos elementos
+      que as compõem, por suas propriedades visíveis externamente e pelos relacionamentos entre eles. O ponto central é que <strong>a arquitetura é a
+      parte do sistema que determina seus atributos de qualidade</strong>.
+    </p>
+    <p>
+      Esta página é a primeira da trilha de Arquitetura. Ela trata do método: como dizer com precisão quais qualidades importam, como enxergar os
+      trade-offs entre elas e como registrar as decisões para que o raciocínio sobreviva a quem chegar depois.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>transformar um requisito não funcional vago em um cenário de atributo de qualidade com medida;</li>
+      <li>identificar trade-offs entre atributos e explicar por que não existe arquitetura ótima em abstrato;</li>
+      <li>escrever um ADR (registro de decisão arquitetural) completo, com contexto, decisão e consequências;</li>
+      <li>usar visões arquiteturais diferentes para comunicar a arquitetura a públicos diferentes.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="cenarios" data-toc="Cenários de qualidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-sky-400 mr-2"></i>Teoria · Cenários de atributo de qualidade</h2>
+  <div class="ah-prose">
+    <p>
+      “O sistema deve ser escalável” não orienta nenhuma decisão. Escalável para quê, em qual carga, com qual custo? Bass et al. (2012) propõem o
+      <strong>cenário de atributo de qualidade</strong>, uma frase estruturada com seis partes que transforma a qualidade em algo verificável:
+    </p>
+    <div class="overflow-x-auto ah-card mt-4">
+      <table class="ah-table">
+        <thead><tr><th>Parte</th><th>Pergunta</th><th>Exemplo</th></tr></thead>
+        <tbody>
+          <tr><td>Fonte do estímulo</td><td>Quem ou o que dispara?</td><td>Um usuário pagante</td></tr>
+          <tr><td>Estímulo</td><td>O que acontece?</td><td>Pico de 10 vezes a carga normal durante a campanha</td></tr>
+          <tr><td>Artefato</td><td>Qual parte do sistema é afetada?</td><td>O serviço de catálogo</td></tr>
+          <tr><td>Ambiente</td><td>Em que condição?</td><td>Operação normal, com as réplicas em funcionamento</td></tr>
+          <tr><td>Resposta</td><td>O que o sistema faz?</td><td>Atende as requisições e escala réplicas automaticamente</td></tr>
+          <tr><td>Medida</td><td>Quanto é aceitável?</td><td>Percentil 95 abaixo de 300 ms; erros abaixo de 0,5%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Um cenário bem escrito pode ser testado. Ele também mostra quando o atributo é caro: um pico de 10 vezes com medida de 300 ms custa muito mais
+      do que um pico de 2 vezes com medida de 2 segundos. Esse custo é o que o cliente precisa conhecer para decidir.
+    </p>
+    <p>
+      Os atributos mais citados são desempenho, disponibilidade, modificabilidade, segurança, testabilidade, usabilidade e custo. Eles não são
+      independentes, e é aí que começam os trade-offs.
+    </p>
+  </div>
+</section>
+
+<section id="tradeoffs" data-toc="Trade-offs" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · Trade-offs: toda escolha custa outra coisa</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>trade-off</strong> ocorre quando melhorar um atributo piora outro. O exemplo mais conhecido é o cache: ele reduz a latência de leitura,
+      mas pode servir dados desatualizados e exige lógica de invalidação. Outro exemplo é a replicação: aumenta a disponibilidade, mas torna mais
+      difícil manter todas as cópias iguais, como o tópico 8 de Sistemas Distribuídos mostra com o teorema CAP.
+    </p>
+    <p>
+      O método ATAM (Kazman, Klein e Clements, 2000) organiza a análise em torno de dois conceitos. Um <strong>ponto de sensibilidade</strong> é uma decisão
+      que afeta fortemente um atributo. Um <strong>ponto de trade-off</strong> é uma decisão que afeta dois ou mais atributos em sentidos opostos. Toda
+      decisão de arquitetura importante é um ponto de trade-off, e a pergunta útil é sempre a mesma: <em>o que estamos pagando por isso?</em>
+    </p>
+    <p>
+      Não há arquitetura ótima em abstrato. A melhor escolha depende dos cenários prioritários, do tamanho da equipe, do orçamento e da fase do produto.
+      A animação desta página mostra esse ponto: a mesma comparação muda de vencedor conforme os pesos mudam.
+    </p>
+  </div>
+</section>
+
+<section id="visoes" data-toc="Visões arquiteturais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clone text-sky-400 mr-2"></i>Teoria · Visões: cada público vê uma parte</h2>
+  <div class="ah-prose">
+    <p>
+      Uma arquitetura não cabe em um diagrama. Kruchten (1995) propôs o modelo <strong>4+1</strong>, com quatro visões que tratam de preocupações
+      diferentes e um conjunto de cenários que as amarra:
+    </p>
+    <ul>
+      <li><strong>Lógica:</strong> os conceitos e as responsabilidades do domínio, para quem projeta regras de negócio.</li>
+      <li><strong>De processo:</strong> processos, threads e comunicação em tempo de execução, para quem se preocupa com concorrência e desempenho.</li>
+      <li><strong>De desenvolvimento:</strong> módulos, pacotes e camadas do código, para quem escreve e organiza o código.</li>
+      <li><strong>Física:</strong> os nós de hardware e a implantação, para quem opera o sistema.</li>
+      <li><strong>Cenários:</strong> casos de uso que mostram como as visões funcionam juntas.</li>
+    </ul>
+    <p>
+      O modelo C4, que aparece no tópico 8, é uma forma mais recente e mais simples de organizar visões em níveis de zoom. O princípio é o mesmo: não
+      tente mostrar tudo em um diagrama só, e deixe claro para qual público cada visão foi feita.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: a escolha muda com os pesos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · O vencedor depende dos pesos</h2>
+  <p class="ah-lead text-sm mb-4">Três opções são avaliadas de 1 a 5 em quatro atributos. Cada quadro muda a importância relativa dos atributos. Observe como a barra vencedora muda, sem que a tabela de notas tenha sido alterada.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvTradeoff" style="height:300px"></canvas></div>
+  <div id="ctlTradeoff" class="mt-4"></div>
+  <div id="capTradeoff" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="adr" data-toc="Registros de decisão (ADR)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-signature text-sky-400 mr-2"></i>Teoria · Registros de decisão arquitetural (ADR)</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>ADR</strong> (<em>Architecture Decision Record</em>) é um documento curto que registra uma decisão arquitetural significativa. Nygard
+      (2011) popularizou o formato. Ele responde a uma pergunta que o código não responde: <em>por que foi feito assim, e o que tínhamos em mente?</em>
+    </p>
+    <p>Um ADR tem poucas seções, e cada uma tem uma função:</p>
+    <ul>
+      <li><strong>Título e número:</strong> identificam a decisão de forma estável. Decisões nunca são apagadas; quando mudam, um novo ADR as substitui.</li>
+      <li><strong>Status:</strong> proposta, aceita, substituída ou descontinuada.</li>
+      <li><strong>Contexto:</strong> as forças em jogo, os requisitos e as restrições que tornavam a decisão necessária.</li>
+      <li><strong>Decisão:</strong> o que foi escolhido, escrito no presente e de forma direta.</li>
+      <li><strong>Consequências:</strong> o que fica melhor, o que fica pior e o que passa a ser necessário fazer por causa da decisão. Esta é a seção mais negligenciada e a mais valiosa.</li>
+    </ul>
+    <p>
+      Os ADRs ficam no próprio repositório, versionados junto com o código. Assim, a história da arquitetura é revisada da mesma forma que o código,
+      e uma mudança de decisão aparece no histórico de commits.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: um ADR completo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo prático · Um ADR para as notificações</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine o sistema de biblioteca do tópico anterior. Quando um livro é devolvido com atraso, o sistema precisa enviar um e-mail. A equipe precisa
+      decidir se o envio acontece dentro da mesma requisição que registra a devolução ou em um processo separado. Eis um ADR para essa decisão:
+    </p>
+    <pre class="ah-code"><code># ADR-0007: Envio de notificações de atraso por fila
+
+Status: aceita (2026-10-02)
+
+## Contexto
+A devolução registra o estado do empréstimo e, quando há atraso, precisa
+notificar o aluno. O servidor de e-mail da faculdade é instável: já houve
+quedas de até 40 minutos. O usuário não deve ver erro ao devolver um livro
+por causa do e-mail.
+
+## Decisão
+O registro da devolução publica o evento "EmprestimoAtrasado" em uma fila.
+Um consumidor separado envia o e-mail, com até 3 tentativas e fila de
+mensagens mortas para os casos que não passarem.
+
+## Consequências
++ A devolução responde em tempo constante, mesmo com o e-mail fora do ar.
++ Falhas de envio ficam isoladas e podem ser reprocessadas.
+- O e-mail pode chegar com atraso de minutos, e o sistema deve aceitar isso.
+- Passa a existir um componente novo para operar (a fila) e monitorar.
+- O consumidor precisa ser idempotente: o mesmo evento pode chegar duas vezes.</code></pre>
+    <p>
+      O que torna esse ADR útil é a clareza das consequências. Alguém que, dois anos depois, quiser enviar o e-mail de forma síncrona vai ler que a
+      decisão foi tomada por causa da instabilidade do servidor, e vai saber exatamente o que precisa ser reavaliado. Sem o registro, a mudança parece
+      uma simplificação; com ele, a mudança é uma reabertura de decisão, com contexto.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-sky-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Comece pelos atributos prioritários.</strong> Liste de cinco a dez cenários e ordene por impacto no negócio. Eles guiam todas as decisões seguintes.</li>
+      <li><strong>Registre só decisões difíceis de reverter.</strong> Escolha de nome de variável não merece ADR. Escolha de banco de dados, de estilo arquitetural ou de protocolo merece.</li>
+      <li><strong>Escreva as consequências negativas.</strong> Uma decisão sem custos declarados não foi analisada.</li>
+      <li><strong>Considere alternativas.</strong> Um ADR que lista pelo menos duas opções rejeitadas, com o motivo, poupa a equipe de repetir a mesma discussão.</li>
+      <li><strong>Revise decisões com dados.</strong> Um ADR deve ser revisitado quando as premissas do contexto mudarem, como o crescimento de carga ou a entrada de uma nova equipe.</li>
+      <li><strong>Mantenha o ADR curto.</strong> Uma ou duas páginas. Se precisar de vinte, o problema provavelmente é de escopo.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>“Vamos usar microsserviços porque é moderno”</td><td>Tecnologia escolhida sem cenário de atributo</td><td>Escrever o cenário que a escolha resolve; sem ele, a escolha não se justifica</td></tr>
+        <tr><td>Ninguém sabe por que o sistema usa duas linguagens</td><td>Decisão sem registro</td><td>Criar ADR retroativo com o contexto que a equipe lembra e marcar a origem</td></tr>
+        <tr><td>Requisito não funcional virou “o sistema deve ser rápido”</td><td>Ausência de cenários</td><td>Reescrever com fonte, estímulo, artefato, ambiente, resposta e medida</td></tr>
+        <tr><td>ADRs que só listam o que foi feito</td><td>Consequências omitidas</td><td>Exigir ao menos uma consequência negativa em cada ADR</td></tr>
+        <tr><td>Arquitetura pensada para dez milhões de usuários com cem usuários reais</td><td>Otimização prematura de atributos sem cenário real</td><td>Priorizar o cenário atual e deixar pontos de extensão para o futuro</td></tr>
+        <tr><td>Decisão tomada e depois contradita sem registro</td><td>ADR não atualizado</td><td>Criar um novo ADR que substitui o anterior, e marcar o antigo como substituído</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> confundir arquitetura com a lista de tecnologias do projeto. Uma arquitetura descreve as partes, as responsabilidades e as relações entre elas. A escolha de um framework é uma decisão, e pode ser trocada sem mudar a arquitetura se as partes estiverem bem separadas.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-sky-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Em um projeto de disciplina, escreva pelo menos três ADRs: a escolha de linguagem e banco, a forma de comunicação entre as partes e uma decisão
+      que tenha sido difícil. A terceira costuma ser a mais instrutiva, porque obriga a descrever o trade-off real que a equipe enfrentou.
+    </p>
+    <p>
+      Quando estiver em dúvida entre duas opções, escreva o ADR com as duas. Se a escrita da consequência negativa de uma delas parecer óbvia demais,
+      talvez a escolha já esteja feita, e o ADR só precise registrá-la.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual dos itens é um cenário de atributo de qualidade bem formado?</p>
+      <button class="ah-quiz-opt">O sistema deve ser seguro e rápido</button>
+      <button class="ah-quiz-opt">Em pico de login de 5 mil usuários por minuto, 99% das autenticações respondem em até 500 ms</button>
+      <button class="ah-quiz-opt">A autenticação deve usar a melhor tecnologia disponível</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. Há estímulo, ambiente e medida verificável. As outras opções são adjetivos ou escolhas de tecnologia, sem critério de verificação.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a principal diferença entre um ponto de sensibilidade e um ponto de trade-off no método ATAM?</p>
+      <button class="ah-quiz-opt">O ponto de sensibilidade custa mais caro de implementar</button>
+      <button class="ah-quiz-opt">O ponto de trade-off é sempre um erro de projeto</button>
+      <button class="ah-quiz-opt">A sensibilidade afeta fortemente um atributo; o trade-off afeta dois ou mais atributos em sentidos opostos</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. Toda decisão que impacta dois atributos em direções opostas é um trade-off. Sensibilidade descreve o impacto sobre um único atributo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>A arquitetura é o conjunto de decisões caras de mudar. Ela determina os atributos de qualidade do sistema.</li>
+    <li>Atributos sem cenário mensurável não orientam decisão. Escreva o cenário com estímulo, ambiente e medida.</li>
+    <li>Toda decisão arquitetural importante é um trade-off. Pergunte sempre o que se paga por ela.</li>
+    <li>ADRs registram o contexto e as consequências de decisões difíceis de reverter, versionados com o código.</li>
+    <li>Visões diferentes servem públicos diferentes. Nenhum diagrama mostra tudo.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BASS, L.; CLEMENTS, P.; KAZMAN, R. <em>Software Architecture in Practice</em>. 3. ed. Boston: Addison-Wesley, 2012. Partes sobre atributos de qualidade e cenários.</li>
+    <li>KAZMAN, R.; KLEIN, M.; CLEMENTS, P. <em>ATAM: Method for Architecture Evaluation</em>. Pittsburgh: Software Engineering Institute, CMU/SEI-2000-TR-004, 2000.</li>
+    <li>KRUCHTEN, P. The 4+1 View Model of Architecture. <em>IEEE Software</em>, v. 12, n. 6, p. 42–50, 1995.</li>
+    <li>NYGARD, M. <em>Documenting Architecture Decisions</em>. Cognitect Blog, 2011. Origem do formato ADR.</li>
+    <li>RICHARDS, M.; FORD, N. <em>Fundamentals of Software Architecture</em>. Sebastopol: O'Reilly, 2020. Capítulos sobre características arquiteturais e trade-offs.</li>
+    <li>FORD, N.; PARSONS, R.; KUA, P. <em>Building Evolutionary Architectures</em>. Sebastopol: O'Reilly, 2017.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvTradeoff', ctl: 'ctlTradeoff', cap: 'capTradeoff',
+    desenha: ENG.desenhaTradeoff, gera: ENG.geraTradeoff, velocidade: 3200
+  });
+
+})();
+</script>
+</body>
+</html>

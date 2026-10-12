@@ -132,6 +132,40 @@ Do modelo entidade-relacionamento às consultas avançadas. Todos os exemplos de
 | 15 | Transações, isolamento e concorrência | Atualização perdida animada; níveis de isolamento |
 
 
+### 🏭 Engenharia de Software, Arquitetura e Programação para a Indústria — 13 tópicos em três trilhas
+
+Da engenharia de software à prática de um time profissional: processos, requisitos, testes e qualidade; atributos, estilos e evolução de arquiteturas; e as práticas de programação que separam o projeto acadêmico do código de equipe. Cada tópico traz teoria em níveis crescentes, exemplos, boas práticas, problemas comuns e uma animação controlável.
+
+**Trilha 1 — Engenharia de Software (4 tópicos)**
+
+| # | Tópico | Animação |
+|---|--------|----------|
+| 01 | Processos de software: cascata, incremental, espiral e ágil | Cascata × entrega incremental, com retrabalho |
+| 02 | Requisitos: levantamento, especificação e rastreabilidade | Do adjetivo vago ao requisito testável |
+| 03 | Testes de software: pirâmide, tipos e o que um teste prova | Execução da pirâmide, com o defeito que aparece tarde |
+| 04 | Qualidade, refatoração e dívida técnica | Juros da dívida sprint a sprint, com e sem refatoração |
+
+**Trilha 2 — Arquitetura de Software (4 tópicos)**
+
+| # | Tópico | Animação |
+|---|--------|----------|
+| 05 | Atributos de qualidade, trade-offs e ADR | O vencedor muda conforme os pesos dos atributos |
+| 06 | Estilos arquiteturais: camadas, hexagonal e monólito modular | Requisição atravessando o núcleo e os adaptadores |
+| 07 | Integração: APIs, filas, eventos e mensagens mortas | Evento, falha, retentativa e DLQ |
+| 08 | Evolução: documentação C4 e Strangler Fig | Migração gradual do monólito para novos serviços |
+
+**Trilha 3 — Programação: da academia à indústria (5 tópicos)**
+
+| # | Tópico | Animação |
+|---|--------|----------|
+| 09 | Do projeto acadêmico ao time: Git, branches e revisão de código | Ciclo de branch, pull request e merge |
+| 10 | Código legível e robusto: nomes, funções, erros e logs | Pipeline de validação que barra o erro |
+| 11 | Testes automatizados e TDD: vermelho, verde, refatorar | Ciclo do TDD com a regra da situação do aluno |
+| 12 | Entrega contínua: CI/CD, containers e “pronto para produção” | Pipeline com portões, aprovação manual e falha |
+| 13 | Erros frequentes e conceitos do dia a dia | Coletânea com causa e correção, e método para investigar um erro novo (sem animação) |
+
+---
+
 ## Estrutura do projeto
 
 ```
@@ -153,6 +187,9 @@ academic-hub/
 │   ├── modelagem-dados-sql/
 │   │   ├── index.html
 │   │   └── topicos/01-….html … 15-….html
+│   ├── engenharia-software-arquitetura/
+│   │   ├── index.html
+│   │   └── topicos/01-….html … 13-….html
 │   └── estrutura-dados/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (11 páginas)

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estilos arquiteturais: camadas, hexagonal e monólito modular · Arquitetura de Software · AcademicHub</title>
+<meta name="description" content="Arquitetura em camadas, portas e adaptadores (hexagonal), monólito modular e microsserviços, com a regra de dependência que protege o núcleo do sistema, animação do fluxo de uma requisição e exemplo em Python.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/06-estilos-camadas-hexagonal">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>estilo arquitetural</strong> é um padrão recorrente de organização de um sistema: quais partes existem, como se comunicam e onde
+      ficam as regras. Cada estilo resolve um conjunto de problemas e cria outros. Não existe estilo universalmente correto; existe o estilo cujos
+      custos a equipe consegue pagar.
+    </p>
+    <p>
+      Esta página percorre os estilos mais usados em sistemas de negócio: a arquitetura em camadas, a arquitetura hexagonal (também chamada de portas e
+      adaptadores), o monólito modular e os microsserviços. O fio condutor é uma regra simples, que vale para todos eles: <strong>as dependências devem
+      apontar para as regras de negócio, e não para os detalhes técnicos</strong>.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>descrever a arquitetura em camadas e explicar o que ela protege e o que deixa vulnerável;</li>
+      <li>explicar a arquitetura hexagonal com portas, adaptadores e a inversão de dependência;</li>
+      <li>comparar monólito, monólito modular e microsserviços com critérios concretos;</li>
+      <li>aplicar a regra de dependência em código e perceber quando ela está sendo violada.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="camadas" data-toc="Arquitetura em camadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Teoria · Arquitetura em camadas</h2>
+  <div class="ah-prose">
+    <p>
+      O estilo mais conhecido organiza o sistema em camadas horizontais. Uma convenção comum, em aplicações web, tem quatro:
+    </p>
+    <ul>
+      <li><strong>Apresentação:</strong> recebe a requisição e devolve a resposta (telas, controladores HTTP, serialização).</li>
+      <li><strong>Aplicação:</strong> coordena os casos de uso, como “criar pedido” ou “renovar empréstimo”, sem conter a regra em si.</li>
+      <li><strong>Domínio:</strong> contém as regras de negócio e os conceitos centrais (pedido, estoque, multa).</li>
+      <li><strong>Infraestrutura:</strong> fala com o mundo externo (banco de dados, filas, APIs de terceiros, sistema de arquivos).</li>
+    </ul>
+    <p>
+      A regra típica é que cada camada só conversa com a imediatamente abaixo dela. A vantagem é a simplicidade mental: qualquer pessoa entende o
+      caminho de uma requisição. A desvantagem aparece quando a camada de domínio precisa de algo da infraestrutura, como “gerar um número de protocolo
+      único”. Se a camada de domínio chama diretamente o banco, ela passa a depender da infraestrutura, e testá-la sem banco deixa de ser possível.
+    </p>
+    <p>
+      Um vício comum é o <strong>vazamento de camadas</strong>: o controlador de apresentação monta consultas SQL, ou a regra de desconto mora em uma
+      tela. Nenhuma camada é absoluta, mas cada atalho que pula uma camada aumenta o custo de mudança do sistema.
+    </p>
+  </div>
+</section>
+
+<section id="hexagonal" data-toc="Arquitetura hexagonal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hexagon-nodes text-sky-400 mr-2"></i>Teoria · Arquitetura hexagonal: portas e adaptadores</h2>
+  <div class="ah-prose">
+    <p>
+      Cockburn (2005) propôs a arquitetura hexagonal para resolver o problema do vazamento de camadas de forma mais direta. O núcleo do sistema contém
+      as regras de negócio e não sabe nada sobre o mundo externo. Ao redor dele, existem <strong>portas</strong>, que são interfaces definidas pelo
+      próprio núcleo, e <strong>adaptadores</strong>, que traduzem entre o mundo externo e essas interfaces.
+    </p>
+    <ul>
+      <li><strong>Portas de entrada</strong> são os casos de uso que o mundo externo pode chamar, como “criar pedido”.</li>
+      <li><strong>Portas de saída</strong> são as necessidades do núcleo, como “salvar pedido” ou “enviar notificação”, expressas como interfaces.</li>
+      <li><strong>Adaptadores primários</strong> (ou de entrada) traduzem uma requisição HTTP, uma linha de comando ou uma mensagem da fila em uma chamada à porta de entrada.</li>
+      <li><strong>Adaptadores secundários</strong> (ou de saída) implementam as portas de saída com tecnologias concretas, como SQL, SMTP ou um cliente de fila.</li>
+    </ul>
+    <p>
+      A consequência central é a <strong>inversão de dependência</strong>. O núcleo define a interface de que precisa; o adaptador de banco depende
+      dessa interface, e não o contrário. Assim, as setas de dependência apontam sempre para dentro, e o núcleo pode ser testado com um repositório falso
+      em memória. O princípio da inversão de dependência, que aparece nos princípios SOLID do tópico de POO, é a peça que torna isso possível.
+    </p>
+    <p>
+      A animação desta página mostra uma requisição atravessando o hexágono. Repare que todas as setas de dependência, em cinza, apontam para o núcleo.
+      A seta azul mostra apenas o fluxo de execução, que vai para fora e volta; a dependência de código, não.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: a requisição no hexágono" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · Uma requisição atravessando o núcleo</h2>
+  <p class="ah-lead text-sm mb-4">Avance os passos para acompanhar a criação de um pedido: entra pelo HTTP, passa pelas regras e sai pelo banco. Observe que o núcleo não muda de forma em nenhum momento, mesmo quando o banco muda.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvHexagonal" style="height:300px"></canvas></div>
+  <div id="ctlHexagonal" class="mt-4"></div>
+  <div id="capHexagonal" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="modular" data-toc="Monólito modular" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes text-sky-400 mr-2"></i>Teoria · Monólito modular</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>monólito</strong> é um sistema implantado como uma única unidade. Isso, por si só, não é um defeito: um monólito bem organizado é
+      simples de implantar, de testar, de depurar e de operar, e é a escolha certa para a maior parte das equipes pequenas. O problema costuma ser
+      outro: um monólito sem fronteiras internas, em que qualquer classe chama qualquer outra e todas acessam as mesmas tabelas. Chamamos isso de
+      “grande bola de lama”.
+    </p>
+    <p>
+      O <strong>monólito modular</strong> mantém a implantação única, mas organiza o código em módulos com responsabilidades claras, como pedidos,
+      estoque e pagamento. Cada módulo expõe uma interface pública pequena e esconde o restante. Parnas (1972) já argumentava que um sistema deve ser
+      decomposto de acordo com as decisões que podem mudar, escondendo cada uma atrás de uma fronteira. Um módulo não acessa as tabelas de outro
+      diretamente; ele pede ao outro módulo o que precisa.
+    </p>
+    <p>
+      Essa organização prepara o caminho para a extração de serviços, se algum dia for necessária. Um módulo com fronteira bem definida pode virar um
+      serviço separado com pouca mudança. Um módulo sem fronteira, não.
+    </p>
+  </div>
+</section>
+
+<section id="microsservicos" data-toc="Microsserviços" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-boxes-stacked text-sky-400 mr-2"></i>Teoria · Microsserviços: o custo da independência</h2>
+  <div class="ah-prose">
+    <p>
+      Lewis e Fowler (2014) descreveram microsserviços como um estilo em que o sistema é composto por serviços pequenos, independentes, implantados
+      separadamente e organizados em torno de capacidades de negócio. Newman (2021) enfatiza a mesma ideia: cada serviço deve poder mudar e ser
+      implantado sem coordenar com os demais.
+    </p>
+    <p>
+      O ganho é a <strong>independência</strong>: equipes diferentes evoluem partes diferentes, escalam o que precisa escalar e escolhem tecnologias
+      adequadas a cada problema. O custo é alto e tende a ser subestimado. Cada chamada entre serviços vira uma chamada de rede, com latência, falhas
+      parciais e necessidade de tratamento de erro. Transações que antes eram atômicas passam a exigir coordenação (tópico 7 de Sistemas Distribuídos).
+      É preciso monitorar, versionar contratos, implantar muitos componentes e manter a consistência de dados entre eles.
+    </p>
+    <p>
+      Microsserviços fazem sentido quando há um motivo concreto, como partes do sistema com cargas muito diferentes, equipes grandes que precisam de
+      autonomia, ou exigências de isolamento. Sem esse motivo, eles criam um sistema distribuído complexo a partir de um problema que cabia em um
+      programa só. A Lei de Conway (1968) lembra que a arquitetura tende a copiar a estrutura de comunicação da organização que a constrói.
+    </p>
+  </div>
+</section>
+
+<section id="comparacao" data-toc="Comparação dos estilos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Teoria · Comparação com critérios</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Critério</th><th>Monólito em camadas</th><th>Hexagonal</th><th>Monólito modular</th><th>Microsserviços</th></tr></thead>
+      <tbody>
+        <tr><td>Complexidade inicial</td><td>Baixa</td><td>Média</td><td>Média</td><td>Alta</td></tr>
+        <tr><td>Testabilidade do núcleo</td><td>Média (depende da disciplina)</td><td>Alta</td><td>Alta por módulo</td><td>Alta por serviço</td></tr>
+        <tr><td>Escala independente de partes</td><td>Não</td><td>Não</td><td>Não</td><td>Sim</td></tr>
+        <tr><td>Custo operacional</td><td>Baixo</td><td>Baixo</td><td>Baixo</td><td>Alto</td></tr>
+        <tr><td>Risco de virar “bola de lama”</td><td>Alto</td><td>Baixo</td><td>Baixo</td><td>Médio (serviços também viram lama)</td></tr>
+        <tr><td>Adequado para equipe pequena</td><td>Sim</td><td>Sim</td><td>Sim</td><td>Raramente</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="ah-prose mt-4">
+    Hexagonal não é um concorrente do monólito modular ou dos microsserviços. É uma forma de organizar o interior de qualquer um deles. Um
+    microsserviço pode ser implementado com arquitetura hexagonal, e um monólito modular também.
+  </p>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: o núcleo e as portas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo prático · Núcleo, porta e adaptador em Python</h2>
+  <div class="ah-prose">
+    <p>
+      O exemplo abaixo mostra as três peças da animação. O núcleo define a porta de saída como um tipo (um <code>Protocol</code>), e não conhece o banco.
+      O adaptador implementa a porta com SQL.
+    </p>
+    <pre class="ah-code"><code># dominio/pedidos.py  (núcleo: sem import de banco, HTTP ou framework)
+from typing import Protocol
+
+class PedidoVazio(Exception):
+    pass
+
+class Pedido:
+    def __init__(self, itens):
+        self.itens = list(itens)
+        self.total = sum(i["preco"] * i["quantidade"] for i in self.itens)
+
+class PedidoRepositorio(Protocol):      # porta de saída, definida pelo núcleo
+    def salvar(self, pedido: Pedido) -> None: ...
+
+class ServicoPedidos:                    # caso de uso (porta de entrada)
+    def __init__(self, repositorio: PedidoRepositorio):
+        self._repositorio = repositorio
+
+    def criar(self, itens) -> Pedido:
+        if not itens:
+            raise PedidoVazio("o pedido precisa de pelo menos um item")
+        pedido = Pedido(itens)
+        self._repositorio.salvar(pedido)
+        return pedido
+
+# infraestrutura/repositorio_sql.py  (adaptador secundário)
+class RepositorioPedidoSQL:
+    def __init__(self, conexao):
+        self._conexao = conexao
+
+    def salvar(self, pedido) -> None:
+        self._conexao.execute(
+            "INSERT INTO pedidos (total) VALUES (?)", (pedido.total,))
+
+# tests/test_servico_pedidos.py  (teste do núcleo, sem banco)
+class RepositorioEmMemoria:
+    def __init__(self):
+        self.salvos = []
+    def salvar(self, pedido):
+        self.salvos.append(pedido)
+
+def test_pedido_vazio_nao_e_salvo():
+    repo = RepositorioEmMemoria()
+    servico = ServicoPedidos(repo)
+    try:
+        servico.criar([])
+    except PedidoVazio:
+        pass
+    assert repo.salvos == []</code></pre>
+    <p>
+      O teste da última função roda sem banco, sem rede e sem framework. Ele só é possível porque o núcleo depende de uma interface, e não de uma
+      classe concreta de banco. Esse é o benefício prático da inversão de dependência: a regra mais importante do sistema é a mais fácil de testar.
+    </p>
+    <p>
+      Um sinal de violação é aparecer um <code>import</code> de infraestrutura dentro de <code>dominio/</code>. Uma verificação automatizada dessa regra,
+      que falha o build quando isso acontece, é uma prática simples e eficaz (veja o tópico 12).
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-sky-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Organize o código por domínio, não por tipo técnico.</strong> Uma pasta <code>pedidos/</code> com tudo sobre pedidos é melhor do que pastas <code>models/</code>, <code>services/</code> e <code>controllers/</code> espalhando um pedido pelo sistema.</li>
+      <li><strong>Defina interfaces pelo que o núcleo precisa.</strong> Não exponha o SQL, o formato do JSON ou o nome da tabela nas portas.</li>
+      <li><strong>Proteja a regra de dependência com teste ou ferramenta.</strong> Um teste de arquitetura que falha quando o núcleo importa a infraestrutura é mais confiável que um acordo verbal.</li>
+      <li><strong>Escolha o estilo pelo tamanho e pela criticidade da equipe.</strong> Para a maioria dos projetos de disciplina, um monólito modular com fronteiras claras é a escolha mais sensata.</li>
+      <li><strong>Pense em fronteiras antes de pensar em serviços.</strong> Se você não consegue dizer o que um módulo é responsável por fazer, ele não está pronto para ser extraído.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Regra de negócio dentro do controlador HTTP</td><td>Vazamento de camadas por conveniência</td><td>Mover a regra para o núcleo e deixar o controlador só traduzir</td></tr>
+        <tr><td>Módulo A lê diretamente a tabela do módulo B</td><td>Ausência de fronteira no monólito</td><td>Expor uma interface pública no módulo B e proibir acesso direto às tabelas</td></tr>
+        <tr><td>Testes de regra exigem banco e servidor rodando</td><td>Núcleo acoplado à infraestrutura</td><td>Introduzir portas e repositórios em memória para os testes</td></tr>
+        <tr><td>Quatro serviços para um time de dois desenvolvedores</td><td>Microsserviços escolhidos por moda</td><td>Consolidar em monólito modular e manter as fronteiras</td></tr>
+        <tr><td>Interfaces criadas para cada classe, sem ganho</td><td>Hexagonal aplicada como ritual</td><td>Criar porta apenas onde há uma fronteira real (banco, rede, serviço externo)</td></tr>
+        <tr><td>Mudança de banco exige editar a regra de negócio</td><td>SQL espalhado pelo domínio</td><td>Concentrar o SQL no adaptador e garantir que o domínio não o conhece</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> criar uma interface para cada classe “para o caso de um dia trocar a implementação”. Uma porta tem valor quando existe uma fronteira real, como um banco, uma rede ou um serviço externo. Sem essa fronteira, a interface é só ruído.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-sky-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Em um projeto da disciplina, desenhe a estrutura de pacotes antes de escrever a primeira linha. Organize os pacotes por caso de uso ou por conceito
+      de domínio, e coloque nos pacotes de domínio apenas o que não depende de tecnologia. Se você conseguir rodar todas as regras de negócio com um
+      único comando, sem banco, a arquitetura está funcionando.
+    </p>
+    <p>
+      Se estiver em dúvida entre monólito e microsserviços, escreva um ADR com as duas opções (tópico 5). Na maioria das vezes, a análise das
+      consequências mostra que o monólito modular atende aos cenários reais com muito menos custo operacional.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Na arquitetura hexagonal, quem define a interface de acesso ao banco de dados?</p>
+      <button class="ah-quiz-opt">O próprio banco de dados, pelo driver</button>
+      <button class="ah-quiz-opt">O adaptador de infraestrutura, que escolhe a tecnologia</button>
+      <button class="ah-quiz-opt">O núcleo do domínio, como uma porta de saída</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. O núcleo declara o que precisa; o adaptador implementa. É isso que inverte a dependência e mantém as setas apontando para dentro.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma pequena equipe tem um sistema com um único time, sem necessidade de escalar partes separadamente. Qual estilo tende a ser a escolha mais sensata?</p>
+      <button class="ah-quiz-opt">Monólito modular, com fronteiras claras entre módulos</button>
+      <button class="ah-quiz-opt">Microsserviços, para facilitar a escalabilidade futura</button>
+      <button class="ah-quiz-opt">Um serviço por tabela do banco de dados</button>
+      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. O monólito modular dá organização e fronteiras sem o custo operacional de uma rede de serviços. Microsserviços se justificam por um motivo concreto, que aqui não existe.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Todo estilo arquitetural é um conjunto de custos e benefícios. Escolha pelo contexto, não pela moda.</li>
+    <li>A regra de dependência é a ideia que une os estilos: as dependências apontam para as regras de negócio.</li>
+    <li>Na arquitetura hexagonal, o núcleo define as portas e os adaptadores as implementam.</li>
+    <li>Monólito modular costuma ser a melhor escolha inicial. Ele preserva a opção de extrair serviços depois.</li>
+    <li>Microsserviços exigem um motivo concreto e um custo operacional assumido.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>COCKBURN, A. Hexagonal architecture (Ports and Adapters). Publicação online, 2005. Disponível em alistair.cockburn.us.</li>
+    <li>MARTIN, R. C. <em>Clean Architecture: A Craftsman's Guide to Software Structure and Design</em>. Upper Saddle River: Prentice Hall, 2017. Regra de dependência e camadas.</li>
+    <li>PARNAS, D. L. On the criteria to be used in decomposing systems into modules. <em>Communications of the ACM</em>, v. 15, n. 12, p. 1053–1058, 1972.</li>
+    <li>LEWIS, J.; FOWLER, M. Microservices. martinfowler.com, 2014. Definição do estilo e de suas características.</li>
+    <li>NEWMAN, S. <em>Building Microservices</em>. 2. ed. Sebastopol: O'Reilly, 2021.</li>
+    <li>RICHARDSON, C. <em>Microservices Patterns</em>. Shelter Island: Manning, 2018.</li>
+    <li>CONWAY, M. E. How do committees invent? <em>Datamation</em>, v. 14, n. 4, p. 28–31, 1968.</li>
+    <li>RICHARDS, M.; FORD, N. <em>Fundamentals of Software Architecture</em>. Sebastopol: O'Reilly, 2020. Capítulos sobre estilos arquiteturais.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvHexagonal', ctl: 'ctlHexagonal', cap: 'capHexagonal',
+    desenha: ENG.desenhaHexagonal, gera: ENG.geraHexagonal, velocidade: 3000
+  });
+
+})();
+</script>
+</body>
+</html>

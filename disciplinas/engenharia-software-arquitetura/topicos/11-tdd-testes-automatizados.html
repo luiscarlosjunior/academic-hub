@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testes automatizados na prática e TDD: vermelho, verde, refatorar · Programação para a Indústria · AcademicHub</title>
+<meta name="description" content="Testes automatizados como especificação executável, o ciclo do TDD passo a passo com pytest, dublês de teste (stub, fake, mock) e os erros típicos de quem começa, com animação do ciclo e exemplo de situação de aluno.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/11-tdd-testes-automatizados">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-amber-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Um teste automatizado é código que verifica outro código, e roda sozinho a cada mudança. Na faculdade, muitos projetos são testados manualmente,
+      uma vez, na hora da apresentação. Na indústria, o teste manual não acompanha o ritmo de mudança: o que não é automático é ignorado, ou feito
+      tarde demais para ser barato.
+    </p>
+    <p>
+      Esta página trata dos testes automatizados como ferramenta de trabalho no dia a dia. Ela apresenta o TDD (desenvolvimento orientado a testes), um
+      ciclo curto de três passos que muda a forma de projetar o código, e mostra como escrever dublês de teste sem transformar a suíte em uma coleção de
+      simulações frágeis.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>escrever testes automatizados com pytest que documentam o comportamento esperado;</li>
+      <li>executar o ciclo vermelho, verde, refatorar em um exemplo completo;</li>
+      <li>distinguir stub, fake e mock, e escolher o dublê adequado a cada situação;</li>
+      <li>reconhecer os erros típicos de quem começa com testes e corrigi-los.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="especificacao" data-toc="Teste como especificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-circle-check text-amber-400 mr-2"></i>Teoria · O teste como especificação executável</h2>
+  <div class="ah-prose">
+    <p>
+      Um bom teste é a forma mais precisa de documentação que existe, porque ele não pode ficar desatualizado sem que a suíte falhe. Quando um teste se
+      chama <code>test_media_7_ou_mais_e_aprovado</code>, ele diz uma regra de negócio que qualquer pessoa pode ler, e o computador verifica a cada commit.
+    </p>
+    <p>
+      Por isso, a pergunta para escrever um teste não é “como testar esta função?”, e sim “qual comportamento eu quero garantir?”. A diferença é grande.
+      Testes escritos a partir da implementação repetem o código de forma indireta. Testes escritos a partir do comportamento sobrevivem a refatorações e
+      expressam a intenção do sistema.
+    </p>
+    <p>
+      Um teste bem escrito segue a estrutura <strong>arranjar, agir, verificar</strong> (Arrange, Act, Assert): prepara os dados, executa uma ação e
+      confirma um resultado. Três blocos claros tornam o teste legível, mesmo para quem nunca viu o código.
+    </p>
+  </div>
+</section>
+
+<section id="tdd" data-toc="O ciclo do TDD" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-amber-400 mr-2"></i>Teoria · O ciclo do TDD</h2>
+  <div class="ah-prose">
+    <p>
+      Beck (2002) popularizou o <strong>desenvolvimento orientado a testes</strong> (TDD) em torno de um ciclo de três passos, repetido em intervalos de
+      minutos:
+    </p>
+    <ul>
+      <li><strong>Vermelho:</strong> escreva um teste para um comportamento que ainda não existe, e veja-o falhar. A falha prova que o teste de fato verifica algo; um teste que nunca falha não serve para nada.</li>
+      <li><strong>Verde:</strong> escreva o código <em>mínimo</em> que faz o teste passar. “Mínimo” é a palavra importante: se a implementação parece óbvia demais, o teste ainda é pequeno demais, e um novo caso deve ser adicionado.</li>
+      <li><strong>Refatorar:</strong> melhore o código e os testes mantendo tudo verde. Nomes, duplicação e estrutura são limpos nesse momento, com a segurança de que o comportamento está protegido.</li>
+    </ul>
+    <p>
+      O TDD não é só sobre testes. Ele muda a forma de projetar: como o código precisa ser testável antes de existir, as dependências ficam explícitas, as
+      funções ficam pequenas e as interfaces ficam claras. Por isso o tópico 6 (sobre o núcleo e as portas) e o TDD se complementam.
+    </p>
+    <p>
+      Nem tudo deve ser feito em TDD. Exploração de uma API desconhecida, protótipos descartáveis e interfaces visuais costumam ser melhor resolvidos de
+      outra forma. O TDD é mais útil nas regras de negócio, que são o coração do sistema e as que mais mudam.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: o ciclo em execução" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-amber-400 mr-2"></i>Animação · Vermelho, verde, refatorar</h2>
+  <p class="ah-lead text-sm mb-4">Avance os passos para acompanhar a regra de desconto nascer: o teste falha primeiro, depois o código mínimo passa, depois a refatoração mantém o verde. No fim, uma nova regra começa outro ciclo.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvTDD" style="height:300px"></canvas></div>
+  <div id="ctlTDD" class="mt-4"></div>
+  <div id="capTDD" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: situação do aluno" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplo prático · TDD na situação do aluno</h2>
+  <div class="ah-prose">
+    <p>
+      Vamos construir, em pequenos passos, a regra de situação de um aluno: média igual ou superior a 7,0 é aprovado; de 4,0 a 6,99 vai para recuperação; abaixo
+      de 4,0 é reprovado. A média é ponderada pelos pesos das avaliações.
+    </p>
+    <p><strong>Passo 1 · Vermelho.</strong> Escrevemos primeiro o teste da média ponderada. A função ainda não existe, então o teste falha.</p>
+    <pre class="ah-code"><code># tests/test_notas.py
+import pytest
+from notas import media_ponderada
+
+def test_media_ponderada_considera_os_pesos():
+    # nota 8 com peso 2 e nota 4 com peso 1: (16 + 4) / 3
+    assert media_ponderada([(8, 2), (4, 1)]) == pytest.approx(20 / 3)</code></pre>
+    <p>
+      <strong>Passo 2 · Verde.</strong> O código mínimo que passa é a própria fórmula. Nada além disso ainda é exigido pelo teste.</p>
+    <pre class="ah-code"><code># notas.py
+def media_ponderada(notas_e_pesos):
+    soma_pesos = sum(peso for _, peso in notas_e_pesos)
+    return sum(nota * peso for nota, peso in notas_e_pesos) / soma_pesos</code></pre>
+    <p>
+      Note que a função ainda não trata peso zero. Esse é um caso que merece um teste próprio, e só depois o código. O TDD não exige prever tudo; exige que
+      cada comportamento novo nasça de um teste que falha.
+    </p>
+    <p><strong>Passo 3 · Vermelho de novo.</strong> A regra de situação ainda não existe. Escrevemos os casos de borda, com valores exatos nos limites:</p>
+    <pre class="ah-code"><code>import pytest
+from notas import situacao
+
+@pytest.mark.parametrize("media, esperado", [
+    (7.0, "aprovado"),
+    (6.99, "recuperação"),
+    (4.0, "recuperação"),
+    (3.99, "reprovado"),
+])
+def test_situacao_nos_limites(media, esperado):
+    assert situacao(media) == esperado</code></pre>
+    <p>
+      <strong>Passo 4 · Verde.</strong> A implementação mínima da regra, passando por todos os casos:</p>
+    <pre class="ah-code"><code># notas.py (acréscimo)
+def situacao(media):
+    if media >= 7.0:
+        return "aprovado"
+    if media >= 4.0:
+        return "recuperação"
+    return "reprovado"</code></pre>
+    <p>
+      <strong>Passo 5 · Refatorar.</strong> Com os testes verdes, podemos dar nomes às constantes e separar a regra. A mudança de forma não altera nenhum
+      resultado, e a suíte garante isso:
+    </p>
+    <pre class="ah-code"><code>NOTA_APROVACAO = 7.0
+NOTA_RECUPERACAO = 4.0
+
+def situacao(media):
+    if media >= NOTA_APROVACAO:
+        return "aprovado"
+    if media >= NOTA_RECUPERACAO:
+        return "recuperação"
+    return "reprovado"</code></pre>
+    <p>
+      Ao final dos cinco passos, cada regra tem um teste que a documenta, e o código é mínimo, sem especulação. Se a escola mudar a nota de aprovação para
+      6,5, a alteração é uma linha no código e uma linha no teste, e a suíte mostra exatamente quais comportamentos mudaram.
+    </p>
+  </div>
+</section>
+
+<section id="dublês" data-toc="Dublês de teste" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-masks-theater text-amber-400 mr-2"></i>Teoria · Dublês de teste: stub, fake e mock</h2>
+  <div class="ah-prose">
+    <p>
+      Quando a unidade depende de algo lento, externo ou não determinístico (um e-mail, um relógio, uma API de pagamento), usamos um <strong>dublê</strong>
+      no lugar da dependência real. Meszaros (2007) organizou os tipos de dublê, e três deles são os mais úteis:
+    </p>
+    <ul>
+      <li><strong>Stub:</strong> devolve respostas fixas para as chamadas. Serve para controlar a entrada da unidade testada. Ex.: um repositório que sempre devolve uma lista com dois alunos.</li>
+      <li><strong>Fake:</strong> tem uma implementação simplificada, mas funcional, como um repositório em memória. Serve quando o teste precisa de comportamento real, como salvar e depois ler.</li>
+      <li><strong>Mock:</strong> verifica interações, ou seja, se um método foi chamado com certos argumentos. Serve quando o efeito colateral é o que importa, como “o e-mail de reprovação foi enviado uma vez”.</li>
+    </ul>
+    <p>
+      Um critério simples: prefira <strong>verificar estado</strong> (o resultado ou o que ficou salvo) a <strong>verificar interações</strong> (quais métodos
+      foram chamados). Testes baseados em estado sobrevivem a refatorações; testes baseados em interações quebram sempre que a forma interna muda, mesmo
+      sem mudança de comportamento. Mocks são úteis nas fronteiras, como um envio de e-mail, mas não devem simular a própria lógica do sistema.
+    </p>
+    <p>
+      Exemplo: para testar a notificação de reprovação, um fake de envio de mensagens guarda as mensagens em uma lista, e o teste verifica a lista. Isso
+      verifica o resultado observável, e não a sequência de chamadas internas.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-amber-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Escreva o teste antes da implementação, e veja-o falhar.</strong> Um teste que nunca falhou não provou nada.</li>
+      <li><strong>Cada teste verifica um comportamento.</strong> Um teste com cinco asserções diferentes não diz qual regra quebrou.</li>
+      <li><strong>Use <code>parametrize</code> para valores de fronteira.</strong> A tabela de casos é a documentação da regra.</li>
+      <li><strong>Mantenha os testes independentes.</strong> Nenhum teste deve depender da ordem em que os outros rodam, nem deixar dados para o seguinte.</li>
+      <li><strong>Faça a suíte rodar em segundos.</strong> Testes unitários são rápidos por natureza; se a suíte está lenta, algo está acessando recursos externos sem necessidade.</li>
+      <li><strong>Trate teste como código.</strong> Revise, refatore e apague os testes que não servem mais.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Teste escrito depois, para “cobrir” o código já pronto</td><td>Teste como formalidade</td><td>Escrever o caso de uso primeiro e ver o teste falhar</td></tr>
+        <tr><td>Teste passou na primeira execução, sem nunca ter falhado</td><td>Asserção que não verifica nada útil</td><td>Quebrar o código de propósito e confirmar que o teste falha</td></tr>
+        <tr><td>Refatorar quebra vinte testes</td><td>Testes verificam interações internas</td><td>Verificar estado e comportamento público; usar fakes no lugar de mocks</td></tr>
+        <tr><td>Teste passa sozinho e falha na suíte</td><td>Estado compartilhado entre testes</td><td>Preparar o estado dentro de cada teste ou com fixtures de escopo claro</td></tr>
+        <tr><td>Mock de tudo, sem nada real sendo testado</td><td>Dublês usados para simular a própria regra</td><td>Testar a regra com dados reais e usar dublês só nas fronteiras</td></tr>
+        <tr><td>Equipe desiste dos testes porque demoram</td><td>Testes de integração no lugar de unitários</td><td>Separar as suítes e rodar a rápida a cada mudança</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> escrever o código mínimo que passa e parar ali, sem perguntar se a regra está completa. O verde não significa que o comportamento está certo; significa que os testes escritos passam. Pergunte sempre quais casos ainda não foram especificados.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Para começar, escolha um exercício pequeno e pure, como cálculo de média, de juros ou de frete, e faça o ciclo completo cinco vezes seguidas, com
+      cronômetro. Quando o ciclo estiver automático, aplique a uma regra real do projeto da disciplina, começando pela mais importante.
+    </p>
+    <p>
+      Em pares, uma pessoa escreve o teste e a outra faz a implementação mínima. Trocar os papéis a cada ciclo é uma forma excelente de treinar a leitura
+      de código alheio e a disciplina de não adicionar nada além do exigido.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No ciclo do TDD, por que é importante ver o teste falhar antes de escrever a implementação?</p>
+      <button class="ah-quiz-opt">Para ganhar tempo, já que o teste vai falhar de qualquer forma</button>
+      <button class="ah-quiz-opt">Para o computador aquecer e acelerar a compilação</button>
+      <button class="ah-quiz-opt">Para provar que o teste realmente verifica o comportamento novo, e não passa por acidente</button>
+      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. Um teste que passa sem nenhum código novo pode estar verificando algo errado ou nada. A falha inicial é a evidência de que o teste está ligado ao comportamento que se quer.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um teste precisa verificar que uma notificação de reprovação foi enviada. Qual abordagem tende a ser mais robusta a refatorações?</p>
+      <button class="ah-quiz-opt">Um fake que guarda as mensagens enviadas, e o teste verifica o conteúdo guardado</button>
+      <button class="ah-quiz-opt">Um mock que exige a chamada exata de cada método interno, na ordem</button>
+      <button class="ah-quiz-opt">Um teste manual, porque automatizar esse caso não compensa</button>
+      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. O fake verifica o efeito observável, que é a mensagem entregue. O mock acoplado à sequência de chamadas quebra sempre que a forma interna muda, mesmo sem mudar o comportamento.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Teste automatizado é especificação executável: ele documenta o comportamento e roda a cada mudança.</li>
+    <li>O TDD segue o ciclo vermelho, verde, refatorar. A falha inicial prova que o teste verifica algo.</li>
+    <li>O código mínimo que passa não é o código final: a refatoração vem com a suíte verde.</li>
+    <li>Stub controla entradas, fake simula comportamento real, mock verifica interações. Prefira verificar estado.</li>
+    <li>Use TDD nas regras de negócio, que mudam mais e merecem a maior proteção.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BECK, K. <em>Test-Driven Development: By Example</em>. Boston: Addison-Wesley, 2002. Origem e exemplos do ciclo do TDD.</li>
+    <li>MESZAROS, G. <em>xUnit Test Patterns: Refactoring Test Code</em>. Upper Saddle River: Addison-Wesley, 2007. Classificação de dublês de teste (stub, fake, mock e outros).</li>
+    <li>FREEMAN, S.; PRYCE, N. <em>Growing Object-Oriented Software, Guided by Tests</em>. Boston: Addison-Wesley, 2009. TDD aplicado a sistemas orientados a objetos.</li>
+    <li>PYTEST. <em>Documentação oficial</em>. docs.pytest.org. Parametrização, fixtures e asserções.</li>
+    <li>MARTIN, R. C. <em>Clean Code</em>. Upper Saddle River: Prentice Hall, 2008. Capítulo sobre testes limpos.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvTDD', ctl: 'ctlTDD', cap: 'capTDD',
+    desenha: ENG.desenhaTDD, gera: ENG.geraTDD, velocidade: 3000
+  });
+
+})();
+</script>
+</body>
+</html>
