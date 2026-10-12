@@ -553,6 +553,73 @@ classDiagram
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: clínica veterinária" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stethoscope text-emerald-400 mr-2"></i>Exemplo passo a passo: uma clínica veterinária</h2>
+  <p class="ah-lead text-sm mb-5">Um segundo caso, de outro domínio, para você praticar a técnica sem olhar a resposta do Melodia.</p>
+
+  <div class="ah-card p-5 mb-5 border-l-4 border-indigo-400">
+    <div class="text-xs uppercase tracking-wide text-indigo-300 font-bold mb-2">Pedido do cliente</div>
+    <p class="text-sm text-slate-200 leading-relaxed">“Tutores agendam consultas para seus animais. Cada animal tem uma ficha com espécie, nascimento e vacinas. O veterinário registra o atendimento e a receita. Um animal pode ter várias consultas, mas cada consulta é de um só animal.”</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 1 — sublinhar substantivos e verbos</h3>
+  <p class="ah-prose text-sm">Substantivos candidatos: tutor, animal, ficha, espécie, nascimento, vacina, consulta, veterinário, atendimento, receita. Verbos: agendar, registrar.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — decidir o que vira classe</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Candidato</th><th>Decisão</th><th>Justificativa</th></tr></thead>
+      <tbody>
+        <tr><td>tutor</td><td>classe</td><td>Tem dados (contato) e papel próprio no agendamento</td></tr>
+        <tr><td>animal</td><td>classe</td><td>Tem ficha, vacinas e histórico</td></tr>
+        <tr><td>espécie</td><td>atributo (ou enum)</td><td>É um valor fixo, sem comportamento próprio</td></tr>
+        <tr><td>nascimento</td><td>atributo</td><td>Só um dado; a idade é derivada dele</td></tr>
+        <tr><td>vacina</td><td>classe</td><td>Tem data, lote e validade: é um registro com regra (vencida?)</td></tr>
+        <tr><td>consulta</td><td>classe</td><td>Tem data, motivo e receita; é o centro do fluxo</td></tr>
+        <tr><td>veterinário</td><td>classe</td><td>Executa o atendimento (papel de usuário)</td></tr>
+        <tr><td>idade</td><td>não é classe</td><td>Atributo derivado de nascimento: calcule, não guarde</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — relações e multiplicidades</h3>
+  <div class="ah-diagram mt-3">
+    <pre class="mermaid">
+classDiagram
+    class Tutor {
+        -String nome
+        -String telefone
+    }
+    class Animal {
+        -String nome
+        -Especie especie
+        -LocalDate nascimento
+        +idade() int
+    }
+    class Vacina {
+        -String nome
+        -LocalDate validade
+        +vencida(hoje) boolean
+    }
+    class Consulta {
+        -LocalDateTime data
+        -String motivo
+    }
+    class Veterinario {
+        -String nome
+    }
+    Tutor "1" --&gt; "0..*" Animal : possui
+    Animal "1" *-- "0..*" Vacina : registra
+    Animal "1" --&gt; "0..*" Consulta : recebe
+    Veterinario "1" --&gt; "0..*" Consulta : atende
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Leia cada seta em voz alta: “um tutor possui zero ou mais animais”, “cada consulta é de um só animal”. Vacina é composição: sem o animal, o registro não faz sentido.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro de leitura típico:</strong> desenhar “idade” como atributo guardado. Ela muda todo ano; guardada, vira dado errado em pouco tempo. A regra certa é derivar a partir de <code>nascimento</code>.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
 
