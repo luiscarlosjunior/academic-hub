@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transações, isolamento e concorrência · AcademicHub</title>
+<meta name="description" content="Anomalias de concorrência (leitura suja, não repetível, fantasma e atualização perdida), os níveis de isolamento e o que cada um garante.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/15-transacoes-isolamento">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Duas pessoas, o mesmo produto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-user-lock text-fuchsia-400 mr-2"></i>Quando duas transações se encontram</h2>
+  <div class="ah-prose">
+    <p>
+      No tópico 08 vimos que uma transação é “tudo ou nada”. Mas uma loja tem centenas de transações simultâneas, e elas
+      <strong>leem e escrevem os mesmos dados</strong>. Se o banco executasse uma de cada vez, seria lento. Se executasse
+      todas sem controle, daria resultados errados. A <strong>concorrência</strong> é o equilíbrio entre velocidade e correção.
+    </p>
+    <p>
+      A propriedade <strong>I</strong> do ACID (isolamento) diz o que uma transação pode ver das outras. Os níveis de isolamento
+      são o contrato: quanto mais isolamento, menos anomalias, e mais espera ou conflito.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · a atualização perdida</h3>
+    <div id="anim-perdida"></div>
+  </div>
+</section>
+
+<!-- ============================ ANOMALIAS ============================ -->
+<section id="anomalias" data-toc="As anomalias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-fuchsia-400 mr-2"></i>As anomalias clássicas</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada anomalia é um resultado que nenhuma execução sequencial produziria. Os nomes vêm da teoria de transações.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-l-4 border-rose-500">
+      <h3 class="ah-h3 mb-2">Leitura suja (dirty read)</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">A transação B lê um valor que A escreveu, mas ainda não confirmou. Se A der ROLLBACK, B agiu com um dado que nunca existiu.</p>
+    </div>
+    <div class="ah-card p-5 border-l-4 border-amber-400">
+      <h3 class="ah-h3 mb-2">Leitura não repetível</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">B lê uma linha duas vezes na mesma transação e obtém valores diferentes, porque A confirmou uma alteração entre as duas leituras.</p>
+    </div>
+    <div class="ah-card p-5 border-l-4 border-cyan-400">
+      <h3 class="ah-h3 mb-2">Fantasma (phantom)</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">B executa a mesma consulta com filtro duas vezes e vê um conjunto diferente de linhas, porque A inseriu ou removeu linhas que casam com o filtro.</p>
+    </div>
+    <div class="ah-card p-5 border-l-4 border-fuchsia-400">
+      <h3 class="ah-h3 mb-2">Atualização perdida (lost update)</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">Duas transações leem o mesmo valor, calculam um novo com base nele e gravam. A segunda gravação sobrescreve a primeira, e a alteração de uma some.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Níveis de isolamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-fuchsia-400 mr-2"></i>Os quatro níveis de isolamento</h2>
+  <p class="ah-lead text-sm mb-5">
+    O padrão SQL define quatro níveis, cada um proibindo um subconjunto de anomalias. Escolha pelo menor nível que
+    garanta a correção do seu caso, porque cada nível mais alto custa mais em concorrência.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Nível</th><th>Leitura suja</th><th>Não repetível</th><th>Fantasma</th></tr></thead>
+      <tbody>
+        <tr><td><code>READ UNCOMMITTED</code></td><td>pode</td><td>pode</td><td>pode</td></tr>
+        <tr><td><code>READ COMMITTED</code></td><td>não</td><td>pode</td><td>pode</td></tr>
+        <tr><td><code>REPEATABLE READ</code></td><td>não</td><td>não</td><td>pode (pelo padrão)</td></tr>
+        <tr><td><code>SERIALIZABLE</code></td><td>não</td><td>não</td><td>não</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div>
+      <strong>O padrão é um piso, não o comportamento de cada banco.</strong> PostgreSQL implementa READ UNCOMMITTED como READ COMMITTED
+      (nunca lê dado não confirmado). Seu REPEATABLE READ também impede fantasmas, por usar snapshots. MySQL InnoDB usa
+      <em>gap locks</em> no REPEATABLE READ. Leia a documentação do seu SGBD: o nome do nível é igual, a garantia nem sempre.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CONTROLE ============================ -->
+<section id="controle" data-toc="Como o banco controla" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-fuchsia-400 mr-2"></i>Como o banco controla a concorrência</h2>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">Travas (locks)</h3>
+      <p class="text-sm text-slate-300 leading-relaxed mb-3">
+        Uma transação que escreve trava a linha. Outra que tenta escrever nela espera. Leituras podem ou não esperar, conforme o
+        nível. Travas garantem a correção, mas causam espera e, no pior caso, <strong>deadlock</strong>: A espera B e B espera A.
+        O banco detecta o ciclo e aborta uma das transações.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">Versões (MVCC)</h3>
+      <p class="text-sm text-slate-300 leading-relaxed mb-3">
+        O banco guarda versões da linha. Cada transação lê a versão que era confirmada no seu snapshot, sem esperar quem escreve.
+        Leitores e escritores não se bloqueiam. Quem escreve sobre a mesma linha ainda pode conflitar, e então uma é abortada.
+        PostgreSQL e InnoDB usam essa abordagem.
+      </p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>E o SQLite?</strong> Ele é mais simples: uma escrita por vez no arquivo inteiro. Em modo WAL, leitores não esperam
+      o escritor, mas só há um escritor de cada vez. Para uma aplicação de um usuário, isso basta. Para centenas de usuários
+      escrevendo, use um servidor como PostgreSQL.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CORREÇÃO DA ATUALIZAÇÃO PERDIDA ============================ -->
+<section id="correcao" data-toc="Corrigindo a atualização perdida" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wrench text-fuchsia-400 mr-2"></i>Três formas de corrigir</h2>
+  <p class="ah-lead text-sm mb-5">
+    O erro está em ler, calcular na aplicação e gravar o resultado. Há três saídas, com trade-offs diferentes.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1">1. Cálculo no banco</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Faça a conta dentro do UPDATE, em uma só instrução atômica. Simples e eficiente.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1">2. Trava pessimista</div>
+      <p class="text-xs text-slate-400 leading-relaxed"><code>SELECT … FOR UPDATE</code> trava a linha durante a leitura. Quem vem depois espera.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1">3. Versão otimista</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma coluna <code>versao</code> é conferida no UPDATE. Se mudou, a aplicação relê e tenta de novo. Não trava nada.</p></div>
+  </div>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- 1. cálculo no banco: nenhuma leitura intermediária na aplicação
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 1 AND estoque &gt;= 1;
+SELECT id_produto, estoque FROM produtos WHERE id_produto = 1;</pre>
+  </div>
+  <div class="sql-ex mt-4">
+    <pre class="ah-code sql-code" data-run>-- 3. versão otimista: só grava se ninguém mudou a linha desde a leitura
+ALTER TABLE produtos ADD COLUMN versao INTEGER NOT NULL DEFAULT 1;
+UPDATE produtos SET estoque = estoque - 1, versao = versao + 1
+WHERE id_produto = 1 AND versao = 1;
+SELECT id_produto, estoque, versao FROM produtos WHERE id_produto = 1;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Na versão otimista, a aplicação lê a versão 1, calcula e grava “se a versão ainda for 1”. Se duas aplicações
+    fizeram isso ao mesmo tempo, só a primeira casa a condição: a segunda afeta zero linhas e repete a leitura.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-fuchsia-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Serializabilidade é o padrão-ouro.</strong> Um conjunto de transações concorrentes é serializável se o resultado é igual ao de alguma execução sequencial delas. SERIALIZABLE garante isso; os outros níveis aceitam resultados que não correspondem a nenhuma ordem sequencial.</li>
+      <li><strong>Write skew.</strong> Duas transações leem um conjunto, cada uma verifica uma regra sobre ele e grava em linhas <em>diferentes</em>. Nenhuma atualização colide, mas juntas violam a regra. Exemplo: “pelo menos um médico de plantão”, com dois médicos saindo ao mesmo tempo. Nem REPEATABLE READ impede isso; só SERIALIZABLE, ou uma trava explícita.</li>
+      <li><strong>Deadlock é normal.</strong> Aplicações devem repetir a transação abortada, e acessar as tabelas sempre na mesma ordem reduz a chance de deadlock.</li>
+      <li><strong>Transações longas são o inimigo.</strong> Uma transação aberta por minutos segura travas ou versões antigas por todo esse tempo. Mantenha-as curtas e sem esperar entrada do usuário no meio.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: a corrida pelo último item" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-fuchsia-400 mr-2"></i>Exemplo clássico: a corrida pelo último item</h2>
+  <p class="ah-lead text-sm mb-5">
+    O produto 8 (Cafeteira) tem estoque 5. Dois clientes compram ao mesmo tempo. Sem controle, os dois leem “5”, cada um
+    calcula “4”, e o estoque final é 4, quando deveria ser 3. A versão correta usa uma única instrução atômica, como no tópico 08.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- cliente A e cliente B executam, quase ao mesmo tempo, o mesmo comando:
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 8 AND estoque &gt;= 1;
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 8 AND estoque &gt;= 1;
+SELECT id_produto, nome, estoque FROM produtos WHERE id_produto = 8;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Aqui os comandos rodam em sequência, num só banco, e o resultado é 3: cada UPDATE vê o efeito do anterior. Em
+    concorrência real, o banco garante o mesmo resultado: a segunda transação espera a primeira ou lê a nova versão antes de gravar.
+    A leitura separada e o cálculo na aplicação é que provocariam a perda.
+  </p>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-fuchsia-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Os cenários de concorrência são conceituais: o editor roda um único banco. Use o raciocínio.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Identifique a anomalia</summary>
+    <p class="sql-dica-prob">A transação T1 lê o saldo de uma conta (100). T2 atualiza o saldo para 50 e confirma. T1 lê o saldo de novo e obtém 50.
+      Qual anomalia ocorreu, e em qual nível ela é proibida?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        É uma <strong>leitura não repetível</strong>. T1 leu o mesmo dado duas vezes e obteve valores diferentes porque T2 confirmou
+        uma alteração entre as leituras. Ela é proibida a partir de REPEATABLE READ.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Escolha a correção</summary>
+    <p class="sql-dica-prob">Um sistema de reservas verifica se um assento está livre e, em seguida, marca como ocupado. Duas pessoas
+      escolhem o mesmo assento ao mesmo tempo. Qual correção você escolheria, e por quê?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A verificação e a marcação formam um par “ler, decidir, gravar”, e a correção é fazer tudo numa só instrução condicional:
+        <code>UPDATE assentos SET ocupado = 1 WHERE id = ? AND ocupado = 0</code>. Se afetar uma linha, a reserva é sua; se afetar zero,
+        o assento já foi tomado. Essa é a correção mais simples e mais segura, porque não há janela entre a checagem e a gravação.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Write skew</summary>
+    <p class="sql-dica-prob">A regra é “pelo menos um dos plantonistas deve estar de plantão”. Dois plantonistas, Ana e Bruno, estão de plantão.
+      Cada um pede para sair, verificando antes que o outro continua. Por que a regra pode ser violada mesmo com atualizações em linhas diferentes?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Cada transação lê as duas linhas, vê que “o outro está de plantão”, e atualiza só a sua. As escritas não colidem,
+        então nenhuma trava de linha é disputada. Juntas, porém, deixam o plantão vazio. É um <strong>write skew</strong>.
+        Soluções: SERIALIZABLE, ou travar explicitamente uma linha compartilhada (um registro de plantão do dia) antes de decidir.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Reproduzindo a anomalia com duas sessões</h3>
+  <div class="ah-prose">
+    <p>
+      Para ver uma anomalia de verdade, é preciso duas conexões ao mesmo tempo. Como o editor desta página roda um único
+      banco, o exemplo abaixo mostra os comandos de cada sessão em PostgreSQL. Rode-os em dois terminais <code>psql</code>
+      na ordem indicada, e observe o resultado de cada passo.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+    <div class="ah-card p-4">
+      <div class="text-xs font-semibold text-fuchsia-300 mb-2">Sessão A (leitor)</div>
+<pre class="ah-code sql-code">BEGIN ISOLATION LEVEL READ COMMITTED;
+-- passo 1
+SELECT estoque FROM produtos WHERE id_produto = 8;   -- 5
+-- passo 4 (depois que B confirmar)
+SELECT estoque FROM produtos WHERE id_produto = 8;   -- 4 ou 3?
+COMMIT;</pre>
+    </div>
+    <div class="ah-card p-4">
+      <div class="text-xs font-semibold text-fuchsia-300 mb-2">Sessão B (escritor)</div>
+<pre class="ah-code sql-code">BEGIN;
+-- passo 2
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 8;
+-- passo 3
+COMMIT;</pre>
+    </div>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Em READ COMMITTED, a segunda leitura de A vê a alteração de B, porque ela já foi confirmada: é a leitura não repetível.
+    Troque o nível de A para REPEATABLE READ e repita: a segunda leitura continuará vendo 5, porque a transação mantém o
+    snapshot do início. Esse experimento de dois terminais vale mais que muitos parágrafos.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Deadlock: quando dois esperam um pelo outro</h3>
+  <div class="ah-prose">
+    <p>
+      Deadlock acontece quando a transação T1 trava a linha X e quer a Y, enquanto T2 trava Y e quer a X. Nenhuma pode avançar.
+      O banco detecta o ciclo de espera e aborta uma delas com um erro, e a aplicação deve repetir a transação.
+    </p>
+  </div>
+  <div class="sql-q mt-3">T1: UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 1;   -- trava produto 1
+T2: UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 2;   -- trava produto 2
+T1: UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 2;   -- espera T2
+T2: UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 1;   -- espera T1  =&gt; deadlock</div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A regra de prevenção é simples: todas as transações que tocam as mesmas linhas devem travá-las na mesma ordem
+    (por exemplo, por id crescente). Com a ordem fixa, o ciclo de espera não se forma.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Fila de trabalho sem disputa</h3>
+  <div class="ah-prose">
+    <p>
+      Um padrão muito comum é um conjunto de tarefas que vários workers consomem. Se todos fizerem a mesma consulta, disputam
+      a mesma linha. A cláusula <code>FOR UPDATE SKIP LOCKED</code> (PostgreSQL e MySQL 8) pega a primeira tarefa livre e
+      ignora as já travadas por outros workers.
+    </p>
+  </div>
+  <div class="sql-q mt-3">BEGIN;
+SELECT id, payload
+FROM fila_tarefas
+WHERE status = 'pendente'
+ORDER BY id
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+-- processa a tarefa e depois:
+UPDATE fila_tarefas SET status = 'feita' WHERE id = ?;
+COMMIT;</div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Qual nível usar? Um guia por caso</h3>
+  <div class="overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Caso</th><th>Abordagem razoável</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td>Contador ou estoque</td><td>UPDATE atômico com condição</td><td>Uma instrução basta; sem janela de corrida</td></tr>
+        <tr><td>Relatório do dia</td><td>READ COMMITTED ou snapshot</td><td>Pequenas inconsistências são toleráveis; bloquear seria caro</td></tr>
+        <tr><td>Regra que envolve vários registros (plantão, saldo global)</td><td>SERIALIZABLE ou trava explícita</td><td>Previne o write skew</td></tr>
+        <tr><td>Reserva de assento ou ingresso</td><td>UPDATE condicional ou versão otimista</td><td>Um vencedor, e os demais recebem falha clara</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Comece pelo problema, não pelo nível.</strong> Antes de subir o isolamento, tente tornar a operação atômica.
+      Isolamento mais alto custa espera e falhas de serialização. Uma instrução bem escrita costuma resolver o caso com custo zero.</div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#2a1436)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-fuchsia-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual anomalia permite ler um valor que outra transação ainda não confirmou?</p>
+      <button class="ah-quiz-opt">Leitura não repetível</button>
+      <button class="ah-quiz-opt">Fantasma</button>
+      <button class="ah-quiz-opt">Leitura suja</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A leitura suja expõe dados não confirmados. READ COMMITTED e níveis acima a proíbem.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Qual nível de isolamento garante que o resultado seja equivalente a alguma execução sequencial?</p>
+      <button class="ah-quiz-opt">SERIALIZABLE</button>
+      <button class="ah-quiz-opt">READ COMMITTED</button>
+      <button class="ah-quiz-opt">READ UNCOMMITTED</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        SERIALIZABLE é o único nível do padrão que elimina todas as anomalias, incluindo o write skew, e garante serializabilidade.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Por que <code>UPDATE … SET estoque = estoque - 1 WHERE … AND estoque &gt;= 1</code> é mais seguro do que ler, calcular e gravar?</p>
+      <button class="ah-quiz-opt">Porque é mais rápido de escrever</button>
+      <button class="ah-quiz-opt">Porque a leitura e a gravação acontecem numa só instrução, sem janela para outra transação intervir entre elas</button>
+      <button class="ah-quiz-opt">Porque evita qualquer trava no banco</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A atomicidade da instrução única elimina a atualização perdida. Ela não evita travas: o banco ainda pode travar a linha
+        durante a execução, o que é desejável.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: atualização perdida ===================== */
+(function () {
+  const sessao = (titulo, linhas, cor) => `
+    <div class="ah-card p-4 border-t-4" style="border-top-color:${cor}">
+      <div class="text-xs font-bold text-white mb-2">${titulo}</div>
+      <div class="sql-q">${linhas}</div></div>`;
+  const saldo = (v, cor) => `<div class="ah-card p-4 text-center"><div class="text-[11px] text-slate-400">saldo no banco</div>
+    <div class="text-3xl font-bold ${cor}">R$ ${v}</div></div>`;
+  SQLLab.passos(document.getElementById('anim-perdida'), [
+    { titulo: 'Estado inicial', texto: 'A conta tem R$ 100. Duas transações vão depositar R$ 10 cada, de forma concorrente.',
+      html: () => saldo(100, 'text-white') },
+    { titulo: 'Ambas leem', texto: 'A lê 100 e B lê 100. Ninguém gravou ainda.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        ${sessao('Transação A', 'lê saldo → 100', '#22d3ee')}${sessao('Transação B', 'lê saldo → 100', '#e879f9')}</div>
+        <div class="mt-3">${saldo(100, 'text-white')}</div>` },
+    { titulo: 'Ambas calculam e gravam', texto: 'A grava 110. Depois B grava 110, calculado a partir do 100 que leu antes. O 110 de A é sobrescrito.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        ${sessao('Transação A', 'UPDATE … SET saldo = 110', '#22d3ee')}${sessao('Transação B', 'UPDATE … SET saldo = 110', '#e879f9')}</div>
+        <div class="mt-3">${saldo(110, 'text-amber-300')}</div>` },
+    { titulo: 'Resultado', texto: 'Dois depósitos de R$ 10 foram feitos, mas o saldo subiu só R$ 10. Uma atualização foi perdida.',
+      html: () => `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Atualização perdida.</strong> Esperado: R$ 120. Obtido: R$ 110.</div></div>
+        <div class="mt-3">${saldo(110, 'text-rose-400')}</div>` },
+    { titulo: 'Correção', texto: 'Com UPDATE saldo = saldo + 10 numa instrução só, o banco aplica cada depósito sobre o valor atual, e o resultado é R$ 120.',
+      html: () => `<div class="sql-q">UPDATE contas SET saldo = saldo + 10 WHERE id = 1;   -- feito duas vezes</div>
+        <div class="mt-3">${saldo(120, 'text-emerald-400')}</div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

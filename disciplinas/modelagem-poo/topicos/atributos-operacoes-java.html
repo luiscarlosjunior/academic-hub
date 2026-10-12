@@ -487,6 +487,48 @@ conta.sacar(valor);</code></pre>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- EXEMPLO-EXEC:INI -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: termostato" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-temperature-half text-amber-400 mr-2"></i>Exemplo passo a passo: um termostato com atributos e operações</h2>
+  <p class="ah-lead text-sm mb-5">Um dispositivo com estado (temperatura), limites de segurança e operações que mudam o estado de forma controlada.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — separar atributo de operação</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Elemento</th><th>Tipo</th><th>Visibilidade</th></tr></thead>
+      <tbody>
+        <tr><td><code>temperaturaAtual</code></td><td>atributo (muda com o tempo)</td><td>private</td></tr>
+        <tr><td><code>limiteMaximo</code></td><td>atributo (configuração)</td><td>private, com validação</td></tr>
+        <tr><td><code>ligado</code></td><td>atributo de estado</td><td>private</td></tr>
+        <tr><td><code>ajustar(valor)</code></td><td>comando (muda estado)</td><td>public</td></tr>
+        <tr><td><code>estaQuente()</code></td><td>consulta (só lê)</td><td>public</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a operação protege o limite</h3>
+  <pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Termostato</span> {
+    <span class="kw">private double</span> temperaturaAlvo = <span class="num">22.0</span>;
+    <span class="kw">private final double</span> limiteMaximo;
+
+    <span class="kw">public</span> <span class="fn">Termostato</span>(<span class="kw">double</span> limiteMaximo) { <span class="kw">this</span>.limiteMaximo = limiteMaximo; }
+
+    <span class="kw">public void</span> <span class="fn">ajustar</span>(<span class="kw">double</span> novoAlvo) {
+        <span class="kw">if</span> (novoAlvo &gt; limiteMaximo)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"acima do limite de segurança"</span>);
+        temperaturaAlvo = novoAlvo;
+    }
+
+    <span class="kw">public boolean</span> <span class="fn">estaQuente</span>(<span class="kw">double</span> medida) { <span class="kw">return</span> medida &gt; temperaturaAlvo; }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Como <code>temperaturaAlvo</code> é privado, ninguém contorna o limite de segurança com uma atribuição direta. A operação <code>ajustar</code> é o único caminho, e ela é o lugar onde a regra mora.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o que é consulta e o que é comando</h3>
+  <p class="ah-prose text-sm"><code>estaQuente</code> pode ser chamado mil vezes sem efeito. <code>ajustar</code> muda o estado e não devolve nada. Separar as duas coisas torna o código mais fácil de testar: consultas testam-se sem preparação, comandos testam-se verificando o efeito depois.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> um método <code>getAlvo()</code> que, além de devolver o valor, registra um log e reajusta outro campo. Quem só queria ler muda o estado sem saber.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável: projeto Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: o projeto Melodia</h2>
   <p class="ah-lead text-sm mb-5">O saldo protegido, o plano como <code>enum</code> e o atributo derivado (duração da playlist) estão implementados no projeto. Observe que nenhum código externo consegue colocar o saldo em um valor inválido.</p>

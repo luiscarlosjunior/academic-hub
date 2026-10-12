@@ -388,6 +388,101 @@ formas de formar 10 com moedas {1,2,5} = 10</code></pre>
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>11-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Água presa entre barras (dois ponteiros)</h3>
+    <div class="ah-prose text-sm"><p>Os ponteiros avançam pelo lado mais baixo. A água em cada coluna é o máximo visto do lado oposto menos a própria altura. Para o histograma do exemplo, são 6 unidades.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>11-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static long agua_presa(const int h[], int n) {
+    if (n &lt; 3) return 0;
+    int lo = 0, hi = n - 1, mesq = 0, mdir = 0;
+    long total = 0;
+    while (lo &lt; hi) {
+        if (h[lo] &lt; h[hi]) {
+            if (h[lo] &gt;= mesq) mesq = h[lo];
+            else total += mesq - h[lo];
+            lo++;
+        } else {
+            if (h[hi] &gt;= mdir) mdir = h[hi];
+            else total += mdir - h[hi];
+            hi--;
+        }
+    }
+    return total;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Menor janela com todos os caracteres</h3>
+    <div class="ah-prose text-sm"><p>Janela deslizante com contagens: expande à direita até cobrir tudo e encolhe à esquerda enquanto continua coberta. Em "ADOBECODEBANC", a menor janela com A, B e C é "BANC".</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>11-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int menor_janela(const char *s, const char *t, int *ini_out) {
+    int need[256] = {0}, have[256] = {0};
+    int faltam = 0;
+    for (const char *p = t; *p; p++) {
+        if (need[(unsigned char)*p] == 0) faltam++;
+        need[(unsigned char)*p]++;
+    }
+    int n = (int)strlen(s), melhor = n + 1, ini = 0, esq = 0, formados = 0;
+    for (int dir = 0; dir &lt; n; dir++) {
+        unsigned char c = (unsigned char)s[dir];
+        have[c]++;
+        if (need[c] &gt; 0 &amp;&amp; have[c] == need[c]) formados++;
+        while (formados == faltam) {
+            if (dir - esq + 1 &lt; melhor) { melhor = dir - esq + 1; ini = esq; }
+            unsigned char e = (unsigned char)s[esq++];
+            if (need[e] &gt; 0 &amp;&amp; have[e] == need[e]) formados--;
+            have[e]--;
+        }
+    }
+    *ini_out = ini;
+    return melhor &lt;= n ? melhor : 0;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Subsequência crescente mais longa (programação dinâmica)</h3>
+    <div class="ah-prose text-sm"><p>dp[i] é o tamanho da maior subsequência crescente terminando em i. Para {10, 9, 2, 5, 3, 7, 101, 18}, o resultado é 4.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>11-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static int lis(const int a[], int n) {
+    int dp[64], melhor = 0;
+    for (int i = 0; i &lt; n; i++) {
+        dp[i] = 1;
+        for (int j = 0; j &lt; i; j++)
+            if (a[j] &lt; a[i] &amp;&amp; dp[j] + 1 &gt; dp[i]) dp[i] = dp[j] + 1;
+        if (dp[i] &gt; melhor) melhor = dp[i];
+    }
+    return melhor;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Oito rainhas por backtracking</h3>
+    <div class="ah-prose text-sm"><p>Coloca uma rainha por linha, testando colunas e diagonais; a poda descarta ramos inválidos cedo. Há 4 soluções no tabuleiro 6×6 e 92 no 8×8.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>11-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static int ataca(const int col[], int linha, int c) {
+    for (int r = 0; r &lt; linha; r++)
+        if (col[r] == c || col[r] - c == r - linha || col[r] - c == linha - r) return 1;
+    return 0;
+}
+
+static long rainhas(int n, int linha, int col[]) {
+    if (linha == n) return 1;
+    long total = 0;
+    for (int c = 0; c &lt; n; c++) {
+        if (ataca(col, linha, c)) continue;          /* poda: a posição é inválida */
+        col[linha] = c;
+        total += rainhas(n, linha + 1, col);
+    }
+    return total;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>água presa: 6 unidades
+menor janela de "ABC" em "ADOBECODEBANC": "BANC" (4)
+subsequência crescente mais longa: 4
+soluções das 6 rainhas: 4
+soluções das 8 rainhas: 92</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

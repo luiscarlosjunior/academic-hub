@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funções de janela: OVER, PARTITION BY e frames · AcademicHub</title>
+<meta name="description" content="Rankings, acumulados e comparações entre linhas sem colapsar o resultado: ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD e SUM OVER.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/12-funcoes-janela">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="O problema do GROUP BY" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-window-maximize text-fuchsia-400 mr-2"></i>Calcular sobre um grupo sem perder as linhas</h2>
+  <div class="ah-prose">
+    <p>
+      Suponha que você queira, para cada produto, mostrar seu preço <em>e</em> a posição dele dentro da própria categoria.
+      Com GROUP BY, você perde as linhas individuais: cada categoria vira uma linha só. Com uma subconsulta, funciona,
+      mas fica longo e lento de ler.
+    </p>
+    <p>
+      Uma <strong>função de janela</strong> calcula sobre um conjunto de linhas relacionadas à linha atual, mas
+      <strong>mantém todas as linhas</strong> no resultado. A janela é definida por <code>OVER (...)</code>, com
+      particionamento (<code>PARTITION BY</code>), ordem (<code>ORDER BY</code>) e, opcionalmente, um frame.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · ROW_NUMBER dentro de cada categoria</h3>
+    <div id="anim-janela"></div>
+  </div>
+</section>
+
+<!-- ============================ RANKING ============================ -->
+<section id="ranking" data-toc="ROW_NUMBER, RANK e DENSE_RANK" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ranking-star text-fuchsia-400 mr-2"></i>Rankings: ROW_NUMBER, RANK e DENSE_RANK</h2>
+  <p class="ah-lead text-sm mb-5">
+    As três funções numeram linhas. A diferença aparece nos <strong>empates</strong>: ROW_NUMBER nunca repete (desempata
+    arbitrariamente), RANK pula posições depois de um empate, e DENSE_RANK não pula.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- ranking de pedidos por status: há um empate entre os dois primeiros
+SELECT status,
+       COUNT(*) AS qtd,
+       ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC, status) AS linha,
+       RANK()       OVER (ORDER BY COUNT(*) DESC) AS rank,
+       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS dense
+FROM pedidos
+GROUP BY status
+ORDER BY qtd DESC, status;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    “enviado” e “pago” empatam com 3. RANK dá 1 aos dois e depois pula para 3 (“pendente”). DENSE_RANK dá 2 ao pendente,
+    sem pular. Escolha conforme a pergunta: “top 3 sem empate” pede ROW_NUMBER; “posição olímpica” pede RANK.
+  </p>
+  <div class="ah-card p-5 mt-5">
+    <h3 class="ah-h3 mb-2">Top N por grupo: o padrão mais usado</h3>
+    <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+      Como a janela não filtra, para pegar “os dois produtos mais caros de cada categoria” é preciso numerar e depois
+      filtrar numa consulta externa. A janela não pode aparecer no WHERE.
+    </p>
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>SELECT nome, id_categoria, preco
+FROM (
+  SELECT nome, id_categoria, preco,
+         ROW_NUMBER() OVER (PARTITION BY id_categoria ORDER BY preco DESC) AS pos
+  FROM produtos
+) t
+WHERE pos &lt;= 2
+ORDER BY id_categoria, preco DESC;</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ACUMULADOS ============================ -->
+<section id="acumulados" data-toc="Acumulados e frames" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-fuchsia-400 mr-2"></i>Acumulados e frames</h2>
+  <p class="ah-lead text-sm mb-5">
+    Com <code>ORDER BY</code> dentro do OVER, uma função de agregação passa a acumular. O <strong>frame</strong> define
+    quais linhas da partição entram no cálculo de cada linha: a cláusula <code>ROWS BETWEEN … AND …</code>.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- faturamento acumulado dia a dia, com a participação de cada pedido
+WITH valor AS (
+  SELECT p.id_pedido, p.data_pedido,
+         SUM(i.quantidade * i.preco_unitario) AS total
+  FROM pedidos p
+  JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+  WHERE p.status &lt;&gt; 'cancelado'
+  GROUP BY p.id_pedido, p.data_pedido
+)
+SELECT id_pedido, data_pedido, ROUND(total, 2) AS total,
+       ROUND(SUM(total) OVER (
+         ORDER BY data_pedido, id_pedido
+         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 2) AS acumulado,
+       ROUND(100.0 * total / SUM(total) OVER (), 1) AS pct
+FROM valor
+ORDER BY data_pedido, id_pedido;</pre>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>O frame padrão engana.</strong> Com ORDER BY e sem frame explícito, o padrão é <code>RANGE BETWEEN UNBOUNDED PRECEDING
+      AND CURRENT ROW</code>, que inclui <em>todos os empatados</em> da linha atual. Se duas linhas têm a mesma data, ambas recebem
+      o acumulado das duas. Declare <code>ROWS</code> quando quiser contagem linha a linha.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ LAG/LEAD ============================ -->
+<section id="lag-lead" data-toc="LAG e LEAD: olhar para vizinhos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-fuchsia-400 mr-2"></i>LAG e LEAD: comparar com a linha anterior ou seguinte</h2>
+  <p class="ah-lead text-sm mb-5">
+    <code>LAG(coluna, n)</code> devolve o valor da linha n posições antes, dentro da partição e da ordem. <code>LEAD</code>
+    faz o contrário. Sem vizinho, devolvem NULL (ou um padrão, se informado).
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- intervalo, em dias, entre pedidos consecutivos de cada cliente
+SELECT id_cliente, data_pedido,
+       LAG(data_pedido) OVER (PARTITION BY id_cliente ORDER BY data_pedido) AS anterior,
+       julianday(data_pedido) -
+         julianday(LAG(data_pedido) OVER (PARTITION BY id_cliente ORDER BY data_pedido)) AS dias_entre
+FROM pedidos
+ORDER BY id_cliente, data_pedido;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A primeira compra de cada cliente tem NULL em “anterior”, porque não há compra anterior na partição. Esse é o padrão
+    de análise de recorrência de clientes, usado em marketing e em detecção de fraude.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-fuchsia-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="sql-flow mb-4">
+    <div>FROM / JOIN / WHERE</div><i class="fa-solid fa-arrow-right"></i>
+    <div>GROUP BY / HAVING</div><i class="fa-solid fa-arrow-right"></i>
+    <div class="on">Janelas (OVER)</div><i class="fa-solid fa-arrow-right"></i>
+    <div>SELECT</div><i class="fa-solid fa-arrow-right"></i>
+    <div>ORDER BY / LIMIT</div>
+  </div>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Janelas rodam depois do agrupamento e do HAVING</strong>, mas antes do ORDER BY e do LIMIT. Por isso podem usar resultados de GROUP BY (como no ranking por status) e não podem ser usadas no WHERE.</li>
+      <li><strong>O banco ordena por partição e ordem.</strong> Janelas com a mesma especificação (mesmo PARTITION BY e ORDER BY) compartilham uma única ordenação. Janelas diferentes exigem ordenações separadas, e isso é o custo principal.</li>
+      <li><strong>Frames são avaliados com uma janela deslizante.</strong> Para ROWS com UNBOUNDED PRECEDING, o banco acumula linha a linha; para janelas móveis (3 linhas, por exemplo), mantém um buffer da janela.</li>
+      <li><strong>Janelas não reduzem linhas.</strong> Se o seu resultado tem 9 linhas antes da janela, tem 9 depois. Se a contagem mudou, algum JOIN ou WHERE fez isso, não a janela.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-fuchsia-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Troque RANK por DENSE_RANK ou ROW_NUMBER. Depois, particione por id_categoria e veja o ranking reiniciar em cada categoria.</p>
+  <div class="sql-play">SELECT nome, preco,
+       RANK() OVER (ORDER BY preco DESC) AS posicao
+FROM produtos;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-fuchsia-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Pense no que a janela calcula antes de rodar.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Participação de cada produto na sua categoria</summary>
+    <p class="sql-dica-prob">Para cada produto, mostre o preço e a porcentagem que ele representa do total de preços da sua categoria.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT nome, id_categoria, preco,
+       ROUND(100.0 * preco / SUM(preco) OVER (PARTITION BY id_categoria), 1) AS pct_categoria
+FROM produtos
+ORDER BY id_categoria, preco DESC;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        PARTITION BY restringe a soma à categoria. Nenhuma linha some: cada produto continua aparecendo, com a sua fatia.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Mudança de status ao longo do tempo</summary>
+    <p class="sql-dica-prob">Para cada pedido, mostre o status anterior do mesmo cliente (pela data). Quem não tem anterior deve mostrar “—”.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT id_cliente, data_pedido, status,
+       COALESCE(LAG(status) OVER (PARTITION BY id_cliente ORDER BY data_pedido, id_pedido), '—') AS status_anterior
+FROM pedidos
+ORDER BY id_cliente, data_pedido;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        COALESCE trata a ausência de linha anterior. O desempate por id_pedido torna a ordem determinística quando duas datas coincidem.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Média móvel de três pedidos</summary>
+    <p class="sql-dica-prob">Calcule, para cada pedido em ordem de data, a média do valor dos três últimos pedidos (o atual e os dois anteriores).
+      Use o total por pedido vindo de uma CTE.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>WITH valor AS (
+  SELECT p.id_pedido, p.data_pedido,
+         SUM(i.quantidade * i.preco_unitario) AS total
+  FROM pedidos p
+  JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+  GROUP BY p.id_pedido, p.data_pedido
+)
+SELECT id_pedido, data_pedido, ROUND(total, 2) AS total,
+       ROUND(AVG(total) OVER (
+         ORDER BY data_pedido, id_pedido
+         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS media_3
+FROM valor
+ORDER BY data_pedido, id_pedido;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        <code>ROWS BETWEEN 2 PRECEDING AND CURRENT ROW</code> define a janela deslizante. Nos dois primeiros pedidos, a média usa
+        menos de três valores, porque a janela começa no início.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">NTILE: dividir em faixas de tamanho parecido</h3>
+  <div class="ah-prose">
+    <p>
+      <code>NTILE(n)</code> distribui as linhas ordenadas em <em>n</em> grupos de tamanho quase igual. Com 9 linhas e 4 grupos,
+      os três primeiros grupos recebem 3 linhas e o último recebe 2 (o padrão distribui o resto para o início). É a base dos
+      quartis e decis usados em segmentação de clientes e em análise de preços.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT nome, preco,
+       NTILE(4) OVER (ORDER BY preco) AS quartil
+FROM produtos
+ORDER BY preco;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Lembre-se de que o quartil é relativo ao conjunto: com outros produtos na tabela, o mesmo preço cairia em outra faixa.
+    Para comparar meses diferentes, calcule as janelas dentro de cada período.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Variação percentual em relação ao período anterior</h3>
+  <div class="ah-prose">
+    <p>
+      Combinar LAG com aritmética é a forma padrão de calcular crescimento. A consulta abaixo compara o valor de cada pedido
+      com o pedido imediatamente anterior, em ordem de data. Repare que a janela é repetida; SQL permite nomeá-la para evitar isso (próximo exemplo).
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>WITH valor AS (
+  SELECT p.id_pedido, p.data_pedido,
+         SUM(i.quantidade * i.preco_unitario) AS total
+  FROM pedidos p
+  JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+  WHERE p.status &lt;&gt; 'cancelado'
+  GROUP BY p.id_pedido, p.data_pedido
+)
+SELECT id_pedido, data_pedido, ROUND(total, 2) AS total,
+       ROUND(100.0 * (total - LAG(total) OVER (ORDER BY data_pedido, id_pedido))
+             / LAG(total) OVER (ORDER BY data_pedido, id_pedido), 1) AS variacao_pct
+FROM valor
+ORDER BY data_pedido, id_pedido;</pre>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>A primeira linha tem variação NULL (não há anterior), e uma linha com anterior igual a zero daria erro de divisão em
+      alguns bancos. Em código de produção, trate os dois casos com NULLIF e COALESCE.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Janela nomeada: escrever uma vez, usar várias</h3>
+  <div class="ah-prose">
+    <p>
+      A cláusula <code>WINDOW</code> define uma janela com nome, reutilizável em várias funções do mesmo SELECT. Além de
+      deixar a consulta mais curta, garante que todas as funções usem exatamente a mesma partição e ordem.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT nome, id_categoria,
+       ROW_NUMBER() OVER w AS posicao,
+       SUM(preco)   OVER w AS acumulado
+FROM produtos
+WINDOW w AS (PARTITION BY id_categoria ORDER BY preco DESC)
+ORDER BY id_categoria, posicao;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O acumulado de cada categoria começa do produto mais caro, porque a janela ordena por preço decrescente. Essa é a
+    mesma lógica da animação do início da página, agora com soma.
+  </p>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#2a1436)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-fuchsia-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual a diferença essencial entre GROUP BY e uma função de janela?</p>
+      <button class="ah-quiz-opt">GROUP BY é mais rápido</button>
+      <button class="ah-quiz-opt">A função de janela só funciona com números</button>
+      <button class="ah-quiz-opt">A função de janela calcula sobre um conjunto relacionado sem reduzir as linhas do resultado</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        GROUP BY colapsa as linhas em grupos. A janela mantém cada linha e acrescenta a ela um valor calculado sobre o grupo.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Em uma tabela com dois empatados no primeiro lugar, qual função pula o próximo número?</p>
+      <button class="ah-quiz-opt">RANK</button>
+      <button class="ah-quiz-opt">DENSE_RANK</button>
+      <button class="ah-quiz-opt">ROW_NUMBER</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        RANK dá 1, 1 e depois 3. DENSE_RANK dá 1, 1 e depois 2. ROW_NUMBER não repete nem pula, mas desempata arbitrariamente.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Por que não se filtra pela posição de um ranking diretamente no WHERE?</p>
+      <button class="ah-quiz-opt">Porque o SQL não tem operador de comparação para números</button>
+      <button class="ah-quiz-opt">Porque a janela é calculada depois do WHERE; é preciso uma consulta externa para filtrar</button>
+      <button class="ah-quiz-opt">Porque ranking sempre começa em zero</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A janela é avaliada depois do WHERE. Quando o filtro precisa do resultado da janela, ele vai numa consulta externa (ou CTE).
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: ROW_NUMBER por partição ===================== */
+(function () {
+  /* [categoria, produto, preço] */
+  const dados = [
+    ['Eletrônicos', 'Notebook 14', 3500], ['Eletrônicos', 'Smartphone', 2200], ['Eletrônicos', 'Fone Bluetooth', 250],
+    ['Livros', 'Livro SQL Essencial', 89.9], ['Livros', 'Livro Algoritmos', 120],
+    ['Roupas', 'Camiseta Básica', 49.9], ['Roupas', 'Tênis de Corrida', 399]
+  ];
+  const cats = [...new Set(dados.map(d => d[0]))];
+  const tabela = (cab, linhas, dest) => SQLLab.tabelaHTML(cab, linhas, { destaque: dest || [], animar: true });
+  SQLLab.passos(document.getElementById('anim-janela'), [
+    { titulo: 'Passo 1 · a tabela original', texto: 'Sete produtos, em três categorias. Nenhuma linha vai desaparecer.',
+      html: () => tabela(['categoria', 'produto', 'preço'], dados) },
+    { titulo: 'Passo 2 · PARTITION BY categoria', texto: 'A tabela é dividida em partições. Cada janela enxerga só a sua categoria.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cats.map(c => {
+        const l = dados.filter(d => d[0] === c);
+        return `<div class="ah-card p-3"><div class="text-xs font-bold text-fuchsia-300 mb-2">${c}</div>${tabela(['produto', 'preço'], l.map(x => [x[1], x[2]]))}</div>`;
+      }).join('')}</div>` },
+    { titulo: 'Passo 3 · ORDER BY preço DESC', texto: 'Dentro de cada partição, ordenamos do mais caro para o mais barato.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cats.map(c => {
+        const l = dados.filter(d => d[0] === c).sort((a, b) => b[2] - a[2]);
+        return `<div class="ah-card p-3"><div class="text-xs font-bold text-fuchsia-300 mb-2">${c}</div>${tabela(['produto', 'preço'], l.map(x => [x[1], x[2]]))}</div>`;
+      }).join('')}</div>` },
+    { titulo: 'Passo 4 · ROW_NUMBER() OVER (...)', texto: 'Numeramos as linhas dentro de cada partição. Todas as sete linhas continuam no resultado, cada uma com sua posição.',
+      html: () => {
+        const linhas = [];
+        cats.forEach(c => {
+          dados.filter(d => d[0] === c).sort((a, b) => b[2] - a[2]).forEach((x, i) => linhas.push([c, x[1], x[2], i + 1]));
+        });
+        return tabela(['categoria', 'produto', 'preço', 'ROW_NUMBER'], linhas, linhas.map((l, i) => l[3] === 1 ? i : -1).filter(i => i >= 0));
+      } }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

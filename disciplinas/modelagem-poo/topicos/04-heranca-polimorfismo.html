@@ -398,6 +398,50 @@ System.out.println(r.area());   <span class="cm">// esperado: 20. Obtido: 25</sp
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- EXEMPLO-EXEC:INI -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: contas bancárias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-building-columns text-emerald-400 mr-2"></i>Exemplo passo a passo: contas corrente e poupança</h2>
+  <p class="ah-lead text-sm mb-5">Duas contas com regras diferentes de tarifa e de rendimento. Como a herança organiza o que é comum e o que varia?</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o que é comum, e o que varia</h3>
+  <p class="ah-prose text-sm">Ambas têm número, saldo, depósito e saque. Diferem na <strong>tarifa mensal</strong> (a corrente cobra, a poupança não) e no <strong>rendimento</strong> (só a poupança rende). A superclasse guarda o comum; as subclasses declaram só o que muda.</p>
+
+  <div class="ah-diagram mt-4">
+    <pre class="mermaid">
+classDiagram
+    class Conta {
+        &lt;&lt;abstract&gt;&gt;
+        #double saldo
+        +depositar(valor) void
+        +sacar(valor) void
+        +aplicarMensal()* void
+    }
+    class ContaCorrente {
+        +aplicarMensal() void
+    }
+    class ContaPoupanca {
+        -double taxaMensal
+        +aplicarMensal() void
+    }
+    Conta &lt;|-- ContaCorrente
+    Conta &lt;|-- ContaPoupanca
+    </pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o polimorfismo em uso</h3>
+  <pre class="ah-code"><code><span class="kw">public void</span> <span class="fn">fechamentoDoMes</span>(List&lt;<span class="ty">Conta</span>&gt; contas) {
+    <span class="kw">for</span> (<span class="ty">Conta</span> c : contas) {
+        c.aplicarMensal();     <span class="cm">// o mesmo código, comportamentos diferentes</span>
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3"><code>fechamentoDoMes</code> não conhece tipos concretos. Uma conta digital nova, com outra regra, entra sem alterar esse método: é o princípio aberto–fechado na prática.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — quando a herança engana</h3>
+  <p class="ah-prose text-sm">Uma “conta salário” é uma conta corrente sem tarifa para quem recebe salário? Se a regra mudar por mês, a herança fica rígida. Nesse caso, prefira um atributo ou uma estratégia de tarifa injetada. Herança serve quando o “é um” vale sempre.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> fazer <code>ContaPoupanca extends ContaCorrente</code> para reaproveitar o saque. A poupança não é uma corrente com menos recursos: a herança transmite a tarifa para uma conta que não deveria tê-la.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável: projeto Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: o projeto Melodia</h2>
   <p class="ah-lead text-sm mb-5"><code>Usuario</code> é uma superclasse abstrata, com <code>Ouvinte</code> e <code>Artista</code> como subclasses. O método <code>resumo()</code> é escrito uma vez e chama a operação abstrata <code>tipoDePerfil()</code>, que cada subclasse implementa à sua maneira.</p>

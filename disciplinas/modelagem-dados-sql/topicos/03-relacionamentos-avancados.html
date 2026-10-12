@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relacionamentos avançados: associativas, reflexivos e especialização · AcademicHub</title>
+<meta name="description" content="Entidades associativas para N:N com atributos, auto-relacionamentos, generalização e especialização, e os erros mais comuns.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/03-relacionamentos-avancados">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Quando o N:N pede um nome" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-cyan-400 mr-2"></i>Relacionamento que tem vida própria</h2>
+  <div class="ah-prose">
+    <p>
+      No tópico 02 vimos que N:N não cabe em nenhuma tabela. Mas, na prática, o relacionamento quase
+      nunca é só uma ligação: ele <em>carrega informação</em>. Quando o produto entra no pedido, o preço
+      <em>naquele momento</em> é um fato do pedido, não do produto. Quantas unidades foram compradas também.
+    </p>
+    <p>
+      Quando um relacionamento tem atributos próprios, ele merece virar uma <strong>entidade associativa</strong>
+      (também chamada de entidade de associação ou tabela de junção).
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ASSOCIATIVA ============================ -->
+<section id="associativa" data-toc="Entidade associativa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-cyan-400 mr-2"></i>Entidade associativa: o relacionamento vira tabela</h2>
+  <p class="ah-lead text-sm mb-5">
+    A tabela <code>itens_pedido</code> é a associativa entre Pedido e Produto. Sua chave primária é a
+    combinação das duas chaves estrangeiras, e cada linha responde “este produto, neste pedido, em que quantidade e a que preço”.
+  </p>
+
+  <div class="ah-card p-5 mb-5">
+    <h3 class="ah-h3 mb-3">Animação · da relação N:N à tabela intermediária</h3>
+    <div id="anim-assoc"></div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Por que o preço está no item, e não só no produto?</strong> O preço do produto muda com o tempo.
+      Se a nota fiscal de março dependesse do preço de hoje, ela estaria errada. O <code>preco_unitario</code> é um
+      fato histórico do pedido. Esse é um dos exemplos clássicos de atributo que pertence ao relacionamento.</div>
+  </div>
+</section>
+
+<!-- ============================ REFLEXIVO ============================ -->
+<section id="reflexivo" data-toc="Auto-relacionamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-cyan-400 mr-2"></i>Auto-relacionamento (reflexivo)</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um <strong>auto-relacionamento</strong> liga uma entidade a ela mesma. Ele expressa estruturas hierárquicas e
+    redes: funcionários e supervisores, peças que contêm peças, pessoas e cônjuges, cidades e cidades-vizinhas.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">1:N · supervisão</h3>
+      <p class="text-sm text-slate-400 leading-relaxed mb-3">Um supervisor tem vários supervisionados. Cada funcionário tem no máximo um supervisor (opcional para quem está no topo).</p>
+      <pre class="ah-code text-[11px]"><span class="kw">funcionarios</span>
+  id_funcionario   <span class="num">PK</span>
+  id_supervisor    <span class="num">FK</span> → funcionarios.id_funcionario  <span class="cm">-- NULL no topo</span></pre>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">N:N · “indicou”</h3>
+      <p class="text-sm text-slate-400 leading-relaxed mb-3">Uma pessoa pode indicar várias e ser indicada por várias. Como é N:N, a relação exige uma associativa com a própria tabela.</p>
+      <pre class="ah-code text-[11px]"><span class="kw">indicacoes</span>
+  id_quem     <span class="num">PK, FK</span> → clientes
+  id_indicado <span class="num">PK, FK</span> → clientes
+  <span class="cm">-- um cliente não pode indicar a si mesmo:</span>
+  <span class="kw">CHECK</span> (id_quem &lt;&gt; id_indicado)</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ESPECIALIZAÇÃO ============================ -->
+<section id="especializacao" data-toc="Generalização e especialização" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-cyan-400 mr-2"></i>Generalização e especialização</h2>
+  <p class="ah-lead text-sm mb-5">
+    Às vezes, um conjunto de entidades compartilha atributos comuns, mas algumas têm atributos específicos.
+    A <strong>superclasse</strong> guarda o comum; as <strong>subclasses</strong> guardam o específico. Na loja, um
+    <em>cliente</em> pode ser pessoa física (CPF) ou jurídica (CNPJ).
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Três formas de representar</h3>
+      <ol class="text-sm text-slate-300 space-y-2 list-decimal pl-5 leading-relaxed">
+        <li><strong>Uma tabela só</strong>: todos os atributos na mesma tabela, com colunas que valem NULL para quem não é do tipo. Simples, mas espalha NULL.</li>
+        <li><strong>Uma tabela por subclasse</strong>: cada subclasse repete os atributos comuns. Sem junção, mas o comum se duplica.</li>
+        <li><strong>Superclasse + tabela por subclasse</strong>: o comum fica na superclasse; cada subclasse tem chave que é também estrangeira para ela. Mais normalizado.</li>
+      </ol>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Restrições da especialização</h3>
+      <ul class="text-sm text-slate-300 space-y-2 leading-relaxed">
+        <li><strong>Total</strong> (obrigatória): todo cliente é pessoa física <em>ou</em> jurídica.</li>
+        <li><strong>Parcial</strong> (opcional): há clientes que não são nenhum dos dois subtipos.</li>
+        <li><strong>Disjunta</strong>: uma ocorrência está em no máximo um subtipo.</li>
+        <li><strong>Sobreposta</strong>: uma ocorrência pode estar em vários subtipos.</li>
+      </ul>
+    </div>
+  </div>
+
+  <pre class="ah-code text-[11px]"><span class="cm">-- superclasse com subclasses (terceira forma)</span>
+<span class="kw">CREATE TABLE</span> clientes (
+  id_cliente <span class="ty">INTEGER</span> <span class="kw">PRIMARY KEY</span>,
+  nome       <span class="ty">TEXT</span> <span class="kw">NOT NULL</span>
+);
+<span class="kw">CREATE TABLE</span> pessoas_fisicas (
+  id_cliente <span class="ty">INTEGER</span> <span class="kw">PRIMARY KEY REFERENCES</span> clientes(id_cliente),
+  cpf        <span class="ty">TEXT</span> <span class="kw">UNIQUE NOT NULL</span>
+);
+<span class="kw">CREATE TABLE</span> pessoas_juridicas (
+  id_cliente <span class="ty">INTEGER</span> <span class="kw">PRIMARY KEY REFERENCES</span> clientes(id_cliente),
+  cnpj       <span class="ty">TEXT</span> <span class="kw">UNIQUE NOT NULL</span>
+);</pre>
+  <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+    Este esquema não impede que um cliente apareça nas duas subclasses ao mesmo tempo. Para disjunção, é preciso uma
+    regra adicional (um gatilho ou uma coluna de tipo com CHECK). O SQL não tem “herança” nativa, então a restrição é
+    sempre manual.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-cyan-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>
+      Ao transformar o modelo em banco, o relacionamento vira <strong>chave estrangeira</strong> e a associativa vira uma
+      <strong>tabela com duas chaves estrangeiras</strong>. A chave primária composta impede o mesmo produto de aparecer
+      duas vezes no mesmo pedido. Isso é uma regra do modelo, aplicada pelo banco.
+    </p>
+    <p>
+      Um detalhe importante é o <strong>índice</strong>. Toda chave primária gera um índice automaticamente. Como
+      <code>itens_pedido</code> tem chave <code>(id_pedido, id_produto)</code>, buscas por pedido são rápidas.
+      Buscas por produto (“em quais pedidos este produto aparece?”) não se beneficiam dessa ordem. Por isso,
+      muitos projetos criam um índice extra em <code>id_produto</code>. O tópico 14 explica isso em detalhe.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: itens com nome do produto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-cyan-400 mr-2"></i>Exemplo: a associativa em ação</h2>
+  <p class="ah-lead text-sm mb-5">
+    A associativa guarda só as chaves e os fatos do pedido. Para exibir o nome do produto, juntamos a associativa
+    com a tabela de produtos. O preço unitário usado é o do pedido, não o preço atual.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT i.id_pedido,
+       p.nome,
+       i.quantidade,
+       i.preco_unitario,
+       p.preco AS preco_atual
+FROM itens_pedido i
+JOIN produtos p ON p.id_produto = i.id_produto
+WHERE i.id_pedido = 1;</pre>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Erros comuns</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Guardar o preço só no produto</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Ao mudar o preço, todos os pedidos antigos passam a ter um valor diferente. O preço do item precisa ser copiado para a associativa.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Associativa sem chave composta</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Criar um <code>id</code> artificial para a associativa, sem UNIQUE sobre o par, permite o mesmo produto duas vezes no pedido, e isso vira um bug silencioso.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Especialização com NULL espalhado</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma única tabela com dezenas de colunas que só valem para um subtipo dificulta validar regras e confunde quem lê o esquema.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Esquecer a direção do reflexivo</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Em “A indicou B”, não basta o par (A, B): a ordem importa. Sem ela, você perde quem indicou quem.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-cyan-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Desenhe o modelo antes de olhar a solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Matrícula em disciplinas</summary>
+    <p class="sql-dica-prob">Um aluno se matricula em disciplinas e recebe uma nota em cada uma. Uma disciplina tem muitos alunos.
+      Qual é a associativa e quais são seus atributos?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A associativa é <strong>matricula</strong>, com chave composta <code>(id_aluno, id_disciplina)</code>. A nota pertence à
+        matrícula, não ao aluno nem à disciplina, porque o mesmo aluno tem notas diferentes em disciplinas diferentes.
+        Atributos extras comuns: <code>semestre</code>, <code>situacao</code>.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Quem é o pai?</summary>
+    <p class="sql-dica-prob">Uma peça pode conter outras peças, e pode estar contida em no máximo uma outra. Desenhe o modelo.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        É um auto-relacionamento 1:N, igual ao de funcionários: <code>peca.id_pai</code> é uma chave estrangeira
+        para <code>peca.id_peca</code>, opcional (NULL para peças de nível mais alto). Se uma peça pode estar em
+        várias composições, o relacionamento vira N:N e exige associativa.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Pessoa física ou jurídica?</summary>
+    <p class="sql-dica-prob">Todo cliente da loja é pessoa física ou jurídica, nunca as duas. Qual tipo de especialização é essa?
+      Como representá-la com a terceira forma?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        É uma especialização <strong>total e disjunta</strong>. Terceira forma: <code>clientes</code> como superclasse,
+        e <code>pessoas_fisicas</code> e <code>pessoas_juridicas</code> como subclasses com chave que referencia
+        <code>clientes</code>. Para garantir “nunca as duas”, adiciona-se uma regra (um gatilho ou uma coluna <code>tipo</code>
+        com CHECK), já que o SQL não traz a disjunção pronta.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Entidade fraca: existe só por causa de outra</h3>
+  <div class="ah-prose">
+    <p>
+      Um item de pedido não faz sentido sem o pedido. Entidades assim são chamadas de <strong>fracas</strong>: sua
+      identificação depende da entidade dona. Na modelagem, a chave primária da fraca inclui a chave da dona, como
+      <code>(id_pedido, id_produto)</code> em <code>itens_pedido</code>. Se o pedido for apagado, os itens também devem ser.
+    </p>
+    <p>
+      Outro exemplo muito comum é o <strong>histórico</strong>. O preço de um produto muda ao longo do tempo, e o banco precisa
+      responder “qual era o preço em tal data?”. A solução é uma entidade fraca que depende do produto e tem o início da vigência como
+      parte da chave.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Prática · histórico de preços e preço vigente</h3>
+  <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+    A tabela guarda uma linha por mudança de preço. Para descobrir o preço vigente em uma data, pegamos a
+    vigência mais recente que começou até aquela data.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE historico_preco (
+  id_produto INTEGER NOT NULL REFERENCES produtos(id_produto),
+  inicio     TEXT    NOT NULL,
+  preco      REAL    NOT NULL CHECK (preco &gt;= 0),
+  PRIMARY KEY (id_produto, inicio)
+);
+INSERT INTO historico_preco VALUES
+  (1, '2024-01-01', 3200.00),
+  (1, '2024-07-01', 3500.00),
+  (1, '2024-09-01', 3350.00);
+
+SELECT h.inicio, h.preco
+FROM historico_preco h
+WHERE h.id_produto = 1
+  AND h.inicio = (SELECT MAX(h2.inicio)
+                  FROM historico_preco h2
+                  WHERE h2.id_produto = h.id_produto
+                    AND h2.inicio &lt;= '2024-08-15');</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Em 15 de agosto, o notebook custava 3500, vigente desde 1º de julho. A chave composta impede dois preços que
+    começam no mesmo dia. Com essa modelagem, o pedido de ontem continua apontando para o preço de ontem.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns com relacionamentos avançados</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Lista de ids em uma coluna</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Guardar <code>produtos = '1,3,4'</code> parece prático, mas quebra a 1FN, impede chave estrangeira e torna a consulta “em quais pedidos está o produto 3?” uma busca textual lenta.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Associativa que não é um fato</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Criar uma tabela “pedido_produto_id” sem atributos e sem ser uma relação real vira ruído. Se o vínculo não tem significado próprio, ele pode ser só uma coluna.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Especialização sem regra de disjunção</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Duas subtabelas sem uma regra explícita permitem que a mesma pessoa seja “física” e “jurídica”. Documente a regra e a valide no banco.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Histórico sobrescrito</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Fazer UPDATE no preço apaga o passado. Se a auditoria ou o fisco precisam do valor antigo, use histórico com vigência, não sobrescrita.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c3440)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Quando um relacionamento N:N deve virar entidade associativa?</p>
+      <button class="ah-quiz-opt">Sempre, mesmo sem atributos próprios</button>
+      <button class="ah-quiz-opt">Nunca; N:N se resolve com duas colunas extras</button>
+      <button class="ah-quiz-opt">Quando o relacionamento tem atributos próprios, como quantidade ou preço</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        N:N sempre exige uma tabela intermediária para ser representado. Mas o conceito de entidade associativa
+        ganha força quando o relacionamento carrega informação própria, que pertence ao vínculo e não a nenhum dos lados.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que <code>itens_pedido</code> guarda <code>preco_unitario</code>, se o produto já tem preço?</p>
+      <button class="ah-quiz-opt">Porque o preço do pedido é um fato histórico, que não muda quando o preço do produto muda</button>
+      <button class="ah-quiz-opt">Porque o banco não consegue juntar tabelas sem essa cópia</button>
+      <button class="ah-quiz-opt">Porque é uma exigência do modelo relacional</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O preço é um atributo do vínculo entre pedido e produto, no momento da compra. Recalcular com o preço atual
+        mudaria o histórico de todos os pedidos anteriores.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Em <code>funcionarios.id_supervisor</code>, por que a coluna aceita NULL?</p>
+      <button class="ah-quiz-opt">Por descuido: deveria ser NOT NULL</button>
+      <button class="ah-quiz-opt">Porque a cardinalidade mínima do supervisor é zero: quem está no topo não tem supervisor</button>
+      <button class="ah-quiz-opt">Porque chaves estrangeiras sempre aceitam NULL no SQL</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A cardinalidade mínima 0 traduz-se em coluna opcional. Se o topo da hierarquia fosse obrigatoriamente
+        supervisionado, a estrutura ficaria circular e impossível de iniciar.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: N:N vira associativa ===================== */
+(function () {
+  const pedido = (id, itens) => `
+    <div class="ah-card p-3 border-t-4 border-cyan-400 min-w-[140px]">
+      <div class="text-xs font-bold text-white">Pedido ${id}</div>
+      <div class="text-[11px] text-slate-400 font-mono">${itens.join('<br>')}</div>
+    </div>`;
+  const prod = (nome) => `<div class="ah-card p-2 px-3 text-xs text-amber-200 border-l-4 border-amber-400">${nome}</div>`;
+  const linhas = [[1, 'Notebook 14', 1, 3500], [1, 'Fone Bluetooth', 2, 250], [2, 'Livro SQL Essencial', 1, 89.9], [2, 'Camiseta Básica', 3, 49.9]];
+  SQLLab.passos(document.getElementById('anim-assoc'), [
+    { titulo: 'Passo 1 · o problema', texto: 'Um pedido pode ter vários produtos. Sem tabela intermediária, onde guardar a lista?',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="ah-card p-4"><div class="text-xs text-slate-400 mb-2">Tentativa errada: lista dentro do pedido</div>
+          <div class="sql-q">id_pedido: 1
+produtos: [Notebook, Fone, ...]   ← vários valores em uma coluna</div></div>
+        ${pedido(1, ['Notebook 14', 'Fone Bluetooth'])}</div>` },
+    { titulo: 'Passo 2 · a associativa', texto: 'Cada par (pedido, produto) vira uma linha. A chave primária é o par.',
+      html: () => `<div class="ah-card p-4">${SQLLab.tabelaHTML(['id_pedido', 'id_produto', 'quantidade', 'preco_unitario'],
+        [[1, 1, 1, 3500], [1, 3, 2, 250], [2, 4, 1, 89.9], [2, 6, 3, 49.9]], { animar: true, destaque: [1] })}</div>` },
+    { titulo: 'Passo 3 · atributos do vínculo', texto: 'Quantidade e preço pertencem ao vínculo: só existem quando o produto entra no pedido.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="ah-card p-3 text-xs text-slate-300"><strong class="text-cyan-300">quantidade</strong><br>Quantas unidades deste produto neste pedido.</div>
+        <div class="ah-card p-3 text-xs text-slate-300"><strong class="text-cyan-300">preco_unitario</strong><br>Preço vigente quando a compra foi feita.</div>
+        <div class="ah-card p-3 text-xs text-slate-300"><strong class="text-cyan-300">(id_pedido, id_produto)</strong><br>Chave composta: o mesmo produto não se repete no pedido.</div></div>` },
+    { titulo: 'Passo 4 · o banco recusa o erro', texto: 'Uma segunda linha com o mesmo par viola a chave primária. O banco impede a duplicata.',
+      html: () => `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-ban"></i><div><strong>UNIQUE constraint failed: itens_pedido.id_pedido, itens_pedido.id_produto</strong><br><span class="text-xs">Inserir (1, 1, …) novamente é recusado.</span></div></div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

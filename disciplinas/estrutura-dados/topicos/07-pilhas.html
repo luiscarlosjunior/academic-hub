@@ -350,6 +350,125 @@ static int pm_minimo(const PilhaMin *p, int *m) {
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>07-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Avaliação de expressões com duas pilhas</h3>
+    <div class="ah-prose text-sm"><p>Uma pilha guarda valores e outra operadores; a precedência decide quando aplicar cada operador. 2 + 3·(4 − 1) resulta em 11.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>07-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static int prec(char op) { return (op == '+' || op == '-') ? 1 : 2; }
+
+static void aplicar(Pilha *vals, Pilha *ops) {
+    int b = pop(vals), a = pop(vals);
+    char op = (char)pop(ops);
+    push(vals, op == '+' ? a + b : op == '-' ? a - b : a * b);
+}
+
+static int avaliar(const char *s) {
+    Pilha vals, ops;
+    iniciar(&amp;vals);
+    iniciar(&amp;ops);
+    for (const char *p = s; *p; p++) {
+        if (isdigit((unsigned char)*p)) {
+            int v = 0;
+            while (isdigit((unsigned char)*p)) v = v * 10 + (*p++ - '0');
+            p--;
+            push(&amp;vals, v);
+        } else if (*p == '(') {
+            push(&amp;ops, '(');
+        } else if (*p == ')') {
+            while (!vazia(&amp;ops) &amp;&amp; ops.d[ops.topo] != '(') aplicar(&amp;vals, &amp;ops);
+            pop(&amp;ops);
+        } else if (*p == '+' || *p == '-' || *p == '*') {
+            while (!vazia(&amp;ops) &amp;&amp; ops.d[ops.topo] != '(' &amp;&amp; prec(ops.d[ops.topo]) &gt;= prec(*p))
+                aplicar(&amp;vals, &amp;ops);
+            push(&amp;ops, *p);
+        }
+    }
+    while (!vazia(&amp;ops)) aplicar(&amp;vals, &amp;ops);
+    return pop(&amp;vals);
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Maior retângulo em histograma</h3>
+    <div class="ah-prose text-sm"><p>Pilha monotônica crescente de índices. Ao fechar uma barra, calcula-se a área com ela como altura mínima. Cada barra entra e sai uma vez: O(n).</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>07-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static long maior_retangulo(const int h[], int n) {
+    Pilha p;
+    iniciar(&amp;p);
+    long melhor = 0;
+    for (int i = 0; i &lt;= n; i++) {
+        int atual = (i == n) ? 0 : h[i];
+        while (!vazia(&amp;p) &amp;&amp; h[p.d[p.topo]] &gt;= atual) {
+            int alt = h[pop(&amp;p)];
+            int larg = vazia(&amp;p) ? i : i - p.d[p.topo] - 1;
+            long area = (long)alt * larg;
+            if (area &gt; melhor) melhor = area;
+        }
+        push(&amp;p, i);
+    }
+    return melhor;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Decodificar strings aninhadas</h3>
+    <div class="ah-prose text-sm"><p>A pilha de níveis guarda o texto acumulado e a contagem de cada colchete. "3[ab2[c]]" vira "abccabccabcc".</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>07-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static void decodificar(const char *s, char saida[]) {
+    int cont[MAX];
+    char texto[MAX][MAX];
+    int nivel = 0;
+    cont[0] = 1;
+    texto[0][0] = '\0';
+    for (const char *p = s; *p; p++) {
+        if (isdigit((unsigned char)*p)) {
+            cont[nivel + 1] = 0;
+            while (isdigit((unsigned char)*p)) cont[nivel + 1] = cont[nivel + 1] * 10 + (*p++ - '0');
+            p--;
+        } else if (*p == '[') {
+            nivel++;
+            texto[nivel][0] = '\0';
+        } else if (*p == ']') {
+            char bloco[MAX * 4] = "";
+            for (int k = 0; k &lt; cont[nivel]; k++) strcat(bloco, texto[nivel]);
+            nivel--;
+            strcat(texto[nivel], bloco);
+        } else {
+            size_t t = strlen(texto[nivel]);
+            texto[nivel][t] = *p;
+            texto[nivel][t + 1] = '\0';
+        }
+    }
+    strcpy(saida, texto[0]);
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: A sequência de saídas é possível?</h3>
+    <div class="ah-prose text-sm"><p>Simula push e pop: para cada valor esperado na saída, ou ele já está no topo, ou é empilhado até chegar. {4, 5, 3, 2, 1} é possível; {3, 5, 4, 1, 2} não é.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>07-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static int sequencia_possivel(const int entrada[], const int saida[], int n) {
+    Pilha p;
+    iniciar(&amp;p);
+    int i = 0;
+    for (int k = 0; k &lt; n; k++) {
+        while (vazia(&amp;p) || p.d[p.topo] != saida[k]) {
+            if (i == n) return 0;
+            push(&amp;p, entrada[i++]);
+        }
+        pop(&amp;p);
+    }
+    return 1;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>avaliar "2+3*(4-1)" = 11
+avaliar "(1+2)*(3+4)-5" = 16
+maior retângulo do histograma {2,1,5,6,2,3} = 10
+decodificado: abccabccabcc
+sequência {4,5,3,2,1} possível? sim
+sequência {3,5,4,1,2} possível? não</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

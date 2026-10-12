@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo relacional e o mapeamento ER → tabelas · AcademicHub</title>
+<meta name="description" content="Relações, chave primária e estrangeira, integridade referencial e as regras para traduzir o diagrama entidade-relacionamento em esquema.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/04-modelo-relacional">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Uma relação é uma tabela" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-table text-cyan-400 mr-2"></i>Do diagrama ao esquema</h2>
+  <div class="ah-prose">
+    <p>
+      Codd definiu o modelo relacional sobre a matemática de conjuntos. Uma <strong>relação</strong> é um conjunto de
+      <strong>tuplas</strong> (linhas) que têm os mesmos <strong>atributos</strong> (colunas), cada um com um <strong>domínio</strong>
+      (o conjunto de valores válidos, como “inteiros” ou “textos de até 80 caracteres”).
+    </p>
+    <p>
+      Em SQL, a relação vira <strong>tabela</strong>, a tupla vira <strong>linha</strong> e o atributo vira <strong>coluna</strong>.
+      A diferença sutil é importante: uma relação matemática não tem linhas repetidas nem ordem. Uma tabela SQL,
+      por padrão, permite duplicatas e tem ordem indefinida, a menos que você crie chaves e use ORDER BY.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · uma relação pela lente da teoria</h3>
+    <div id="anim-relacao"></div>
+  </div>
+</section>
+
+<!-- ============================ CHAVES ============================ -->
+<section id="chaves" data-toc="Chaves primária e estrangeira" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-cyan-400 mr-2"></i>Chaves: como as tabelas se conectam</h2>
+  <p class="ah-lead text-sm mb-5">
+    A <strong>chave primária</strong> identifica cada linha. A <strong>chave estrangeira</strong> é uma coluna que
+    referencia a chave primária de outra tabela (ou da mesma). É ela que materializa os relacionamentos do diagrama.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Integridade de entidade</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Nenhuma parte da chave primária pode ser NULL. Toda linha precisa ser identificável. Por isso,
+        <code>PRIMARY KEY</code> já implica <code>NOT NULL</code> e unicidade.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Integridade referencial</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Toda chave estrangeira não nula deve apontar para uma linha existente. Não é possível ter um pedido de
+        um cliente que não existe. Essa é a regra mais importante que o modelo relacional garante.
+      </p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <h3 class="ah-h3 mb-3">Animação · a chave estrangeira aponta para a chave primária</h3>
+    <div id="anim-fk"></div>
+  </div>
+</section>
+
+<!-- ============================ MAPEAMENTO ============================ -->
+<section id="mapeamento" data-toc="Regras de mapeamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-turn-to-dots text-cyan-400 mr-2"></i>Regras de mapeamento: do MER ao esquema</h2>
+  <p class="ah-lead text-sm mb-5">
+    Traduzir o diagrama é quase mecânico. Cada elemento do MER tem uma regra. Aplicá-las com disciplina evita
+    a maioria dos erros de esquema.
+  </p>
+
+  <div class="overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Conceito do MER</th><th>Vira no esquema relacional</th></tr></thead>
+      <tbody>
+        <tr><td>Entidade</td><td>Tabela, com chave primária escolhida entre os atributos</td></tr>
+        <tr><td>Atributo simples</td><td>Coluna com tipo e restrições (NOT NULL se obrigatório)</td></tr>
+        <tr><td>Atributo composto</td><td>Colunas separadas: <code>rua</code>, <code>numero</code>, <code>cidade</code></td></tr>
+        <tr><td>Atributo multivalorado</td><td>Tabela própria com chave estrangeira para a entidade (ex.: <code>telefones</code>)</td></tr>
+        <tr><td>Atributo derivado</td><td>Não se guarda; calcula-se em consulta (ou em VIEW)</td></tr>
+        <tr><td>Relacionamento 1:N</td><td>Chave estrangeira no lado “muitos”</td></tr>
+        <tr><td>Relacionamento 1:1</td><td>Chave estrangeira em um lado, com UNIQUE</td></tr>
+        <tr><td>Relacionamento N:N</td><td>Tabela associativa com duas chaves estrangeiras (chave composta)</td></tr>
+        <tr><td>Cardinalidade mínima 1</td><td>Chave estrangeira NOT NULL</td></tr>
+        <tr><td>Especialização</td><td>Uma das três formas vistas no tópico 03</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: o esquema da loja" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-cyan-400 mr-2"></i>Exemplo: o esquema da loja, rule por rule</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada tabela da loja segue as regras acima. Observe a tabela <code>itens_pedido</code>: é a associativa do N:N,
+    com chave composta. E <code>funcionarios.id_supervisor</code> é o auto-relacionamento 1:N com coluna opcional.
+    O comando abaixo mostra o esquema do banco, lido direto do catálogo do SQLite.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT name AS tabela, sql
+FROM sqlite_master
+WHERE type = 'table' AND name = 'itens_pedido';</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O SQLite guarda o próprio esquema numa tabela de sistema, <code>sqlite_master</code>. Outros SGBDs têm o
+    <code>information_schema</code>, padronizado pelo SQL. Ler o catálogo é uma forma de inspecionar o que o banco
+    de fato aplicou.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-cyan-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>
+      Por padrão, o SQLite <strong>não verifica chaves estrangeiras</strong>. Isso é herança de compatibilidade: a
+      verificação precisa ser ligada por conexão com <code>PRAGMA foreign_keys = ON</code>. PostgreSQL e MySQL (InnoDB)
+      verificam sempre. Esse detalhe causa surpresas em sistemas que migram de banco. Abaixo, o mesmo INSERT
+      sem e com a verificação ligada.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+    <div class="ah-card p-4">
+      <div class="text-xs text-slate-400 mb-2">Sem PRAGMA: aceita o pedido órfão</div>
+      <div class="sql-q">INSERT INTO pedidos VALUES (10, 99, '2024-10-01', 'pago');</div>
+    </div>
+    <div class="ah-card p-4">
+      <div class="text-xs text-slate-400 mb-2">Com PRAGMA: recusa</div>
+      <div class="sql-q">PRAGMA foreign_keys = ON;
+INSERT INTO pedidos VALUES (10, 99, '2024-10-01', 'pago');
+-- FOREIGN KEY constraint failed</div>
+    </div>
+  </div>
+  <div class="ah-prose mt-4">
+    <p>
+      Ao declarar a chave estrangeira com <code>ON DELETE CASCADE</code>, apagar o cliente apaga os pedidos dele.
+      Com <code>ON DELETE RESTRICT</code> (ou o padrão, NO ACTION), a exclusão é recusada enquanto houver pedidos.
+      A escolha é uma regra de negócio disfarçada de detalhe técnico, e por isso precisa ser decidida no modelo.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-cyan-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Os problemas com SQL usam o banco da loja. Experimente as soluções.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Traduzir o multivalorado</summary>
+    <p class="sql-dica-prob">Um cliente pode ter vários telefones. Como o atributo <code>telefones</code> é traduzido para o esquema?
+      Escreva o CREATE TABLE da tabela nova.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>CREATE TABLE telefones (
+  id_cliente INTEGER NOT NULL REFERENCES clientes(id_cliente),
+  numero     TEXT    NOT NULL,
+  PRIMARY KEY (id_cliente, numero)
+);
+INSERT INTO telefones VALUES (1, '11 99999-0001'), (1, '11 3333-0002');
+SELECT * FROM telefones;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Um atributo com vários valores vira tabela própria. A chave composta impede o mesmo número duas vezes para o cliente.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Reconstruir a linha do pedido</summary>
+    <p class="sql-dica-prob">Usando as chaves estrangeiras, escreva uma consulta que mostre, para o pedido 1, o nome do cliente,
+      o nome do produto e a quantidade. Use apenas as tabelas do banco.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT p.id_pedido, c.nome AS cliente, pr.nome AS produto, i.quantidade
+FROM pedidos p
+JOIN clientes c       ON c.id_cliente = p.id_cliente
+JOIN itens_pedido i   ON i.id_pedido  = p.id_pedido
+JOIN produtos pr      ON pr.id_produto = i.id_produto
+WHERE p.id_pedido = 1;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Cada chave estrangeira vira uma condição de junção. Os tópicos 10 e 11 detalham essa técnica.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Ligar a verificação</summary>
+    <p class="sql-dica-prob">Ligue a verificação de chaves estrangeiras e tente inserir um item de um pedido que não existe
+      (pedido 42). O que o banco responde?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>PRAGMA foreign_keys = ON;
+INSERT INTO itens_pedido VALUES (42, 1, 1, 3500.00);</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A resposta é <code>FOREIGN KEY constraint failed</code>. A inserção é recusada e nada muda no banco.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Chave natural ou chave substituta?</h3>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>chave natural</strong> já existe no mundo real: CPF, CNPJ, ISBN, código de barras. Uma
+      <strong>chave substituta</strong> é um número criado só para identificar a linha, como <code>id_cliente</code>. A
+      escolha tem consequências práticas:
+    </p>
+    <ul>
+      <li><strong>Natural:</strong> dispensa um campo extra e facilita a leitura. Mas o valor pode mudar (um CPF corrigido, um código reutilizado) e, quando muda, precisa ser propagado a todas as chaves estrangeiras.</li>
+      <li><strong>Substituta:</strong> é estável e pequena, o que favorece índices e junções. Não diz nada sobre a linha, então exige uma restrição UNIQUE sobre o dado natural quando ele é único de verdade.</li>
+    </ul>
+    <p>
+      A prática mais comum é usar substitutas como chave primária e manter o natural como UNIQUE. Isso une estabilidade e
+      a garantia de unicidade, como na tabela de clientes da loja, com <code>email UNIQUE</code>.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Ações referenciais: o que acontece ao apagar a dona</h3>
+  <div class="overflow-x-auto mb-3">
+    <table class="ah-table">
+      <thead><tr><th>Cláusula</th><th>Ao apagar a linha referenciada</th><th>Uso típico</th></tr></thead>
+      <tbody>
+        <tr><td><code>NO ACTION</code> / <code>RESTRICT</code></td><td>Recusa a exclusão enquanto houver referências</td><td>Pedidos: não apague o cliente com histórico</td></tr>
+        <tr><td><code>CASCADE</code></td><td>Apaga as linhas dependentes</td><td>Itens de um pedido, arquivos de uma pasta</td></tr>
+        <tr><td><code>SET NULL</code></td><td>Zera a chave estrangeira</td><td>Autor de um post que saiu da empresa</td></tr>
+        <tr><td><code>SET DEFAULT</code></td><td>Aplica um valor padrão</td><td>Atribuir a um “responsável geral”</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-sm text-slate-400 leading-relaxed mb-3">
+    Os dois exemplos abaixo mostram SET NULL e CASCADE. Eles usam tabelas próprias, para não alterar os dados da loja.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>PRAGMA foreign_keys = ON;
+CREATE TABLE autor (id INTEGER PRIMARY KEY, nome TEXT);
+CREATE TABLE post (
+  id INTEGER PRIMARY KEY,
+  titulo TEXT,
+  id_autor INTEGER REFERENCES autor(id) ON DELETE SET NULL
+);
+INSERT INTO autor VALUES (1, 'Ana'), (2, 'Bruno');
+INSERT INTO post VALUES (10, 'Intro', 1), (11, 'SQL', 1), (12, 'Índices', 2);
+DELETE FROM autor WHERE id = 1;
+SELECT * FROM post;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Os posts de Ana continuam existindo, mas sem autor. A escolha entre SET NULL e CASCADE é de negócio: o conteúdo
+    deve sumir com o autor, ou apenas perder a atribuição?
+  </p>
+  <div class="sql-ex mt-4">
+    <pre class="ah-code sql-code" data-run>PRAGMA foreign_keys = ON;
+CREATE TABLE pasta (id INTEGER PRIMARY KEY, nome TEXT);
+CREATE TABLE arquivo (
+  id INTEGER PRIMARY KEY,
+  nome TEXT,
+  id_pasta INTEGER REFERENCES pasta(id) ON DELETE CASCADE
+);
+INSERT INTO pasta VALUES (1, 'Projetos'), (2, 'Fotos');
+INSERT INTO arquivo VALUES (1, 'a.sql', 1), (2, 'b.sql', 1), (3, 'c.jpg', 2);
+DELETE FROM pasta WHERE id = 1;
+SELECT * FROM arquivo;</pre>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>CASCADE é perigoso em cadeias longas.</strong> Apagar uma linha pode disparar outra cascata, e outra, sem que
+      ninguém veja o total. Em sistemas com dados financeiros, a convenção mais segura é não apagar: marcar a linha como inativa
+      (tópico 08, “exclusão lógica”).</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Custos escondidos do esquema físico</h3>
+  <div class="ah-prose">
+    <p>
+      Cada chave primária e cada UNIQUE cria um índice automaticamente. Já a chave estrangeira <em>não</em> cria índice em
+      muitos bancos, o que causa um problema clássico: apagar ou alterar a chave da tabela pai obriga o banco a varrer a
+      tabela filha inteira para conferir as referências. Por isso, a boa prática é criar índice em toda coluna de chave
+      estrangeira usada em junções.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c3440)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual propriedade a integridade referencial garante?</p>
+      <button class="ah-quiz-opt">Toda tabela tem uma chave primária</button>
+      <button class="ah-quiz-opt">Os valores de uma coluna pertencem a um domínio válido</button>
+      <button class="ah-quiz-opt">Toda chave estrangeira não nula aponta para uma linha existente</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É a regra que impede referências pendentes (órfãs). As outras opções são a integridade de entidade e a de domínio.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que o SQLite aceitou o pedido 10 para o cliente 99, que não existe?</p>
+      <button class="ah-quiz-opt">A verificação de chave estrangeira é desligada por padrão e precisa de PRAGMA foreign_keys = ON</button>
+      <button class="ah-quiz-opt">Chaves estrangeiras não existem no SQLite</button>
+      <button class="ah-quiz-opt">O pedido 10 já existia antes</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        No SQLite, a verificação depende de cada conexão. A declaração REFERENCES existe, mas só é aplicada com o PRAGMA ligado.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Um atributo multivalorado, como vários telefones por cliente, deve ser traduzido como:</p>
+      <button class="ah-quiz-opt">Uma coluna telefone1, telefone2, telefone3</button>
+      <button class="ah-quiz-opt">Uma tabela própria com chave estrangeira para o cliente</button>
+      <button class="ah-quiz-opt">Uma lista separada por vírgulas numa única coluna</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Colunas numeradas limitam a quantidade e espalham NULL. Lista separada por vírgulas quebra a atomicidade do valor,
+        e é impossível consultar um telefone específico com segurança. Tabela própria é a solução relacional.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: relação ===================== */
+(function () {
+  SQLLab.passos(document.getElementById('anim-relacao'), [
+    { titulo: 'Atributos e domínios', texto: 'Cada coluna tem um nome e um domínio: os valores que ela aceita.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="ah-card p-3"><span class="text-cyan-300 font-semibold">id_cliente</span><br><span class="text-slate-400">domínio: inteiros positivos</span></div>
+        <div class="ah-card p-3"><span class="text-cyan-300 font-semibold">nome</span><br><span class="text-slate-400">domínio: textos não vazios</span></div>
+        <div class="ah-card p-3"><span class="text-cyan-300 font-semibold">cidade</span><br><span class="text-slate-400">domínio: textos (pode faltar)</span></div></div>` },
+    { titulo: 'Tuplas (linhas)', texto: 'Cada tupla é um fato. A ordem entre as tuplas não tem significado.',
+      html: () => `<div class="ah-card p-4">${SQLLab.tabelaHTML(['id_cliente', 'nome', 'cidade'],
+        [[1, 'Ana Souza', 'São Paulo'], [2, 'Bruno Lima', 'Rio de Janeiro'], [7, 'Helena Costa', 'Curitiba']], { animar: true })}</div>` },
+    { titulo: 'Sem linhas repetidas', texto: 'Na teoria, a relação é um conjunto: a mesma tupla não aparece duas vezes. A chave primária garante isso no SQL.',
+      html: () => `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-clone"></i><div>Duas linhas idênticas violariam a identidade. Por isso toda tabela deve ter uma chave.</div></div>` },
+    { titulo: 'Em SQL', texto: 'Sem chave, o SQL permite duplicatas. Com chave, o banco recusa a segunda linha igual.',
+      html: () => `<div class="sql-q">CREATE TABLE t (a INTEGER, b TEXT);            -- aceita duplicatas
+CREATE TABLE u (a INTEGER PRIMARY KEY, b TEXT); -- chave: sem duplicatas</div>` }
+  ]);
+
+  /* Chave estrangeira: pedido -> cliente */
+  const cli = (id, nome, ativo) => `<div class="ah-card p-3 border-t-4 border-cyan-400 ${ativo ? 'sql-pulse' : ''}" id="cli-${id}">
+      <div class="text-[10px] text-slate-400">clientes</div><div class="font-mono text-xs text-white"># ${id} · ${nome}</div></div>`;
+  const ped = (id, cli, ativo) => `<div class="ah-card p-3 border-t-4 border-amber-400 ${ativo ? 'sql-pulse' : ''}">
+      <div class="text-[10px] text-slate-400">pedidos</div><div class="font-mono text-xs text-white"># ${id} · cliente_fk = ${cli}</div></div>`;
+  SQLLab.passos(document.getElementById('anim-fk'), [
+    { titulo: 'Um pedido aponta para um cliente', texto: 'A coluna id_cliente de pedidos guarda um valor da chave primária de clientes.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cli(1, 'Ana Souza', false)}${ped(1, 1, true)}</div>` },
+    { titulo: 'O banco confere a referência', texto: 'Ao inserir o pedido, o SGBD procura cliente 1 em clientes. Encontrou: a inserção segue.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cli(1, 'Ana Souza', true)}${ped(1, 1, false)}</div>
+        <div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i><div>Referência válida.</div></div>` },
+    { titulo: 'Tentativa de referência órfã', texto: 'Um pedido para o cliente 99 não tem para onde apontar. Com a verificação ligada, a inserção é recusada.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cli(1, 'Ana Souza', false)}${ped(10, 99, true)}</div>
+        <div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-ban"></i><div><strong>FOREIGN KEY constraint failed</strong></div></div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

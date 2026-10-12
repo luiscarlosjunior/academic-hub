@@ -284,6 +284,92 @@ static int fdp_dequeue(FilaDuasPilhas *q, int *x) {
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>06-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Fila de impressão com prioridades</h3>
+    <div class="ah-prose text-sm"><p>A tarefa da frente volta para o fim se existir outra mais prioritária pendente. O programa conta em que posição a tarefa-alvo é impressa.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>06-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static int ordem_impressao(const int prio[], int n, int alvo) {
+    Fila q = {{0}, 0, 0};
+    int feito[16] = {0};
+    for (int i = 0; i &lt; n; i++) push(&amp;q, i);
+    int ordem = 0;
+    while (!vazia(&amp;q)) {
+        int t = pop(&amp;q);
+        int maior = 0;                                   /* só tarefas ainda pendentes */
+        for (int i = 0; i &lt; n; i++)
+            if (!feito[i] &amp;&amp; prio[i] &gt; maior) maior = prio[i];
+        if (prio[t] &lt; maior) { push(&amp;q, t); continue; }   /* volta para o fim */
+        feito[t] = 1;
+        ordem++;
+        if (t == alvo) return ordem;
+    }
+    return -1;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Máximo de cada janela com deque</h3>
+    <div class="ah-prose text-sm"><p>Uma fila de duas pontas mantém índices com valores em ordem decrescente. Cada índice entra e sai no máximo uma vez: O(n) para todas as janelas de tamanho k.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>06-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static void maximos_janela(const int a[], int n, int k) {
+    int dq[CAP], ini = 0, fim = 0;
+    for (int i = 0; i &lt; n; i++) {
+        while (fim &gt; ini &amp;&amp; a[dq[fim - 1]] &lt;= a[i]) fim--;   /* descarta os menores atrás */
+        dq[fim++] = i;
+        if (dq[ini] &lt;= i - k) ini++;                          /* sai da janela pela frente */
+        if (i &gt;= k - 1) printf(" %d", a[dq[ini]]);
+    }
+    printf("\n");
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Alunos e sanduíches</h3>
+    <div class="ah-prose text-sm"><p>Simula a fila: quem não quer o sanduíche da frente vai para o fim. A simulação para quando todos os que restam recusam o que está disponível. Não há almoço para ninguém (resultado 0).</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>06-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static int alunos_sem_almoco(const int alunos[], const int pilha[], int n) {
+    Fila q = {{0}, 0, 0};
+    for (int i = 0; i &lt; n; i++) push(&amp;q, alunos[i]);
+    int idx = 0, falhas = 0;
+    /* se todos os que restam recusaram o sanduíche do topo, ninguém mais come */
+    while (!vazia(&amp;q) &amp;&amp; falhas &lt; (int)(q.fim - q.ini)) {
+        if (q.d[q.ini] == pilha[idx]) {
+            pop(&amp;q);
+            idx++;
+            falhas = 0;
+        } else {
+            push(&amp;q, pop(&amp;q));
+            falhas++;
+        }
+    }
+    return (int)(q.fim - q.ini);
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Números binários com fila</h3>
+    <div class="ah-prose text-sm"><p>Cada número gera dois novos, acrescentando 0 e 1 à direita. A fila produz os números em ordem crescente, uma técnica clássica de geração por níveis.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>06-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static void binarios(int n) {
+    Fila q = {{0}, 0, 0};
+    push(&amp;q, 1);
+    /* a fila sempre contém strings em ordem; usamos inteiros que representam as strings em base 2 */
+    for (int k = 0; k &lt; n; k++) {
+        int v = pop(&amp;q);
+        printf(" %d", v);
+        push(&amp;q, v * 10);
+        push(&amp;q, v * 10 + 1);
+    }
+    printf("\n");
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>ordem de saída da tarefa 3 (prioridade 2): 2
+ordem de saída da tarefa 1 (prioridade 1): 4
+máximos de janelas de 3: 3 3 5 5 6 7
+alunos sem almoço: 0
+os 10 primeiros binários (escritos como decimais): 1 10 11 100 101 110 111 1000 1001 1010</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

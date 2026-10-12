@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computação serverless: Lambda, API Gateway e eventos · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Funções Lambda com handler e cliente reaproveitado, cold start, idempotência, API Gateway, filas de erro com destino de falha e quando serverless é a escolha certa.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/12-serverless">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-orange-400 mr-2"></i>Tópico 12 · Computação serverless</h2>
+  <div class="ah-prose">
+    <p>
+      Serverless significa que você escreve código e a AWS cuida de executar, escalar e aplicar correções no ambiente. No caso da Lambda, você
+      paga pelas invocações e pelo tempo de execução, medido em milissegundos e pela memória alocada. Quando uma função não recebe chamadas,
+      nada é cobrado. Isso muda o modo de pensar: o código passa a ser uma coleção de reações a eventos, e não um processo que fica ligado.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>escrever um handler Lambda que reaproveita conexões entre invocações;</li>
+      <li>explicar o cold start e tomar decisões de memória e de inicialização com base nele;</li>
+      <li>garantir idempotência em eventos que podem chegar mais de uma vez;</li>
+      <li>tratar falhas de invocações assíncronas com destino de falha;</li>
+      <li>decidir quando serverless é a escolha certa e quando não é.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: eventos, ambiente e custo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: como a Lambda executa o seu código</h2>
+  <div class="ah-prose">
+    <p>
+      Uma função Lambda tem um <strong>handler</strong>, que é a função exportada chamada a cada evento. Antes dela, a plataforma cria um
+      <strong>ambiente de execução</strong>: carrega o runtime e o seu código. Esse ambiente é reaproveitado em invocações seguintes, enquanto
+      estiver ativo. Por isso, o trabalho caro, como abrir conexão com banco ou carregar configuração, deve ficar fora do handler. Assim ele é
+      feito uma vez por ambiente, e não a cada chamada.
+    </p>
+    <p>
+      O <strong>cold start</strong> é o tempo de criar um ambiente novo. Ele inclui baixar o código, iniciar o runtime e executar o código fora
+      do handler. Ele afeta a primeira chamada de um ambiente, e fica mais visível em runtimes pesados e pacotes grandes. Duas alavancas
+      reduzem o impacto: pacotes menores e mais memória, porque a Lambda aloca CPU proporcionalmente à memória. A concorrência provisionada
+      mantém ambientes prontos, ao custo de pagar por eles mesmo sem uso.
+    </p>
+    <p>
+      Eventos podem chegar mais de uma vez, porque a maioria das fontes tem entrega <em>pelo menos uma vez</em>. Por isso, a função precisa ser
+      <strong>idempotente</strong>: processar o mesmo evento duas vezes produz o mesmo resultado que processar uma vez. É a propriedade que
+      evita cobrar duas vezes ou criar dois registros quando uma rede falha no meio do caminho.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Fonte de evento</th><th>Modo de invocação</th><th>O que acontece na falha</th></tr></thead>
+      <tbody>
+        <tr><td>API Gateway</td><td>Síncrona: o cliente espera a resposta</td><td>O erro volta ao cliente, que decide se tenta de novo</td></tr>
+        <tr><td>EventBridge, S3, SNS</td><td>Assíncrona: a plataforma enfileira e chama a função</td><td>A plataforma tenta de novo; depois, envia ao destino de falha, se configurado</td></tr>
+        <tr><td>SQS</td><td>Em lote, com sondagem da fila</td><td>O lote volta à fila; use DLQ da própria fila após N tentativas</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="handler" data-toc="Operação 1: handler e cliente reaproveitado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-orange-400 mr-2"></i>Operação 1 · Escrever o handler</h2>
+  <div class="ah-prose">
+    <p>
+      O exemplo a seguir expõe uma rota que devolve a versão atual dos tokens publicados. Ele mostra as duas regras de performance: o cliente
+      de banco é criado fora do handler, e a resposta sai com cabeçalhos de cache que a CDN do tópico 4 pode usar. A animação do tópico 12
+      mostra o caminho de uma chamada com e sem cold start.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: uma chamada com ambiente quente e com cold start</h3>
+  <p class="ah-lead text-sm mb-4">Alterne entre os cenários. A diferença está na etapa da Lambda, que é a única que muda de tempo.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvServerless" style="height:300px"></canvas></div>
+  <div id="ctlServerless" class="mt-4"></div>
+  <div id="capServerless" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript · <code>src/versao-tokens.ts</code></p>
+<pre class="ah-code"><code>import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+
+// Fora do handler: criado uma vez por ambiente e reaproveitado nas chamadas seguintes
+const doc = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'sa-east-1' }));
+
+export const handler = async (evento: APIGatewayProxyEventV2): Promise&lt;APIGatewayProxyResultV2&gt; => {
+  const canal = evento.pathParameters?.canal ?? 'producao';
+
+  const resposta = await doc.send(new GetCommand({
+    TableName: 'VersoesTokens',
+    Key: { pk: 'CANAL#' + canal },
+  }));
+
+  if (!resposta.Item) {
+    return { statusCode: 404, body: JSON.stringify({ erro: 'canal não encontrado' }) };
+  }
+
+  return {
+    statusCode: 200,
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'public, max-age=60',
+    },
+    body: JSON.stringify({ versao: resposta.Item.versao }),
+  };
+};</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o <code>DynamoDBDocumentClient</code> é caro de criar e barato de usar, e por isso fica fora do
+      handler. O <code>cache-control</code> de 60 segundos permite que a CDN responda sem chamar a função na maioria das vezes, o que reduz
+      custo e latência ao mesmo tempo. Erros esperados, como canal inexistente, devolvem código 404 em vez de lançar exceção, para não gerar
+      tentativas automáticas inúteis.
+    </p>
+  </div>
+</section>
+
+<section id="idempotencia" data-toc="Operação 2: idempotência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clone text-orange-400 mr-2"></i>Operação 2 · Processar o mesmo evento sem duplicar</h2>
+  <div class="ah-prose">
+    <p>
+      Suponha uma função que registra a publicação de uma versão de tokens a partir de um evento do EventBridge. Se o evento chegar duas
+      vezes, a função não pode criar dois registros de publicação. A técnica é gravar uma chave de idempotência com uma condição: a escrita só
+      acontece se a chave ainda não existir. Quando a condição falha, o evento já foi processado, e a função simplesmente encerra com sucesso.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>src/registrar-publicacao.ts</code></p>
+<pre class="ah-code"><code>import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
+
+export async function registrarPublicacao(doc: DynamoDBDocumentClient, evento: { id: string; versao: string }) {
+  try {
+    await doc.send(new PutCommand({
+      TableName: 'Publicacoes',
+      Item: { pk: 'EVENTO#' + evento.id, versao: evento.versao, criadoEm: new Date().toISOString() },
+      ConditionExpression: 'attribute_not_exists(pk)',
+    }));
+  } catch (erro) {
+    if (erro instanceof ConditionalCheckFailedException) {
+      return { status: 'ja-processado' };
+    }
+    throw erro;
+  }
+  return { status: 'registrado' };
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a condição <code>attribute_not_exists(pk)</code> torna a verificação e a escrita uma única operação
+      atômica. Não há janela entre “ver se existe” e “gravar”, em que duas execuções paralelas passariam ao mesmo tempo. O identificador do
+      evento precisa ser estável: use o id que a fonte fornece, e não um valor gerado na hora. Outros erros são relançados, para que a
+      plataforma tente de novo.
+    </p>
+  </div>
+</section>
+
+<section id="destino" data-toc="Operação 3: falhas e destino de falha" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-orange-400 mr-2"></i>Operação 3 · Falhas com destino de falha</h2>
+  <div class="ah-prose">
+    <p>
+      Em invocações assíncronas, a plataforma tenta de novo algumas vezes e depois descarta o evento. Se o evento tem valor, descartá-lo é
+      perda. Um <strong>destino de falha</strong> recebe o evento que não foi processado, junto com o motivo do erro. Assim, ele pode ser
+      inspecionado, corrigido e reprocessado. Sem esse destino, o erro só existe nos logs, e os logs expiram.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (CDK) · função com destino de falha em fila</p>
+<pre class="ah-code"><code>import * as cdk from 'aws-cdk-lib';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as destinations from 'aws-cdk-lib/aws-lambda-destinations';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+
+const falhas = new sqs.Queue(this, 'FalhasPublicacao', {
+  retentionPeriod: cdk.Duration.days(14),
+});
+
+const publicar = new lambda.Function(this, 'Publicar', {
+  runtime: lambda.Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: lambda.Code.fromAsset('dist/publicar'),
+  memorySize: 512,
+  timeout: cdk.Duration.seconds(30),
+  retryAttempts: 2,
+  onFailure: new destinations.SqsDestination(falhas),
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> <code>retryAttempts: 2</code> limita as tentativas automáticas, e o destino de falha guarda o que
+      sobrou. A retenção de 14 dias dá tempo para a equipe investigar antes de o evento sumir. Acompanhe o tamanho dessa fila com um alarme,
+      porque um crescimento súbito costuma indicar uma regressão na função.
+    </p>
+  </div>
+</section>
+
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos cobrem agendamento de tarefas e uma comparação de custo entre serverless e instância sempre ligada, que é a pergunta que decide a arquitetura.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Tarefa agendada com EventBridge</h3>
+  <div class="ah-prose">
+    <p>
+      Uma tarefa diária, como gerar o relatório de adoção do design system, não precisa de servidor. Uma regra do EventBridge com expressão
+      cron dispara a função todo dia de manhã. A expressão do EventBridge tem seis campos, e o formato difere do cron tradicional do Linux
+      porque inclui o ano e exige um dos campos de dia como <code>?</code>.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (CDK) · regra diária às 9h, horário UTC</p>
+<pre class="ah-code"><code>import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
+
+new events.Rule(this, 'RelatorioDiario', {
+  schedule: events.Schedule.expression('cron(0 12 * * ? *)'),
+  targets: [new targets.LambdaFunction(relatorio)],
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> <code>cron(0 12 * * ? *)</code> roda às 12h UTC, que é 9h no horário de Brasília (UTC menos três),
+      sem horário de verão no Brasil desde 2019. Escrever em UTC evita erros de fuso, e a conversão fica documentada no comentário do
+      código. Como o disparo é assíncrono, a função deve ser idempotente, como na operação 2.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Serverless ou instância sempre ligada?</h3>
+  <div class="ah-prose">
+    <p>
+      A escolha depende do padrão de uso. Uma função paga por invocação e por tempo; uma instância paga por hora, esteja ocupada ou não. A
+      conta abaixo compara os dois casos com a mesma carga. Os valores de preço mudam com o tempo e a região, então use a calculadora oficial;
+      a estrutura é a que importa.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Carga</th><th>Serverless tende a ser melhor quando</th><th>Instância tende a ser melhor quando</th></tr></thead>
+      <tbody>
+        <tr><td>Tráfego esporádico</td><td>Há longos períodos sem chamadas</td><td>Não há períodos ociosos</td></tr>
+        <tr><td>Tráfego previsível e constante</td><td>Nunca: a conta cresce linear ao uso</td><td>A instância ocupada o tempo todo custa menos por requisição</td></tr>
+        <tr><td>Picos imprevisíveis</td><td>A escala é automática e sem configuração</td><td>Exige auto scaling ajustado e aquecimento</td></tr>
+        <tr><td>Processo longo, acima de 15 minutos</td><td>Não se aplica: o limite da Lambda é de 15 minutos</td><td>Adequado para processos longos</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela transforma uma discussão de opinião em critérios. A pergunta de corte é a ocupação: se a
+      máquina ficaria ocupada a maior parte do tempo, serverless tende a custar mais. Para o design system, rotas de documentação e
+      relatórios costumam ser esporádicos, o que favorece serverless.
+    </p>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Funções pequenas e com um propósito:</strong> uma função por evento ou rota facilita permissões mínimas e medição de custo.</li>
+      <li><strong>Frameworks de aplicação serverless:</strong> AWS SAM e o CDK com NodejsFunction são usados para empacotar e implantar as funções.</li>
+      <li><strong>Teste local e de integração:</strong> o código de negócio é testado sem a Lambda, e a integração com eventos reais roda em ambiente de homologação.</li>
+      <li><strong>Limites de cota vistos cedo:</strong> concorrência reservada evita que uma função esgote a concorrência da conta e derrube as outras.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Uma função cria o cliente do banco dentro do handler. Qual é o efeito e como corrigir?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a conexão é criada a cada invocação, mesmo quando o ambiente é reaproveitado. Isso aumenta a latência de todas as chamadas e pode esgotar o número de conexões do banco sob carga. A correção é mover a criação para fora do handler, no escopo do módulo.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Uma função de cobrança falhou no meio e o evento foi reenviado. Qual propriedade precisa existir?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> idempotência. A função precisa reconhecer o evento já processado, usando um identificador estável e uma condição de escrita, como na operação 2. Sem isso, o reenvio gera uma cobrança duplicada, que é um dos erros mais caros de corrigir.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Meça o tempo de cold start de uma função com dois tamanhos de memória (256 MB e 1024 MB). Explique a diferença observada.</li>
+    <li>Adicione idempotência ao handler de publicação, usando o id do evento, e escreva um teste que envia o mesmo evento duas vezes.</li>
+    <li>Calcule a ocupação mínima de uma instância que tornaria o custo dela igual ao da função serverless, para a sua carga estimada.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      O DVA-C03 é o exame em que serverless tem mais peso: Lambda, API Gateway, eventos, filas e como a função é invocada. As perguntas costumam
+      pedir o modo de invocação correto e o tratamento de falhas. O SAA-C03 cobre o mesmo tema por escolha de arquitetura, com custo e escala.
+      O CLF-C02 pede a ideia básica de serverless e do modelo de cobrança. Confira os guias vigentes para o escopo atual.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o cliente de banco deve ser criado fora do handler?</p>
+      <button class="ah-quiz-opt">Porque o handler não aceita objetos</button>
+      <button class="ah-quiz-opt">Porque o código fora do handler é mais rápido de escrever</button>
+      <button class="ah-quiz-opt">Para ser criado uma vez por ambiente e reaproveitado nas invocações seguintes</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O ambiente da Lambda é reaproveitado; o código de inicialização fora do handler roda uma vez por ambiente.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma função assíncrona falha todas as tentativas. Qual recurso preserva o evento para investigação?</p>
+      <button class="ah-quiz-opt">Um destino de falha, como uma fila SQS</button>
+      <button class="ah-quiz-opt">Aumentar a memória da função</button>
+      <button class="ah-quiz-opt">Desativar os logs</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O destino de falha recebe o evento e o motivo do erro, para inspeção e reprocessamento.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual propriedade garante que reprocessar um evento não produz efeito duplicado?</p>
+      <button class="ah-quiz-opt">Latência baixa</button>
+      <button class="ah-quiz-opt">Idempotência</button>
+      <button class="ah-quiz-opt">Concorrência reservada</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Idempotência faz o processamento repetido produzir o mesmo resultado que um único processamento.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>O cliente de banco e as configurações ficam fora do handler, para reaproveitamento entre chamadas.</li>
+    <li>Cold start afeta a primeira chamada; memória maior também aumenta a CPU disponível.</li>
+    <li>Eventos podem repetir; a função deve ser idempotente, com id estável e condição de escrita.</li>
+    <li>Falhas assíncronas precisam de destino de falha, senão o evento se perde.</li>
+    <li>Serverless vence com carga esporádica; instância vence com ocupação alta e constante.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>AWS Lambda Developer Guide</em>, seções sobre ciclo de vida do ambiente e destinos. docs.aws.amazon.com/lambda.</li>
+    <li>AWS. <em>Amazon EventBridge User Guide</em>, seção sobre expressões de agendamento. docs.aws.amazon.com/eventbridge.</li>
+    <li>AWS. <em>Serverless Land</em>, padrões de referência para arquiteturas serverless. serverlessland.com.</li>
+    <li>VOGELS, Werner. <em>Eventually Consistent</em>. ACM Queue, 2008. Discussão sobre entrega e consistência em sistemas distribuídos.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('serverless');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo Entidade-Relacionamento (MER) · AcademicHub</title>
+<meta name="description" content="Entidades, atributos, chaves, relacionamentos, cardinalidades mínima e máxima e a notação de pé de galinha.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/02-modelo-entidade-relacionamento">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Do requisito ao diagrama" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-circle-nodes text-cyan-400 mr-2"></i>Antes das tabelas, o conceito</h2>
+  <div class="ah-prose">
+    <p>
+      Se você sair programando tabelas a partir da frase “o cliente faz pedidos”, vai errar com frequência.
+      O <strong>Modelo Entidade-Relacionamento</strong>, proposto por Peter Chen em 1976, é uma linguagem para
+      <em>pensar</em> o domínio antes de decidir o esquema. Ele responde três perguntas: <em>que coisas</em> existem,
+      <em>que propriedades</em> elas têm e <em>como se relacionam</em>.
+    </p>
+    <p>
+      O MER não depende de nenhum SGBD. Ele é um mapa conceitual. Depois, no tópico 04, o diagrama é traduzido para tabelas.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-4">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Regra prática.</strong> Substantivos viram <em>entidades</em>, adjetivos viram <em>atributos</em>
+      e verbos viram <em>relacionamentos</em>. “Cliente <strong>faz</strong> pedido” gera duas entidades e um relacionamento.</div>
+  </div>
+</section>
+
+<!-- ============================ ENTIDADES E ATRIBUTOS ============================ -->
+<section id="entidades" data-toc="Entidades e atributos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cube text-cyan-400 mr-2"></i>Entidades, atributos e chaves</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma <strong>entidade</strong> é um conjunto de objetos do mundo real com as mesmas propriedades, como “Cliente”.
+    Cada objeto é uma <strong>ocorrência</strong> (Ana, Bruno…). Um <strong>atributo</strong> descreve uma propriedade
+    de cada ocorrência, como nome ou cidade.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Tipos de atributo</h3>
+      <ul class="text-sm text-slate-300 space-y-2 leading-relaxed">
+        <li><strong>Simples</strong>: indivisível, como <code>cidade</code>.</li>
+        <li><strong>Composto</strong>: formado por partes, como <code>endereco</code> = rua + número + cidade.</li>
+        <li><strong>Monovalorado</strong> ou <strong>multivalorado</strong>: um valor, ou vários, como <code>telefones</code>.</li>
+        <li><strong>Derivado</strong>: calculado a partir de outros, como <code>idade</code> a partir de <code>data_nascimento</code>. Em geral não se guarda.</li>
+        <li><strong>Opcional</strong>: pode não ter valor (NULL), como <code>email</code> do cliente Gabriel.</li>
+      </ul>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Chave: identifica uma ocorrência</h3>
+      <p class="text-sm text-slate-300 leading-relaxed mb-3">
+        A <strong>chave</strong> é um atributo (ou conjunto) cujo valor é único para cada ocorrência. Uma entidade pode
+        ter várias chaves candidatas; uma é escolhida como <strong>chave primária</strong>.
+      </p>
+      <pre class="ah-code text-[11px]"><span class="kw">Cliente</span>
+  <span class="num">#</span> id_cliente     <span class="cm">← chave primária</span>
+    email          <span class="cm">← candidata: única, mas pode ser trocada</span>
+    nome
+    cidade</pre>
+      <p class="text-xs text-slate-400 mt-3">
+        Um bom critério: chaves naturais (CPF, e-mail) mudam ou são sensíveis. Chaves artificiais (um número sequencial)
+        são estáveis. Por isso, a loja usa <code>id_cliente</code>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RELACIONAMENTOS E CARDINALIDADE ============================ -->
+<section id="cardinalidade" data-toc="Relacionamentos e cardinalidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-cyan-400 mr-2"></i>Relacionamentos e cardinalidade</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um <strong>relacionamento</strong> associa ocorrências de duas ou mais entidades. A <strong>cardinalidade</strong> diz
+    quantas ocorrências de cada lado podem (máximo) e devem (mínimo) participar. Ela é a parte do modelo que mais
+    gera discussão, e a que mais produz bugs no banco.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="ah-card p-4 border-t-4 border-cyan-400"><div class="text-xs font-bold text-cyan-300">1 : 1</div>
+      <p class="text-xs text-slate-400 mt-2 leading-relaxed">Um cliente tem <strong>um</strong> cadastro fiscal, e cada cadastro pertence a <strong>um</strong> cliente.</p></div>
+    <div class="ah-card p-4 border-t-4 border-amber-400"><div class="text-xs font-bold text-amber-300">1 : N</div>
+      <p class="text-xs text-slate-400 mt-2 leading-relaxed">Um cliente faz <strong>muitos</strong> pedidos, mas cada pedido pertence a <strong>um</strong> cliente. É o caso mais comum.</p></div>
+    <div class="ah-card p-4 border-t-4 border-fuchsia-400"><div class="text-xs font-bold text-fuchsia-300">N : N</div>
+      <p class="text-xs text-slate-400 mt-2 leading-relaxed">Um pedido tem <strong>muitos</strong> produtos, e um produto aparece em <strong>muitos</strong> pedidos.</p></div>
+  </div>
+
+  <div class="ah-card p-5 mb-5">
+    <h3 class="ah-h3 mb-3">Notação de pé de galinha (crow's foot)</h3>
+    <p class="text-sm text-slate-400 leading-relaxed mb-4">
+      Ao lado de cada entidade, o símbolo na linha diz a cardinalidade máxima (um traço = 1, pé de galinha = N)
+      e a mínima (um círculo = zero, traço = um). É a notação usada pela maioria das ferramentas, incluindo o dbdiagram.io.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono text-slate-300">
+      <div class="ah-card p-3">Cliente <span class="text-cyan-300">||──o<</span> Pedido <span class="text-slate-500">· um cliente faz zero ou muitos pedidos</span></div>
+      <div class="ah-card p-3">Pedido <span class="text-cyan-300">||──|<</span> Nota fiscal <span class="text-slate-500">· exatamente um, para cada</span></div>
+    </div>
+  </div>
+
+  <div class="ah-card p-5">
+    <h3 class="ah-h3 mb-3">Animação · montando o diagrama da loja</h3>
+    <div id="anim-mer"></div>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como isso vira banco" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-cyan-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>
+      O MER não entra no banco. Ele é uma etapa de projeto, e a cardinalidade é o que decide <em>onde</em> a
+      informação de relacionamento é guardada no esquema físico:
+    </p>
+    <ul>
+      <li><strong>1:N</strong>: a chave do lado “um” é copiada para a tabela do lado “muitos”, como chave estrangeira. Ex.: <code>pedidos.id_cliente</code>.</li>
+      <li><strong>1:1</strong>: a chave pode ir para qualquer lado, mas convém um deles ser UNIQUE para garantir o “um”.</li>
+      <li><strong>N:N</strong>: não cabe em nenhuma tabela, então cria-se uma tabela intermediária (entidade associativa). Ex.: <code>itens_pedido</code>.</li>
+    </ul>
+    <p>
+      Além disso, a <strong>cardinalidade mínima</strong> vira restrição: se o mínimo é 1, a coluna da chave estrangeira
+      é <code>NOT NULL</code>. Se é 0, ela aceita NULL. Ou seja, o diagrama já especifica parte das regras do banco.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: o que o diagrama afirma" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-cyan-400 mr-2"></i>Exemplo: o que o diagrama da loja afirma</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada pedido pertence a exatamente um cliente, e um cliente pode não ter pedido nenhum. Essa frase é uma
+    cardinalidade (pedido: mínimo 1 e máximo 1 de cliente; cliente: mínimo 0 e máximo N de pedidos). Verifique-a
+    nos dados: a cliente Helena (id 7) não tem pedidos, e nenhum pedido está sem cliente.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome, COUNT(p.id_pedido) AS pedidos
+FROM clientes c
+LEFT JOIN pedidos p ON p.id_cliente = c.id_cliente
+GROUP BY c.id_cliente, c.nome
+ORDER BY pedidos DESC, c.nome;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A consulta usa <code>LEFT JOIN</code> para manter quem não tem pedido (Helena aparece com zero). Os tópicos 09 e 10
+    explicam cada parte. Por enquanto, perceba que a cardinalidade 0..N do cliente é o que obriga o uso da junção externa.
+  </p>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Erros comuns de modelagem</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Atributo que deveria ser entidade</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">“Cidade” como atributo do cliente esconde regras (estado, CEP, população). Se a cidade tem dados próprios ou é compartilhada por muitos clientes, vire entidade.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Relacionamento N:N sem tabela intermediária</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">“Produto” com uma lista de pedidos, ou “pedido” com uma lista de produtos, não funciona com colunas. A solução é a entidade associativa do tópico 03.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Chave que muda</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Usar o e-mail como chave primária parece natural, mas quando o cliente troca de e-mail, todas as chaves estrangeiras precisam mudar.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Ignorar a cardinalidade mínima</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Dizer “pedido tem cliente” sem o “obrigatório” deixa o banco aceitar pedidos órfãos. A cardinalidade mínima é uma regra de negócio.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-cyan-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Desenhe no papel antes de abrir a solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Biblioteca</summary>
+    <p class="sql-dica-prob">Um livro pode ser escrito por vários autores, e um autor pode escrever vários livros. Cada livro tem um
+      único exemplar físico cadastrado? Identifique entidades, atributos, chave e as cardinalidades.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Entidades: <strong>Livro</strong> (chave <code>isbn</code>) e <strong>Autor</strong> (chave <code>id_autor</code>).
+        Relacionamento <strong>escreve</strong>: N:N. Como um livro tem “vários autores” e um autor tem “vários livros”, o MER
+        usa cardinalidade 1..N dos dois lados, e a associação recebe um atributo de ordem (quem é o primeiro autor).
+        Exemplares: entidade <strong>Exemplar</strong> ligada ao livro com 1:N, porque cada exemplar é de um único título.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Quantas chaves estrangeiras?</summary>
+    <p class="sql-dica-prob">Um funcionário é supervisionado por no máximo um outro funcionário. Qual é o relacionamento e a cardinalidade?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        É um <strong>auto-relacionamento</strong> 1:N: um supervisor tem muitos supervisionados, e cada funcionário tem no máximo um supervisor.
+        O supervisor é opcional (mínimo 0), porque a diretora não tem supervisor. Por isso <code>funcionarios.id_supervisor</code>
+        é uma chave estrangeira que <em>aceita NULL</em>. O tópico 13 usa essa mesma tabela.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Atributo derivado</summary>
+    <p class="sql-dica-prob">Num cadastro de pedidos, o valor total do pedido é um atributo a ser guardado?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Em geral, não. O total é <strong>derivado</strong> de <code>quantidade × preco_unitario</code> dos itens. Guardá-lo cria
+        redundância: se um item mudar, o total precisa mudar também. Calcule na consulta. Se for preciso guardar, faça-o
+        conscientemente, sabendo que é uma cópia que pode ficar desatualizada.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Convenções de nomes que evitam confusão</h3>
+  <div class="ah-prose">
+    <p>
+      Nomes são documentação. Um bom nome diz o que a coluna guarda sem precisar de comentário. Algumas convenções
+      simples poupam horas de leitura de código e de esquema:
+    </p>
+    <ul>
+      <li><strong>Tabelas no plural</strong> (<code>clientes</code>, <code>pedidos</code>), porque cada linha é um dos itens. Há quem prefira o singular; o importante é escolher um e manter.</li>
+      <li><strong>Chaves com o nome da tabela</strong> (<code>id_cliente</code>), para que a chave estrangeira se reconheça sozinha em <code>pedidos.id_cliente</code>.</li>
+      <li><strong>snake_case e sem acentos</strong> (<code>data_pedido</code>, não <code>DataPedido</code> ou <code>Data do Pedido</code>), porque espaços e maiúsculas exigem aspas em muitos bancos.</li>
+      <li><strong>Evitar nomes genéricos</strong> como <code>valor</code>, <code>tipo</code> ou <code>data</code>. Se o conceito é “valor da compra”, a coluna se chama <code>valor_compra</code>.</li>
+    </ul>
+  </div>
+  <div class="overflow-x-auto mt-3">
+    <table class="ah-table">
+      <thead><tr><th>Evite</th><th>Prefira</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><code>Cliente.Nome Completo</code></td><td><code>clientes.nome_completo</code></td><td>Espaço e maiúscula exigem aspas</td></tr>
+        <tr><td><code>tbl1.data</code></td><td><code>pedidos.data_pedido</code></td><td>“data” é ambíguo e pode ser palavra reservada</td></tr>
+        <tr><td><code>pedido.cli</code></td><td><code>pedidos.id_cliente</code></td><td>Abreviação obscura</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Exercício guiado: do requisito ao modelo</h3>
+  <div class="ah-prose">
+    <p>Considere este requisito, escrito por um cliente que não fala a língua dos bancos:</p>
+    <p class="ah-callout ah-callout-info" style="margin:0"><em>“Um cliente faz pedidos. Cada pedido tem vários produtos, cada um com uma quantidade. Todo produto pertence a uma categoria. Cada pedido é atendido por um vendedor, e um vendedor atende muitos pedidos.”</em></p>
+    <p>Os passos de extração são sempre os mesmos:</p>
+    <ol>
+      <li><strong>Substantivos → entidades:</strong> cliente, pedido, produto, categoria, vendedor.</li>
+      <li><strong>Verbos → relacionamentos:</strong> “faz” (cliente–pedido), “tem” (pedido–produto), “pertence” (produto–categoria), “atende” (vendedor–pedido).</li>
+      <li><strong>Cardinalidades:</strong> cliente–pedido é 1:N; produto–categoria é N:1; pedido–produto é N:N (exige associativa com quantidade); vendedor–pedido é 1:N.</li>
+      <li><strong>Obrigatoriedade:</strong> um pedido precisa de cliente e vendedor (mínimo 1); um produto precisa de categoria (mínimo 1). Um cliente pode não ter pedido (mínimo 0).</li>
+    </ol>
+    <p>
+      Ao final, confira o modelo voltando ao requisito: cada frase deve estar representada, e nenhuma informação deve
+      ter ficado sem lugar. Esta revisão, feita em papel, custa minutos e evita refazer o esquema depois.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Prática · validando uma regra de negócio nos dados</h3>
+  <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+    Uma regra como “todo pedido tem pelo menos um item” pode ser testada procurando exceções. A consulta devolve
+    as linhas que violam a regra; resultado vazio significa que nenhuma violação existe <em>agora</em>.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT p.id_pedido
+FROM pedidos p
+LEFT JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+WHERE i.id_pedido IS NULL;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Atenção: um resultado vazio prova que os dados atuais respeitam a regra, não que a regra está garantida. Para
+    garanti-la para sempre, seria preciso um mecanismo do banco (uma trigger ou uma restrição), como o tópico 06 mostra.
+  </p>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c3440)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Num relacionamento 1:N entre Cliente e Pedido, onde fica a chave estrangeira?</p>
+      <button class="ah-quiz-opt">Em Cliente, apontando para os pedidos</button>
+      <button class="ah-quiz-opt">Em Pedido, apontando para o cliente</button>
+      <button class="ah-quiz-opt">Em uma tabela intermediária, sempre</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Do lado “muitos” cabe apenas uma referência ao lado “um”. Um pedido tem um cliente, então a chave vai no pedido.
+        Colocar uma lista de pedidos no cliente exigiria uma coluna com vários valores, o que o modelo relacional não permite.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Qual atributo é o melhor candidato a chave primária de Cliente?</p>
+      <button class="ah-quiz-opt">O nome, porque é o que o usuário digita</button>
+      <button class="ah-quiz-opt">A cidade, porque é curta</button>
+      <button class="ah-quiz-opt">Um identificador artificial e estável, como id_cliente</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Chave deve ser única e estável. Nomes se repetem e mudam; cidades se repetem. Um identificador sem significado
+        de negócio não muda, por isso é a escolha mais segura.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Um pedido precisa obrigatoriamente ter um cliente. Qual é o efeito no esquema?</p>
+      <button class="ah-quiz-opt">A chave estrangeira pedidos.id_cliente é NOT NULL</button>
+      <button class="ah-quiz-opt">A tabela pedidos ganha uma segunda chave primária</button>
+      <button class="ah-quiz-opt">Nenhum efeito: a regra é só documentação</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A cardinalidade mínima 1 se traduz em NOT NULL na chave estrangeira. Assim, o banco recusa pedidos sem cliente.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: construindo o MER ===================== */
+(function () {
+  const caixa = (nome, cor, attrs) => `
+    <div class="ah-card p-3 border-t-4" style="border-top-color:${cor};min-width:130px">
+      <div class="text-xs font-bold text-white mb-1">${nome}</div>
+      ${attrs.map(a => `<div class="text-[11px] text-slate-400 font-mono">${a}</div>`).join('')}
+    </div>`;
+  const seta = (rot, rotulo) => `
+    <div class="flex flex-col items-center justify-center text-[10px] text-slate-400 px-1">
+      <span class="font-mono text-cyan-300 mb-1">${rotulo}</span>
+      <i class="fa-solid ${rot} text-slate-500"></i>
+    </div>`;
+  const cliente = caixa('Cliente', '#22d3ee', ['# id_cliente', 'nome', 'cidade']);
+  const pedido = caixa('Pedido', '#22d3ee', ['# id_pedido', 'data_pedido', 'status']);
+  const produto = caixa('Produto', '#22d3ee', ['# id_produto', 'nome', 'preco']);
+  SQLLab.passos(document.getElementById('anim-mer'), [
+    { titulo: 'Passo 1 · as entidades', texto: 'Substantivos do domínio viram caixas. Cada uma ganha uma chave primária (#).',
+      html: () => `<div class="flex flex-wrap gap-4 justify-center">${cliente}${pedido}${produto}</div>` },
+    { titulo: 'Passo 2 · o relacionamento “faz”', texto: 'Um cliente faz muitos pedidos (1:N). Cada pedido pertence a um único cliente.',
+      html: () => `<div class="flex flex-wrap gap-2 justify-center items-center">${cliente}${seta('fa-arrow-right', '1 ─── N')}${pedido}</div>` },
+    { titulo: 'Passo 3 · “contém” (N:N)', texto: 'Um pedido tem muitos produtos, e um produto está em muitos pedidos. Isso é N:N, que exige uma entidade associativa.',
+      html: () => `<div class="flex flex-wrap gap-2 justify-center items-center">${pedido}${seta('fa-arrow-right', 'N ─── N')}${produto}</div>
+        <p class="text-xs text-center text-slate-400 mt-3">A associação será a tabela <code>itens_pedido</code>, no tópico 03.</p>` },
+    { titulo: 'Passo 4 · cardinalidade mínima', texto: 'Um pedido sem cliente não faz sentido: o mínimo é 1. Um cliente pode não ter pedidos: o mínimo é 0.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="ah-card p-4 text-sm text-slate-300"><strong class="text-white">Pedido → Cliente</strong><br>mínimo 1, máximo 1 · obrigatório</div>
+        <div class="ah-card p-4 text-sm text-slate-300"><strong class="text-white">Cliente → Pedidos</strong><br>mínimo 0, máximo N · opcional</div></div>` },
+    { titulo: 'Passo 5 · o diagrama pronto', texto: 'Três entidades, relacionamentos com cardinalidade e regras de obrigatoriedade. Pronto para o mapeamento.',
+      html: () => `<div class="ah-card p-4 font-mono text-[12px] text-slate-300 leading-7 overflow-x-auto whitespace-pre">Cliente ||──o{ Pedido
+Pedido   }o──|| Produto   <span class="text-slate-500">(via itens_pedido)</span>
+Cliente  (0..N) faz  Pedido (1..1)</div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

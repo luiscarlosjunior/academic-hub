@@ -374,6 +374,40 @@ flowchart TD
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- EXEMPLO-EXEC:INI -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: hotel e hóspedes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hotel text-rose-400 mr-2"></i>Exemplo passo a passo: quarto, reserva e hóspede</h2>
+  <p class="ah-lead text-sm mb-5">Três classes, três tipos de vínculo. Vamos decidir cada um e escrever o código que o diagrama exige.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — decidir o tipo de cada vínculo</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Vínculo</th><th>Pergunta</th><th>Decisão</th></tr></thead>
+      <tbody>
+        <tr><td>Hotel – Quarto</td><td>Se o hotel fechar, os quartos deixam de existir?</td><td>Composição</td></tr>
+        <tr><td>Reserva – Quarto</td><td>Se a reserva for cancelada, o quarto some?</td><td>Agregação (o quarto continua existindo)</td></tr>
+        <tr><td>Reserva – Hóspede</td><td>O hóspede pode existir sem reserva?</td><td>Associação (hóspede é cadastro próprio)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a agregação no código</h3>
+  <pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Reserva</span> {
+    <span class="kw">private final</span> <span class="ty">Hospede</span> hospede;                 <span class="cm">// associação: referência de fora</span>
+    <span class="kw">private final</span> List&lt;<span class="ty">Quarto</span>&gt; quartos;         <span class="cm">// agregação: recebidos, não criados</span>
+
+    <span class="kw">public</span> <span class="fn">Reserva</span>(<span class="ty">Hospede</span> hospede, List&lt;<span class="ty">Quarto</span>&gt; quartos) {
+        <span class="kw">this</span>.hospede = Objects.requireNonNull(hospede);
+        <span class="kw">this</span>.quartos = List.copyOf(quartos);     <span class="cm">// cópia: a reserva não altera a lista de fora</span>
+    }
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o cancelamento não destrói o quarto</h3>
+  <p class="ah-prose text-sm">Cancelar uma reserva não chama nada em <code>Quarto</code>. A reserva simplesmente deixa de existir, e o quarto continua no inventário do hotel, disponível para outra reserva. Esse é o comportamento da agregação, e o código deixa isso evidente: a reserva nunca tem permissão de remover quartos.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> pôr <code>new Quarto(...)</code> dentro de <code>Reserva</code>. Assim o quarto nasce com a reserva e morre com ela, o que contradiz o diagrama e cria duplicatas no inventário.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável: projeto Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: o projeto Melodia</h2>
   <p class="ah-lead text-sm mb-5">Composição (<code>Album</code> cria as faixas), agregação (<code>Playlist</code> recebe músicas existentes) e a multiplicidade do ouvinte estão no mesmo projeto. Os blocos 2 e 3 mostram a diferença na saída.</p>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redes na AWS: VPC, sub-redes, segurança de rede e endpoints · Design System em AWS · AcademicHub</title>
+<meta name="description" content="VPC com sub-redes públicas, privadas e isoladas, Internet Gateway, NAT, Security Groups, NACLs e endpoints de gateway para S3 e DynamoDB, com código em CDK e diagnóstico de falhas de rede.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/10-redes-vpc">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-orange-400 mr-2"></i>Tópico 10 · Redes na AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Todo serviço da AWS que você já usou roda sobre uma rede. Quando essa rede é desenhada com cuidado, o banco de dados não aparece na
+      internet, a aplicação não tem IP público e o tráfego entre serviços não sai da infraestrutura da AWS. Quando não é, a segurança vira
+      uma lista de exceções que cresce até ninguém saber o que está exposto. Este tópico ensina a desenhar a rede antes de colocar qualquer
+      recurso dentro dela.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>dimensionar uma VPC com endereçamento CIDR e distribuir sub-redes em mais de uma zona de disponibilidade;</li>
+      <li>separar sub-redes públicas, privadas com saída e isoladas, e justificar cada uma;</li>
+      <li>diferenciar Security Groups de NACLs e escrever regras que referenciam outros grupos;</li>
+      <li>usar endpoints de gateway para acessar S3 e DynamoDB sem passar pela internet;</li>
+      <li>diagnosticar uma falha de conexão separando timeout, recusa e erro de aplicação.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: VPC, sub-redes e roteamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: endereçamento, rotas e controles</h2>
+  <div class="ah-prose">
+    <p>
+      Uma <strong>VPC</strong> é uma rede virtual privada dentro de uma região. Ela recebe um bloco de endereços no formato CIDR. O bloco
+      <code>10.0.0.0/16</code> tem 65.536 endereços; um bloco <code>/24</code>, usado para sub-redes, tem 256, dos quais a AWS reserva cinco.
+      Os intervalos privados padrão vêm da RFC 1918: <code>10.0.0.0/8</code>, <code>172.16.0.0/12</code> e <code>192.168.0.0/16</code>. Escolha
+      um bloco amplo desde o início, porque ampliar uma VPC depois é trabalhoso e às vezes impossível sem recriar recursos.
+    </p>
+    <p>
+      Uma <strong>sub-rede</strong> pertence a uma única zona de disponibilidade. Para resistir à falha de uma zona, cada camada precisa de
+      sub-redes em pelo menos duas. A diferença entre os tipos de sub-rede está na <strong>tabela de rotas</strong>. Uma sub-rede pública tem
+      rota padrão para o <strong>Internet Gateway</strong>. Uma privada com saída tem rota padrão para um <strong>NAT Gateway</strong>, que
+      permite sair para a internet mas não permite entrada iniciada de fora. Uma isolada não tem rota para lugar nenhum fora da VPC.
+    </p>
+    <p>
+      Há duas camadas de filtro de tráfego, e elas funcionam de forma diferente. O <strong>Security Group</strong> é <em>com estado</em>: se
+      uma conexão de entrada é permitida, a resposta sai automaticamente. A <strong>NACL</strong> é <em>sem estado</em>, avalia regras numeradas
+      em ordem, e a resposta precisa de regra própria. Na prática, o Security Group é a ferramenta principal, e a NACL funciona como uma
+      barreira adicional e grosseira no limite da sub-rede.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Componente</th><th>Função</th><th>Com estado?</th><th>Nível de aplicação</th></tr></thead>
+      <tbody>
+        <tr><td>Internet Gateway</td><td>Liga a VPC à internet</td><td>—</td><td>Da VPC inteira</td></tr>
+        <tr><td>NAT Gateway</td><td>Saída para internet a partir de sub-rede privada</td><td>Sim</td><td>Sub-rede, com custo por hora e por GB</td></tr>
+        <tr><td>Security Group</td><td>Filtro de entrada e saída por recurso</td><td>Sim</td><td>Interface de rede do recurso</td></tr>
+        <tr><td>NACL</td><td>Filtro numerado por sub-rede</td><td>Não</td><td>Sub-rede</td></tr>
+        <tr><td>Endpoint de gateway</td><td>Acesso privado ao S3 e ao DynamoDB</td><td>—</td><td>Tabela de rotas</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="desenho" data-toc="Operação 1: desenhar a VPC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-orange-400 mr-2"></i>Operação 1 · Desenhar em três camadas</h2>
+  <div class="ah-prose">
+    <p>
+      O desenho clássico tem três camadas: a de entrada, pública, recebe o balanceador; a de aplicação, privada, roda o código; a de dados,
+      isolada, guarda o banco. Cada seta que cruza uma camada é um risco, e o desenho deve permitir só as setas necessárias. Acompanhe a
+      animação. Depois, troque para o cenário com o banco numa sub-rede pública e veja o erro aparecer.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: caminho do tráfego pelas camadas</h3>
+  <p class="ah-lead text-sm mb-4">O quadro de erro mostra o desenho que mais aparece em revisões de segurança: um banco exposto por engano.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvVpc" style="height:300px"></canvas></div>
+  <div id="ctlVpc" class="mt-4"></div>
+  <div id="capVpc" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript (CDK) · <code>lib/rede-stack.ts</code></p>
+<pre class="ah-code"><code>import * as ec2 from 'aws-cdk-lib/aws-ec2';
+
+const vpc = new ec2.Vpc(this, 'Vpc', {
+  ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/16'),
+  maxAzs: 2,
+  natGateways: 1,
+  subnetConfiguration: [
+    { name: 'publica', subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
+    { name: 'app', subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS, cidrMask: 24 },
+    { name: 'dados', subnetType: ec2.SubnetType.PRIVATE_ISOLATED, cidrMask: 24 },
+  ],
+});
+
+vpc.addGatewayEndpoint('S3', { service: ec2.GatewayVpcEndpointAwsService.S3 });</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o construto cria, para cada zona, uma sub-rede de cada tipo, com a tabela de rotas certa. Com
+      <code>maxAzs: 2</code>, a camada de dados também sobrevive à falha de uma zona. O <code>natGateways: 1</code> economiza custo, mas
+      deixa a saída da aplicação dependente de uma única zona; em produção, costuma-se usar um NAT por zona, e a decisão é de custo versus
+      disponibilidade.
+    </p>
+  </div>
+</section>
+
+<section id="sg" data-toc="Operação 2: Security Groups encadeados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-orange-400 mr-2"></i>Operação 2 · Security Groups que se referenciam</h2>
+  <div class="ah-prose">
+    <p>
+      A regra mais útil de Security Group é referenciar outro grupo, e não um endereço IP. Assim, a aplicação aceita tráfego de “qualquer
+      recurso do balanceador”, e a regra continua valendo quando o balanceador troca de IP, o que acontece com frequência. O banco aceita
+      apenas o grupo da aplicação, e nenhum outro.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (CDK) · encadeamento de grupos</p>
+<pre class="ah-code"><code>const sgAlb = new ec2.SecurityGroup(this, 'SgAlb', { vpc });
+sgAlb.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS público');
+
+const sgApp = new ec2.SecurityGroup(this, 'SgApp', { vpc });
+sgApp.addIngressRule(sgAlb, ec2.Port.tcp(8080), 'Somente do ALB');
+
+const sgBanco = new ec2.SecurityGroup(this, 'SgBanco', { vpc });
+sgBanco.addIngressRule(sgApp, ec2.Port.tcp(5432), 'Somente da aplicação');</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a cadeia reproduz o desenho da animação em código. Se alguém criar uma instância nova e a colocar no
+      grupo da aplicação, ela ganha acesso ao banco automaticamente, o que é o comportamento esperado. Se alguém criar uma instância fora
+      desse grupo, ela não alcança o banco, mesmo estando na mesma VPC. A segurança está na identidade do grupo, e não na localização da
+      máquina.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · conferindo as regras já criadas</p>
+<pre class="ah-code"><code>aws ec2 describe-security-groups \
+  --group-ids sg-0abc1234 \
+  --query "SecurityGroups[].IpPermissions[].{Porta: FromPort, Origem: UserIdGroupPairs[].GroupId}"</code></pre>
+</section>
+
+<section id="endpoint" data-toc="Operação 3: endpoints sem sair da rede" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-orange-400 mr-2"></i>Operação 3 · Endpoints para S3 e DynamoDB</h2>
+  <div class="ah-prose">
+    <p>
+      Sem endpoint, uma aplicação em sub-rede privada que lê o S3 precisa de NAT, e o tráfego paga por GB de saída pelo NAT. Com um
+      <strong>endpoint de gateway</strong>, a rota para o S3 aponta para um destino interno da VPC. O endpoint de gateway é gratuito para S3 e
+      DynamoDB, e não exige NAT para esses serviços. Outros serviços usam <strong>endpoints de interface</strong>, que são pagos por hora e por
+      GB e aparecem como endereços privados na sub-rede.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · criando o endpoint e conferindo a rota</p>
+<pre class="ah-code"><code>aws ec2 create-vpc-endpoint \
+  --vpc-id vpc-0abc1234 \
+  --vpc-endpoint-type Gateway \
+  --service-name com.amazonaws.sa-east-1.s3 \
+  --route-table-ids rtb-0abc1234
+
+aws ec2 describe-route-tables --route-table-ids rtb-0abc1234 \
+  --query "RouteTables[].Routes[?GatewayId!=null]"</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a rota com o prefixo do S3 aponta para o endpoint, e o tráfego não atravessa o NAT. Duas
+      consequências importam. A primeira é de custo: menos GB pelo NAT. A segunda é de segurança: a política do endpoint pode restringir
+      quais buckets são acessíveis a partir da VPC, o que limita a exfiltração de dados. A política do endpoint é um controle que quase
+      ninguém usa e que vale estudar.
+    </p>
+  </div>
+</section>
+
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os dois exemplos ensinam a diagnosticar problemas de rede, a parte mais demorada do trabalho diário, e a decidir entre NACL e Security Group.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Timeout, recusa ou erro de aplicação?</h3>
+  <div class="ah-prose">
+    <p>
+      Três sintomas parecem iguais para quem vê de fora, e cada um aponta para uma camada diferente. O teste de conexão na porta mostra qual
+      é o caso. Um <em>timeout</em> significa que o pacote não chegou ou a resposta não voltou: suspeite de Security Group, NACL ou rota.
+      Uma <em>recusa</em> significa que o pacote chegou, mas nada escuta na porta: suspeite da aplicação ou do processo. Um erro de
+      aplicação, como 500, significa que a conexão funciona e o problema está no código.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · testando a conectividade por porta</p>
+<pre class="ah-code"><code># -w define o tempo limite em segundos
+nc -vz -w 3 10.0.11.25 8080
+# timeout: regra de grupo, NACL ou rota faltando
+# Connection refused: o pacote chegou, mas nada escuta na porta
+# Connection succeeded: a camada de rede está correta; investigue a aplicação</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o teste separa as camadas antes de qualquer investigação de código. Ele também evita a armadilha
+      mais comum: abrir o Security Group inteiro para “testar”. Depois do teste, feche a regra temporária e registre a causa encontrada.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Quando usar NACL</h3>
+  <div class="ah-prose">
+    <p>
+      A NACL é útil para bloquear um intervalo inteiro de endereços, por exemplo após detectar varreduras de uma faixa de IPs. Ela também
+      é a única forma de criar uma regra de negação explícita, porque Security Groups só permitem. Por ser sem estado, a NACL exige regra
+      para o tráfego de retorno, o que costuma ser esquecido.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Necessidade</th><th>Ferramenta</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td>Permitir a porta 443 de um balanceador</td><td>Security Group</td><td>Com estado; a resposta sai sem regra extra</td></tr>
+        <tr><td>Bloquear um intervalo de IPs abusivo</td><td>NACL</td><td>Negação explícita, aplicada antes do Security Group</td></tr>
+        <tr><td>Liberar o banco só para a aplicação</td><td>Security Group referenciando o grupo</td><td>A regra segue o grupo, não o IP</td></tr>
+        <tr><td>Acessar S3 sem NAT</td><td>Endpoint de gateway</td><td>Rota interna, sem custo de NAT</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela associa cada necessidade à ferramenta que a resolve sem gambiarra. A pergunta que decide é
+      “preciso negar explicitamente, ou basta permitir o que é necessário?”. Na maioria dos casos, a resposta é permitir, e o Security Group
+      resolve.
+    </p>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Acesso administrativo sem porta aberta:</strong> o Session Manager, do Systems Manager, substitui bastions e chaves SSH expostas, com registro das sessões.</li>
+      <li><strong>Uma VPC por ambiente ou por conta:</strong> produção e homologação ficam isoladas, e o compartilhamento entre contas usa Transit Gateway quando necessário.</li>
+      <li><strong>Desenho revisado por código:</strong> mudanças de rede passam por revisão de <code>cdk diff</code>, porque uma regra mal escrita afeta toda a aplicação.</li>
+      <li><strong>Inventário de exposição:</strong> ferramentas como o AWS Config verificam regras de Security Group que abrem portas para 0.0.0.0/0.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um time planeja um bloco de 10.0.0.0/24 para a VPC inteira. Qual é o problema?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> um bloco <code>/24</code> tem 256 endereços, com cinco reservados em cada sub-rede. Ele cabe pouquíssimas sub-redes e não cresce. Um <code>/16</code> dá espaço para várias sub-redes por zona e para novas camadas no futuro. Ampliar depois exige associar blocos secundários, o que complica o roteamento.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Uma instância em sub-rede privada não consegue atualizar pacotes. A rota padrão aponta para o Internet Gateway. Qual é a correção?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a sub-rede é pública, e não privada. A classificação depende da tabela de rotas: se a rota padrão (<code>0.0.0.0/0</code>) aponta para o Internet Gateway, a sub-rede é pública, mesmo que a instância não tenha IP público. A correção é trocar a rota padrão para um NAT Gateway, que fica numa sub-rede pública. Assim, a instância sai para atualizar pacotes, e continua sem nenhuma entrada vinda da internet.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Calcule quantos endereços úteis restam numa sub-rede <code>/24</code> depois das cinco reservas da AWS.</li>
+    <li>Desenhe uma VPC com duas zonas, três camadas e um NAT por zona. Estime o custo mensal do NAT e compare com o cenário de um NAT único.</li>
+    <li>Escreva a política de um endpoint de S3 que permita apenas o bucket de documentação. Explique o que acontece com o bucket de logs.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Redes são um dos temas de maior peso no SAA-C03, dentro dos domínios de arquiteturas seguras e resilientes. As perguntas típicas pedem
+      para escolher a sub-rede certa, o tipo de filtro e a forma de acesso a um serviço sem internet. No CLF-C02, o conceito aparece de forma
+      básica, como o que é uma VPC e para que serve. No DVA-C03, o foco é a conectividade de funções e aplicações. Confira os guias vigentes
+      para o escopo atual de cada exame.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual componente é com estado e permite o tráfego de retorno de uma conexão permitida sem regra adicional?</p>
+      <button class="ah-quiz-opt">NACL</button>
+      <button class="ah-quiz-opt">Tabela de rotas</button>
+      <button class="ah-quiz-opt">Security Group</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O Security Group é com estado. A NACL é sem estado e exige regra para a resposta.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma aplicação em sub-rede privada precisa acessar o S3 sem passar pela internet e sem pagar NAT para esse tráfego. Qual solução atende?</p>
+      <button class="ah-quiz-opt">Endpoint de gateway para o S3, com rota na tabela da sub-rede</button>
+      <button class="ah-quiz-opt">Um IP público na instância</button>
+      <button class="ah-quiz-opt">Uma NACL que libera a porta 443 para 0.0.0.0/0</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O endpoint de gateway cria uma rota interna para o S3, sem NAT e sem custo do endpoint para S3.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma conexão ao banco expira sem resposta. A porta está aberta no Security Group da aplicação, mas o banco aceita só o grupo da aplicação. O que verificar primeiro?</p>
+      <button class="ah-quiz-opt">Se o banco está escrevendo logs em disco</button>
+      <button class="ah-quiz-opt">Se o Security Group do banco referencia o grupo correto, e se a NACL da sub-rede permite o tráfego de ida e de volta</button>
+      <button class="ah-quiz-opt">Se a versão do sistema operacional é a mais recente</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Timeout aponta para a camada de rede. A regra do grupo do banco e a NACL (que é sem estado) são os primeiros pontos a conferir.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Escolha um CIDR amplo; sub-redes existem em uma zona cada e devem ser duplicadas por camada.</li>
+    <li>Sub-rede pública tem rota para o Internet Gateway; privada com saída usa NAT; isolada não tem saída.</li>
+    <li>Security Group é com estado e referencia grupos; NACL é sem estado e nega explicitamente.</li>
+    <li>Endpoint de gateway para S3 e DynamoDB evita NAT e mantém o tráfego interno.</li>
+    <li>Timeout, recusa e erro de aplicação apontam para camadas diferentes.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>Amazon VPC User Guide</em>. docs.aws.amazon.com/vpc.</li>
+    <li>AWS. <em>AWS CDK API Reference</em>, módulo <code>aws-ec2</code>. docs.aws.amazon.com/cdk/api/v2.</li>
+    <li>REKHTER, Y. et al. <em>RFC 1918: Address Allocation for Private Internets</em>. IETF, 1996.</li>
+    <li>AWS. <em>AWS Well-Architected Framework</em>, pilar Segurança, seção sobre proteção de rede. docs.aws.amazon.com/wellarchitected.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('vpc');
+})();
+</script>
+</body>
+</html>

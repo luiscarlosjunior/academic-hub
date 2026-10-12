@@ -118,6 +118,41 @@ Não é necessário nenhum passo de build.
 
 ---
 
+### 🗄️ Modelagem de Dados e SQL — 15 tópicos em três trilhas
+
+Do modelo entidade-relacionamento às consultas avançadas. Todos os exemplos de SQL rodam **de verdade no navegador** (SQLite compilado para WebAssembly via sql.js), sobre o mesmo banco de uma loja virtual (clientes, produtos, pedidos, itens e funcionários). Cada tópico tem um editor “Experimente” e problemas com solução executável.
+
+**Trilha 1 — Modelagem de Dados (5 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 01 | Bancos de dados e modelos de dados | Animação: o mesmo endereço em três planilhas, e o ACID numa transferência com falha |
+| 02 | Modelo Entidade-Relacionamento (MER) | Montagem do diagrama passo a passo, com cardinalidades |
+| 03 | Relacionamentos avançados | Do N:N à entidade associativa; auto-relacionamento e especialização |
+| 04 | Modelo relacional e mapeamento ER → tabelas | Relação pela lente da teoria; chave estrangeira com verificação ligada |
+| 05 | Normalização: 1FN, 2FN, 3FN e FNBC | Decomposição passo a passo e as três anomalias |
+
+**Trilha 2 — SQL: do básico ao intermediário (6 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 06 | DDL, tipos e restrições de integridade | CREATE TABLE e a recusa de cada tipo de restrição |
+| 07 | Consultas básicas: SELECT, filtros e NULL | Pipeline σ (WHERE) e π (SELECT) animado; lógica de três valores |
+| 08 | DML e transações | Compra com estoque insuficiente: BEGIN, UPDATE condicional e ROLLBACK |
+| 09 | Agregação: GROUP BY e HAVING | Agrupamento em baldes animado |
+| 10 | Junções: INNER, LEFT, RIGHT, FULL, CROSS e auto-junção | Os seis tipos de junção sobre as mesmas tabelas |
+| 11 | Subconsultas e CTEs | Subconsulta que resolve primeiro e alimenta a consulta externa |
+
+**Trilha 3 — SQL Avançado (4 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 12 | Funções de janela: OVER, PARTITION BY e frames | ROW_NUMBER por partição, passo a passo |
+| 13 | Consultas recursivas e hierarquias | Iteração até o ponto fixo sobre o organograma |
+| 14 | Índices, planos de execução e otimização | Busca numa B-tree e leitura de EXPLAIN QUERY PLAN |
+| 15 | Transações, isolamento e concorrência | Atualização perdida animada; níveis de isolamento |
+
+
 ## Estrutura do projeto
 
 ```
@@ -136,6 +171,9 @@ academic-hub/
 │   ├── modelagem-poo/
 │   │   ├── index.html
 │   │   └── topicos/01-….html … 16-….html
+│   ├── modelagem-dados-sql/
+│   │   ├── index.html
+│   │   └── topicos/01-….html … 15-….html
 │   └── estrutura-dados/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (11 páginas)

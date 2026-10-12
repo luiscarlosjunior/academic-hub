@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DML e transações: INSERT, UPDATE, DELETE e COMMIT · AcademicHub</title>
+<meta name="description" content="Modificar dados com segurança: INSERT, UPDATE e DELETE com WHERE, transações com BEGIN, COMMIT e ROLLBACK.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/08-dml-transacoes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Modificar com cuidado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Mudar dados é a parte perigosa</h2>
+  <div class="ah-prose">
+    <p>
+      Consultar não altera nada. Já <code>INSERT</code>, <code>UPDATE</code> e <code>DELETE</code> mudam o estado do
+      banco, e um erro aqui não se desfaz sozinho. A regra que evita a maioria dos desastres é simples:
+      <strong>toda alteração deve ser precisa e, quando envolve mais de um passo, deve estar numa transação</strong>.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ INSERT ============================ -->
+<section id="insert" data-toc="INSERT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>INSERT: criando linhas</h2>
+  <p class="ah-lead text-sm mb-5">
+    Informe sempre as colunas por nome. Assim, a inserção continua correta mesmo que a ordem das colunas mude
+    no futuro, e colunas com DEFAULT ou chave automática ficam de fora.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>INSERT INTO categorias (id_categoria, nome)
+VALUES (6, 'Papelaria'), (7, 'Brinquedos');
+SELECT * FROM categorias;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Também é possível inserir o resultado de uma consulta. Esse é o <code>INSERT ... SELECT</code>, muito usado para copiar
+    ou resumir dados:
+  </p>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE pedidos_arquivados (id_pedido INTEGER, status TEXT);
+INSERT INTO pedidos_arquivados
+SELECT id_pedido, status FROM pedidos WHERE status = 'cancelado';
+SELECT * FROM pedidos_arquivados;</pre>
+  </div>
+</section>
+
+<!-- ============================ UPDATE / DELETE ============================ -->
+<section id="update-delete" data-toc="UPDATE e DELETE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>UPDATE e DELETE: a cláusula WHERE é tudo</h2>
+  <p class="ah-lead text-sm mb-5">
+    <code>UPDATE</code> e <code>DELETE</code> afetam <strong>todas as linhas que satisfazem o WHERE</strong>. Sem WHERE,
+    afetam a tabela inteira, sem aviso. Antes de executar, rode o mesmo WHERE num SELECT e confira a quantidade de linhas.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div class="ah-card p-4 border-l-4 border-emerald-500">
+      <div class="text-xs text-emerald-300 font-semibold mb-2">Seguro: escopo explícito</div>
+      <div class="sql-q">UPDATE produtos SET preco = preco * 1.10
+WHERE id_categoria = 2;</div>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <div class="text-xs text-rose-300 font-semibold mb-2">Perigoso: sem WHERE</div>
+      <div class="sql-q">UPDATE produtos SET preco = preco * 1.10;
+-- aumenta TODOS os produtos</div>
+    </div>
+  </div>
+
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- reajuste de 10% nos livros
+UPDATE produtos SET preco = ROUND(preco * 1.10, 2)
+WHERE id_categoria = 2;
+SELECT id_produto, nome, preco FROM produtos WHERE id_categoria = 2;</pre>
+  </div>
+
+  <div class="sql-ex mt-5">
+    <pre class="ah-code sql-code" data-run>-- remove itens de um pedido cancelado
+DELETE FROM itens_pedido
+WHERE id_pedido IN (SELECT id_pedido FROM pedidos WHERE status = 'cancelado');
+SELECT COUNT(*) AS itens_restantes FROM itens_pedido;</pre>
+  </div>
+</section>
+
+<!-- ============================ TRANSAÇÕES ============================ -->
+<section id="transacoes" data-toc="Transações: BEGIN, COMMIT e ROLLBACK" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Transações: tudo ou nada</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma transação agrupa comandos. <code>BEGIN</code> inicia; <code>COMMIT</code> confirma tudo;
+    <code>ROLLBACK</code> desfaz tudo. Até o COMMIT, as alterações são provisórias para quem está na mesma conexão.
+  </p>
+
+  <div class="ah-card p-5 mb-5">
+    <h3 class="ah-h3 mb-3">Animação · compra com estoque insuficiente</h3>
+    <div id="anim-compra"></div>
+  </div>
+
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>BEGIN;
+UPDATE produtos SET estoque = estoque - 2 WHERE id_produto = 1;
+SELECT id_produto, nome, estoque FROM produtos WHERE id_produto = 1;
+ROLLBACK;
+SELECT id_produto, nome, estoque FROM produtos WHERE id_produto = 1;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Você verá duas tabelas. Dentro da transação, o estoque do notebook caiu para 6. Depois do ROLLBACK, voltou a 8.
+    Nenhum outro usuário veria a queda antes do COMMIT.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-sky-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Autocommit.</strong> Na maioria dos clientes, cada comando sem BEGIN é uma transação própria, confirmada logo após executar. Um UPDATE sem WHERE, nesse modo, já está gravado quando você percebe o erro.</li>
+      <li><strong>Como o ROLLBACK desfaz.</strong> Antes de modificar uma página, o SGBD grava a versão antiga no log (undo). ROLLBACK aplica esse registro de volta. No SQLite, isso é o journal ou o WAL.</li>
+      <li><strong>Por que o COMMIT é durável.</strong> O COMMIT só retorna depois que o log está escrito no disco (fsync). Se a energia cair um instante depois, o sistema reexecuta o log e o dado está lá.</li>
+      <li><strong>Escrita e bloqueio.</strong> Um UPDATE trava as linhas que modifica até o fim da transação. Transações longas que modificam muita coisa atrapalham outras. Mantenha-as curtas.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: o checkout" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cart-shopping text-sky-400 mr-2"></i>Exemplo clássico: o checkout</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um pedido novo exige pelo menos três escritas: registrar o pedido, registrar o item e baixar o estoque. Se qualquer
+    uma falhar, as outras não podem ficar gravadas. O UPDATE abaixo só baixa o estoque se houver unidades suficientes,
+    e informa quantas linhas foram afetadas.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>BEGIN;
+INSERT INTO pedidos VALUES (10, 7, '2024-10-01', 'pendente');
+INSERT INTO itens_pedido VALUES (10, 5, 1, 120.00);
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 5 AND estoque &gt;= 1;
+SELECT id_produto, nome, estoque FROM produtos WHERE id_produto = 5;
+ROLLBACK;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O “Livro Algoritmos” tem estoque 0, então o UPDATE não atinge nenhuma linha. A aplicação deve checar isso e fazer
+    ROLLBACK. Nesta execução, o banco desfaz também o pedido e o item inseridos antes. Só faria sentido confirmar
+    (COMMIT) se o UPDATE tivesse afetado exatamente uma linha. Confirmar com zero linhas gravaria um pedido sem baixa
+    de estoque, que é justamente a inconsistência que a transação existe para evitar.
+  </p>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Altere o exemplo e execute. Cada execução parte de um banco novo, então você pode quebrar à vontade.</p>
+  <div class="sql-play">UPDATE produtos SET estoque = estoque + 10
+WHERE id_categoria = 4;
+SELECT nome, estoque FROM produtos WHERE id_categoria = 4;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-sky-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Cada problema roda em um banco novo: experimente sem medo.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Cancelamento seguro</summary>
+    <p class="sql-dica-prob">Cancele o pedido 9 e confirme que o status mudou. Use uma transação, para que você possa desfazer
+      caso algo dê errado.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>BEGIN;
+UPDATE pedidos SET status = 'cancelado' WHERE id_pedido = 9;
+SELECT id_pedido, status FROM pedidos WHERE id_pedido = 9;
+COMMIT;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        O resultado mostra o pedido cancelado. Em um sistema real, o COMMIT só viria depois de checar a regra de negócio.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Reajuste dos eletrônicos com 5%</summary>
+    <p class="sql-dica-prob">Aumente em 5% o preço dos produtos da categoria Eletrônicos, arredondando para 2 casas, e mostre o resultado.
+      Quantas linhas foram afetadas?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>UPDATE produtos SET preco = ROUND(preco * 1.05, 2)
+WHERE id_categoria = (SELECT id_categoria FROM categorias WHERE nome = 'Eletrônicos');
+SELECT nome, preco FROM produtos WHERE id_categoria = 1;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Três produtos são afetados (Notebook, Smartphone e Fone). A subconsulta descobre o id da categoria pelo nome.
+        O tópico 11 explica esse padrão.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Arquivar e apagar com segurança</summary>
+    <p class="sql-dica-prob">Copie os pedidos com status “cancelado” para <code>pedidos_arquivados</code> e, na mesma transação,
+      apague-os da tabela <code>pedidos</code>. Atenção à ordem: os itens dependem dos pedidos.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>CREATE TABLE pedidos_arquivados (id_pedido INTEGER, status TEXT);
+BEGIN;
+INSERT INTO pedidos_arquivados
+  SELECT id_pedido, status FROM pedidos WHERE status = 'cancelado';
+DELETE FROM itens_pedido
+  WHERE id_pedido IN (SELECT id_pedido FROM pedidos WHERE status = 'cancelado');
+DELETE FROM pedidos WHERE status = 'cancelado';
+COMMIT;
+SELECT COUNT(*) AS arquivados FROM pedidos_arquivados;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A ordem importa. Se apagássemos os pedidos primeiro, a subconsulta dos itens não encontraria nada, e os itens
+        órfãos violariam a chave estrangeira (com a verificação ligada). Tudo dentro de uma transação para não haver meio-termo.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Upsert: inserir ou atualizar em um comando</h3>
+  <div class="ah-prose">
+    <p>
+      Muitas vezes a aplicação não sabe se a linha já existe. Fazer um SELECT antes e depois decidir entre INSERT e UPDATE
+      é perigoso: entre a checagem e a escrita, outra transação pode ter inserido a mesma linha. O <strong>upsert</strong>
+      resolve isso em uma instrução: se houver conflito na chave, executa a atualização.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>INSERT INTO categorias (id_categoria, nome)
+VALUES (1, 'Eletrônicos e Informática')
+ON CONFLICT (id_categoria) DO UPDATE SET nome = excluded.nome;
+SELECT * FROM categorias WHERE id_categoria = 1;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Dentro do DO UPDATE, <code>excluded</code> é a linha que tentou ser inserida. PostgreSQL, SQLite e MySQL usam
+    sintaxes parecidas (MySQL usa ON DUPLICATE KEY UPDATE). Upsert é ótimo para cargas e sincronizações repetíveis.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Savepoints: desfazer só uma parte</h3>
+  <div class="ah-prose">
+    <p>
+      Um <strong>savepoint</strong> marca um ponto dentro da transação. ROLLBACK TO desfaz só o que veio depois dele, e a
+      transação continua. É útil quando uma etapa opcional falha e o restante deve ser preservado.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>BEGIN;
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 2;
+SAVEPOINT antes_brinde;
+UPDATE produtos SET estoque = estoque - 1 WHERE id_produto = 6;
+ROLLBACK TO antes_brinde;
+COMMIT;
+SELECT id_produto, estoque FROM produtos WHERE id_produto IN (2, 6) ORDER BY id_produto;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O smartphone perdeu uma unidade e a camiseta não. A baixa do “brinde” foi desfeita, e a venda principal foi confirmada.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Exclusão lógica: apagar sem perder</h3>
+  <div class="ah-prose">
+    <p>
+      Em sistemas com histórico, <code>DELETE</code> destrói informação que pode ser necessária para auditoria, relatórios
+      e reclamações. A alternativa é a <strong>exclusão lógica</strong>: uma coluna indica que a linha está inativa, e as consultas
+      do dia a dia filtram por ela. O preço é a disciplina de lembrar o filtro em toda consulta, e uma chave UNIQUE que deve
+      considerar linhas inativas.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>ALTER TABLE clientes ADD COLUMN ativo INTEGER NOT NULL DEFAULT 1;
+UPDATE clientes SET ativo = 0 WHERE id_cliente = 3;
+SELECT nome, ativo FROM clientes ORDER BY id_cliente;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Boas práticas de escrita</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-emerald-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Ensaie com SELECT</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Troque UPDATE ... SET por SELECT * FROM ... com o mesmo WHERE, confira as linhas e só depois execute a escrita.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-emerald-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Use lotes pequenos</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Apagar milhões de linhas em uma transação segura travas por muito tempo. Divida em lotes com LIMIT e confirme cada um.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-emerald-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Confira as linhas afetadas</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">A aplicação deve checar o número de linhas que a escrita afetou. Zero onde se esperava uma é sinal de conflito ou de erro de lógica.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-emerald-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Tenha backup antes</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Nenhuma transação desfaz um COMMIT já feito. Para mudanças em massa, faça uma cópia ou um snapshot antes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c2a44)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-sky-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. O que acontece com <code>DELETE FROM clientes;</code> sem WHERE?</p>
+      <button class="ah-quiz-opt">Nada: o SQL exige WHERE</button>
+      <button class="ah-quiz-opt">Apaga só a primeira linha</button>
+      <button class="ah-quiz-opt">Apaga todas as linhas da tabela</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Sem WHERE, a condição é verdadeira para todas as linhas. Por isso o hábito de conferir o escopo com um SELECT antes.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Quando as alterações de uma transação ficam definitivas?</p>
+      <button class="ah-quiz-opt">Quando o SELECT as mostra</button>
+      <button class="ah-quiz-opt">No COMMIT, com o log gravado no disco</button>
+      <button class="ah-quiz-opt">Assim que o UPDATE termina</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Ver o dado dentro da transação não o torna definitivo. O COMMIT é o ponto de durabilidade, e o log garante isso mesmo com queda de energia.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Por que o UPDATE do checkout usa <code>AND estoque &gt;= 1</code>?</p>
+      <button class="ah-quiz-opt">Para não baixar o estoque abaixo de zero e permitir que a aplicação detecte a falta pelo número de linhas afetadas</button>
+      <button class="ah-quiz-opt">Porque UPDATE exige uma condição extra</button>
+      <button class="ah-quiz-opt">Para acelerar a atualização</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A condição protege o invariante de estoque. Se nenhuma linha casar, o número de linhas afetadas é zero, e a aplicação sabe
+        que deve desfazer a transação. Veja o tópico 15 para o caso em que duas compras competem pela mesma unidade.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: compra ===================== */
+(function () {
+  const estoque = (v, cor) => `<div class="ah-card p-4 text-center"><div class="text-[11px] text-slate-400">Livro Algoritmos · estoque</div>
+    <div class="text-3xl font-bold ${cor}">${v}</div></div>`;
+  const comandos = (ativo) => `<div class="sql-q">${ativo}</div>`;
+  SQLLab.passos(document.getElementById('anim-compra'), [
+    { titulo: 'Estado inicial', texto: 'Um cliente quer 1 unidade do Livro Algoritmos. O estoque é 0.',
+      html: () => estoque(0, 'text-white') },
+    { titulo: 'BEGIN e escritas provisórias', texto: 'Registramos o pedido e o item. Até aqui, nada é definitivo.',
+      html: () => `${comandos('BEGIN;\nINSERT INTO pedidos ...;\nINSERT INTO itens_pedido ...;')}<div class="mt-3">${estoque(0, 'text-white')}</div>` },
+    { titulo: 'UPDATE condicional', texto: 'O estoque só cai se houver unidade: AND estoque >= 1. Nenhuma linha casa, então 0 linhas são afetadas.',
+      html: () => `${comandos('UPDATE produtos SET estoque = estoque - 1\n WHERE id_produto = 5 AND estoque &gt;= 1;\n-- 0 linha(s) afetada(s)')}
+        <div class="mt-3">${estoque(0, 'text-amber-300')}</div>` },
+    { titulo: 'ROLLBACK', texto: 'A aplicação vê zero linhas afetadas e desfaz a transação. Pedido e item somem; o estoque continua 0.',
+      html: () => `${comandos('ROLLBACK;')}<div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i>
+        <div>Nenhum registro parcial ficou gravado. O banco está íntegro.</div></div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

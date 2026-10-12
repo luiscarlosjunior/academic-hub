@@ -252,6 +252,68 @@
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: reserva de hotel" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bed text-emerald-400 mr-2"></i>Exemplo passo a passo: do diagrama de um hotel ao código</h2>
+  <p class="ah-lead text-sm mb-5">Uma reserva liga um hóspede a quartos. Cada elemento do diagrama vira uma decisão concreta no código.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o diagrama</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+classDiagram
+    class Reserva {
+        -LocalDate entrada
+        -LocalDate saida
+        +diarias() int
+    }
+    class Hospede {
+        -String nome
+    }
+    class Quarto {
+        -int numero
+    }
+    Hospede "1" --&gt; "1..*" Reserva : faz
+    Reserva "1" o-- "1..*" Quarto : ocupa
+    </pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — traduzir cada elemento</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Elemento do diagrama</th><th>Construção em Java</th></tr></thead>
+      <tbody>
+        <tr><td>Classe <code>Reserva</code></td><td><code>class Reserva</code></td></tr>
+        <tr><td>Atributo <code>-LocalDate entrada</code></td><td><code>private final LocalDate entrada;</code></td></tr>
+        <tr><td>Operação <code>+diarias() int</code></td><td><code>public int diarias()</code></td></tr>
+        <tr><td>Multiplicidade <code>1..*</code> de quartos</td><td><code>List&lt;Quarto&gt;</code> não vazia, validada no construtor</td></tr>
+        <tr><td>Agregação (losango vazio)</td><td>quartos recebidos de fora, não criados pela reserva</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o código gerado e revisado</h3>
+  <pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Reserva</span> {
+    <span class="kw">private final</span> LocalDate entrada;
+    <span class="kw">private final</span> LocalDate saida;
+    <span class="kw">private final</span> List&lt;<span class="ty">Quarto</span>&gt; quartos;
+
+    <span class="kw">public</span> <span class="fn">Reserva</span>(LocalDate entrada, LocalDate saida, List&lt;<span class="ty">Quarto</span>&gt; quartos) {
+        <span class="kw">if</span> (!saida.isAfter(entrada)) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"saída deve ser depois da entrada"</span>);
+        <span class="kw">if</span> (quartos == <span class="kw">null</span> || quartos.isEmpty()) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"ao menos um quarto (1..*)"</span>);
+        <span class="kw">this</span>.entrada = entrada;
+        <span class="kw">this</span>.saida = saida;
+        <span class="kw">this</span>.quartos = List.copyOf(quartos);   <span class="cm">// cópia: a reserva não altera a lista de quem chamou</span>
+    }
+
+    <span class="kw">public int</span> <span class="fn">diarias</span>() {
+        <span class="kw">return</span> (<span class="kw">int</span>) ChronoUnit.DAYS.between(entrada, saida);
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Três decisões saíram direto do diagrama: a validação da multiplicidade <code>1..*</code>, a cópia defensiva da lista (agregação) e a ausência de criação de <code>Quarto</code> dentro da reserva.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> gerar o código e não revisar a multiplicidade. O gerador quase sempre cria <code>List&lt;Quarto&gt;</code> sem validar o <code>1..*</code>, e o diagrama fica documentando uma regra que o código não cumpre.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -301,6 +363,7 @@
 
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js"></script>
 <script>

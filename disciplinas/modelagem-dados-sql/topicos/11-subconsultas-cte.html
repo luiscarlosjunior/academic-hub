@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subconsultas e CTEs (WITH) · AcademicHub</title>
+<meta name="description" content="Subconsultas escalares, em WHERE com IN e EXISTS, tabelas derivadas e CTEs para escrever consultas em etapas legíveis.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/11-subconsultas-cte">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Uma pergunta dentro de outra" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-diagram-nested text-sky-400 mr-2"></i>Perguntas que dependem de outras respostas</h2>
+  <div class="ah-prose">
+    <p>
+      “Quais produtos custam mais que a média?” exige duas respostas: primeiro a média, depois os produtos.
+      Uma <strong>subconsulta</strong> é um SELECT dentro de outro SELECT, que resolve a parte interna e a usa como valor,
+      lista ou conjunto. Uma <strong>CTE</strong> (cláusula WITH) dá nome a uma etapa intermediária, para que a consulta
+      possa ser lida de cima para baixo.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · a subconsulta resolve primeiro</h3>
+    <div id="anim-sub"></div>
+  </div>
+</section>
+
+<!-- ============================ TIPOS ============================ -->
+<section id="tipos" data-toc="Onde a subconsulta pode aparecer" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shapes text-sky-400 mr-2"></i>Os quatro formatos</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-1">Escalar (um valor)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Devolve uma linha e uma coluna. Pode ficar em WHERE, SELECT ou HAVING. Se devolver mais de uma linha, dá erro.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-1">Lista (IN)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Devolve uma coluna. <code>x IN (SELECT …)</code> testa pertinência.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-1">Existência (EXISTS)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Verdadeiro se a subconsulta devolve pelo menos uma linha. Não importa o conteúdo.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-1">Tabela derivada (FROM)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma subconsulta no FROM, tratada como tabela. Precisa de um alias.</p></div>
+  </div>
+
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- escalar: produtos mais caros que a média
+SELECT nome, preco
+FROM produtos
+WHERE preco &gt; (SELECT AVG(preco) FROM produtos);</pre>
+  </div>
+  <div class="sql-ex mt-4">
+    <pre class="ah-code sql-code" data-run>-- lista: clientes que já compraram alguma coisa
+SELECT nome
+FROM clientes
+WHERE id_cliente IN (SELECT id_cliente FROM pedidos);</pre>
+  </div>
+</section>
+
+<!-- ============================ CORRELACIONADA E EXISTS ============================ -->
+<section id="correlacionada" data-toc="Subconsulta correlacionada e EXISTS" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Correlacionada: a subconsulta olha para a linha de fora</h2>
+  <p class="ah-lead text-sm mb-5">
+    Numa subconsulta <strong>correlacionada</strong>, a parte interna referencia uma coluna da consulta de fora. Ela é
+    avaliada <em>para cada linha externa</em>. Isso é poderoso, e também custa caro se a tabela for grande.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- clientes com ao menos um pedido, usando EXISTS
+SELECT c.nome
+FROM clientes c
+WHERE EXISTS (
+  SELECT 1
+  FROM pedidos p
+  WHERE p.id_cliente = c.id_cliente
+);</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O <code>c.id_cliente</code> dentro da subconsulta vem da linha de clientes que está sendo testada. EXISTS para ao achar
+    a primeira linha, então não precisa contar tudo. O <code>SELECT 1</code> é só convenção: o conteúdo não importa.
+  </p>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>NOT EXISTS é o anti-join.</strong> “Clientes sem pedidos” também pode ser escrito com
+      <code>NOT EXISTS</code>. Ele é mais seguro que <code>NOT IN</code> quando a subconsulta pode devolver NULL, como você verá
+      na seção “Como funciona de verdade”.</div>
+  </div>
+</section>
+
+<!-- ============================ CTE ============================ -->
+<section id="cte" data-toc="CTE com WITH" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>CTE: dar nome às etapas</h2>
+  <p class="ah-lead text-sm mb-5">
+    A cláusula <code>WITH</code> define uma ou mais <strong>expressões de tabela comuns</strong>. Cada uma é uma tabela
+    temporária que existe só durante a consulta. O resultado é o mesmo de uma subconsulta aninhada, mas a leitura flui de cima para baixo.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>WITH total_por_pedido AS (
+  SELECT id_pedido, SUM(quantidade * preco_unitario) AS total
+  FROM itens_pedido
+  GROUP BY id_pedido
+),
+pedidos_grandes AS (
+  SELECT t.id_pedido, t.total, p.id_cliente
+  FROM total_por_pedido t
+  JOIN pedidos p ON p.id_pedido = t.id_pedido
+  WHERE t.total &gt; 500
+)
+SELECT c.nome, g.id_pedido, g.total
+FROM pedidos_grandes g
+JOIN clientes c ON c.id_cliente = g.id_cliente
+ORDER BY g.total DESC;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Cada CTE é uma etapa que se explica sozinha. Ler a consulta é seguir o raciocínio. Em muitos bancos, uma CTE pode ser
+    usada mais de uma vez no mesmo SELECT; sem a cláusula, a mesma lógica precisaria ser repetida.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-sky-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Subconsulta não correlacionada é calculada uma vez.</strong> O banco executa a média, obtém um valor e o usa na consulta externa. O custo é o de uma consulta a mais.</li>
+      <li><strong>Correlacionada é reavaliada por linha</strong> (na teoria). O otimizador costuma transformá-la em um JOIN ou um semi-join, então o custo real depende do plano. Por isso o tópico 14 manda verificar com EXPLAIN.</li>
+      <li><strong>CTE nem sempre é materializada.</strong> Em PostgreSQL 12+, uma CTE simples pode ser incorporada à consulta principal, como uma subconsulta. Em outros casos, o banco calcula o resultado uma vez e guarda. Não conte com um comportamento: confira o plano.</li>
+      <li><strong>A armadilha do NOT IN com NULL.</strong> <code>x NOT IN (lista)</code> é verdadeiro somente se x for diferente de todos os valores da lista. Se a lista tiver um NULL, a comparação com ele é desconhecida, e nenhuma linha passa. NOT EXISTS não tem esse problema.</li>
+    </ul>
+  </div>
+  <div class="sql-ex mt-4">
+    <pre class="ah-code sql-code" data-run>-- deveria listar quem não tem pedido, mas devolve vazio:
+SELECT nome FROM clientes
+WHERE id_cliente NOT IN (SELECT id_cliente FROM pedidos WHERE id_cliente IS NOT NULL
+                         UNION ALL SELECT NULL);</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-3 leading-relaxed">
+    O bloco acima injeta um NULL na lista de propósito para mostrar o efeito: nenhum cliente é devolvido. Com NOT EXISTS,
+    o resultado seria Helena, como esperado.
+  </p>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: o cliente acima da média" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-sky-400 mr-2"></i>Exemplo clássico: quem gasta mais que a média</h2>
+  <p class="ah-lead text-sm mb-5">
+    A pergunta combina agregação, junção e subconsulta. Calcula-se o total por cliente, depois a média desses totais, e
+    só então se filtra. Cada etapa vira uma CTE.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>WITH gasto AS (
+  SELECT p.id_cliente, SUM(i.quantidade * i.preco_unitario) AS total
+  FROM pedidos p
+  JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+  WHERE p.status &lt;&gt; 'cancelado'
+  GROUP BY p.id_cliente
+)
+SELECT c.nome, ROUND(g.total, 2) AS total
+FROM gasto g
+JOIN clientes c ON c.id_cliente = g.id_cliente
+WHERE g.total &gt; (SELECT AVG(total) FROM gasto)
+ORDER BY total DESC;</pre>
+  </div>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Clientes sem nenhum pedido pago. Troque 'pago' por outro status e veja a lista mudar.</p>
+  <div class="sql-play">SELECT c.nome
+FROM clientes c
+WHERE NOT EXISTS (
+  SELECT 1 FROM pedidos p
+  WHERE p.id_cliente = c.id_cliente AND p.status = 'pago'
+);</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-sky-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Escreva com subconsulta ou CTE antes de olhar a solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Produtos nunca vendidos, sem JOIN</summary>
+    <p class="sql-dica-prob">Liste os produtos que nunca aparecem em um item de pedido, usando NOT EXISTS.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT pr.nome
+FROM produtos pr
+WHERE NOT EXISTS (
+  SELECT 1 FROM itens_pedido i WHERE i.id_produto = pr.id_produto
+);</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Equivalente à anti-junção do tópico 10, mas expresso como “não existe item deste produto”. Ambas são corretas aqui;
+        NOT EXISTS é mais seguro quando colunas podem ser NULL.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Pedido com mais itens</summary>
+    <p class="sql-dica-prob">Encontre o pedido com a maior quantidade total de unidades (somando as quantidades dos itens).
+      Mostre o id e a quantidade. Se houver empate, mostre todos.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>WITH unidades AS (
+  SELECT id_pedido, SUM(quantidade) AS total
+  FROM itens_pedido
+  GROUP BY id_pedido
+)
+SELECT id_pedido, total
+FROM unidades
+WHERE total = (SELECT MAX(total) FROM unidades);</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A CTE calcula as unidades por pedido; a subconsulta escalar encontra o máximo; o WHERE mantém todos os pedidos que o
+        atingem, então empates aparecem juntos.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Cidades com mais de um cliente comprador</summary>
+    <p class="sql-dica-prob">Liste as cidades que têm mais de um cliente que já fez algum pedido. Use EXISTS dentro de uma
+      consulta agrupada, ou uma CTE com os clientes que compraram.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>WITH compradores AS (
+  SELECT c.id_cliente, c.cidade
+  FROM clientes c
+  WHERE EXISTS (SELECT 1 FROM pedidos p WHERE p.id_cliente = c.id_cliente)
+)
+SELECT cidade, COUNT(*) AS compradores
+FROM compradores
+GROUP BY cidade
+HAVING COUNT(*) &gt; 1;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Em São Paulo há dois compradores (Ana e Diego), e em Curitiba só Elisa, porque Helena não comprou. Por isso só São Paulo aparece.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Divisão relacional: “comprou todos os livros”</h3>
+  <div class="ah-prose">
+    <p>
+      Uma das perguntas mais difíceis de escrever em SQL é a <strong>divisão</strong>: “quais clientes compraram <em>todos</em>
+      os produtos de uma categoria?”. A palavra “todos” pede uma dupla negação. Lê-se assim: não existe um produto da categoria
+      que o cliente não tenha comprado.
+    </p>
+    <p>
+      Traduzindo para o SQL, usamos dois NOT EXISTS aninhados. O externo percorre os clientes; o do meio percorre os
+      livros; o interno pergunta se o cliente comprou aquele livro. Se alguma dessas perguntas falhar, o cliente é descartado.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome
+FROM clientes c
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM produtos pr
+  WHERE pr.id_categoria = 2                      -- categoria Livros
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pedidos p
+      JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+      WHERE p.id_cliente = c.id_cliente
+        AND i.id_produto = pr.id_produto
+    )
+);</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Só Bruno comprou os dois livros (“SQL Essencial” e “Algoritmos”). Se você tiver dificuldade em ler a consulta, teste
+    cada nível isoladamente: primeiro a lista dos livros, depois o que cada cliente comprou. A divisão é sempre mais clara
+    quando montada em etapas, com CTEs.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Subconsulta no SELECT: um valor por linha</h3>
+  <div class="ah-prose">
+    <p>
+      Uma subconsulta escalar também pode aparecer na lista de colunas, produzindo um valor para cada linha da consulta de
+      fora. É cômodo, mas cada uma é executada (ou planejada como junção) para cada linha, então use com moderação em tabelas grandes.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome,
+       (SELECT COUNT(*) FROM pedidos p WHERE p.id_cliente = c.id_cliente) AS qtd_pedidos
+FROM clientes c
+ORDER BY qtd_pedidos DESC, c.nome;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">CTE ou subconsulta? Um critério prático</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4">
+      <div class="text-xs font-semibold text-sky-300 mb-2">Prefira CTE quando</div>
+      <ul class="text-xs text-slate-400 space-y-1 list-disc pl-4 leading-relaxed">
+        <li>A mesma etapa é usada mais de uma vez.</li>
+        <li>A consulta tem três ou mais níveis de aninhamento.</li>
+        <li>Você quer depurar cada etapa isoladamente (basta rodar o SELECT do WITH).</li>
+        <li>Há uma recursão (só CTE faz isso).</li>
+      </ul>
+    </div>
+    <div class="ah-card p-4">
+      <div class="text-xs font-semibold text-sky-300 mb-2">Prefira subconsulta quando</div>
+      <ul class="text-xs text-slate-400 space-y-1 list-disc pl-4 leading-relaxed">
+        <li>É um teste simples de pertinência ou existência (IN, EXISTS).</li>
+        <li>Um valor único precisa ser comparado (um escalar).</li>
+        <li>A consulta é curta e a leitura é imediata.</li>
+        <li>Você precisa de uma garantia de otimização que só o planejador do seu banco dá (confira o plano).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c2a44)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-sky-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Uma subconsulta escalar que devolve mais de uma linha causa o quê?</p>
+      <button class="ah-quiz-opt">O banco devolve a primeira linha em silêncio</button>
+      <button class="ah-quiz-opt">Erro: a subconsulta escalar precisa devolver no máximo um valor</button>
+      <button class="ah-quiz-opt">O banco transforma a subconsulta em lista automaticamente</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Um valor escalar não pode ser ambíguo. Se a subconsulta devolver mais de uma linha, o banco recusa a consulta.
+        Para listas, use IN.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que <code>NOT IN</code> pode devolver vazio quando a lista tem NULL?</p>
+      <button class="ah-quiz-opt">Porque NOT IN ignora linhas nulas da tabela externa</button>
+      <button class="ah-quiz-opt">Porque NULL é zero e zero está na lista</button>
+      <button class="ah-quiz-opt">Porque x &lt;&gt; NULL é desconhecido, e a condição inteira não fica verdadeira</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Para o NOT IN ser verdadeiro, x precisa ser diferente de todos os valores, inclusive do NULL. Essa comparação é desconhecida,
+        e nenhuma linha passa. NOT EXISTS evita isso.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Qual é a principal vantagem de uma CTE sobre uma subconsulta aninhada?</p>
+      <button class="ah-quiz-opt">Legibilidade: cada etapa recebe um nome e a consulta é lida em sequência</button>
+      <button class="ah-quiz-opt">Sempre é mais rápida</button>
+      <button class="ah-quiz-opt">Permite alterar tabelas permanentemente</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        CTE não garante desempenho: depende do plano. Seu valor principal é organizar o raciocínio. E ela é temporária,
+        existindo só durante a consulta.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: subconsulta ===================== */
+(function () {
+  const produtos = [['Notebook 14', 3500], ['Smartphone', 2200], ['Fone Bluetooth', 250], ['Livro SQL Essencial', 89.9],
+    ['Livro Algoritmos', 120], ['Camiseta Básica', 49.9], ['Tênis de Corrida', 399], ['Cafeteira', 299], ['Panela Antiaderente', 150]];
+  const media = produtos.reduce((s, p) => s + p[1], 0) / produtos.length;
+  const acima = produtos.filter(p => p[1] > media).map(p => produtos.indexOf(p));
+  SQLLab.passos(document.getElementById('anim-sub'), [
+    { titulo: 'Passo 1 · a subconsulta interna', texto: 'O banco calcula primeiro (SELECT AVG(preco) FROM produtos). O resultado é um único número.',
+      html: () => `<div class="sql-q mb-3">SELECT AVG(preco) FROM produtos</div>
+        <div class="ah-card p-5 text-center"><div class="text-[11px] text-slate-400">valor devolvido</div>
+        <div class="text-3xl font-bold text-cyan-300">${media.toFixed(2).replace('.', ',')}</div></div>` },
+    { titulo: 'Passo 2 · o valor entra na comparação', texto: 'A consulta externa agora compara cada preço com esse número.',
+      html: () => `<div class="sql-q mb-3">WHERE preco &gt; ${media.toFixed(2)}</div>
+        ${SQLLab.tabelaHTML(['nome', 'preco'], produtos.map(p => [p[0], p[1]]), { destaque: acima, animar: true })}` },
+    { titulo: 'Passo 3 · o resultado', texto: 'Só os produtos acima da média permanecem. Os destacados são o resultado final.',
+      html: () => SQLLab.tabelaHTML(['nome', 'preco'], acima.map(i => produtos[i]), { animar: true }) }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

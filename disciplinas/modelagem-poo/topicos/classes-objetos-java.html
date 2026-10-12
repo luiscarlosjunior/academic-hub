@@ -419,6 +419,41 @@ copiaRasa.getFaixas().addAll(original.getFaixas());   <span class="cm">// mesmos
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- EXEMPLO-EXEC:INI -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: ponto de venda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cash-register text-amber-400 mr-2"></i>Exemplo passo a passo: a classe de um item de venda</h2>
+  <p class="ah-lead text-sm mb-5">Vamos criar, testar e entender uma classe de domínio simples de um caixa de loja, do molde até o objeto.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o molde com invariantes</h3>
+  <pre class="ah-code"><code><span class="kw">public final class</span> <span class="ty">ItemVenda</span> {
+    <span class="kw">private final</span> String sku;
+    <span class="kw">private final int</span> quantidade;
+    <span class="kw">private final long</span> precoCentavos;
+
+    <span class="kw">public</span> <span class="fn">ItemVenda</span>(String sku, <span class="kw">int</span> quantidade, <span class="kw">long</span> precoCentavos) {
+        <span class="kw">if</span> (sku == <span class="kw">null</span> || sku.isBlank()) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"sku obrigatório"</span>);
+        <span class="kw">if</span> (quantidade &lt;= <span class="num">0</span>) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"quantidade deve ser positiva"</span>);
+        <span class="kw">if</span> (precoCentavos &lt; <span class="num">0</span>) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"preço não pode ser negativo"</span>);
+        <span class="kw">this</span>.sku = sku;
+        <span class="kw">this</span>.quantidade = quantidade;
+        <span class="kw">this</span>.precoCentavos = precoCentavos;
+    }
+
+    <span class="kw">public long</span> <span class="fn">subtotal</span>() { <span class="kw">return</span> quantidade * precoCentavos; }   <span class="cm">// derivado, não guardado</span>
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o objeto nasce válido</h3>
+  <pre class="ah-code"><code><span class="ty">ItemVenda</span> cafe = <span class="kw">new</span> <span class="ty">ItemVenda</span>(<span class="str">"CAFE-250G"</span>, <span class="num">2</span>, <span class="num">1890</span>);
+System.out.println(cafe.subtotal());     <span class="cm">// 3780</span>
+<span class="kw">new</span> <span class="ty">ItemVenda</span>(<span class="str">"CAFE-250G"</span>, <span class="num">0</span>, <span class="num">1890</span>);   <span class="cm">// lança IllegalArgumentException</span></code></pre>
+  <p class="ah-prose text-sm mt-3">Não existe um <code>ItemVenda</code> com quantidade zero em nenhum lugar do programa. Essa garantia custa uma verificação no construtor e poupa checagens espalhadas por todo o código.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — identidade e igualdade</h3>
+  <p class="ah-prose text-sm">Dois itens com o mesmo SKU e a mesma quantidade são o mesmo valor, mas não necessariamente o mesmo objeto. Em um caixa, duas latas de café iguais são dois itens distintos na mesma venda. Por isso <code>ItemVenda</code> não precisa de <code>equals</code> baseado em identidade: ele é um objeto de valor, e a venda guarda uma lista de itens, não um conjunto.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> guardar os itens de uma venda em um <code>HashSet</code> por causa de um <code>equals</code> que compara só o SKU. Dois cafés da mesma marca somem, porque o conjunto trata duas linhas diferentes como uma só.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável: projeto Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: o projeto Melodia</h2>
   <p class="ah-lead text-sm mb-5">Todo o conteúdo deste tópico (molde, <code>new</code>, identidade e construtor) está implementado em um projeto que compila e roda. A classe <code>Musica</code> é o molde; o <code>Principal</code> cria objetos dela.</p>

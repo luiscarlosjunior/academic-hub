@@ -384,6 +384,56 @@ classDiagram
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: academia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-dumbbell text-emerald-400 mr-2"></i>Exemplo passo a passo: alunos, turmas e matrículas</h2>
+  <p class="ah-lead text-sm mb-5">Um aluno se matricula em uma turma. A matrícula tem nota e frequência. Onde esses dados moram?</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — a relação é muitos para muitos</h3>
+  <p class="ah-prose text-sm">Um aluno faz várias turmas e uma turma tem vários alunos. Uma associação simples entre <code>Aluno</code> e <code>Turma</code> não diz onde ficam a nota e a frequência, porque esses dados pertencem ao <em>vínculo</em>, e não a nenhum dos dois lados.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — classe de associação</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+classDiagram
+    class Aluno {
+        -String nome
+    }
+    class Turma {
+        -String codigo
+        -int vagas
+    }
+    class Matricula {
+        -LocalDate data
+        -double nota
+        -int faltas
+        +aprovado() boolean
+    }
+    Aluno "0..*" -- "0..*" Turma
+    Matricula .. Aluno
+    Matricula .. Turma
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">A linha pontilhada liga a classe de associação aos dois extremos. <code>Matricula</code> é uma entidade própria: tem identidade, data e comportamento.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — a regra de vagas vira código</h3>
+  <pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Turma</span> {
+    <span class="kw">private final int</span> vagas;
+    <span class="kw">private final</span> List&lt;<span class="ty">Matricula</span>&gt; matriculas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">public</span> <span class="ty">Matricula</span> <span class="fn">matricular</span>(<span class="ty">Aluno</span> aluno) {
+        <span class="kw">if</span> (matriculas.size() &gt;= vagas)
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"turma lotada"</span>);
+        <span class="ty">Matricula</span> m = <span class="kw">new</span> <span class="ty">Matricula</span>(aluno, <span class="kw">this</span>, LocalDate.now());
+        matriculas.add(m);
+        <span class="kw">return</span> m;
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">A multiplicidade da turma (no máximo <code>vagas</code>) é uma regra. Ela está no lugar certo: quem conhece a lista de matrículas é quem decide sobre ela.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro de leitura típico:</strong> pôr <code>nota</code> como atributo de <code>Aluno</code>. Assim, o aluno teria uma única nota, quando na verdade ele tem uma nota por turma.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>

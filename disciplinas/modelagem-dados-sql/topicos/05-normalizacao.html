@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Normalização: 1FN, 2FN, 3FN e FNBC · AcademicHub</title>
+<meta name="description" content="Dependências funcionais, anomalias de inserção, atualização e remoção, e a decomposição até a forma normal de Boyce-Codd.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/05-normalizacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="O problema da tabela gorda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-cyan-400 mr-2"></i>Uma tabela “gorda” que mente</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine um único arquivo com tudo: pedido, cliente, cidade do cliente, produto, preço e quantidade. Parece prático.
+      Na prática, o mesmo fato aparece várias vezes, e cada cópia é uma oportunidade de contradição.
+      A <strong>normalização</strong> é o processo sistemático de reorganizar as tabelas para eliminar essa redundância.
+    </p>
+    <p>
+      O critério não é estético. Cada forma normal proíbe um tipo específico de <strong>dependência</strong> entre
+      colunas, justamente a que causa anomalias.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · as três anomalias</h3>
+    <div id="anim-anomalias"></div>
+  </div>
+</section>
+
+<!-- ============================ DEPENDÊNCIA FUNCIONAL ============================ -->
+<section id="df" data-toc="Dependência funcional" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-cyan-400 mr-2"></i>Dependência funcional: o conceito central</h2>
+  <p class="ah-lead text-sm mb-5">
+    Dizemos que <code>X → Y</code> (X determina Y) quando dois registros com o mesmo valor em X
+    obrigatoriamente têm o mesmo valor em Y. Por exemplo, <code>id_cliente → nome</code>: um código de cliente
+    tem exatamente um nome. Essa é uma regra do <strong>negócio</strong>, não uma coincidência dos dados de hoje.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Chave é um caso especial</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Uma <strong>superchave</strong> determina todos os atributos da tabela. Uma <strong>chave candidata</strong> é uma
+        superchave minimal: não dá para tirar nenhum atributo dela sem perder a propriedade. A chave primária é uma das
+        chaves candidatas.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-3">Como descobrir</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Dependências vêm do domínio, não dos dados. Pergunte: “se eu soubesse X, conseguiria dizer Y?”. Se a resposta
+        for sim, <code>X → Y</code>. Dados de exemplo podem sugerir uma dependência que não existe, então valide com quem conhece o negócio.
+      </p>
+    </div>
+  </div>
+
+  <pre class="ah-code text-[11px] mt-5"><span class="cm">-- Relação não normalizada, com chave (id_pedido, id_produto)</span>
+<span class="ty">pedido_detalhe</span>(id_pedido, id_cliente, nome_cliente, cidade_cliente,
+                 id_produto, nome_produto, quantidade, preco_unitario)
+
+<span class="cm">Dependências identificadas:</span>
+  id_pedido             → id_cliente
+  id_cliente            → nome_cliente, cidade_cliente
+  id_produto            → nome_produto
+  (id_pedido, id_produto) → quantidade, preco_unitario</pre>
+</section>
+
+<!-- ============================ ANIMAÇÃO DE DECOMPOSIÇÃO ============================ -->
+<section id="decomposicao" data-toc="Decomposição passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-cyan-400 mr-2"></i>Decomposição: 1FN → 2FN → 3FN</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada passo remove um tipo de dependência indesejada, dividindo a tabela em duas. Acompanhe a animação: observe
+    que as colunas migram para tabelas cuja chave realmente as determina.
+  </p>
+  <div class="ah-card p-5">
+    <div id="anim-normal"></div>
+  </div>
+</section>
+
+<!-- ============================ FORMAS NORMAIS ============================ -->
+<section id="formas" data-toc="As formas normais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-ol text-cyan-400 mr-2"></i>As formas normais, uma a uma</h2>
+  <div class="space-y-4">
+    <div class="ah-card p-5 border-l-4 border-slate-400">
+      <h3 class="ah-h3 mb-1">1FN · valores atômicos</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">Cada célula guarda um único valor, e não há grupos repetidos (colunas <code>produto1</code>, <code>produto2</code>…). Toda tabela relacional já deve estar na 1FN; é o mínimo.</p>
+    </div>
+    <div class="ah-card p-5 border-l-4 border-amber-400">
+      <h3 class="ah-h3 mb-1">2FN · sem dependência parcial</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">Se a chave é composta, nenhum atributo não chave pode depender de só parte dela. Em <code>(id_pedido, id_produto) → nome_produto</code>, o nome depende apenas de <code>id_produto</code>: deve ir para a tabela de produtos.</p>
+    </div>
+    <div class="ah-card p-5 border-l-4 border-cyan-400">
+      <h3 class="ah-h3 mb-1">3FN · sem dependência transitiva</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">Nenhum atributo não chave pode depender de outro atributo não chave. Em <code>id_pedido → id_cliente → nome_cliente</code>, o nome depende do cliente, não do pedido: a cadeia é transitiva e o nome vai para a tabela de clientes.</p>
+    </div>
+    <div class="ah-card p-5 border-l-4 border-fuchsia-400">
+      <h3 class="ah-h3 mb-1">FNBC · todo determinante é chave</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">Para toda dependência <code>X → Y</code> não trivial, X deve ser superchave. É mais rígida que a 3FN: a 3FN permite que o lado direito seja um atributo primo (parte de alguma chave candidata). Veja o exemplo na animação abaixo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FNBC ============================ -->
+<section id="fnbc" data-toc="Quando a 3FN não basta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-exclamation text-cyan-400 mr-2"></i>Exemplo de FNBC: o professor e a disciplina</h2>
+  <p class="ah-lead text-sm mb-5">
+    Num curso, cada <strong>professor</strong> leciona uma única <strong>disciplina</strong>, mas várias turmas podem ser
+    da mesma disciplina. Uma relação <code>(aluno, disciplina, professor)</code> tem as dependências:
+    <code>(aluno, disciplina) → professor</code> e <code>professor → disciplina</code>.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">O problema</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        <code>professor</code> não é chave, mas determina <code>disciplina</code>. Está na 3FN, porque <code>disciplina</code>
+        é primo (faz parte da chave <code>(aluno, disciplina)</code>). Mesmo assim, o professor é repetido, e trocar a disciplina
+        dele exige alterar várias linhas.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">A decomposição</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Separe em <code>(professor, disciplina)</code> e <code>(aluno, professor)</code>. Agora o determinante
+        <code>professor</code> é chave da primeira tabela. Trade-off: a dependência <code>(aluno, disciplina) → professor</code>
+        deixa de ser verificável numa única tabela, e a decomposição pode perder dependências.
+      </p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Por isso a prática é 3FN.</strong> A FNBC elimina toda redundância baseada em dependências, mas nem sempre
+      preserva todas as dependências. A 3FN sempre pode ser alcançada preservando dependências. Projetistas escolhem
+      caso a caso, e às vezes desnormalizam de propósito para ganhar desempenho.</div>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: a loja reconstruída" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-cyan-400 mr-2"></i>Exemplo: a loja já está normalizada</h2>
+  <p class="ah-lead text-sm mb-5">
+    O banco da loja está na 3FN: cada fato mora na tabela cuja chave o determina. Nenhum nome de cliente é repetido em
+    <code>pedidos</code>. A junção abaixo reconstrói a tabela “gorda” original sem perda de informação, o que
+    chamamos de <strong>decomposição sem perda</strong>.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT p.id_pedido, c.nome AS cliente, c.cidade,
+       pr.nome AS produto, i.quantidade, i.preco_unitario
+FROM pedidos p
+JOIN clientes c     ON c.id_cliente  = p.id_cliente
+JOIN itens_pedido i ON i.id_pedido   = p.id_pedido
+JOIN produtos pr    ON pr.id_produto = i.id_produto
+WHERE p.id_pedido IN (1, 2);</pre>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-cyan-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>
+      Como o projetista sabe se uma decomposição está correta? Dois testes formais, que os algoritmos de normalização
+      garantem:
+    </p>
+    <ul>
+      <li><strong>Junção sem perda</strong>: juntar as tabelas decompostas devolve exatamente a tabela original. Sem isso, a decomposição inventa linhas.</li>
+      <li><strong>Preservação de dependências</strong>: cada dependência original pode ser verificada numa única tabela decomposta, sem juntar nada. Sem isso, o banco não consegue impor a regra de negócio de forma barata.</li>
+    </ul>
+    <p>
+      Para descobrir se uma chave é candidata, o SGBD (e a teoria) usa o <strong>fecho de atributos</strong>: a partir de um conjunto X,
+      aplique repetidamente as dependências, acrescentando o que for determinado, até nada mais mudar. Se o fecho de X contém
+      todos os atributos, X é superchave. Esse algoritmo é o que os livros-texto ensinam para checar a normalização.
+    </p>
+    <p>
+      Na prática, a normalização é um equilíbrio. Consultas que juntam muitas tabelas custam mais, e sistemas de leitura
+      intensa (como relatórios) às vezes guardam cópias de propósito, em tabelas de resumo ou visões materializadas.
+      A regra é: normalize para escrever com segurança; desnormalize com consciência, e só quando a medição mostrar necessidade.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Erros comuns</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Normalizar sem o negócio</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Deduzir dependências de uma amostra de dados. Se, por acaso, dois clientes têm a mesma cidade hoje, não existe a dependência cidade → nome.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Achar que 3FN é o fim</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma tabela pode estar na 3FN e ainda ter anomalias (o caso professor/disciplina). Verifique a FNBC quando houver chaves candidatas sobrepostas.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Esquecer o preço histórico</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Normalizar <code>preco_unitario</code> para a tabela de produtos parece correto, mas apaga o fato histórico. Ver o tópico 03.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-rose-500">
+      <h4 class="text-sm font-semibold text-white mb-1">Desnormalizar por hábito</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Copiar dados “para facilitar” cria anomalias que o banco não consegue detectar. Desnormalize só com uma medição que justifique.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-cyan-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Resolva no papel, identificando as dependências antes da solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Anomalias na prática</summary>
+    <p class="sql-dica-prob">Tabela <code>alocacao(id_funcionario, nome_funcionario, id_projeto, nome_projeto, horas)</code>.
+      Descreva uma anomalia de inserção, uma de atualização e uma de remoção.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        <strong>Inserção</strong>: não é possível cadastrar um projeto novo sem alocar alguém a ele, porque a chave exige funcionário.
+        <strong>Atualização</strong>: mudar o nome do projeto exige alterar várias linhas; se uma for esquecida, há dois nomes para o mesmo projeto.
+        <strong>Remoção</strong>: excluir a última alocação de um funcionário também apaga os dados dele, mesmo que ele continue na empresa.
+        A correção: separar em funcionários, projetos e alocações.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Em qual forma está?</summary>
+    <p class="sql-dica-prob">A tabela <code>item(id_pedido, id_produto, nome_produto, quantidade)</code>, com chave composta
+      <code>(id_pedido, id_produto)</code>, está em qual forma normal?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Está na <strong>1FN</strong> (valores atômicos), mas não na <strong>2FN</strong>: <code>id_produto → nome_produto</code>
+        é uma dependência parcial, porque <code>id_produto</code> é só parte da chave. A correção é levar <code>nome_produto</code>
+        para a tabela de produtos.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Verifique a junção</summary>
+    <p class="sql-dica-prob">Reconstrua, com JOIN, a lista de produtos do pedido 9 com nome do cliente, nome do produto e quantidade.
+      Qual é o resultado?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT c.nome AS cliente, pr.nome AS produto, i.quantidade
+FROM pedidos p
+JOIN clientes c     ON c.id_cliente  = p.id_cliente
+JOIN itens_pedido i ON i.id_pedido   = p.id_pedido
+JOIN produtos pr    ON pr.id_produto = i.id_produto
+WHERE p.id_pedido = 9;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Uma linha: Gabriel Tavares, Fone Bluetooth, 1. O cliente sem e-mail não impede a junção, porque o e-mail não participa dela.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Calculando o fecho de atributos, passo a passo</h3>
+  <div class="ah-prose">
+    <p>
+      Para decidir se um conjunto de atributos X é chave, calcula-se o <strong>fecho</strong> de X sob as dependências F:
+      o conjunto de todos os atributos que X determina. Se o fecho contém a relação inteira, X é superchave.
+    </p>
+    <p>Exemplo: a relação <code>R(A, B, C, D)</code> com dependências <code>F = {A → B, B → C}</code>.</p>
+    <ol>
+      <li>Comece com o fecho de <code>{A}</code> igual a <code>{A}</code>.</li>
+      <li>Aplique <code>A → B</code>: o fecho passa a <code>{A, B}</code>.</li>
+      <li>Aplique <code>B → C</code>: o fecho passa a <code>{A, B, C}</code>.</li>
+      <li>Nenhuma dependência acrescenta mais nada. D nunca aparece.</li>
+    </ol>
+    <p>
+      Conclusão: <code>{A}</code> não é superchave, porque não determina D. Qualquer chave precisa incluir D, e como ninguém
+      determina D, D deve estar em todas as chaves candidatas. Esse raciocínio mecânico é o que os algoritmos de
+      normalização executam automaticamente.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Prática · dependências são regras, não coincidências</h3>
+  <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+    A cidade de um cliente é uma dependência de negócio? Não: duas pessoas podem morar na mesma cidade sem que a cidade
+    determine o nome. Veja se a cidade pode servir de chave: ela se repete nos dados.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- cidades que aparecem mais de uma vez: cidade não identifica o cliente
+SELECT cidade, COUNT(*) AS clientes
+FROM clientes
+GROUP BY cidade
+HAVING COUNT(*) &gt; 1;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Agora a dependência que <em>é</em> de negócio: cada cliente tem uma cidade. A consulta abaixo procura violações dessa
+    dependência nos dados que cruzam pedidos e clientes. Resultado vazio é o esperado.
+  </p>
+  <div class="sql-ex mt-4">
+    <pre class="ah-code sql-code" data-run>WITH pedido_cliente AS (
+  SELECT p.id_pedido, p.id_cliente, c.cidade
+  FROM pedidos p
+  JOIN clientes c ON c.id_cliente = p.id_cliente
+)
+SELECT id_cliente, COUNT(DISTINCT cidade) AS cidades
+FROM pedido_cliente
+GROUP BY id_cliente
+HAVING COUNT(DISTINCT cidade) &gt; 1;</pre>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>Os dados podem satisfazer uma dependência por acaso, e a consulta só detecta violações. Quem decide se uma dependência
+      é válida é o negócio. Em uma tabela desnormalizada, a mesma consulta é a forma de encontrar as contradições que a
+      anomalia de atualização produz.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Checklist de normalização</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-300">
+    <div class="ah-card p-3"><strong class="text-white">1.</strong> Liste as entidades e as dependências do negócio, não as dos dados de hoje.</div>
+    <div class="ah-card p-3"><strong class="text-white">2.</strong> Calcule as chaves candidatas com o fecho de atributos.</div>
+    <div class="ah-card p-3"><strong class="text-white">3.</strong> Verifique 2FN: nenhum atributo depende de parte de uma chave composta.</div>
+    <div class="ah-card p-3"><strong class="text-white">4.</strong> Verifique 3FN: nenhum atributo depende de outro atributo que não é chave.</div>
+    <div class="ah-card p-3"><strong class="text-white">5.</strong> Teste a decomposição: a junção reconstrói a tabela original?</div>
+    <div class="ah-card p-3"><strong class="text-white">6.</strong> Desnormalize apenas por medição, documentando o motivo e a origem da cópia.</div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c3440)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Em <code>(id_pedido, id_produto) → nome_produto</code>, qual é o problema?</p>
+      <button class="ah-quiz-opt">Não há problema: o nome é um atributo comum</button>
+      <button class="ah-quiz-opt">É uma dependência parcial: o nome depende só de parte da chave</button>
+      <button class="ah-quiz-opt">É uma dependência transitiva</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Ela viola a 2FN. A chave é composta, e o nome depende apenas de <code>id_produto</code>, que é parte dela.
+        A correção é mover o nome para a tabela de produtos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Qual das afirmações sobre a 3FN e a FNBC é verdadeira?</p>
+      <button class="ah-quiz-opt">A FNBC é menos rigorosa que a 3FN</button>
+      <button class="ah-quiz-opt">Toda tabela na FNBC precisa ter uma chave composta</button>
+      <button class="ah-quiz-opt">A 3FN sempre pode ser alcançada preservando todas as dependências; a FNBC nem sempre</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A FNBC é mais rígida e, por isso, pode exigir decomposições que perdem dependências. Por isso a 3FN é o alvo
+        mais comum na prática.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. O que significa uma decomposição “sem perda”?</p>
+      <button class="ah-quiz-opt">Juntar as tabelas decompostas reconstrói exatamente a tabela original</button>
+      <button class="ah-quiz-opt">Nenhuma coluna foi apagada do esquema</button>
+      <button class="ah-quiz-opt">As tabelas decompostas ocupam menos disco</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        É o teste de junção sem perda: a decomposição não inventa linhas nem perde informação. Espaço em disco
+        não é critério da normalização.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: anomalias ===================== */
+(function () {
+  const t = (cab, linhas, dest) => SQLLab.tabelaHTML(cab, linhas, { destaque: dest || [], animar: true });
+  const cab = ['id_pedido', 'cliente', 'cidade', 'produto', 'preco'];
+  SQLLab.passos(document.getElementById('anim-anomalias'), [
+    { titulo: 'Anomalia de inserção', texto: 'Quer cadastrar um cliente novo, sem pedido. A tabela só aceita cliente por meio de um pedido.',
+      html: () => `<div class="ah-card p-4">${t(cab, [[1, 'Ana', 'São Paulo', 'Notebook', 3500]])}</div>
+        <div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-ban"></i><div>Não há como registrar o cliente Gabriel sem inventar um pedido, porque o pedido é a chave da linha.</div></div>` },
+    { titulo: 'Anomalia de atualização', texto: 'Ana se muda. Atualizamos só a primeira linha e esquecemos a segunda.',
+      html: () => `<div class="ah-card p-4">${t(cab, [[1, 'Ana', 'Recife', 'Notebook', 3500], [5, 'Ana', 'São Paulo', 'Fone', 250]], [0])}</div>
+        <div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-triangle-exclamation"></i><div>Ana aparece em duas cidades ao mesmo tempo.</div></div>` },
+    { titulo: 'Anomalia de remoção', texto: 'Cancelamos o único pedido de Helena. Apagando a linha, apagamos também os dados dela.',
+      html: () => `<div class="ah-card p-4">${t(cab, [[1, 'Ana', 'São Paulo', 'Notebook', 3500], [2, 'Bruno', 'Rio', 'Livro', 90]])}</div>
+        <div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-user-slash"></i><div>Se a linha de Bruno for removida, o banco perde Bruno inteiro, mesmo ele continuando cliente.</div></div>` },
+    { titulo: 'O remédio', texto: 'Separar o que pertence a cada chave. Cada fato passa a ser guardado uma única vez.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="ah-card p-4"><div class="text-xs text-cyan-300 font-semibold mb-2">clientes (id_cliente, nome, cidade)</div>
+          ${SQLLab.tabelaHTML(['id_cliente', 'nome', 'cidade'], [[1, 'Ana', 'Recife']], { destaque: [0], animar: true })}</div>
+        <div class="ah-card p-4"><div class="text-xs text-cyan-300 font-semibold mb-2">pedidos (id_pedido, id_cliente)</div>
+          ${SQLLab.tabelaHTML(['id_pedido', 'id_cliente'], [[1, 1], [5, 1]], { animar: true })}</div></div>
+        <p class="text-xs text-slate-400 mt-3">Agora mudar a cidade é uma única linha, e Bruno pode existir sem pedidos.</p>` }
+  ]);
+})();
+
+/* ===================== Animação: decomposição ===================== */
+(function () {
+  const cab = ['id_pedido', 'id_cliente', 'nome_cliente', 'cidade', 'id_produto', 'nome_produto', 'qtd', 'preco'];
+  const cabPrec = ['id_pedido', 'id_cliente', 'nome_cliente', 'cidade', 'id_produto', 'nome_produto', 'qtd'];
+  SQLLab.passos(document.getElementById('anim-normal'), [
+    { titulo: 'Ponto de partida', texto: 'Uma linha tem todas as colunas. A chave é (id_pedido, id_produto). Os dados do pedido 1 estão aqui.',
+      html: () => `${SQLLab.tabelaHTML(cab, [
+        [1, 1, 'Ana', 'São Paulo', 1, 'Notebook', 1, 3500],
+        [1, 1, 'Ana', 'São Paulo', 3, 'Fone', 2, 250]], { animar: true })}
+        <p class="text-xs text-slate-400 mt-3">Nome e cidade de Ana aparecem em cada linha do pedido.</p>` },
+    { titulo: '1FN · valores atômicos', texto: 'Se cada célula tivesse uma lista de produtos, quebraríamos a 1FN. Aqui cada linha já é atômica: passamos direto para a próxima etapa.',
+      html: () => `<div class="ah-callout ah-callout-ok"><i class="fa-solid fa-circle-check"></i><div>1FN satisfeita: uma linha por (pedido, produto), e nenhuma célula com lista.</div></div>` },
+    { titulo: '2FN · tirar o que depende de parte da chave', texto: 'nome_produto depende só de id_produto (parte da chave). Ele vai para a tabela produtos, uma única vez por produto.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 font-semibold mb-2">produtos (id_produto, nome_produto)</div>
+          ${SQLLab.tabelaHTML(['id_produto', 'nome_produto'], [[1, 'Notebook'], [3, 'Fone']], { destaque: [0, 1], animar: true })}</div>
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 font-semibold mb-2">itens (id_pedido, id_produto, qtd, preco)</div>
+          ${SQLLab.tabelaHTML(['id_pedido', 'id_cliente', 'cidade', 'id_produto', 'qtd', 'preco'], [[1, 1, 'São Paulo', 1, 1, 3500], [1, 1, 'São Paulo', 3, 2, 250]], { animar: true })}</div></div>` },
+    { titulo: '3FN · tirar o que depende de outro atributo', texto: 'id_pedido → id_cliente → nome_cliente. O nome depende do cliente, não do pedido. Ele vai para a tabela clientes.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 font-semibold mb-2">clientes</div>
+          ${SQLLab.tabelaHTML(['id_cliente', 'nome', 'cidade'], [[1, 'Ana', 'São Paulo']], { destaque: [0], animar: true })}</div>
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 font-semibold mb-2">pedidos</div>
+          ${SQLLab.tabelaHTML(['id_pedido', 'id_cliente'], [[1, 1]], { animar: true })}</div>
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 font-semibold mb-2">produtos</div>
+          ${SQLLab.tabelaHTML(['id_produto', 'nome'], [[1, 'Notebook'], [3, 'Fone']], { animar: true })}</div></div>` },
+    { titulo: 'Resultado', texto: 'Quatro tabelas, cada fato em um só lugar. A junção reconstrói a linha original quando necessário.',
+      html: () => `<div class="sql-flow">
+        <div class="on">clientes</div><i class="fa-solid fa-arrow-right"></i><div class="on">pedidos</div><i class="fa-solid fa-arrow-right"></i>
+        <div class="on">itens_pedido</div><i class="fa-solid fa-arrow-right"></i><div class="on">produtos</div></div>
+        <p class="text-xs text-slate-400 mt-3">Este é o esquema da loja usado no restante da disciplina.</p>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

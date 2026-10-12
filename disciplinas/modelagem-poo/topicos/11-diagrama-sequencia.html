@@ -286,6 +286,48 @@ sequenceDiagram
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: login e checkout" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cart-arrow-down text-emerald-400 mr-2"></i>Exemplo passo a passo: checkout com autenticação</h2>
+  <p class="ah-lead text-sm mb-5">O cliente finaliza a compra. Há uma etapa obrigatória (autenticação), uma opcional (cupom) e uma alternativa (cartão recusado). A sequência mostra as três.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — participantes e ordem</h3>
+  <p class="ah-prose text-sm">Participam o cliente, a interface, o serviço de checkout, o serviço de cupons e o gateway. A ordem é: autenticar, aplicar cupom (opcional), cobrar e confirmar.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a sequência com fragmentos</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+sequenceDiagram
+    participant C as Cliente
+    participant UI as Interface
+    participant CK as Checkout
+    participant CP as Cupons
+    participant GW as Gateway
+    C-&gt;&gt;UI: finalizar compra
+    UI-&gt;&gt;CK: iniciar(carrinho)
+    CK-&gt;&gt;CK: autenticar(sessao)
+    opt cliente informou cupom
+        CK-&gt;&gt;CP: validar(codigo)
+        CP--&gt;&gt;CK: desconto
+    end
+    CK-&gt;&gt;GW: cobrar(total)
+    alt aprovado
+        GW--&gt;&gt;CK: confirmado
+        CK--&gt;&gt;UI: pedido criado
+    else recusado
+        GW--&gt;&gt;CK: recusado
+        CK--&gt;&gt;UI: oferecer outro cartão
+    end
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">O <code>opt</code> marca o passo que pode não acontecer. O <code>alt</code> separa o caminho feliz da recusa. A autenticação não tem fragmento: é obrigatória e acontece sempre.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o que a sequência revela</h3>
+  <p class="ah-prose text-sm">A cobrança acontece <em>depois</em> da validação do cupom. Se a ordem estivesse invertida, o cliente poderia ser cobrado pelo valor sem desconto e receber o reembolso depois. A sequência torna essa dependência visível antes de qualquer código.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> usar <code>opt</code> para tudo. Se a autenticação fosse opcional, a sequência estaria escondendo uma falha de segurança. Fragmento opcional deve significar opcional de verdade.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>

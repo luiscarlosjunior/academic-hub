@@ -378,6 +378,105 @@ static int caminho_grade(const char g[LIN][COL]) {
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>10-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Ciclo em grafo dirigido com três cores</h3>
+    <div class="ah-prose text-sm"><p>Branco é não visitado, cinza está em exploração e preto está concluído. Uma aresta para um vértice cinza fecha um ciclo. 0→1→2→3 é acíclico; ao acrescentar 3→1, surge um ciclo.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>10-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static int ciclo_aux(const Grafo *g, int u, int cor[]) {
+    cor[u] = 1;
+    for (int k = 0; k &lt; g-&gt;g[u]; k++) {
+        int v = g-&gt;viz[u][k];
+        if (cor[v] == 1) return 1;                   /* aresta para cinza: ciclo */
+        if (cor[v] == 0 &amp;&amp; ciclo_aux(g, v, cor)) return 1;
+    }
+    cor[u] = 2;
+    return 0;
+}
+
+static int tem_ciclo(const Grafo *g) {
+    int cor[V] = {0};
+    for (int u = 0; u &lt; g-&gt;n; u++)
+        if (cor[u] == 0 &amp;&amp; ciclo_aux(g, u, cor)) return 1;
+    return 0;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Componentes com union-find</h3>
+    <div class="ah-prose text-sm"><p>Une vértices com compressão de caminho e conta as raízes. Com arestas 0-1, 1-2 e 3-4 em 5 vértices, há 2 componentes, sem percorrer o grafo.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>10-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int pai[V];
+
+static int achar(int x) {
+    while (pai[x] != x) {
+        pai[x] = pai[pai[x]];
+        x = pai[x];
+    }
+    return x;
+}
+
+static void unir(int a, int b) {
+    int ra = achar(a), rb = achar(b);
+    if (ra != rb) pai[ra] = rb;
+}
+
+static int componentes_uf(int n, const int ar[][2], int m) {
+    for (int i = 0; i &lt; n; i++) pai[i] = i;
+    for (int i = 0; i &lt; m; i++) unir(ar[i][0], ar[i][1]);
+    int c = 0;
+    for (int i = 0; i &lt; n; i++)
+        if (achar(i) == i) c++;
+    return c;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Caminho reconstruído pela BFS</h3>
+    <div class="ah-prose text-sm"><p>A BFS guarda o pai de cada vértice; seguindo os pais a partir do destino e invertendo a sequência, obtém-se o caminho. De 0 a 4 o caminho é 0 → 1 → 4.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>10-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static int caminho_bfs(const Grafo *g, int origem, int destino, int saida[], int *tam) {
+    int pai_b[V], vis[V] = {0}, fila[V], ini = 0, fim = 0;
+    for (int i = 0; i &lt; V; i++) pai_b[i] = -1;
+    fila[fim++] = origem;
+    vis[origem] = 1;
+    while (ini &lt; fim) {
+        int u = fila[ini++];
+        for (int k = 0; k &lt; g-&gt;g[u]; k++) {
+            int v = g-&gt;viz[u][k];
+            if (!vis[v]) {
+                vis[v] = 1;
+                pai_b[v] = u;
+                fila[fim++] = v;
+            }
+        }
+    }
+    if (!vis[destino]) return 0;
+    int tmp[V], t = 0;
+    for (int x = destino; x != -1; x = pai_b[x]) tmp[t++] = x;
+    for (int i = 0; i &lt; t; i++) saida[i] = tmp[t - 1 - i];
+    *tam = t;
+    return 1;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Vértice de maior grau de saída</h3>
+    <div class="ah-prose text-sm"><p>Conta as arestas que saem de cada vértice; em caso de empate vale o menor índice. Aqui o resultado é o vértice 0.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>10-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static int maior_grau(const Grafo *g) {
+    int melhor = 0;
+    for (int u = 1; u &lt; g-&gt;n; u++)
+        if (g-&gt;g[u] &gt; g-&gt;g[melhor]) melhor = u;
+    return melhor;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>dirigido 0-&gt;1-&gt;2-&gt;3 tem ciclo? não
+após 3-&gt;1, tem ciclo? sim
+componentes (union-find) em 5 vértices: 2
+menor caminho de 0 a 4: 0 1 4
+vértice de maior grau de saída: 0</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

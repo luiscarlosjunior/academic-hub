@@ -103,6 +103,32 @@ classDiagram
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: carrinho com cupom único" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ticket text-fuchsia-400 mr-2"></i>Exemplo passo a passo: carrinho com cupom de uso único</h2>
+  <p class="ah-lead text-sm mb-5">Um cupom vale uma vez por cliente. Onde mora essa regra: no cupom, no cliente ou no carrinho? A resposta define a fronteira do agregado.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — onde está o invariante</h3>
+  <p class="ah-prose text-sm">A regra “este cliente já usou este cupom” envolve o cliente e o cupom. Se for guardada no cupom (uma lista de usuários), o cupom vira um agregado que todos os clientes disputam. Se for guardada no cliente (uma lista de cupons usados), a regra vive no agregado do cliente, e cada cliente é independente.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a raiz garante a regra</h3>
+  <pre class="ah-code"><code><span class="kw">public final class</span> <span class="ty">Cliente</span> {       <span class="cm">// raiz do agregado</span>
+    <span class="kw">private final</span> String id;
+    <span class="kw">private final</span> Set&lt;String&gt; cuponsUsados = <span class="kw">new</span> HashSet&lt;&gt;();
+
+    <span class="kw">public void</span> <span class="fn">usarCupom</span>(String codigo) {
+        <span class="kw">if</span> (!cuponsUsados.add(codigo))           <span class="cm">// add devolve false se já existia</span>
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"cupom já usado por "</span> + id);
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">O <code>Set.add</code> é a própria verificação do invariante. Como a mudança passa pela raiz, não há caminho para usar o cupom duas vezes sem passar por essa linha.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o que acontece com dois carrinhos abertos</h3>
+  <p class="ah-prose text-sm">Um cliente com dois carrinhos abertos em abas diferentes pode tentar usar o mesmo cupom nos dois. Como os dois carrinhos apontam para o mesmo agregado <code>Cliente</code>, o segundo uso é recusado. A consistência é garantida pela fronteira, e não pela sorte do momento.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> guardar a lista de cupons em uma tabela separada, lida e escrita por fora do cliente. Dois carrinhos concorrentes leem a lista vazia e ambos usam o cupom. A correção é colocar a verificação e a escrita dentro da raiz.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>

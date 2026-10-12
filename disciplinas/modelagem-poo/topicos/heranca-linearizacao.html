@@ -67,6 +67,37 @@
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: componentes de interface" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-window-maximize text-fuchsia-400 mr-2"></i>Exemplo passo a passo: comportamentos de componentes de interface</h2>
+  <p class="ah-lead text-sm mb-5">Um botão pode ser arrastável, clicável e destacável. Quando dois comportamentos definem o mesmo método, a ordem decide qual vence. Vamos prever o resultado antes de rodar.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — dois comportamentos com o mesmo método</h3>
+  <pre class="ah-code"><code><span class="kw">interface</span> <span class="ty">Clicavel</span> { <span class="kw">default</span> String <span class="fn">evento</span>() { <span class="kw">return</span> <span class="str">"clique"</span>; } }
+<span class="kw">interface</span> <span class="ty">Arrastavel</span> { <span class="kw">default</span> String <span class="fn">evento</span>() { <span class="kw">return</span> <span class="str">"arrasto"</span>; } }
+
+<span class="kw">class</span> <span class="ty">Botao</span> <span class="kw">implements</span> <span class="ty">Clicavel</span>, <span class="ty">Arrastavel</span> {
+    <span class="kw">@Override public</span> String <span class="fn">evento</span>() {
+        <span class="kw">return</span> <span class="ty">Clicavel</span>.<span class="kw">super</span>.evento() + <span class="str">" e "</span> + <span class="ty">Arrastavel</span>.<span class="kw">super</span>.evento();
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Java não escolhe sozinho: se a classe não sobrescrever o método, o código não compila. A classe precisa dizer quem prevalece, e isso é a versão conservadora da linearização.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — prever com a MRO</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Classe</th><th>Bases em ordem</th><th>MRO prevista (C3)</th></tr></thead>
+      <tbody>
+        <tr><td>Botao</td><td>Clicavel, Arrastavel</td><td>Botao, Clicavel, Arrastavel</td></tr>
+        <tr><td>BotaoDestacado</td><td>Arrastavel, Clicavel</td><td>BotaoDestacado, Arrastavel, Clicavel</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="ah-prose text-sm mt-3">Trocar a ordem das bases troca quem é consultado primeiro. Em linguagens com MRO automática (Python), essa ordem decide o comportamento sem aviso; por isso a tabela deve ser escrita e testada.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> assumir que a última base declarada “sobrescreve” as anteriores. Em C3, a precedência vem da ordem de declaração e da hierarquia, e não de uma regra de última palavra.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>

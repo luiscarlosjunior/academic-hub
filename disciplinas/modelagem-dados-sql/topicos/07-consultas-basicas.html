@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultas básicas: SELECT, filtros, ordenação e NULL · AcademicHub</title>
+<meta name="description" content="Projeção, seleção, LIKE, BETWEEN, IN, DISTINCT, ORDER BY, LIMIT e a lógica de três valores com NULL.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/07-consultas-basicas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="A anatomia do SELECT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Perguntar ao banco</h2>
+  <div class="ah-prose">
+    <p>
+      Um <code>SELECT</code> faz duas coisas: <strong>seleciona linhas</strong> (quais registros interessam) e
+      <strong>projeta colunas</strong> (quais campos mostrar). Em álgebra relacional, são os operadores σ (seleção) e
+      π (projeção). Quase toda consulta SQL é uma combinação dos dois, com ordenação e limite.
+    </p>
+    <p>
+      A forma mais simples é <code>SELECT colunas FROM tabela</code>. Acrescente <code>WHERE</code> para filtrar linhas,
+      <code>ORDER BY</code> para ordenar e <code>LIMIT</code> para parar cedo.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · σ filtra linhas, π escolhe colunas</h3>
+    <div id="anim-select"></div>
+  </div>
+</section>
+
+<!-- ============================ FILTROS ============================ -->
+<section id="filtros" data-toc="Filtros com WHERE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-filter text-sky-400 mr-2"></i>Filtros: WHERE e seus operadores</h2>
+  <p class="ah-lead text-sm mb-5">
+    A condição do WHERE é uma expressão lógica. Só as linhas em que ela vale verdadeiro são mantidas.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-2">Comparação</div>
+      <p class="text-xs text-slate-400 leading-relaxed"><code>=</code> <code>&lt;&gt;</code> (ou <code>!=</code>) <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code>. Texto é comparado em ordem alfabética.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-2">Combinação</div>
+      <p class="text-xs text-slate-400 leading-relaxed"><code>AND</code>, <code>OR</code>, <code>NOT</code>. AND tem precedência sobre OR: use parênteses para deixar a intenção explícita.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-2">Intervalo e lista</div>
+      <p class="text-xs text-slate-400 leading-relaxed"><code>BETWEEN a AND b</code> inclui os extremos. <code>IN (…)</code> testa pertinência em uma lista.</p></div>
+    <div class="ah-card p-4"><div class="text-xs font-semibold text-sky-300 mb-2">Padrão de texto</div>
+      <p class="text-xs text-slate-400 leading-relaxed"><code>LIKE</code> usa <code>%</code> (qualquer sequência) e <code>_</code> (um caractere). Ex.: <code>'Notebook%'</code>.</p></div>
+  </div>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT nome, preco
+FROM produtos
+WHERE preco BETWEEN 100 AND 500
+  AND estoque &gt; 0
+ORDER BY preco DESC;</pre>
+  </div>
+</section>
+
+<!-- ============================ NULL ============================ -->
+<section id="null" data-toc="NULL e lógica de três valores" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-question text-sky-400 mr-2"></i>NULL: o valor que não é valor</h2>
+  <p class="ah-lead text-sm mb-5">
+    <code>NULL</code> significa “valor desconhecido ou ausente”. Ele não é zero, não é texto vazio e não é igual a nada,
+    nem a outro NULL. Por isso, a lógica do SQL tem <strong>três</strong> valores de verdade: verdadeiro, falso e
+    <em>desconhecido</em>. O WHERE só mantém a linha quando a condição é verdadeira.
+  </p>
+
+  <div class="overflow-x-auto mb-5">
+    <table class="ah-table">
+      <thead><tr><th>Expressão</th><th>Resultado</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><code>NULL = NULL</code></td><td>desconhecido</td><td>Não se sabe se um ausente é igual a outro ausente</td></tr>
+        <tr><td><code>5 = NULL</code></td><td>desconhecido</td><td>Não se sabe o valor ausente</td></tr>
+        <tr><td><code>NULL IS NULL</code></td><td>verdadeiro</td><td>É o único teste que funciona para ausência</td></tr>
+        <tr><td><code>NULL OR TRUE</code></td><td>verdadeiro</td><td>Basta um lado ser verdadeiro</td></tr>
+        <tr><td><code>NULL AND FALSE</code></td><td>falso</td><td>Basta um lado ser falso</td></tr>
+        <tr><td><code>NULL AND TRUE</code></td><td>desconhecido</td><td>Depende do valor que falta</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run><span class="cm">-- armadilha: a comparação com NULL nunca é verdadeira</span>
+SELECT nome FROM clientes WHERE email = NULL;
+
+<span class="cm">-- forma correta</span>
+SELECT nome FROM clientes WHERE email IS NULL;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A primeira consulta devolve <strong>zero linhas</strong>, sem erro. Esse é um dos bugs mais silenciosos do SQL:
+    a consulta roda, responde “nada encontrado”, e ninguém percebe que deveria ter achado o cliente Gabriel.
+  </p>
+</section>
+
+<!-- ============================ ORDENAÇÃO E LIMITE ============================ -->
+<section id="ordenacao" data-toc="ORDER BY, DISTINCT e LIMIT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-down-wide-short text-sky-400 mr-2"></i>Ordenação, duplicatas e paginação</h2>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-prose">
+      <ul>
+        <li><code>ORDER BY coluna DESC, outra ASC</code>: ordena por mais de um critério. Sem ORDER BY, a ordem é indefinida.</li>
+        <li><code>DISTINCT</code> remove linhas repetidas do resultado, comparando todas as colunas selecionadas.</li>
+        <li><code>LIMIT n OFFSET k</code> devolve n linhas a partir da posição k: a base da paginação de telas.</li>
+      </ul>
+    </div>
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>SELECT DISTINCT cidade
+FROM clientes
+ORDER BY cidade;</pre>
+    </div>
+  </div>
+  <div class="sql-ex mt-5">
+    <pre class="ah-code sql-code" data-run>-- página 2 com 3 produtos por página
+SELECT id_produto, nome
+FROM produtos
+ORDER BY id_produto
+LIMIT 3 OFFSET 3;</pre>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Paginação com OFFSET fica lenta.</strong> O banco ainda precisa percorrer as linhas puladas. Em tabelas grandes,
+      paginar por “keyset” (<code>WHERE id &gt; último_visto LIMIT n</code>) é muito mais rápido. O tópico 14 mostra o motivo.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-sky-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>
+      Escreva o SELECT na ordem em que ele aparece, mas <strong>entenda-o na ordem em que é avaliado</strong>:
+    </p>
+  </div>
+  <div class="sql-flow my-4">
+    <div>1. FROM</div><i class="fa-solid fa-arrow-right"></i>
+    <div>2. WHERE</div><i class="fa-solid fa-arrow-right"></i>
+    <div>3. SELECT</div><i class="fa-solid fa-arrow-right"></i>
+    <div>4. ORDER BY</div><i class="fa-solid fa-arrow-right"></i>
+    <div>5. LIMIT</div>
+  </div>
+  <div class="ah-prose">
+    <ul>
+      <li>Por isso, um alias criado no SELECT <em>não existe</em> no WHERE, porque o WHERE é avaliado antes. O SQLite aceita por tolerância, mas o padrão não. Já no ORDER BY, o alias funciona.</li>
+      <li>O WHERE é avaliado <strong>linha a linha</strong>. Se houver um índice sobre a coluna filtrada, o banco nem lê as linhas descartadas. O tópico 14 mostra isso.</li>
+      <li>O LIMIT pode parar a execução cedo, mas só quando o ORDER BY não obriga a ler tudo antes (o banco precisa conhecer as primeiras n linhas da ordem final).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: as perguntas clássicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-sky-400 mr-2"></i>Exemplo: perguntas clássicas sobre a loja</h2>
+  <p class="ah-lead text-sm mb-5">Cada consulta responde uma pergunta de negócio. Os resultados abaixo são calculados ao vivo.</p>
+
+  <div class="space-y-4">
+    <div>
+      <p class="text-xs text-slate-400 mb-2">Quais clientes moram em Curitiba ou Recife, em ordem alfabética?</p>
+      <div class="sql-ex"><pre class="ah-code sql-code" data-run>SELECT nome, cidade
+FROM clientes
+WHERE cidade IN ('Curitiba', 'Recife')
+ORDER BY nome;</pre></div>
+    </div>
+    <div>
+      <p class="text-xs text-slate-400 mb-2">Quais produtos têm “Livro” no nome?</p>
+      <div class="sql-ex"><pre class="ah-code sql-code" data-run>SELECT nome, preco
+FROM produtos
+WHERE nome LIKE 'Livro%';</pre></div>
+    </div>
+    <div>
+      <p class="text-xs text-slate-400 mb-2">Quais clientes não informaram e-mail?</p>
+      <div class="sql-ex"><pre class="ah-code sql-code" data-run>SELECT nome
+FROM clientes
+WHERE email IS NULL;</pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Altere o exemplo e execute. Cada execução parte de um banco novo, então você pode quebrar à vontade.</p>
+  <div class="sql-play">SELECT nome, cidade
+FROM clientes
+WHERE email IS NULL OR cidade = 'Curitiba'
+ORDER BY nome;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-sky-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Tente escrever a consulta antes de abrir a solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Faixa de preço com estoque</summary>
+    <p class="sql-dica-prob">Liste nome e preço dos produtos com preço entre 50 e 300 (inclusive) e estoque maior que zero,
+      do mais barato para o mais caro.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT nome, preco
+FROM produtos
+WHERE preco BETWEEN 50 AND 300
+  AND estoque &gt; 0
+ORDER BY preco;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        BETWEEN inclui os extremos. O livro “Algoritmos” tem preço 120, mas estoque zero, e por isso não aparece.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Parênteses fazem diferença</summary>
+    <p class="sql-dica-prob">Quais produtos são de “Casa” (categoria 4) ou de “Roupas” (categoria 3) e custam menos de 100?
+      Escreva a consulta com parênteses e explique por que sem eles o resultado muda.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT nome, preco, id_categoria
+FROM produtos
+WHERE (id_categoria = 4 OR id_categoria = 3)
+  AND preco &lt; 100;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Sem parênteses, AND é avaliado antes de OR, e a condição vira <code>id_categoria = 4 OR (id_categoria = 3 AND preco &lt; 100)</code>:
+        Casa aparece mesmo com preço alto. Os parênteses deixam a intenção explícita.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Contar o que é desconhecido</summary>
+    <p class="sql-dica-prob">Quantos clientes têm e-mail diferente de <code>'ana@loja.com'</code>? Antes de rodar, preveja o resultado.
+      Ele inclui quem não tem e-mail?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT COUNT(*) AS com_outro_email
+FROM clientes
+WHERE email &lt;&gt; 'ana@loja.com';</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        O resultado é <strong>5</strong>, e não 6. Os sete clientes menos a Ana (que tem exatamente esse e-mail) dariam 6,
+        mas a comparação <code>NULL &lt;&gt; 'ana@loja.com'</code> é desconhecida, e o WHERE descarta a linha do Gabriel,
+        que não tem e-mail. Para incluí-lo: <code>WHERE email IS NULL OR email &lt;&gt; 'ana@loja.com'</code>, que devolve 6.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">CASE: classificar linhas sem criar tabelas</h3>
+  <div class="ah-prose">
+    <p>
+      <code>CASE</code> é o “se–senão” do SQL. Ele avalia condições em ordem e devolve o valor do primeiro caso verdadeiro.
+      Sem <code>ELSE</code>, a resposta para os demais casos é NULL. Ele aparece em qualquer lugar onde uma expressão é aceita:
+      SELECT, WHERE, ORDER BY e até dentro de funções de agregação (tópico 09).
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT nome, preco,
+       CASE WHEN preco &lt; 100  THEN 'barato'
+            WHEN preco &lt; 1000 THEN 'intermediário'
+            ELSE 'premium'
+       END AS faixa
+FROM produtos
+ORDER BY preco;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A ordem das condições importa: como “preço &lt; 1000” é avaliado depois de “preço &lt; 100”, um produto de 50 não
+    chega a ser testado contra a faixa intermediária. Se a faixa for definida por intervalos que se sobrepõem, o primeiro
+    caso vence, e isso precisa estar documentado.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Buscas por texto e por vários termos</h3>
+  <div class="ah-prose">
+    <p>
+      <code>LIKE</code> aceita <code>%</code> (zero ou mais caracteres) e <code>_</code> (exatamente um). Em SQLite, LIKE
+      ignora maiúsculas e minúsculas para letras ASCII; em PostgreSQL, LIKE diferencia, e ILIKE não. Para combinar termos,
+      use OR entre os padrões. Padrões que começam com <code>%</code> percorrem toda a tabela, como o tópico 14 explica.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT nome, preco
+FROM produtos
+WHERE nome LIKE '%livro%'
+   OR nome LIKE '%camiseta%'
+ORDER BY nome;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Apresentar dados faltantes com COALESCE</h3>
+  <div class="ah-prose">
+    <p>
+      NULL é correto para o banco, mas feio na tela. <code>COALESCE(a, b, …)</code> devolve o primeiro argumento não nulo.
+      Use-o na consulta de exibição, e nunca para “consertar” um NULL que deveria ser tratado como regra de negócio.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT nome, COALESCE(email, '(sem e-mail cadastrado)') AS contato
+FROM clientes
+ORDER BY nome;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Por que evitar SELECT * em código de produção</h3>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Custo:</strong> o banco lê e transporta colunas que ninguém usa, inclusive colunas grandes como textos e binários.</li>
+      <li><strong>Fragilidade:</strong> se uma coluna for adicionada ou reordenada, o código que lê o resultado por posição quebra sem aviso.</li>
+      <li><strong>Índices:</strong> um índice de cobertura (tópico 14) só funciona se a consulta pede apenas as colunas indexadas.</li>
+    </ul>
+    <p>Para exploração no terminal, <code>SELECT *</code> é ótimo. Em código, liste as colunas.</p>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c2a44)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-sky-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual condição encontra as linhas com e-mail ausente?</p>
+      <button class="ah-quiz-opt">email = NULL</button>
+      <button class="ah-quiz-opt">email IS NULL</button>
+      <button class="ah-quiz-opt">email = ''</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        NULL não é igual a nada, nem a NULL. Só IS NULL testa ausência. <code>= ''</code> testa texto vazio, que é outro valor.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Em <code>WHERE a = 1 OR b = 2 AND c = 3</code>, qual é avaliado primeiro?</p>
+      <button class="ah-quiz-opt">O OR, porque aparece antes</button>
+      <button class="ah-quiz-opt">Depende da ordem das colunas</button>
+      <button class="ah-quiz-opt">O AND, que tem precedência sobre o OR</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A precedência é AND antes de OR. Para evitar dúvidas, use parênteses.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Qual é o resultado de <code>SELECT 5 BETWEEN 5 AND 10</code>?</p>
+      <button class="ah-quiz-opt">Verdadeiro: BETWEEN inclui os extremos</button>
+      <button class="ah-quiz-opt">Falso: o intervalo é aberto</button>
+      <button class="ah-quiz-opt">Desconhecido</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        <code>a BETWEEN x AND y</code> equivale a <code>a &gt;= x AND a &lt;= y</code>, então os extremos entram.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: σ e π ===================== */
+(function () {
+  const todos = [
+    [1, 'Notebook 14', 3500, 8], [2, 'Smartphone', 2200, 15], [3, 'Fone Bluetooth', 250, 40],
+    [4, 'Livro SQL Essencial', 89.9, 30], [5, 'Livro Algoritmos', 120, 0],
+    [6, 'Camiseta Básica', 49.9, 100], [7, 'Tênis de Corrida', 399, 12],
+    [8, 'Cafeteira', 299, 5], [9, 'Panela Antiaderente', 150, 20]
+  ];
+  const cond = p => p[2] >= 100 && p[2] <= 500 && p[3] > 0;
+  const passa = todos.map((p, i) => cond(p) ? i : -1).filter(i => i >= 0);
+  const tab = (cab, linhas, dest, animar) => SQLLab.tabelaHTML(cab, linhas, { destaque: dest, animar: !!animar });
+  SQLLab.passos(document.getElementById('anim-select'), [
+    { titulo: 'FROM produtos', texto: 'Tudo começa com a tabela inteira: 9 linhas e 4 colunas.',
+      html: () => `<div class="sql-q mb-3">SELECT nome, preco FROM produtos ...</div>${tab(['id', 'nome', 'preco', 'estoque'], todos, [], true)}` },
+    { titulo: 'WHERE (σ): seleção de linhas', texto: 'Só ficam as linhas em que a condição é verdadeira: preço entre 100 e 500 e estoque positivo.',
+      html: () => `<div class="sql-q mb-3">... WHERE preco BETWEEN 100 AND 500 AND estoque &gt; 0</div>${tab(['id', 'nome', 'preco', 'estoque'], todos, passa)}
+        <p class="text-xs text-slate-400 mt-2">Em destaque, as linhas que passaram. Os demais produtos são descartados antes de qualquer outra etapa.</p>` },
+    { titulo: 'SELECT (π): projeção de colunas', texto: 'Das linhas restantes, mantemos só as colunas pedidas. As demais continuam existindo no banco; só não entram no resultado.',
+      html: () => {
+        const linhas = passa.map(i => [todos[i][1], todos[i][2]]);
+        return `<div class="sql-q mb-3">SELECT nome, preco ...</div>${tab(['nome', 'preco'], linhas, [], true)}`; } },
+    { titulo: 'ORDER BY preco DESC', texto: 'Por último, ordenamos. A ordem é aplicada ao resultado já filtrado e projetado.',
+      html: () => {
+        const linhas = passa.map(i => [todos[i][1], todos[i][2]]).sort((a, b) => b[1] - a[1]);
+        return `<div class="sql-q mb-3">... ORDER BY preco DESC</div>${tab(['nome', 'preco'], linhas, [0], true)}`; } }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>
