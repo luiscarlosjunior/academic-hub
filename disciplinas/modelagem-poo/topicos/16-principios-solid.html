@@ -307,6 +307,39 @@ flowchart LR
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: sistema de notificações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bell text-emerald-400 mr-2"></i>Exemplo passo a passo: notificações que crescem sem doer</h2>
+  <p class="ah-lead text-sm mb-5">Um serviço envia avisos por e-mail e SMS. Depois, o time pediu push e WhatsApp. Vamos aplicar os princípios na ordem em que os problemas aparecem.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — a versão inicial que cresce mal</h3>
+  <pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Notificador</span> {
+    <span class="kw">public void</span> <span class="fn">enviar</span>(String canal, String destino, String texto) {
+        <span class="kw">if</span> (canal.equals(<span class="str">"email"</span>)) { <span class="cm">/* SMTP */</span> }
+        <span class="kw">else if</span> (canal.equals(<span class="str">"sms"</span>)) { <span class="cm">/* operadora */</span> }
+        <span class="cm">// push e WhatsApp: mais um else if, mais uma vez mexendo aqui</span>
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Aqui quebram dois princípios: <strong>OCP</strong> (cada canal novo exige editar o método) e <strong>SRP</strong> (a classe conhece regras de transporte de cada canal, e também decide o texto).</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — aberto para extensão</h3>
+  <pre class="ah-code"><code><span class="kw">public interface</span> <span class="ty">Canal</span> {
+    <span class="kw">void</span> <span class="fn">enviar</span>(String destino, String texto);
+}
+
+<span class="kw">public class</span> <span class="ty">Notificador</span> {
+    <span class="kw">private final</span> <span class="ty">Canal</span> canal;                <span class="cm">// depende da abstração (DIP)</span>
+    <span class="kw">public</span> <span class="fn">Notificador</span>(<span class="ty">Canal</span> canal) { <span class="kw">this</span>.canal = canal; }
+    <span class="kw">public void</span> <span class="fn">avisar</span>(String destino, String texto) { canal.enviar(destino, texto); }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Push vira uma nova classe <code>CanalPush implements Canal</code>. Nenhuma linha de <code>Notificador</code> muda. Um teste pode injetar um <code>Canal</code> falso em memória.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — quando parar</h3>
+  <p class="ah-prose text-sm">Se o sistema tem dois canais e nenhuma previsão de terceiro, a interface é custo sem benefício. A regra: abstraia quando a segunda variação aparecer, e não antes. O exemplo vale como ensaio, não como obrigação para todo código.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Leitura de SOLID como ferramenta:</strong> cada princípio responde a uma dor concreta. Se você não consegue apontar a dor, o princípio ainda não é necessário.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
