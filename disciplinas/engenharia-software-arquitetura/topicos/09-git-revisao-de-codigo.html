@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do projeto acadêmico ao time: Git, branches e revisão de código · Programação para a Indústria · AcademicHub</title>
+<meta name="description" content="Commits pequenos e com mensagens úteis, fluxo com branches curtas, pull requests bem descritos e revisão de código construtiva, com animação de um ciclo completo de branch e merge e exemplo de comandos Git.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/09-git-revisao-de-codigo">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-amber-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Na faculdade, um projeto costuma ser de uma pessoa ou de um grupo que se reúne no fim do semestre. O código fica em uma pasta, o histórico é “trabalho
+      final v3 nova versão”, e a integração acontece na véspera da entrega. Na indústria, dezenas de pessoas alteram o mesmo sistema todas as semanas,
+      e o que separa um time produtivo de um caótico é, em grande parte, a forma como o código é versionado e revisado.
+    </p>
+    <p>
+      Esta página é a primeira da trilha de Programação para a Indústria. Ela trata da transição mais imediata: usar o Git como ferramenta de trabalho em
+      equipe, escrever commits e pull requests que outras pessoas entendem e fazer revisões de código que ensinam, em vez de só apontar defeitos.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar o modelo do Git (commits, branches, referências) o suficiente para não ter medo dele;</li>
+      <li>escrever mensagens de commit que explicam o porquê da mudança;</li>
+      <li>escolher um fluxo de branches adequado ao tamanho da equipe;</li>
+      <li>abrir um pull request que facilita a revisão e conduzir uma revisão de código construtiva;</li>
+      <li>evitar os erros que quebram a integração e expõem segredos.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="modelo" data-toc="O modelo do Git" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-amber-400 mr-2"></i>Teoria · O que o Git guarda</h2>
+  <div class="ah-prose">
+    <p>
+      O Git é um sistema de controle de versão distribuído. Ele guarda o histórico do projeto como uma sequência de <strong>commits</strong>. Cada commit é um
+      instantâneo do projeto, ligado ao anterior por uma referência, formando um grafo. Uma <strong>branch</strong> não é uma cópia do código: é apenas um nome
+      que aponta para um commit, e avança a cada novo commit feito nela.
+    </p>
+    <p>
+      Essa simplicidade é o que torna as branches baratas. Criar uma branch é criar um ponteiro. Quando a funcionalidade está pronta, a integração (o <em>merge</em>)
+      cria um commit que tem dois pais e junta as duas linhas. Um <em>rebase</em> faz outra coisa: reaplica os commits de uma branch sobre outra base,
+      produzindo um histórico linear. Ambos são válidos; a escolha depende da política da equipe, e não de uma verdade universal.
+    </p>
+    <p>
+      Entender esse modelo evita a maior parte dos sustos. Quando algo parece perdido, o histórico quase sempre ainda está lá: o <code>git reflog</code> mostra
+      para onde os ponteiros andaram nas últimas semanas.
+    </p>
+  </div>
+</section>
+
+<section id="fluxos" data-toc="Fluxos de branches" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-amber-400 mr-2"></i>Teoria · Fluxos de trabalho</h2>
+  <div class="ah-prose">
+    <p>Três fluxos aparecem com frequência, do mais complexo ao mais simples:</p>
+    <ul>
+      <li><strong>Gitflow</strong> (Driessen, 2010): branches permanentes <code>main</code> e <code>develop</code>, além de branches de funcionalidade, de release e de correção. Oferece organização para produtos com versões formais e ciclos longos, mas tem muitas branches e mais chances de integração tardia.</li>
+      <li><strong>GitHub Flow</strong>: uma única branch principal, sempre implantável, e branches curtas para cada mudança, integradas por pull request. Simples e eficiente para a maioria das equipes que entregam continuamente.</li>
+      <li><strong>Trunk-based development</strong>: todos integram com muita frequência na linha principal, muitas vezes ao dia, usando branches de vida de horas e funcionalidades escondidas atrás de chaves de configuração. Exige testes automatizados fortes e é a base da entrega contínua do tópico 12.</li>
+    </ul>
+    <p>
+      O critério que importa é o tempo entre escrever o código e integrá-lo. Quanto mais tempo uma branch vive separada, mais difícil é integrá-la, e mais
+      tarde os conflitos aparecem. A animação desta página mostra um ciclo típico do GitHub Flow.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: branch, PR e merge" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-amber-400 mr-2"></i>Animação · Do commit estável ao merge</h2>
+  <p class="ah-lead text-sm mb-4">Acompanhe uma funcionalidade nascer de um commit estável da <code>main</code>, ganhar commits pequenos, passar pela revisão e ser integrada. Enquanto isso, a <code>main</code> continua recebendo o trabalho de outras pessoas.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvGit" style="height:300px"></canvas></div>
+  <div id="ctlGit" class="mt-4"></div>
+  <div id="capGit" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="commits" data-toc="Commits que contam uma história" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-nib text-amber-400 mr-2"></i>Teoria · Commits que explicam o porquê</h2>
+  <div class="ah-prose">
+    <p>
+      Um commit deve ser uma unidade lógica de mudança, que pode ser revertida sem afetar o resto. O diff mostra <em>o que</em> mudou; a mensagem deve dizer
+      <em>por que</em>. Quem lê o histórico daqui a um ano consegue ver o código, mas não a intenção, a menos que a mensagem a registre.
+    </p>
+    <p>Uma convenção muito usada, derivada do formato Conventional Commits, organiza a primeira linha com um tipo e um resumo curto:</p>
+    <pre class="ah-code"><code>feat(catalogo): filtrar produtos por faixa de preço
+
+A busca por preço era feita no cliente, o que exigia baixar o catálogo
+inteiro. A filtragem agora acontece na API, com limites inclusivos,
+conforme o critério CT-07 do requisito RF-07.
+
+Refs: #34</code></pre>
+    <p>
+      Os tipos mais comuns são <code>feat</code> (nova funcionalidade), <code>fix</code> (correção), <code>refactor</code> (mudança de forma sem mudança de
+      comportamento), <code>test</code>, <code>docs</code> e <code>chore</code> (tarefas de manutenção). A separação entre tipos ajuda a ler o histórico e,
+      em algumas equipes, a gerar notas de versão automaticamente.
+    </p>
+    <p>
+      Um hábito que vale ouro: separe <strong>refatoração</strong> de <strong>mudança de comportamento</strong> em commits diferentes. Quando um teste
+      quebra, o histórico deve dizer qual das duas mudanças causou o problema.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: o ciclo no terminal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-amber-400 mr-2"></i>Exemplo prático · Uma funcionalidade do começo ao pull request</h2>
+  <div class="ah-prose">
+    <p>
+      O roteiro abaixo cobre o ciclo completo de uma mudança pequena. Os comandos são os mais usados no dia a dia, e cada linha tem um propósito.
+    </p>
+    <pre class="ah-code"><code># 1. Partir de uma main atualizada
+git switch main
+git pull --ff-only
+
+# 2. Criar uma branch curta, com nome que descreve a mudança
+git switch -c feature/filtro-preco
+
+# 3. Fazer commits pequenos; escolher o que entra em cada um
+git add -p                      # revisa cada trecho antes de adicionar
+git commit -m "feat(catalogo): filtrar por faixa de preço"
+
+# 4. Manter a branch atualizada com a main (rebase para histórico linear)
+git fetch origin
+git rebase origin/main
+
+# 5. Publicar e abrir o pull request
+git push -u origin feature/filtro-preco
+gh pr create --fill             # descrição vem dos commits; revise antes de enviar</code></pre>
+    <p>
+      Dois detalhes fazem diferença. O <code>git add -p</code> obriga a revisar o próprio diff antes de cada commit, e pega muitos erros bobos, como um
+      <code>print</code> de depuração esquecido ou um arquivo de configuração pessoal. E o <code>--ff-only</code> impede que um <code>pull</code> crie um
+      merge acidental na main local.
+    </p>
+    <p>
+      Antes de qualquer <code>git add</code>, confira se nenhum arquivo sensível entrou no diff: senhas, chaves de API e tokens não devem estar no
+      repositório, nem em commits antigos. Se um segredo foi commitado por engano, considere-o comprometido: troque a chave e só então limpe o histórico.
+    </p>
+  </div>
+</section>
+
+<section id="pr" data-toc="Pull requests e revisão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-chart text-amber-400 mr-2"></i>Teoria · Pull requests e revisão de código</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>pull request</strong> é o pedido formal para integrar uma branch. Ele é o lugar onde a revisão acontece, onde os testes automáticos rodam e
+      onde a discussão sobre a mudança fica registrada. Um bom pull request é pequeno, descrito e fácil de revisar. Estudos de revisão de código, como os
+      reunidos por Sadowski et al. (2018) no Google, mostram que as equipes valorizam mudanças pequenas e focadas, que são revisadas mais rápido e com
+      mais proveito. Revisar centenas de linhas de uma vez tende a produzir uma revisão superficial.
+    </p>
+    <p>Uma descrição útil responde a quatro perguntas:</p>
+    <ul>
+      <li><strong>O que muda?</strong> Um resumo de duas ou três frases.</li>
+      <li><strong>Por que muda?</strong> O problema ou o requisito que motivou a mudança, com link para a issue ou para o requisito.</li>
+      <li><strong>Como testar?</strong> Passos concretos que o revisor pode seguir.</li>
+      <li><strong>Onde olhar com atenção?</strong> Partes de maior risco ou decisões que você gostaria de discutir.</li>
+    </ul>
+    <p>
+      Do lado do revisor, o objetivo é melhorar o código e ensinar, e não provar que é mais inteligente. Comentários que fazem perguntas (“o que acontece
+      se a lista estiver vazia?”) costumam funcionar melhor do que ordens (“troque isso”). Separe o que é bloqueante do que é sugestão, e use um prefixo
+      como <em>nit:</em> para ajustes de estilo sem importância. Critique o código, nunca a pessoa.
+    </p>
+    <p>
+      Para quem recebe a revisão, o sinal de maturidade é responder com clareza, aceitar o que faz sentido e explicar, com dados, o que não faz. Discordar é
+      normal; o que importa é que a decisão final seja registrada e que a discussão permaneça técnica.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-amber-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Pull requests pequenos.</strong> Como referência prática, algo que caiba em uma revisão de vinte a trinta minutos. Se for maior, divida em uma sequência de PRs encadeados.</li>
+      <li><strong>Branches de vida curta.</strong> Integre ao menos diariamente. Uma branch de três semanas é um projeto paralelo, não uma mudança.</li>
+      <li><strong>A main sempre verde.</strong> Os testes passam na main o tempo todo. Quem quebra a main conserta antes de qualquer outra coisa.</li>
+      <li><strong>Revise o próprio PR antes de pedir revisão.</strong> Leia o diff como se fosse de outra pessoa. Quase sempre aparece algo para corrigir.</li>
+      <li><strong>Automatize o que não precisa de cabeça humana.</strong> Formatação, lint e testes são problema da máquina. A revisão humana deve se concentrar em design e intenção.</li>
+      <li><strong>Proteja a main.</strong> Exija revisão e testes verdes para integrar, e nunca faça <code>push --force</code> na branch principal.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Commit chamado “ajustes” com 40 arquivos alterados</td><td>Trabalho acumulado sem commits intermediários</td><td>Usar <code>git add -p</code> e commits por intenção; reescrever o histórico local antes de publicar</td></tr>
+        <tr><td>Conflito enorme na hora do merge</td><td>Branch que viveu semanas sem integrar</td><td>Integrar com a main com frequência; dividir a mudança em partes menores</td></tr>
+        <tr><td>Senha ou chave de API no repositório</td><td>Arquivo de configuração commitado por engano</td><td>Trocar a credencial imediatamente; usar variáveis de ambiente e <code>.gitignore</code></td></tr>
+        <tr><td>Alguém fez <code>push --force</code> na main</td><td>Ausência de proteção da branch principal</td><td>Ativar proteção; restaurar a partir de um commit anterior conhecido</td></tr>
+        <tr><td>Revisão aprovada sem ninguém ter lido</td><td>PR grande demais ou cultura de carimbo</td><td>Limitar o tamanho; exigir comentário com pergunta ou verificação concreta</td></tr>
+        <tr><td>Código de depuração foi para produção</td><td>Ausência de revisão do próprio diff</td><td>Revisar o diff antes do PR e automatizar a checagem de <code>print</code> e <code>breakpoint</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> tratar o histórico do Git como um rascunho que nunca será lido. Ele é a documentação de como o sistema chegou ao estado atual. Escreva mensagens pensando em quem vai ler daqui a um ano, que pode ser você mesmo.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      No projeto da disciplina, adote o GitHub Flow desde o primeiro commit. Proteja a main, faça ao menos um pull request por funcionalidade e exija que
+      outra pessoa do grupo revise cada um. Essa é a prática que mais aproxima um trabalho acadêmico de um time real, e os colegas de revisão costumam
+      encontrar defeitos que a autora ou o autor nunca veria.
+    </p>
+    <p>
+      Quando um pull request ficar grande, pergunte se ele pode ser dividido em três: uma refatoração, uma mudança de comportamento e os testes. Cada parte
+      fica mais fácil de revisar, e o histórico conta a história melhor.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que uma branch representa, no modelo interno do Git?</p>
+      <button class="ah-quiz-opt">Um ponteiro com nome que aponta para um commit, e avança a cada novo commit feito nela</button>
+      <button class="ah-quiz-opt">Uma cópia completa e separada de todos os arquivos do projeto</button>
+      <button class="ah-quiz-opt">Um servidor remoto onde o código fica guardado</button>
+      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. Por isso as branches são baratas: criar uma é criar um ponteiro. O custo real está em deixá-las viver muito tempo sem integrar.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um colega abriu um pull request com 2.000 linhas alteradas. Qual é a ação mais útil como revisor?</p>
+      <button class="ah-quiz-opt">Aprovar, porque o autor deve saber o que fez</button>
+      <button class="ah-quiz-opt">Revisar apenas os arquivos de teste</button>
+      <button class="ah-quiz-opt">Pedir para dividir o PR em partes menores e revisáveis</button>
+      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. Revisões de mudanças grandes perdem qualidade porque a atenção não acompanha o volume. Dividir o trabalho melhora a revisão e facilita reverter partes da mudança se algo der errado.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Branch é um ponteiro barato. O custo está em mantê-la separada por tempo demais.</li>
+    <li>Commits devem ser unidades lógicas de mudança, com mensagens que explicam o porquê.</li>
+    <li>Pull requests pequenos, bem descritos e com testes são revisados com qualidade.</li>
+    <li>Revisão de código existe para melhorar o código e ensinar. Critique a mudança, nunca a pessoa.</li>
+    <li>Segredos não entram no repositório. Se entraram, considere-os comprometidos e troque-os.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CHACON, S.; STRAUB, B. <em>Pro Git</em>. 2. ed. Apress, 2014. Disponível gratuitamente em git-scm.com/book.</li>
+    <li>DRIESSEN, V. A successful Git branching model. nvie.com, 2010. Origem do Gitflow.</li>
+    <li>SADOWSKI, C. et al. Modern code review: a case study at Google. In: <em>Proceedings of the 40th International Conference on Software Engineering: Software Engineering in Practice</em>. 2018.</li>
+    <li>CONVENTIONAL COMMITS. <em>Conventional Commits 1.0.0</em>. Especificação disponível em conventionalcommits.org.</li>
+    <li>FORSGREN, N.; HUMBLE, J.; KIM, G. <em>Accelerate: The Science of Lean Software and DevOps</em>. Portland: IT Revolution, 2018. Relação entre integração frequente e desempenho de entrega.</li>
+    <li>WINTERS, T.; MANSHRECK, T.; WRIGHT, H. <em>Software Engineering at Google</em>. Sebastopol: O'Reilly, 2020. Capítulos sobre controle de versão e revisão de código.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvGit', ctl: 'ctlGit', cap: 'capGit',
+    desenha: ENG.desenhaGit, gera: ENG.geraGit, velocidade: 3000
+  });
+
+})();
+</script>
+</body>
+</html>

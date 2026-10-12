@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qualidade, refatoração e dívida técnica · Engenharia de Software · AcademicHub</title>
+<meta name="description" content="Qualidade interna do software, code smells, refatoração segura com testes e dívida técnica como metáfora de juros, com animação comparando equipes que refatoram e equipes que não refatoram.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/04-qualidade-divida-tecnica">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-emerald-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Todo software passa por duas vidas. Na primeira, ele funciona: as telas aparecem, as regras são aplicadas, o cliente aceita. Na segunda, ele
+      é alterado por anos, por pessoas que não o escreveram. É nessa segunda vida que a <strong>qualidade interna</strong> decide o ritmo do time.
+      Código fácil de entender e de mudar mantém a velocidade. Código confuso a reduz a cada mês, até que cada alteração simples vira um projeto.
+    </p>
+    <p>
+      Esta página trata da qualidade que não aparece para o usuário, mas aparece para quem mantém o sistema: como reconhecer código que está
+      apodrecendo, como refatorar com segurança e como pensar a dívida técnica sem transformá-la em desculpa nem em pânico.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>distinguir qualidade interna de qualidade externa e dar exemplos de cada uma;</li>
+      <li>reconhecer code smells comuns e propor a transformação de refatoração adequada;</li>
+      <li>executar uma refatoração em pequenos passos, preservando o comportamento com testes;</li>
+      <li>explicar a dívida técnica como metáfora, distinguindo dívida deliberada de dívida inadvertida;</li>
+      <li>usar métricas de código como sinais, sem transformá-las em metas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="qualidade" data-toc="Qualidade interna" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-medal text-emerald-400 mr-2"></i>Teoria · O que é qualidade de software</h2>
+  <div class="ah-prose">
+    <p>
+      A norma ISO/IEC 25010 organiza a qualidade de produto em características como funcionalidade, desempenho, compatibilidade, usabilidade,
+      confiabilidade, segurança, manutenibilidade e portabilidade. Algumas são externas, percebidas pelo usuário. Outras são internas, percebidas por
+      quem desenvolve e mantém. A <strong>manutenibilidade</strong> é a principal delas quando o sistema vive por muitos anos.
+    </p>
+    <p>A manutenibilidade se decompõe em subcaracterísticas que podem ser observadas no código:</p>
+    <ul>
+      <li><strong>Modularidade:</strong> o sistema é formado por partes com responsabilidades separadas, e uma mudança tende a afetar poucas delas.</li>
+      <li><strong>Analisabilidade:</strong> dá para entender o que um trecho faz lendo esse trecho, sem caçar o contexto inteiro.</li>
+      <li><strong>Modificabilidade:</strong> alterar uma regra exige mudar poucos lugares, e cada mudança é testável.</li>
+      <li><strong>Testabilidade:</strong> o comportamento pode ser verificado de forma isolada, o que depende diretamente das dependências escondidas no código.</li>
+    </ul>
+    <p>
+      Duas medidas clássicas ajudam a enxergar essas propriedades. <strong>Coesão</strong> mede o quanto os elementos de um módulo pertencem uns aos outros:
+      alta coesão é desejável. <strong>Acoplamento</strong> mede o quanto um módulo depende de outros: baixo acoplamento é desejável. A complexidade
+      ciclomática, proposta por McCabe (1976), conta os caminhos independentes de uma função. Valores altos indicam funções difíceis de testar por completo.
+    </p>
+  </div>
+</section>
+
+<section id="smells" data-toc="Code smells" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-biohazard text-emerald-400 mr-2"></i>Teoria · Code smells: sinais de alerta</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>code smell</strong> é um sintoma de que algo pode estar errado na estrutura do código. Não é um erro, e sim um convite a olhar com
+      atenção. Fowler (2018) catalogou dezenas deles. Os mais frequentes em projetos de estudantes e em times iniciantes são:
+    </p>
+    <ul>
+      <li><strong>Função longa:</strong> faz muitas coisas, e o leitor precisa rolar a tela para entender o fluxo.</li>
+      <li><strong>Código duplicado:</strong> a mesma regra aparece em dois lugares. Quando ela muda, um dos lugares fica para trás.</li>
+      <li><strong>Lista longa de parâmetros:</strong> funções com seis ou sete argumentos, muitos do mesmo tipo, são fáceis de chamar errado.</li>
+      <li><strong>Obsessão por primitivos:</strong> dinheiro representado como <code>float</code>, CPF como <code>str</code> sem validação, status como número mágico.</li>
+      <li><strong>Inveja de funcionalidade:</strong> um método passa a maior parte do tempo lendo dados de outro objeto. Provavelmente deveria estar lá.</li>
+      <li><strong>Cirurgia de espingarda:</strong> uma mudança simples exige editar dez arquivos diferentes. Sinal de responsabilidade espalhada.</li>
+      <li><strong>Mudança divergente:</strong> uma classe muda por motivos diferentes, como regra de negócio e formato de relatório ao mesmo tempo.</li>
+    </ul>
+    <p>
+      Smells não são proibidos. Uma função longa pode ser a forma mais clara de expressar um algoritmo sequencial. O critério é se o smell atrapalha
+      alguém que precisa mudar o código. Se atrapalha, ele merece refatoração.
+    </p>
+  </div>
+</section>
+
+<section id="refatoracao" data-toc="Refatoração segura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-emerald-400 mr-2"></i>Teoria · Refatoração: mudar a forma sem mudar o comportamento</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Refatoração</strong> é uma transformação do código que preserva o comportamento observável. Fowler (2018) define a prática como uma sequência
+      de pequenas transformações nomeadas, como “extrair função”, “renomear variável”, “introduzir variável explicativa” e “substituir condicional por
+      polimorfismo”. Cada uma é simples. O valor está na combinação.
+    </p>
+    <p>
+      A condição para refatorar com segurança é ter <strong>testes que verificam o comportamento</strong>. Sem eles, cada transformação é um palpite.
+      Com eles, o ciclo fica curto: transforme um pouco, rode os testes, confirme que continuam verdes, repita. Se algo quebrar, o passo anterior é
+      pequeno o suficiente para ser desfeito sem perda.
+    </p>
+    <p>
+      Refatorar não é reescrever. Reescrever do zero costuma reintroduzir os defeitos que o código antigo já tinha resolvido, e custa meses antes de
+      entregar algo novo. Refatorar aos poucos mantém o sistema funcionando em todo momento, e é a base da estratégia de migração do tópico 8.
+    </p>
+  </div>
+</section>
+
+<section id="divida" data-toc="Dívida técnica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-credit-card text-emerald-400 mr-2"></i>Teoria · Dívida técnica: juros sobre a complexidade</h2>
+  <div class="ah-prose">
+    <p>
+      Ward Cunningham (1992) usou a metáfora da <strong>dívida técnica</strong>: escrever código de forma rápida e imperfeita é como tomar dinheiro
+      emprestado. Pode ser uma decisão inteligente, se o dinheiro gerar mais valor do que custa. Mas os juros se acumulam: cada funcionalidade nova
+      sobre um código confuso custa um pouco mais do que a anterior.
+    </p>
+    <p>Fowler propôs distinguir a dívida por dois eixos:</p>
+    <ul>
+      <li><strong>Deliberada ou inadvertida:</strong> o time sabia que estava fazendo uma escolha rápida, ou só percebeu depois que o design estava ruim?</li>
+      <li><strong>Prudente ou imprudente:</strong> a equipe avaliou o trade-off e aceitou o custo, ou simplesmente não se importou?</li>
+    </ul>
+    <p>
+      Uma dívida deliberada e prudente é legítima: lançar um protótipo para validar uma hipótese com usuários, sabendo que ele será descartado.
+      Uma dívida inadvertida e imprudente é a mais perigosa, porque ninguém a enxerga até que cada mudança leve semanas. O remédio é pagar a dívida
+      em pequenas parcelas, junto com o trabalho de funcionalidade, e não em um projeto separado que nunca começa.
+    </p>
+    <p>
+      Um cuidado: dívida técnica não é um sinônimo de código ruim. É a diferença entre o estado atual do código e o estado que permitiria mudar com
+      facilidade. Código que está bem para o problema que resolve, e que não deve mudar, pode ter dívida zero mesmo sendo feio.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: juros da dívida" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Juros da dívida, sprint a sprint</h2>
+  <p class="ah-lead text-sm mb-4">Cada coluna é uma Sprint, com 100% da capacidade da equipe. Compare os dois cenários: no primeiro, a parte que vai para contornar código difícil cresce a cada Sprint; no segundo, a equipe reserva 10% para refatorar e mantém a capacidade de entrega.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvDivida" style="height:300px"></canvas></div>
+  <div id="ctlDivida" class="mt-4"></div>
+  <div id="capDivida" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: refatorando um cálculo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo prático · Refatorando um cálculo de pedido</h2>
+  <div class="ah-prose">
+    <p>
+      Considere a função abaixo, típica de projetos que cresceram sem planejamento. Ela calcula o total de um pedido e aplica descontos por tipo de
+      cliente. O código funciona, mas tem código duplicado (o laço de soma) e a regra de desconto está escondida em dois <code>if</code>.
+    </p>
+    <pre class="ah-code"><code># antes
+def total_pedido(itens, cliente):
+    total = 0
+    for i in itens:
+        total += i["preco"] * i["quantidade"]
+    if cliente["tipo"] == "vip":
+        total = total * 0.9
+    elif cliente["tipo"] == "atacado":
+        total = total * 0.8
+    return total</code></pre>
+    <p>
+      A primeira transformação extrai o subtotal, que é uma responsabilidade própria. A segunda troca os <code>if</code> por uma tabela de dados, o que
+      torna a regra de desconto visível e fácil de alterar:
+    </p>
+    <pre class="ah-code"><code># depois
+DESCONTO_POR_TIPO = {"vip": 0.10, "atacado": 0.20}
+
+def subtotal(itens):
+    return sum(item["preco"] * item["quantidade"] for item in itens)
+
+def total_pedido(itens, cliente):
+    desconto = DESCONTO_POR_TIPO.get(cliente["tipo"], 0)
+    return subtotal(itens) * (1 - desconto)</code></pre>
+    <p>
+      Antes de qualquer uma dessas mudanças, deveria existir um teste que fixa o comportamento atual, inclusive para tipos de cliente desconhecidos.
+      Depois de cada passo, o teste roda. Se ele passa antes e depois, o comportamento foi preservado. Note que a nova versão também deixa uma nova
+      regra fácil de acrescentar: basta uma linha no dicionário, sem tocar na lógica de cálculo.
+    </p>
+    <div class="ah-callout ah-callout-tip mt-5">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Padrão:</strong> refatore em passos que caibam em um commit. Um commit de “extrair função”, outro de “trocar condicional por tabela”. Quando algo quebrar, o histórico mostra exatamente qual passo causou o problema.</div>
+    </div>
+  </div>
+</section>
+
+<section id="metricas" data-toc="Métricas com moderação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge text-emerald-400 mr-2"></i>Teoria · Métricas: sinais, não metas</h2>
+  <div class="ah-prose">
+    <p>
+      Ferramentas de análise estática informam complexidade, duplicação, tamanho de funções e outros números. Esses números são úteis como <strong>lista
+      de revisão</strong>: uma função com complexidade 25 merece uma olhada. Quando viram meta, a Lei de Goodhart volta a valer: a medida deixa de
+      representar a qualidade, porque as pessoas passam a otimizá-la. Dividir uma função em dez funções sem sentido reduz a complexidade média e
+      piora a legibilidade.
+    </p>
+    <p>
+      A revisão de código (tema do tópico 9) é, ainda, a ferramenta de qualidade mais barata e mais eficaz para detectar smells que nenhuma métrica
+      vê, como nomes enganosos e regras colocadas no lugar errado.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-emerald-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Refatore na vizinhança da mudança.</strong> Ao alterar uma função, deixe-a um pouco melhor do que encontrou. Pequenas melhorias constantes superam grandes projetos de limpeza que nunca terminam.</li>
+      <li><strong>Teste antes de refatorar.</strong> Se o trecho não tem teste, escreva primeiro um teste de caracterização que fixe o comportamento atual.</li>
+      <li><strong>Dê nomes que revelem a intenção.</strong> Muitos smells são nomes ruins. <code>calc()</code> diz menos do que <code>calcula_total_com_desconto()</code>.</li>
+      <li><strong>Separe a regra da infraestrutura.</strong> A regra de cálculo não deve saber se os dados vêm de um banco, de um arquivo ou de uma requisição HTTP.</li>
+      <li><strong>Registre a dívida assumida.</strong> Um comentário com <code>TODO</code> sem dono e sem motivo é dívida invisível. Uma issue com descrição e responsável é uma decisão.</li>
+      <li><strong>Reserve tempo para pagar.</strong> Algumas equipes reservam uma fração fixa da capacidade para refatoração, em vez de esperar um momento “livre” que nunca chega.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>“Vamos reescrever tudo na próxima versão”</td><td>Desistência diante da complexidade atual</td><td>Refatorar por partes, mantendo o sistema em funcionamento</td></tr>
+        <tr><td>Refatoração quebra funcionalidades</td><td>Ausência de testes que fixem o comportamento</td><td>Escrever testes de caracterização antes de mexer</td></tr>
+        <tr><td>Toda mudança “simples” leva uma semana</td><td>Dívida acumulada e responsabilidades espalhadas</td><td>Medir o custo das últimas mudanças e pagar a dívida nas áreas que mais mudam</td></tr>
+        <tr><td>Métrica de complexidade virou meta do sprint</td><td>Lei de Goodhart</td><td>Usar a métrica como lista de revisão; discutir o código, não o número</td></tr>
+        <tr><td>Código copiado de outro módulo com pequenas diferenças</td><td>Duplicação por pressa, sem extração</td><td>Extrair a parte comum quando a terceira cópia aparecer (regra dos três)</td></tr>
+        <tr><td>“Não mexe nisso, ninguém sabe como funciona”</td><td>Código sem dono e sem testes</td><td>Escrever testes de caracterização e documentar o comportamento antes de alterar</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> refatorar e adicionar funcionalidade no mesmo commit. Quando algo quebra, ninguém sabe se o problema veio da mudança de comportamento ou da mudança de forma. Separe os dois.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-emerald-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Em um projeto da disciplina, faça uma revisão rápida antes da entrega final. Procure as três funções mais longas, o código duplicado mais visível
+      e os nomes que você precisou explicar em voz alta. Corrija um ou dois, com testes, e registre o restante como dívida conhecida, com uma frase
+      explicando o motivo. Isso é mais valioso para o aprendizado do que uma reescrita de última hora.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que caracteriza uma refatoração, em relação a uma mudança de funcionalidade?</p>
+      <button class="ah-quiz-opt">O comportamento observável permanece o mesmo; muda apenas a estrutura interna</button>
+      <button class="ah-quiz-opt">Um novo recurso é adicionado ao sistema</button>
+      <button class="ah-quiz-opt">O código é reescrito do zero em outra linguagem</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A definição de refatoração depende da preservação do comportamento. Se o comportamento mudou, é outra atividade, e deve ser tratada como tal.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma equipe decide lançar um protótipo rápido para validar uma hipótese com usuários, sabendo que ele será descartado. Como a dívida dessa decisão é classificada?</p>
+      <button class="ah-quiz-opt">Inadvertida e imprudente</button>
+      <button class="ah-quiz-opt">Inadvertida e prudente</button>
+      <button class="ah-quiz-opt">Deliberada e prudente</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A equipe sabia da escolha (deliberada) e avaliou o trade-off (prudente). O problema começa quando um protótipo descartável vira produção sem ser reescrito.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Qualidade interna decide quanto custa mudar o sistema nos próximos anos.</li>
+    <li>Code smells são sinais de alerta, não erros. O critério é se atrapalham quem precisa mudar o código.</li>
+    <li>Refatoração preserva o comportamento. Sem testes, não há como saber se preservou.</li>
+    <li>Dívida técnica é uma escolha com juros. Distinga a deliberada da inadvertida e pague em parcelas.</li>
+    <li>Métricas são listas de revisão. Quando viram metas, deixam de medir qualidade.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>FOWLER, M. <em>Refactoring: Improving the Design of Existing Code</em>. 2. ed. Boston: Addison-Wesley, 2018. Catálogo de smells e de transformações.</li>
+    <li>MARTIN, R. C. <em>Clean Code: A Handbook of Agile Software Craftsmanship</em>. Upper Saddle River: Prentice Hall, 2008.</li>
+    <li>CUNNINGHAM, W. The WyCash Portfolio Management System. In: <em>OOPSLA '92 Experience Report</em>, 1992. Origem da metáfora da dívida técnica.</li>
+    <li>FOWLER, M. <em>Technical Debt Quadrant</em>. martinfowler.com, 2009. Distinção entre dívida deliberada e inadvertida, prudente e imprudente.</li>
+    <li>MCCABE, T. J. A complexity measure. <em>IEEE Transactions on Software Engineering</em>, v. SE-2, n. 4, p. 308–320, 1976.</li>
+    <li>ISO/IEC 25010:2023. <em>Systems and software engineering: Systems and software Quality Requirements and Evaluation (SQuaRE): Product quality model</em>. Genebra: ISO, 2023.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvDivida', ctl: 'ctlDivida', cap: 'capDivida',
+    desenha: ENG.desenhaDivida, gera: ENG.geraDivida, velocidade: 2200,
+    opcoes: [
+      { v: 'sem', rotulo: 'Sem refatorar' },
+      { v: 'com', rotulo: 'Refatorando 10% por Sprint' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>

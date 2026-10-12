@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testes de software: pirâmide, tipos e o que um teste prova · Engenharia de Software · AcademicHub</title>
+<meta name="description" content="Testes unitários, de integração e ponta a ponta, a pirâmide de testes, valores-limite, cobertura como indicador e testes frágeis, com animação da pirâmide e exemplo em Python com pytest.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/03-testes-de-software">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-emerald-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Testar software é, antes de tudo, <strong>reduzir incerteza</strong>. Um teste não prova que o programa está correto; ele mostra que,
+      naquele cenário, o comportamento foi o esperado. Dijkstra (1970) resumiu a limitação: testes podem mostrar a presença de defeitos, mas
+      nunca a sua ausência. Isso não torna os testes inúteis. Torna-os uma ferramenta de evidência, que precisa ser bem escolhida para ser útil.
+    </p>
+    <p>
+      Esta página trata de como organizar os testes em camadas, de quanto de cada tipo vale a pena, de como escrever casos que pegam defeitos reais
+      e de como evitar a armadilha de medir qualidade apenas pela cobertura.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>diferenciar testes unitários, de integração, de sistema e de ponta a ponta, e dizer o que cada um prova;</li>
+      <li>justificar a pirâmide de testes e o motivo de a base ser a mais larga;</li>
+      <li>aplicar partição de equivalência e análise de valores-limite para escolher casos de teste;</li>
+      <li>interpretar cobertura de código como indicador, e não como meta;</li>
+      <li>reconhecer testes frágeis e saber o que fazer com eles.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="tipos" data-toc="Tipos de teste" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Teoria · Tipos de teste</h2>
+  <div class="ah-prose">
+    <p>
+      Os tipos de teste se diferenciam pelo <strong>escopo</strong>: quanto do sistema está envolvido em cada execução. Quanto maior o escopo, mais
+      realista o teste e mais caro ele é em tempo, em manutenção e em diagnóstico.
+    </p>
+    <ul>
+      <li><strong>Unitário:</strong> verifica uma unidade isolada (uma função, uma classe) com suas dependências substituídas por dublês. É rápido, determinístico e aponta com precisão onde está o erro.</li>
+      <li><strong>Integração:</strong> verifica a combinação de duas ou mais partes reais, como um repositório falando com um banco de teste, ou um serviço chamando outro. Pega erros de contrato, de formato de dados e de configuração.</li>
+      <li><strong>Sistema:</strong> verifica o sistema completo, implantado em um ambiente parecido com o de produção, contra requisitos funcionais.</li>
+      <li><strong>Aceitação:</strong> verifica se o sistema atende ao que o cliente ou o usuário definiu. Costuma ser escrito a partir dos critérios de aceitação do tópico 2.</li>
+      <li><strong>Ponta a ponta (E2E):</strong> percorre um fluxo real pela interface ou pela API, do início ao fim. É o mais fiel ao uso, e o mais lento e frágil.</li>
+      <li><strong>Regressão:</strong> não é um nível, e sim um propósito: garantir que mudanças novas não quebraram o que já funcionava. Quase todo teste automatizado serve a esse propósito.</li>
+      <li><strong>Não funcional:</strong> desempenho (carga e estresse), segurança, acessibilidade, usabilidade. Exigem ferramentas e critérios próprios, ligados aos atributos de qualidade do tópico 5.</li>
+    </ul>
+    <p>
+      Uma distinção importante: <strong>caixa-branca</strong> testa com conhecimento do código (cobrindo ramos e laços), e <strong>caixa-preta</strong>
+      testa apenas entradas e saídas, como um usuário. Os dois são complementares. Caixa-preta encontra o que o código deveria fazer; caixa-branca
+      encontra caminhos que nenhum cenário funcional mencionou.
+    </p>
+  </div>
+</section>
+
+<section id="piramide" data-toc="A pirâmide de testes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mountain text-emerald-400 mr-2"></i>Teoria · A pirâmide de testes</h2>
+  <div class="ah-prose">
+    <p>
+      A <strong>pirâmide de testes</strong>, descrita por Cohn (2009), é uma regra de proporção: muitos testes unitários na base, uma quantidade
+      menor de integração no meio e poucos ponta a ponta no topo. A razão é econômica. Cada nível acima é mais lento, mais caro de manter e mais
+      sujeito a falhas que não têm relação com o defeito, como uma rede instável ou um dado de teste que mudou.
+    </p>
+    <p>
+      Um exemplo concreto ajuda. Se um cálculo de imposto está errado, um teste unitário falha em milissegundos e aponta a função. O mesmo defeito
+      encontrado por um teste ponta a ponta leva minutos para rodar, exige um navegador e um banco populado, e a mensagem de erro diz apenas que
+      “o pedido não foi finalizado”. O defeito é o mesmo; o custo de encontrá-lo é muito diferente.
+    </p>
+    <p>
+      A pirâmide é uma heurística, não uma lei. Sistemas com muita lógica de interface podem precisar de mais testes de componente. Sistemas que são
+      basicamente um conjunto de integrações com outros serviços podem precisar de mais testes de contrato. O princípio que permanece é: <strong>teste
+      cada comportamento no nível mais baixo que ainda o exprime</strong>.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: a pirâmide em execução" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Rodando a pirâmide de baixo para cima</h2>
+  <p class="ah-lead text-sm mb-4">Cada ponto é um teste. Avance os passos para ver a execução da base ao topo, e observe em qual camada o defeito de cálculo finalmente aparece.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvTestes" style="height:300px"></canvas></div>
+  <div id="ctlTestes" class="mt-4"></div>
+  <div id="capTestes" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="casos" data-toc="Escolhendo casos de teste" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-emerald-400 mr-2"></i>Teoria · Escolhendo os casos de teste</h2>
+  <div class="ah-prose">
+    <p>
+      Testar com um valor aleatório raramente é suficiente. Duas técnicas clássicas, descritas por Myers (2011), ajudam a escolher casos com
+      alto poder de detectar defeitos:
+    </p>
+    <ul>
+      <li><strong>Partição de equivalência:</strong> divida o domínio de entrada em classes que, em teoria, se comportam do mesmo jeito. Basta um representante de cada classe. Para uma idade aceita entre 18 e 65, as classes são “menor que 18”, “de 18 a 65” e “maior que 65”.</li>
+      <li><strong>Análise de valores-limite:</strong> defeitos se concentram nas fronteiras entre classes. Teste o valor logo abaixo, exatamente no limite e logo acima. Para a faixa de 18 a 65: 17, 18, 19, 64, 65 e 66.</li>
+    </ul>
+    <p>
+      Os valores-limite são a técnica de maior retorno para o esforço. Quase todo defeito de “off-by-one” (um laço que faz uma iteração a mais ou a
+      menos, um intervalo que exclui um extremo) é encontrado por eles. Por isso, o exemplo prático desta página os usa.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: pytest" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo prático · Valores-limite com pytest</h2>
+  <div class="ah-prose">
+    <p>
+      Suponha uma regra da loja: compras a partir de R$ 100,00 ganham 5% de desconto. A função abaixo implementa a regra. O teste usa
+      <code>pytest.mark.parametrize</code> para expressar os valores-limite em uma tabela, o que deixa a intenção explícita.
+    </p>
+    <pre class="ah-code"><code># desconto.py
+def percentual_desconto(valor):
+    """Compras a partir de R$ 100,00 (inclusive) ganham 5%."""
+    return 5 if valor >= 100 else 0
+
+# tests/test_desconto.py
+import pytest
+from desconto import percentual_desconto
+
+@pytest.mark.parametrize("valor, esperado", [
+    (0, 0),        # bem abaixo do limite
+    (99.99, 0),    # o centavo antes do limite
+    (100, 5),      # exatamente no limite: a regra diz "a partir de", então entra
+    (100.01, 5),   # logo acima do limite
+])
+def test_desconto_nos_valores_limite(valor, esperado):
+    assert percentual_desconto(valor) == esperado</code></pre>
+    <p>
+      Cada linha da tabela documenta um caso. Quando alguém trocar <code>&gt;=</code> por <code>&gt;</code> em uma revisão apressada, o teste de
+      R$ 100,00 falha imediatamente e aponta a regra, sem que ninguém precise abrir a interface. O comentário ao lado de cada linha é tão importante
+      quanto o valor, porque explica a razão daquele caso.
+    </p>
+    <p>
+      Note também o que não foi testado aqui: a aplicação do desconto sobre o total do pedido. Essa é outra unidade, com outras regras, e deve ter
+      seus próprios testes. Separar as responsabilidades é o que mantém cada teste pequeno e legível.
+    </p>
+  </div>
+</section>
+
+<section id="cobertura" data-toc="Cobertura: indicador, não meta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-simple text-emerald-400 mr-2"></i>Teoria · Cobertura: útil, mas enganosa</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>Cobertura de código</strong> mede a fração do código executada pelos testes: linhas, ramos (cada lado de um <code>if</code>), condições
+      e caminhos. É um indicador útil porque aponta código que nenhum teste toca. Ela não diz nada sobre a qualidade dos testes que existem.
+    </p>
+    <p>
+      É possível obter 100% de cobertura com testes que não fazem nenhuma asserção. O código foi executado, mas nada foi verificado. Por isso, cobertura
+      é um sinal de <em>o que não foi testado</em>, e não de <em>o que está correto</em>. Quando vira meta, a Lei de Goodhart entra em ação: a medida
+      deixa de refletir o que queria medir, porque as pessoas passam a otimizá-la.
+    </p>
+    <p>
+      Uma técnica que avalia a qualidade dos próprios testes é a <strong>mutação</strong>. A ferramenta introduz pequenos defeitos artificiais no código,
+      como trocar <code>&gt;=</code> por <code>&gt;</code>, e verifica se algum teste falha. Um mutante que sobrevive revela um comportamento que não está
+      sendo verificado.
+    </p>
+  </div>
+</section>
+
+<section id="fragil" data-toc="Testes frágeis" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Teoria · Testes frágeis e intermitentes</h2>
+  <div class="ah-prose">
+    <p>
+      Um teste <strong>intermitente</strong> (ou <em>flaky</em>) passa e falha sem que o código tenha mudado. Ele destrói a confiança da equipe mais
+      rápido do que qualquer defeito: quando todo mundo sabe que “aquele teste às vezes falha”, ninguém investiga a próxima falha de verdade.
+    </p>
+    <p>As causas mais comuns são:</p>
+    <ul>
+      <li>dependência da hora do sistema, do fuso horário ou da ordem em que os testes rodam;</li>
+      <li>estado compartilhado entre testes, como um banco ou um arquivo que um teste deixa sujo para o próximo;</li>
+      <li>esperas fixas (<code>sleep(2)</code>) no lugar de condições explícitas;</li>
+      <li>chamadas reais a serviços externos, que oscilam por motivos alheios ao código.</li>
+    </ul>
+    <p>
+      A correção é tratar o teste intermitente como um defeito, com prioridade igual à de um bug de produção. Se a causa não for encontrada em pouco
+      tempo, coloque o teste em quarentena, com dono e prazo, em vez de deixá-lo vermelho ou ignorá-lo para sempre.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-emerald-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Teste comportamento, não implementação.</strong> Um teste que quebra toda vez que você renomeia um método privado está acoplado demais ao código.</li>
+      <li><strong>Um conceito por teste.</strong> Quando um teste falha, a mensagem deve dizer qual regra quebrou, sem uma investigação de vinte linhas.</li>
+      <li><strong>Nomes que descrevem a regra.</strong> <code>test_compra_de_100_reais_ganha_desconto</code> é mais útil do que <code>test_desconto_2</code>.</li>
+      <li><strong>Arrange, act, assert.</strong> Prepare os dados, execute uma ação e verifique um resultado. Três blocos claros tornam o teste legível.</li>
+      <li><strong>Mantenha a suíte rápida.</strong> Testes unitários devem rodar em segundos. Quando a suíte fica lenta, as pessoas param de rodá-la.</li>
+      <li><strong>Teste os caminhos de erro.</strong> O que acontece com entrada inválida, com a rede caída, com a lista vazia? Esses casos são onde os sistemas de verdade falham.</li>
+      <li><strong>Rode os testes no pipeline.</strong> Um teste que só roda na máquina de quem o escreveu é uma sugestão, não uma garantia (veja o tópico 12).</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Cobertura de 90%, mas bugs em produção</td><td>Testes sem asserções significativas</td><td>Revisar asserções; experimentar mutação em módulos críticos</td></tr>
+        <tr><td>Refatorar quebra dezenas de testes</td><td>Testes acoplados à implementação, com muitos mocks</td><td>Testar pela interface pública; usar dublês só nas fronteiras</td></tr>
+        <tr><td>Suíte levando 40 minutos</td><td>Muitos testes E2E no lugar de unitários</td><td>Mover a regra para testes unitários e manter poucos E2E de fluxo</td></tr>
+        <tr><td>Teste passa na máquina e falha no pipeline</td><td>Dependência de ambiente, de hora ou de ordem</td><td>Fixar o relógio nos testes; isolar o estado; rodar em ordem aleatória</td></tr>
+        <tr><td>“Não dá para testar isso”</td><td>Código com dependências escondidas (relógio, rede, global)</td><td>Injetar as dependências; separar a lógica pura da parte de infraestrutura</td></tr>
+        <tr><td>Testes escritos depois, só para cumprir cobertura</td><td>Cobertura como meta</td><td>Definir o que deve ser verificado e revisar os testes como código</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> usar mocks para tudo. Um teste em que o banco, o serviço e a regra estão todos simulados verifica apenas que as chamadas foram feitas, não que o sistema funciona. Use dublês nas fronteiras que você não controla, e teste o resto de verdade.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-emerald-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      Antes de escrever qualquer teste, pergunte: <strong>se este teste falhar amanhã, a pessoa que o vir saberá o que consertar?</strong> Se a
+      resposta for não, reescreva a mensagem ou divida o teste.
+    </p>
+    <p>
+      Em um projeto da disciplina, comece com testes unitários para as regras de negócio, que são a parte mais valiosa e a mais fácil de testar.
+      Depois adicione um teste de integração para o caminho entre a aplicação e o banco. Só então escreva um ou dois E2E para o fluxo principal.
+      Essa ordem costuma dar a maior confiança pelo menor esforço.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Para a regra “idade entre 18 e 65 anos (inclusive)”, qual conjunto de valores aplica melhor a análise de valores-limite?</p>
+      <button class="ah-quiz-opt">10, 30 e 70</button>
+      <button class="ah-quiz-opt">18, 30 e 65</button>
+      <button class="ah-quiz-opt">17, 18, 19, 64, 65 e 66</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A técnica testa logo abaixo, exatamente em e logo acima de cada limite. Os valores 10, 30 e 70 não tocam nenhuma fronteira.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma suíte tem 100% de cobertura de linhas. O que isso garante?</p>
+      <button class="ah-quiz-opt">Que o sistema está livre de defeitos</button>
+      <button class="ah-quiz-opt">Que todo o código foi executado pelos testes, mas não que os resultados foram verificados</button>
+      <button class="ah-quiz-opt">Que os testes são rápidos e determinísticos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cobertura diz o que foi executado. Sem asserções que verifiquem o resultado, um teste pode executar o código e não detectar nenhum defeito.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Testes mostram a presença de defeitos, não a sua ausência. Use-os como evidência, escolhida com critério.</li>
+    <li>A pirâmide organiza os testes por custo: muitos unitários, alguns de integração, poucos ponta a ponta.</li>
+    <li>Valores-limite e partições de equivalência encontram a maior parte dos defeitos com poucos casos.</li>
+    <li>Cobertura indica o que não foi executado. Não garante que o que foi executado esteja correto.</li>
+    <li>Teste intermitente é defeito. Trate-o com a mesma prioridade de um bug de produção.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>DIJKSTRA, E. W. Notes on structured programming. In: DAHL, O.-J.; DIJKSTRA, E. W.; HOARE, C. A. R. <em>Structured Programming</em>. Londres: Academic Press, 1972. (A observação sobre testes aparece nesse texto de 1970.)</li>
+    <li>MYERS, G. J.; SANDLER, C.; BADGETT, T. <em>The Art of Software Testing</em>. 3. ed. Hoboken: Wiley, 2011. Capítulo sobre casos de teste.</li>
+    <li>COHN, M. <em>Succeeding with Agile</em>. Boston: Addison-Wesley, 2009. Apresenta a pirâmide de testes.</li>
+    <li>FREEMAN, S.; PRYCE, N. <em>Growing Object-Oriented Software, Guided by Tests</em>. Boston: Addison-Wesley, 2009.</li>
+    <li>GOOGLE. <em>Software Engineering at Google</em>. Winters, T.; Manshreck, T.; Wright, H. Sebastopol: O'Reilly, 2020. Capítulo sobre testes.</li>
+    <li>PYTEST. <em>Documentação oficial</em>. Disponível em docs.pytest.org. Seções sobre parametrização e fixtures.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvTestes', ctl: 'ctlTestes', cap: 'capTestes',
+    desenha: ENG.desenhaTestes, gera: ENG.geraTestes, velocidade: 2800
+  });
+
+})();
+</script>
+</body>
+</html>

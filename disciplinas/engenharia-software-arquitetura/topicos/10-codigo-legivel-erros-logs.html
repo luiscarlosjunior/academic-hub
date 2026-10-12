@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Código legível e robusto: nomes, funções, erros e logs · Programação para a Indústria · AcademicHub</title>
+<meta name="description" content="Nomes que revelam intenção, funções pequenas, tratamento de erros que não esconde falhas, validação na borda, configuração fora do código e logs úteis, com animação de uma pipeline de validação e exemplos em Python.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="es/10-codigo-legivel-erros-logs">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-amber-400 mr-2"></i>Visão geral</h2>
+  <div class="ah-prose">
+    <p>
+      Código é lido muito mais vezes do que é escrito. Em um time profissional, a proporção costuma ser de muitas leituras para cada alteração: alguém
+      precisa entender o código para corrigi-lo, para estendê-lo, para revisá-lo ou para descobrir por que ele falhou às três da manhã. Escrever código
+      legível não é um luxo estético. É a forma mais barata de reduzir o custo de tudo o que vem depois.
+    </p>
+    <p>
+      Esta página reúne práticas que um time espera de quem chega do curso: nomes que revelam a intenção, funções que fazem uma coisa, erros que não se
+      escondem, validação no lugar certo, configuração fora do código e logs que ajudam a diagnosticar problemas reais.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>escolher nomes que comunicam intenção e eliminar comentários que apenas repetem o código;</li>
+      <li>decompor funções longas em partes com responsabilidades claras;</li>
+      <li>tratar erros de forma específica, sem engolir exceções nem devolver valores ambíguos;</li>
+      <li>posicionar a validação na borda do sistema e a regra de negócio no núcleo;</li>
+      <li>escrever logs úteis, sem vazar dados sensíveis.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="nomes" data-toc="Nomes e comentários" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tag text-amber-400 mr-2"></i>Teoria · Nomes que revelam a intenção</h2>
+  <div class="ah-prose">
+    <p>
+      Um nome é uma promessa sobre o que o elemento faz. Nomes bons dispensam comentários, e nomes ruins são comentários mentirosos esperando para
+      acontecer. Martin (2008) resume o critério: um nome deve dizer por que o elemento existe, o que ele faz e como é usado. Se você precisa de um comentário
+      para explicar o nome, o nome ainda não está bom.
+    </p>
+    <ul>
+      <li><strong>Evite abreviações obscuras:</strong> <code>qtd_dias_atr</code> obriga a decifrar; <code>dias_em_atraso</code> comunica.</li>
+      <li><strong>Evite nomes genéricos:</strong> <code>dados</code>, <code>info</code>, <code>manager</code>, <code>processa()</code> não dizem nada.</li>
+      <li><strong>Use o vocabulário do negócio:</strong> se o domínio fala de “empréstimo”, o código não deve falar de “transação de registro”.</li>
+      <li><strong>Nomes de booleanos são perguntas:</strong> <code>esta_atrasado</code>, <code>pode_renovar</code>. Um booleano chamado <code>status</code> obriga a consultar o contexto.</li>
+    </ul>
+    <p>
+      Comentários devem explicar o <strong>porquê</strong>, nunca o <strong>o que</strong>. <code>i += 1  # incrementa i</code> é ruído. Uma linha dizendo
+      que um limite de 30 dias existe por exigência de uma norma interna, e que não deve ser alterado sem consultar a área jurídica, é informação
+      que o código não consegue carregar sozinho.
+    </p>
+  </div>
+</section>
+
+<section id="funcoes" data-toc="Funções pequenas e responsabilidades" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-puzzle-piece text-amber-400 mr-2"></i>Teoria · Funções que fazem uma coisa</h2>
+  <div class="ah-prose">
+    <p>
+      Uma função deve fazer uma coisa, e fazê-la bem. O critério prático é que o leitor consiga descrever o que ela faz em uma frase sem usar a palavra “e”.
+      Quando a descrição precisa de “e”, há mais de uma responsabilidade, e a função provavelmente deveria ser duas.
+    </p>
+    <p>
+      Três sinais indicam que uma função merece ser dividida: ela tem muitos níveis de aninhamento, ela tem muitos parâmetros que são usados só em parte
+      do corpo, ou ela mistura os níveis de abstração (como calcular uma regra de negócio e formatar uma string de SQL no mesmo bloco). Extrair uma função
+      com um nome claro é, muitas vezes, a forma mais barata de documentar um trecho complexo.
+    </p>
+    <p>
+      Cuidado com o excesso. Dividir em funções minúsculas sem nome significativo espalha a lógica em dezenas de lugares e torna a leitura mais difícil,
+      não mais fácil. O objetivo é ter partes que façam sentido isoladamente.
+    </p>
+  </div>
+</section>
+
+<section id="erros" data-toc="Tratamento de erros" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-exclamation text-amber-400 mr-2"></i>Teoria · Erros que não se escondem</h2>
+  <div class="ah-prose">
+    <p>
+      O tratamento de erros é onde muitos sistemas perdem a confiabilidade. Há três posturas comuns, e só uma delas é aceitável:
+    </p>
+    <ul>
+      <li><strong>Engolir a exceção:</strong> um <code>except: pass</code> faz o erro desaparecer, e o problema reaparece depois, longe da causa. É a pior opção.</li>
+      <li><strong>Capturar tudo e devolver uma mensagem genérica:</strong> o sistema continua de pé, mas ninguém sabe o que deu errado, nem o usuário, nem quem opera.</li>
+      <li><strong>Capturar o específico e tratar com intenção:</strong> cada erro esperado tem um tipo próprio, que pode ser tratado, traduzido para uma resposta clara ou registrado com contexto. Erros inesperados sobem até um ponto que os registra.</li>
+    </ul>
+    <p>
+      Uma boa prática é a de <strong>falhar cedo</strong>: quando uma pré-condição não é satisfeita, lance o erro no ponto da violação, com uma mensagem que
+      diga o que estava errado. Assim, o erro aparece perto da causa, não dezenas de linhas depois com um valor <code>None</code> incompreensível.
+    </p>
+    <p>
+      Também evite devolver valores especiais como <code>-1</code> ou <code>None</code> para indicar falha, quando o chamador pode esquecer de verificar. Lance
+      uma exceção específica, ou use um tipo que torne a falha explícita, conforme a linguagem e o contexto. O exemplo desta página mostra a diferença.
+    </p>
+  </div>
+</section>
+
+<section id="validacao" data-toc="Validação na borda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-filter text-amber-400 mr-2"></i>Teoria · Validar na borda, decidir no núcleo</h2>
+  <div class="ah-prose">
+    <p>
+      Entrada de dados é sempre suspeita. Campos vazios, tipos errados, valores fora da faixa, JSON malformado: tudo isso chega. A validação deve acontecer
+      na borda do sistema, onde os dados entram, e deve verificar a forma (tipo, formato, obrigatoriedade). A <strong>regra de negócio</strong> (a quantidade
+      pode ou não ser maior que o estoque?) pertence ao núcleo, como visto no tópico 6.
+    </p>
+    <p>
+      A separação importa porque cada tipo de validação responde a uma pergunta diferente. “Quantidade é um inteiro positivo?” é uma pergunta de forma. “Há
+      estoque suficiente?” depende do estado do sistema. Misturar as duas torna a validação lenta, difícil de testar e propensa a inconsistências.
+    </p>
+    <p>
+      A animação desta página mostra o caminho de uma requisição por uma pipeline de validação, em duas versões: uma que passa e uma que é barrada, com
+      erro claro, e uma que mostra o anti-padrão de devolver um erro genérico.
+    </p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: a pipeline que barra o erro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-amber-400 mr-2"></i>Animação · Onde a requisição para</h2>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário e avance os passos. Na versão válida, a requisição atravessa todas as etapas. Na inválida, ela para na validação, e a resposta diz exatamente o que corrigir.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvValidacao" style="height:300px"></canvas></div>
+  <div id="ctlValidacao" class="mt-4"></div>
+  <div id="capValidacao" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo prático: antes e depois" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplo prático · Refatorando uma função de cobrança</h2>
+  <div class="ah-prose">
+    <p>
+      A versão abaixo funciona para o caso feliz, mas esconde erros, usa nomes vagos e mistura validação com regra de negócio e com efeito colateral.
+    </p>
+    <pre class="ah-code"><code># antes
+def cobra(d):
+    try:
+        v = d["valor"]
+        if v > 0:
+            r = gateway.cobra(d["cartao"], v)
+            return r
+    except:
+        pass
+    return None</code></pre>
+    <p>
+      Quem chama essa função recebe <code>None</code> em três situações diferentes: valor inválido, falha do gateway e erro de programação. Não há como
+      distinguir os casos, e o erro de programação (como uma chave ausente no dicionário) é silenciado. A versão abaixo corrige isso:
+    </p>
+    <pre class="ah-code"><code># depois
+class ValorInvalido(Exception):
+    pass
+
+class FalhaNaCobranca(Exception):
+    pass
+
+def valida_cobranca(pedido):
+    """Validação de forma e de faixa, na borda do sistema."""
+    if not isinstance(pedido.get("valor"), (int, float)):
+        raise ValorInvalido("valor deve ser numérico")
+    if pedido["valor"] <= 0:
+        raise ValorInvalido("valor deve ser maior que zero")
+
+def cobra_pedido(pedido, gateway):
+    valida_cobranca(pedido)                        # falha cedo, com mensagem clara
+    try:
+        return gateway.cobra(pedido["cartao"], pedido["valor"])
+    except ConnectionError as erro:
+        # traduz o erro técnico para o domínio, preservando a causa
+        raise FalhaNaCobranca("gateway indisponível, tente novamente") from erro</code></pre>
+    <p>
+      Agora, cada caso tem um tipo próprio. O chamador pode tratar <code>ValorInvalido</code> como erro do usuário, <code>FalhaNaCobranca</code> como algo a
+      reenviar mais tarde e qualquer outro erro como um bug que precisa aparecer nos logs. Nada é silenciado, e a cláusula <code>from erro</code> preserva
+      a causa original para quem depurar.
+    </p>
+  </div>
+</section>
+
+<section id="config" data-toc="Configuração e segredos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-amber-400 mr-2"></i>Teoria · Configuração fora do código</h2>
+  <div class="ah-prose">
+    <p>
+      Um sistema que roda em mais de um ambiente (desenvolvimento, homologação, produção) precisa de valores diferentes para endereços de banco,
+      chaves de API e limites. Esses valores não devem estar no código. A metodologia The Twelve-Factor App, proposta por Wiggins (2011), recomenda guardar
+      a configuração em variáveis de ambiente, e isso continua sendo a abordagem mais simples e portátil.
+    </p>
+    <ul>
+      <li><strong>Configuração</strong> (endereços, limites, flags) muda por ambiente e pode ficar em variáveis de ambiente ou em arquivos de exemplo versionados.</li>
+      <li><strong>Segredos</strong> (senhas, chaves, tokens) nunca são versionados. Usam um cofre de segredos da plataforma ou variáveis de ambiente injetadas em tempo de execução.</li>
+      <li><strong>Valores padrão seguros:</strong> se uma variável não existir, o sistema deve falhar com mensagem clara, ou usar um padrão que não cause dano, nunca um valor de produção escondido no código.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="logs" data-toc="Logs úteis" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-receipt text-amber-400 mr-2"></i>Teoria · Logs que ajudam a diagnosticar</h2>
+  <div class="ah-prose">
+    <p>
+      Um log é um registro do que o sistema fez e do que aconteceu com ele. Um bom log responde, sem precisar reproduzir o problema, a pergunta “o que
+      aconteceu com esta requisição?”. Três cuidados fazem a diferença:
+    </p>
+    <ul>
+      <li><strong>Níveis com significado:</strong> <code>DEBUG</code> para detalhes de investigação, <code>INFO</code> para eventos normais relevantes, <code>WARNING</code> para situações anormais que o sistema contornou, <code>ERROR</code> para falhas que exigem atenção.</li>
+      <li><strong>Contexto:</strong> identificador da requisição ou do pedido, usuário (de forma não sensível), operação e duração. Sem contexto, a mensagem “erro ao salvar” não serve para nada.</li>
+      <li><strong>Sem dados sensíveis:</strong> nunca registre senhas, números de cartão, tokens ou dados pessoais em texto puro. Mascare o que for necessário.</li>
+    </ul>
+    <p>
+      Logs estruturados (pares chave-valor ou JSON) são mais fáceis de pesquisar e agregar do que frases livres. Em vez de “pedido 42 cobrado”, registre
+      <code>evento=cobranca_ok pedido_id=42 valor=80.00</code>. A pergunta “quantas cobranças falharam hoje?” passa a ter resposta em segundos.
+    </p>
+  </div>
+</section>
+
+<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-amber-400 mr-2"></i>Boas práticas</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Leia o código em voz alta.</strong> Se a leitura soa estranha, o nome ou a estrutura provavelmente precisam mudar.</li>
+      <li><strong>Siga o padrão do projeto.</strong> Consistência vale mais do que a preferência pessoal. Um formatador automático resolve a maior parte das discussões.</li>
+      <li><strong>Nunca use <code>except</code> sem tipo.</strong> Capture a exceção específica que você sabe tratar.</li>
+      <li><strong>Trate o erro no nível que sabe lidar com ele.</strong> Se a camada baixa não sabe o que fazer, deixe a exceção subir, traduzida para o vocabulário adequado.</li>
+      <li><strong>Escreva logs como se fossem lidos por um estranho às 3 da manhã.</strong> Porque, em algum momento, serão.</li>
+      <li><strong>Revise cada comentário.</strong> Comentário desatualizado é pior do que nenhum.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Problemas comuns</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Erro some sem deixar rastro</td><td><code>except: pass</code> ou captura ampla demais</td><td>Capturar tipos específicos e registrar os inesperados</td></tr>
+        <tr><td>“Erro ao processar” sem nenhum detalhe</td><td>Mensagem genérica e log sem contexto</td><td>Incluir identificadores e a causa original na mensagem e no log</td></tr>
+        <tr><td><code>None</code> chegando onde não deveria</td><td>Falha silenciosa que devolve valor vazio</td><td>Lançar exceção no ponto da falha; validar pré-condições</td></tr>
+        <tr><td>Senha de banco no código-fonte</td><td>Configuração misturada com código</td><td>Mover para variável de ambiente ou cofre de segredos; trocar a senha exposta</td></tr>
+        <tr><td>Logs enormes e nenhum útil</td><td>Log em excesso no nível INFO e sem estrutura</td><td>Ajustar os níveis e registrar eventos de negócio com campos fixos</td></tr>
+        <tr><td>Dados pessoais aparecendo nos logs</td><td>Registro de objetos inteiros</td><td>Registrar apenas os campos necessários e mascarar os sensíveis</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Armadilha frequente:</strong> capturar a exceção só para registrá-la e depois relançá-la sem contexto, o que duplica linhas de log. Registre no ponto onde o erro é tratado de fato, uma vez, com contexto suficiente.</div>
+  </div>
+</section>
+
+<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Dicas de aplicação</h2>
+  <div class="ah-prose">
+    <p>
+      No seu próximo projeto, faça uma leitura de revisão antes de cada entrega com três perguntas: há algum nome que eu precisei explicar? Há algum
+      <code>except</code> genérico? Há algum valor de configuração escrito direto no código? Cada resposta “sim” aponta uma melhoria concreta, de custo baixo.
+    </p>
+    <p>
+      Teste o log do seu sistema: execute uma operação que falha e tente responder, apenas olhando o log, o que aconteceu, para qual pedido, por qual motivo
+      e o que fazer. Se não conseguir, o log precisa de contexto.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual comentário é mais útil em um código?</p>
+      <button class="ah-quiz-opt"><code>// incrementa o contador</code> antes de <code>contador++</code></button>
+      <button class="ah-quiz-opt"><code>// o limite de 30 dias vem da norma interna 12/2024; não altere sem consultar o jurídico</code></button>
+      <button class="ah-quiz-opt"><code>// TODO: arrumar depois</code> sem nome de responsável</button>
+      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. O comentário explica o porquê, algo que o código não consegue dizer. Os outros repetem o código ou não dizem nada acionável.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma função captura qualquer exceção, registra “erro interno” e devolve <code>None</code>. Qual é o principal problema?</p>
+      <button class="ah-quiz-opt">Erros diferentes ficam indistinguíveis para quem chama e para quem opera, e erros de programação somem</button>
+      <button class="ah-quiz-opt">O código fica longo demais para ser lido</button>
+      <button class="ah-quiz-opt">Não há problema, desde que o erro seja registrado</button>
+      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. Registrar uma mensagem genérica não basta: se todos os erros viram o mesmo caso, quem chama não sabe como reagir, e bugs de programação passam despercebidos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Código é lido muito mais do que é escrito. Nomes e estrutura são investimento de leitura.</li>
+    <li>Comentários explicam o porquê. O que o código já diz não precisa de comentário.</li>
+    <li>Erros específicos, tratados com intenção. Nada de <code>except</code> genérico nem de falha silenciosa.</li>
+    <li>Valide a forma na borda e a regra no núcleo. Falhe cedo, com mensagem clara.</li>
+    <li>Configuração e segredos ficam fora do código. Logs têm contexto e não expõem dados sensíveis.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>MARTIN, R. C. <em>Clean Code: A Handbook of Agile Software Craftsmanship</em>. Upper Saddle River: Prentice Hall, 2008. Capítulos sobre nomes, funções, comentários e tratamento de erros.</li>
+    <li>HUNT, A.; THOMAS, D. <em>The Pragmatic Programmer</em>. 20th Anniversary Edition. Boston: Addison-Wesley, 2019. Princípios sobre código e erros.</li>
+    <li>WIGGINS, A. The Twelve-Factor App. 2011. Disponível em 12factor.net. Configuração em variáveis de ambiente e logs como fluxo de eventos.</li>
+    <li>PYTHON SOFTWARE FOUNDATION. <em>Documentação da linguagem</em>: exceções e o módulo <code>logging</code>. Disponível em docs.python.org.</li>
+    <li>MARTIN, R. C. <em>Clean Architecture</em>. Upper Saddle River: Prentice Hall, 2017. Separação entre regras de negócio e detalhes técnicos.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/engenharia.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  ED.criaAnimacao({
+    canvas: 'cvValidacao', ctl: 'ctlValidacao', cap: 'capValidacao',
+    desenha: ENG.desenhaValidacao, gera: ENG.geraValidacao, velocidade: 2600,
+    opcoes: [
+      { v: 'valido', rotulo: 'Requisição válida' },
+      { v: 'invalido', rotulo: 'Requisição inválida' }
+    ]
+  });
+
+})();
+</script>
+</body>
+</html>
