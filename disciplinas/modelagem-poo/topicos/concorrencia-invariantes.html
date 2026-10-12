@@ -72,6 +72,33 @@
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: limite de crédito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-credit-card text-fuchsia-400 mr-2"></i>Exemplo passo a passo: limite de crédito que não estoura</h2>
+  <p class="ah-lead text-sm mb-5">Um cartão tem limite de R$ 1.000. Duas compras de R$ 600 chegam ao mesmo tempo. O invariante “uso não passa do limite” precisa valer.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — identificar o invariante e o estado compartilhado</h3>
+  <p class="ah-prose text-sm">Invariante: <code>usado ≤ limite</code>. Estado compartilhado: o campo <code>usado</code>. A operação <em>autorizar</em> lê, compara e escreve. Esses três passos precisam ser atômicos em relação às outras autorizações.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a versão com monitor</h3>
+  <pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Cartao</span> {
+    <span class="kw">private final long</span> limite;
+    <span class="kw">private long</span> usado = <span class="num">0</span>;
+
+    <span class="kw">public synchronized boolean</span> <span class="fn">autorizar</span>(<span class="kw">long</span> valor) {
+        <span class="kw">if</span> (usado + valor &gt; limite) <span class="kw">return false</span>;   <span class="cm">// lê e compara</span>
+        usado += valor;                              <span class="cm">// escreve</span>
+        <span class="kw">return true</span>;
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Com <code>synchronized</code>, a segunda compra espera a primeira terminar. Resultado: a primeira é aprovada (usado = 600), e a segunda é recusada (600 + 600 &gt; 1000). Nenhuma das duas consegue ver o estado pela metade.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o erro da versão sem lock</h3>
+  <p class="ah-prose text-sm">Sem <code>synchronized</code>, as duas podem ler <code>usado = 0</code>, ambas passam na comparação e ambas são aprovadas. Mas as escritas se sobrepõem: a segunda sobrescreve a primeira, e o registro fica em 600. O cartão autoriza R$ 1.200 com limite de R$ 1.000, e o sistema não percebe, porque o contador perdeu uma compra. O defeito não aparece em testes sequenciais, só sob concorrência.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> sincronizar só a escrita (<code>usado += valor</code>) e deixar a leitura fora do bloco. A comparação continua usando um valor possivelmente antigo, e o invariante volta a quebrar.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>

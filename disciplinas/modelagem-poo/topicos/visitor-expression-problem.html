@@ -63,6 +63,43 @@
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: árvore de arquivos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-folder-tree text-fuchsia-400 mr-2"></i>Exemplo passo a passo: operações sobre uma árvore de arquivos</h2>
+  <p class="ah-lead text-sm mb-5">Pastas contêm arquivos e outras pastas. Queremos calcular o tamanho, listar nomes e verificar permissões. Cada operação é um visitante, e a estrutura não muda.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — a estrutura selada</h3>
+  <pre class="ah-code"><code><span class="kw">sealed interface</span> <span class="ty">No</span> <span class="kw">permits</span> <span class="ty">Arquivo</span>, <span class="ty">Pasta</span> {
+    &lt;R&gt; R <span class="fn">aceitar</span>(<span class="ty">VisitanteNo</span>&lt;R&gt; v);
+}
+<span class="kw">record</span> <span class="ty">Arquivo</span>(String nome, <span class="kw">long</span> bytes, <span class="kw">boolean</span> publico) <span class="kw">implements</span> <span class="ty">No</span> {
+    <span class="kw">public</span> &lt;R&gt; R <span class="fn">aceitar</span>(<span class="ty">VisitanteNo</span>&lt;R&gt; v) { <span class="kw">return</span> v.arquivo(<span class="kw">this</span>); }
+}
+<span class="kw">record</span> <span class="ty">Pasta</span>(String nome, List&lt;<span class="ty">No</span>&gt; filhos) <span class="kw">implements</span> <span class="ty">No</span> {
+    <span class="kw">public</span> &lt;R&gt; R <span class="fn">aceitar</span>(<span class="ty">VisitanteNo</span>&lt;R&gt; v) { <span class="kw">return</span> v.pasta(<span class="kw">this</span>); }
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — uma operação como visitante</h3>
+  <pre class="ah-code"><code><span class="kw">interface</span> <span class="ty">VisitanteNo</span>&lt;R&gt; {
+    R <span class="fn">arquivo</span>(<span class="ty">Arquivo</span> a);
+    R <span class="fn">pasta</span>(<span class="ty">Pasta</span> p);
+}
+
+<span class="kw">static final class</span> <span class="ty">Tamanho</span> <span class="kw">implements</span> <span class="ty">VisitanteNo</span>&lt;Long&gt; {
+    <span class="kw">public</span> Long <span class="fn">arquivo</span>(<span class="ty">Arquivo</span> a) { <span class="kw">return</span> a.bytes(); }
+    <span class="kw">public</span> Long <span class="fn">pasta</span>(<span class="ty">Pasta</span> p) {
+        <span class="kw">long</span> total = <span class="num">0</span>;
+        <span class="kw">for</span> (<span class="ty">No</span> filho : p.filhos()) total += filho.aceitar(<span class="kw">this</span>);
+        <span class="kw">return</span> total;
+    }
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — adicionar operação sem mexer na estrutura</h3>
+  <p class="ah-prose text-sm">Para verificar permissões, criamos um novo <code>VisitanteNo&lt;Boolean&gt;</code> que retorna se todos os arquivos são públicos. Os records <code>Arquivo</code> e <code>Pasta</code> não mudam. Isso é o lado favorável do expression problem.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>O custo do outro lado:</strong> se amanhã surgir um tipo <code>Atalho</code>, todos os visitantes precisam ganhar um método novo. O compilador aponta cada um, e isso é justamente o que o tipo selado garante.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>

@@ -70,6 +70,33 @@ Musica m = musicas.get(0);              // ...mas aqui seria um Podcast dentro d
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: relatórios de RH" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-fuchsia-400 mr-2"></i>Exemplo passo a passo: relatórios de um sistema de RH</h2>
+  <p class="ah-lead text-sm mb-5">Um gerador de relatórios aceita listas de funcionários, gerentes e estagiários. Cada método precisa de um tipo diferente de wildcard, e a escolha errada aparece como erro de compilação.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o método que só lê</h3>
+  <pre class="ah-code"><code><span class="kw">static double</span> <span class="fn">folhaTotal</span>(List&lt;? <span class="kw">extends</span> <span class="ty">Funcionario</span>&gt; equipe) {
+    <span class="kw">double</span> total = <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="ty">Funcionario</span> f : equipe) total += f.salario();   <span class="cm">// leitura: seguro</span>
+    <span class="kw">return</span> total;
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">A lista pode ser de gerentes, de estagiários ou de qualquer mistura. Tentar fazer <code>folhaTotal</code> aceitar <code>List&lt;? super Funcionario&gt;</code> falharia: o método leria <code>Object</code>, não <code>Funcionario</code>.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o método que só escreve</h3>
+  <pre class="ah-code"><code><span class="kw">static void</span> <span class="fn">contratar</span>(List&lt;? <span class="kw">super</span> <span class="ty">Estagiario</span>&gt; destino, <span class="kw">int</span> vagas) {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; vagas; i++) destino.add(<span class="kw">new</span> <span class="ty">Estagiario</span>(<span class="str">"novo-"</span> + i));
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Aqui vale <code>? super</code>: a lista pode ser de <code>Estagiario</code> ou de <code>Funcionario</code>, porque todo estagiário cabe nela. A regra de bolso do PECS resolve a decisão sem precisar de intuição.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o erro que o compilador aponta</h3>
+  <pre class="ah-code"><code>List&lt;Gerente&gt; gerentes = <span class="kw">new</span> ArrayList&lt;&gt;();
+contratar(gerentes, <span class="num">2</span>);   <span class="cm">// erro: Gerente não é supertipo de Estagiario</span></code></pre>
+  <p class="ah-prose text-sm mt-3">O erro é a informação mais valiosa do exemplo: a tentativa de contratar estagiários dentro de uma lista de gerentes foi bloqueada antes de rodar.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> resolver o erro de compilação trocando por <code>List&lt;Object&gt;</code> ou por um cast. O erro estava dizendo que a operação estava incorreta para aquele tipo; o cast esconde a informação e transforma a violação em falha em execução.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>

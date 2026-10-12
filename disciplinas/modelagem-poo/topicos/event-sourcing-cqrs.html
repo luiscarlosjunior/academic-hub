@@ -84,6 +84,32 @@ flowchart LR
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: estoque de um armazém" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-warehouse text-fuchsia-400 mr-2"></i>Exemplo passo a passo: movimentações de um armazém</h2>
+  <p class="ah-lead text-sm mb-5">Em vez de guardar a quantidade atual de cada produto, guardamos cada entrada e saída. A quantidade é o resultado de somar o histórico.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — os fatos</h3>
+  <pre class="ah-code"><code><span class="kw">sealed interface</span> <span class="ty">Movimento</span> <span class="kw">permits</span> <span class="ty">Entrada</span>, <span class="ty">Saida</span> {}
+<span class="kw">record</span> <span class="ty">Entrada</span>(String sku, <span class="kw">int</span> quantidade, String motivo) <span class="kw">implements</span> <span class="ty">Movimento</span> {}
+<span class="kw">record</span> <span class="ty">Saida</span>(String sku, <span class="kw">int</span> quantidade, String pedido) <span class="kw">implements</span> <span class="ty">Movimento</span> {}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a quantidade é uma dobra</h3>
+  <pre class="ah-code"><code><span class="kw">static int</span> <span class="fn">quantidadeAtual</span>(String sku, List&lt;<span class="ty">Movimento</span>&gt; historico) {
+    <span class="kw">int</span> q = <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="ty">Movimento</span> m : historico) {
+        <span class="kw">if</span> (m <span class="kw">instanceof</span> <span class="ty">Entrada</span> e &amp;&amp; e.sku().equals(sku)) q += e.quantidade();
+        <span class="kw">else if</span> (m <span class="kw">instanceof</span> <span class="ty">Saida</span> s &amp;&amp; s.sku().equals(sku)) q -= s.quantidade();
+    }
+    <span class="kw">return</span> q;
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — a pergunta que o histórico responde</h3>
+  <p class="ah-prose text-sm">“Quantas unidades tínhamos na terça?” é respondido por <code>quantidadeAtual</code> aplicada ao histórico até terça. Com um estado guardado, essa pergunta seria impossível sem uma tabela de auditoria paralela. Aqui é a mesma função com uma lista menor.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Quando usar:</strong> quando “como chegamos aqui?” importa tanto quanto “onde estamos”, como em estoque, financeiro e auditoria. Para um cadastro de categorias, o estado simples basta.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>

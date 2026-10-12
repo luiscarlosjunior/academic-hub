@@ -82,6 +82,44 @@ stateDiagram-v2
   </div>
 </section>
 
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: controle de acesso à sala" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-door-closed text-fuchsia-400 mr-2"></i>Exemplo passo a passo: porta de sala com alarme</h2>
+  <p class="ah-lead text-sm mb-5">Uma sala de servidores tem porta com cartão e alarme. Propriedade de segurança: a porta nunca fica aberta com o alarme armado. Vamos verificar à mão, antes de codificar.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o modelo de estados</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; FechadaArmada
+    FechadaArmada --&gt; AbertaDesarmada : cartaoValido
+    AbertaDesarmada --&gt; FechadaDesarmada : fechar
+    FechadaDesarmada --&gt; FechadaArmada : armar
+    FechadaDesarmada --&gt; AbertaDesarmada : cartaoValido
+    FechadaArmada --&gt; Alarmada : invasao
+    </pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — enumerar os estados alcançáveis</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Passo</th><th>Estado</th><th>Porta aberta e alarme armado?</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>FechadaArmada</td><td>não</td></tr>
+        <tr><td>1</td><td>AbertaDesarmada (cartaoValido)</td><td>não (desarmado)</td></tr>
+        <tr><td>2</td><td>FechadaDesarmada (fechar)</td><td>não</td></tr>
+        <tr><td>3</td><td>FechadaArmada (armar)</td><td>não</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="ah-prose text-sm mt-3">A busca em largura visita esses estados e nenhum deles viola a propriedade. Por isso ela vale: a verificação cobriu todos os estados alcançáveis deste modelo.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o defeito que a verificação encontraria</h3>
+  <p class="ah-prose text-sm">Imagine uma transição extra, <code>AbertaArmada --&gt; ...</code>, criada por um desenvolvedor que quis permitir que o cartão abrisse a porta durante a armação. O checker geraria o contraexemplo mais curto: <code>cartaoValido</code> seguido de <code>armar</code> leva a um estado aberto e armado. A correção é remover a transição, não ajustar o teste.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Como ler o resultado:</strong> uma verificação sem violação não prova que o sistema é seguro no mundo real. Prova que o <em>modelo</em> é seguro. A qualidade do resultado depende de o modelo representar as transições que existem de fato.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-fuchsia-400 mr-2"></i>Exemplo executável</h2>
   <p class="ah-lead text-sm mb-5">Código completo e compilável, em Java 17, com <code>-Xlint:all</code> sem avisos.</p>
