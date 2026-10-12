@@ -356,7 +356,10 @@ const AH_DATA = {
           tags: ['Governança', 'Adoção', 'Equipe'], nivel: 'Avançado', minutos: 40 },
         { id: '16-projeto-integrador', titulo: 'Projeto integrador: um design system de ponta a ponta', icone: 'fa-flag-checkered',
           resumo: 'Roteiro de entrega que junta tokens, componentes, hospedagem, pipeline e operação, com rubrica de avaliação e checklist final.',
-          tags: ['Projeto', 'Rubrica', 'Portfólio'], nivel: 'Certificação', minutos: 60 }
+          tags: ['Projeto', 'Rubrica', 'Portfólio'], nivel: 'Certificação', minutos: 60 },
+        { id: '17-well-architected', titulo: 'Well-Architected Framework: os seis pilares de forma simples', icone: 'fa-house-circle-check',
+          resumo: 'Um guia de revisão de arquiteturas na AWS: os seis pilares explicados por analogia, o ciclo de revisão, os trade-offs e casos reais.',
+          tags: ['Well-Architected', 'Pilares', 'Trade-offs'], nivel: 'Introdutório', minutos: 45 }
       ]
     },
     {

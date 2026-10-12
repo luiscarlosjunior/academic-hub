@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Well-Architected Framework: os seis pilares de forma simples · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Introdução ao AWS Well-Architected Framework: os seis pilares explicados por analogia, o ciclo de revisão, os trade-offs entre pilares, casos reais documentados, vantagens e desvantagens.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/17-well-architected">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-house-circle-check text-orange-400 mr-2"></i>Tópico 17 · Well-Architected Framework</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>AWS Well-Architected Framework</strong> é um conjunto de boas práticas para avaliar e aperfeiçoar sistemas construídos na
+      nuvem. Ele organiza o julgamento técnico em seis pilares e fornece perguntas que permitem revisar uma carga de trabalho de forma
+      sistemática. Este tópico apresenta o framework de maneira progressiva: primeiro a intuição, depois a estrutura formal e, por fim, sua
+      aplicação em casos reais e suas limitações.
+    </p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final desta página, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>explicar, com linguagem própria, o propósito de cada um dos seis pilares;</li>
+      <li>descrever o ciclo de revisão de uma arquitetura e os seus produtos;</li>
+      <li>identificar trade-offs entre pilares e justificar uma decisão de compromisso;</li>
+      <li>analisar casos reais documentados e extrair deles lições de projeto;</li>
+      <li>avaliar as vantagens e as limitações do framework como instrumento de revisão.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="intuicao" data-toc="Compreensão inicial: a analogia da casa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-house text-orange-400 mr-2"></i>Compreensão inicial · a analogia da casa</h2>
+  <div class="ah-prose">
+    <p>
+      Uma forma útil de compreender o framework é imaginar uma casa. Ninguém a considera bem construída apenas porque é bonita. Uma casa bem
+      projetada tem fechaduras e alarme, uma fundação que resiste a tempestades, um quadro elétrico com reserva, um dimensionamento compatível
+      com o número de moradores, um orçamento de manutenção e um consumo de energia razoável. Cada uma dessas qualidades corresponde a um dos
+      pilares. A analogia não é perfeita, mas ela permite perguntar, de forma concreta, se algo importante foi esquecido.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Pilar</th><th>Equivalente na casa</th><th>Pergunta simples</th></tr></thead>
+      <tbody>
+        <tr><td>Excelência operacional</td><td>Manual de manutenção e rotina de inspeção</td><td>Sabemos quando algo está errado?</td></tr>
+        <tr><td>Segurança</td><td>Fechaduras, alarme e controle das chaves</td><td>Quem entra, e como percebemos uma invasão?</td></tr>
+        <tr><td>Confiabilidade</td><td>Fundação e quadro elétrico com reserva</td><td>A casa continua de pé quando algo falha?</td></tr>
+        <tr><td>Eficiência de desempenho</td><td>Tamanho dos cômodos para a família</td><td>O espaço atende ao uso real?</td></tr>
+        <tr><td>Otimização de custos</td><td>Contas de luz e água sem desperdício</td><td>Pagamos apenas pelo que usamos?</td></tr>
+        <tr><td>Sustentabilidade</td><td>Isolamento térmico e consumo de energia</td><td>O uso de recursos é o mínimo necessário?</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="pilares" data-toc="Teoria: os seis pilares" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria · os seis pilares</h2>
+  <div class="ah-prose">
+    <p>
+      O framework foi originalmente estruturado em cinco pilares e recebeu o pilar de sustentabilidade posteriormente. Cada pilar é definido
+      por um conjunto de <em>princípios de projeto</em>, que são afirmações gerais sobre boas práticas, e por <em>perguntas</em> que orientam a
+      revisão. Os princípios indicam a direção; as perguntas indicam o que observar. A seguir, cada pilar é descrito em termos conceituais.
+    </p>
+    <p>
+      <strong>Excelência operacional</strong> trata da capacidade de executar, monitorar e aprimorar sistemas. Seus princípios enfatizam a
+      automação de operações, a realização de mudanças pequenas e reversíveis e a aprendizagem a partir de incidentes.
+    </p>
+    <p>
+      <strong>Segurança</strong> concerne à proteção de informações, sistemas e ativos, com a gestão de identidades, a aplicação de controles
+      em todas as camadas e a preparação para responder a incidentes. Um dos princípios centrais é o de mínimo privilégio, já estudado no
+      tópico 8.
+    </p>
+    <p>
+      <strong>Confiabilidade</strong> refere-se à capacidade de o sistema cumprir sua função prevista ao longo do tempo, inclusive na
+      presença de falhas. Seus princípios incluem a recuperação automática, a testagem dos procedimentos de recuperação e a eliminação de pontos
+      únicos de falha.
+    </p>
+    <p>
+      <strong>Eficiência de desempenho</strong> diz respeito ao uso de recursos computacionais compatíveis com a demanda, com a revisão contínua
+      das escolhas à medida que a carga evolui. <strong>Otimização de custos</strong> busca eliminar gastos que não agregam valor, sem
+      comprometer os resultados de negócio. <strong>Sustentabilidade</strong> trata da redução do impacto ambiental, por meio do uso eficiente
+      de energia e de recursos materiais.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Pilar</th><th>Objetivo central</th><th>Exemplo de decisão no design system</th></tr></thead>
+      <tbody>
+        <tr><td>Excelência operacional</td><td>Operar e melhorar continuamente</td><td>Publicar por pipeline automatizado (tópico 6)</td></tr>
+        <tr><td>Segurança</td><td>Proteger dados e sistemas</td><td>Bucket privado com OAC (tópico 4)</td></tr>
+        <tr><td>Confiabilidade</td><td>Resistir a falhas e recuperar-se</td><td>Implantação Multi-AZ do banco (tópico 11)</td></tr>
+        <tr><td>Eficiência de desempenho</td><td>Adequar recursos à demanda</td><td>Divisão de código por rota (tópico 14)</td></tr>
+        <tr><td>Otimização de custos</td><td>Evitar gastos sem retorno</td><td>Regras de ciclo de vida no S3 (tópico 11)</td></tr>
+        <tr><td>Sustentabilidade</td><td>Minimizar o consumo de recursos</td><td>Cache que reduz processamento repetido (tópico 4)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="operacao1" data-toc="Operação 1: as perguntas de cada pilar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Operação 1 · Percorrendo os pilares</h2>
+  <div class="ah-prose">
+    <p>
+      A animação a seguir percorre os seis pilares em sequência. Em cada quadro, o pilar destacado é acompanhado de sua pergunta-chave. A
+      intenção é que o estudante associe cada pilar a um tipo de pergunta, em vez de memorizar listas de termos.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: os seis pilares e suas perguntas</h3>
+  <p class="ah-lead text-sm mb-4">Avance pelos quadros para percorrer os pilares. A legenda apresenta o princípio e a pergunta correspondentes.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvWaPilares" style="height:300px"></canvas></div>
+  <div id="ctlWaPilares" class="mt-4"></div>
+  <div id="capWaPilares" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <div class="ah-prose mt-5">
+    <p>
+      Observe que o pilar de confiabilidade aparece com o rótulo “Confiança” por motivo de espaço no diagrama. A designação formal permanece
+      “confiabilidade” e é a utilizada na documentação oficial. Essa convenção de nomenclatura deve ser mantida em relatórios técnicos.
+    </p>
+  </div>
+</section>
+
+<section id="operacao2" data-toc="Operação 2: o ciclo de revisão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-orange-400 mr-2"></i>Operação 2 · O ciclo de revisão</h2>
+  <div class="ah-prose">
+    <p>
+      O framework não é um documento para ser lido uma única vez. Ele é usado em um ciclo: delimita-se a carga de trabalho, avaliam-se os
+      pilares, transformam-se os achados em riscos, planejam-se ações com responsáveis e, por fim, medem-se os resultados. Como a arquitetura
+      muda, o ciclo se repete. A animação compara uma revisão completa com uma revisão restrita ao pilar de custos, cujo efeito é ilustrado no
+      último quadro.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: revisão completa e revisão restrita</h3>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Na revisão restrita, o quadro de riscos fica incompleto, o que expõe o problema em destaque.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvWaCiclo" style="height:300px"></canvas></div>
+  <div id="ctlWaCiclo" class="mt-4"></div>
+  <div id="capWaCiclo" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <div class="ah-prose mt-5">
+    <p>
+      O produto mais importante do ciclo é o <strong>registro de riscos</strong>. Ele organiza, em uma única tabela, cada achado com sua
+      classificação, seu responsável e seu prazo. A estrutura mínima está descrita abaixo.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Markdown · modelo de registro de riscos</p>
+<pre class="ah-code"><code># Registro de riscos · carga: portal de documentação
+
+| ID   | Pilar          | Achado                                   | Impacto | Probabilidade | Ação                          | Responsável     | Prazo      |
+|------|----------------|------------------------------------------|---------|---------------|-------------------------------|-----------------|------------|
+| R-01 | Segurança      | Bucket sem bloqueio de acesso público    | Alto    | Média         | Ativar Block Public Access    | Plataforma      | 2026-10-20 |
+| R-02 | Confiabilidade | Banco sem implantação Multi-AZ           | Alto    | Baixa         | Migrar para Multi-AZ          | Dados           | 2026-11-15 |
+| R-03 | Custos         | Ciclo de vida do S3 não configurado      | Baixo   | Alta          | Criar regra para builds antigos | Plataforma    | 2026-10-30 |
+
+Medição: custo mensal e número de achados abertos, comparados à revisão anterior.</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela transforma uma opinião (“o sistema parece inseguro”) em um registro rastreável. A ordenação
+      por impacto e probabilidade define a prioridade, e o responsável torna a ação executável. A coluna de prazo, quando ausente, indica que
+      o achado não foi tratado, e não que está resolvido.
+    </p>
+  </div>
+</section>
+
+<section id="tradeoffs" data-toc="Operação 3: trade-offs entre pilares" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-orange-400 mr-2"></i>Operação 3 · Trade-offs entre pilares</h2>
+  <div class="ah-prose">
+    <p>
+      Os pilares frequentemente entram em tensão. Melhorar um pode piorar outro, e a arquitetura resulta de compromissos explícitos. Na
+      literatura de arquitetura de software, esses compromissos são denominados <em>trade-offs</em> e são tratados como decisões de projeto
+      que devem ser registradas. Bass, Clements e Kazman (2012) enfatizam que os atributos de qualidade não podem ser maximizados
+      simultaneamente, e que a arquitetura deve refletir a priorização acordada com as partes interessadas.
+    </p>
+    <p>
+      O exemplo a seguir ilustra um trade-off comum: a criptografia de dados em trânsito e em repouso. Ela eleva a segurança, mas introduz
+      custo de processamento e pequena latência adicional. A decisão correta depende do contexto, e não de uma regra universal.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Decisão</th><th>Efeito positivo</th><th>Efeito negativo</th><th>Quando se justifica</th></tr></thead>
+      <tbody>
+        <tr><td>Criptografar todos os dados em repouso</td><td>Segurança: protege contra acesso físico e a mídia descartada</td><td>Custo de chaves e pequena sobrecarga de processamento</td><td>Quase sempre; em dados pessoais, é exigência legal</td></tr>
+        <tr><td>Manter réplica em outra região</td><td>Confiabilidade: sobrevive à perda de uma região inteira</td><td>Custo de armazenamento e de transferência</td><td>Quando a indisponibilidade tem custo alto para o negócio</td></tr>
+        <tr><td>Reservar capacidade de computação</td><td>Desempenho: resposta estável em picos previsíveis</td><td>Custo de capacidade ociosa</td><td>Quando a carga é previsível e a latência é crítica</td></tr>
+        <tr><td>Usar uma única conta para todos os ambientes</td><td>Custos: menos administração e menor custo fixo</td><td>Segurança e operação: o erro de um ambiente afeta os demais</td><td>Raramente; em geral, não se justifica em produção</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação:</strong> a tabela não indica uma resposta única. Ela mostra que cada decisão tem um custo que precisa ser
+      declarado. Uma arquitetura madura não é aquela que não tem trade-offs, e sim aquela em que os trade-offs foram identificados, aceitos
+      por quem responde pelo negócio e revisados quando o contexto muda.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo didático resolvido" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Exemplo didático resolvido</h2>
+  <div class="ah-prose">
+    <p>
+      Considere um blog de notícias hospedado na AWS. Ele é um site estático, com um painel administrativo para os editores, protegido por
+      senha. Os artigos ficam em um bucket S3 e são servidos por uma distribuição CloudFront. A seguir, o blog é avaliado com uma pergunta por
+      pilar, com a resposta fundamentada.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Pilar</th><th>Pergunta de revisão</th><th>Achado fundamentado</th></tr></thead>
+      <tbody>
+        <tr><td>Excelência operacional</td><td>Como publicamos e sabemos que a publicação funcionou?</td><td>Não há pipeline; a publicação é manual. Recomenda-se automatizá-la e incluir um teste de fumaça após cada deploy.</td></tr>
+        <tr><td>Segurança</td><td>Quem acessa o painel e o bucket?</td><td>O painel usa senha compartilhada entre editores. Recomenda-se autenticação individual e o bucket com acesso restrito à distribuição.</td></tr>
+        <tr><td>Confiabilidade</td><td>O que acontece se a origem falhar?</td><td>A distribuição mantém cópias em cache, o que atenua falhas curtas. Para falhas longas, a página de erro deve ser personalizada.</td></tr>
+        <tr><td>Eficiência de desempenho</td><td>Os recursos atendem à carga atual?</td><td>Como o conteúdo é estático, o desempenho é adequado. Imagens grandes devem ser redimensionadas antes da publicação.</td></tr>
+        <tr><td>Otimização de custos</td><td>Estamos pagando por algo sem uso?</td><td>Versões antigas de artigos permanecem no bucket sem expiração. Recomenda-se uma regra de ciclo de vida.</td></tr>
+        <tr><td>Sustentabilidade</td><td>Há processamento ou transferência desnecessários?</td><td>O cache reduz a carga na origem. Imagens com resolução excessiva aumentam a transferência sem benefício para o leitor.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Análise.</strong> O exemplo mostra que a revisão não exige infraestrutura complexa. A maior parte dos achados concerne a práticas
+      operacionais e de acesso, e não à tecnologia escolhida. Essa observação é recorrente na literatura: muitos riscos decorrem de
+      processos e de permissões mal definidas. Por isso, o pilar de excelência operacional e o de segurança costumam ser os primeiros a
+      apresentar achados.
+    </p>
+  </div>
+</section>
+
+<section id="casos" data-toc="Casos reais documentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-newspaper text-orange-400 mr-2"></i>Casos reais documentados</h2>
+  <div class="ah-prose">
+    <p>
+      Os três casos a seguir são documentados publicamente, por relatórios oficiais, comunicados das empresas ou análises de órgãos
+      reguladores. Eles ilustram pilares distintos e permitem discutir como as práticas do framework se relacionam com eventos concretos. As
+      descrições são resumidas, e as fontes originais devem ser consultadas para os detalhes.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Caso 1 · Incidente de segurança de 2019 (pilar: segurança)</h3>
+  <div class="ah-prose">
+    <p>
+      Em 2019, a instituição financeira Capital One sofreu um incidente em que dados de cerca de 100 milhões de clientes, nos Estados Unidos e
+      no Canadá, foram acessados por uma pessoa externa. Segundo o relatório público da empresa, uma aplicação web com configuração inadequada
+      de firewall de aplicação permitiu uma requisição que alcançou o serviço de metadados da instância de computação. Dessa forma, foram
+      obtidas credenciais temporárias de um papel de acesso com permissões excessivas, que deram acesso a buckets de armazenamento.
+    </p>
+    <p>
+      <strong>Lições relacionadas aos pilares.</strong> No pilar de segurança, o caso evidencia a importância do mínimo privilégio: o papel
+      atribuído à aplicação dispunha de permissões superiores às necessárias. No pilar de excelência operacional, evidencia a necessidade de
+      revisar regularmente as regras de firewall e de auditar os acessos. Em 2020, o regulador bancário dos Estados Unidos (OCC) impôs à
+      instituição uma multa civil de US$ 80 milhões, além de exigências de aprimoramento de governança. O caso é usado com frequência para
+      demonstrar que falhas de configuração, e não apenas vulnerabilidades de software, podem ter consequências de grande escala.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Caso 2 · Interrupção regional do Amazon S3 em 2017 (pilar: confiabilidade)</h3>
+  <div class="ah-prose">
+    <p>
+      Em 28 de fevereiro de 2017, uma interrupção afetou o Amazon S3 na região us-east-1 por algumas horas. O relatório pós-evento publicado
+      pela AWS atribui o início do problema a um comando de manutenção executado com um parâmetro incorreto, que removeu um conjunto de
+      servidores maior do que o pretendido. A recuperação exigiu a reinicialização de subsistemas que não eram usados havia anos, o que
+      alongou o tempo de restabelecimento.
+    </p>
+    <p>
+      <strong>Lições relacionadas aos pilares.</strong> No pilar de confiabilidade, o caso mostra a importância de limitar o <em>raio de
+      explosão</em> das mudanças: uma ferramenta de operação deveria impedir que uma única execução removesse uma parcela tão grande de
+      capacidade. No pilar de excelência operacional, a resposta da AWS incluiu a alteração das ferramentas para remover capacidade de forma
+      gradual e a revisão dos procedimentos de reinicialização. A lição geral é que o próprio processo de manutenção é uma fonte de risco, e
+      deve ser projetado com a mesma atenção que a aplicação.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Caso 3 · Revisão de custos de um serviço de monitoramento (pilar: otimização de custos)</h3>
+  <div class="ah-prose">
+    <p>
+      Em 2023, a equipe do Amazon Prime Video publicou um relato técnico em que descreveu a migração de um componente de monitoramento de
+      vídeo, originalmente construído com funções sem servidor e serviços distribuídos, para uma arquitetura mais concentrada. Segundo o
+      relato, a mudança reduziu os custos desse componente em cerca de 90%. O texto recebeu contestações da comunidade, que apontaram que o
+      caso não se generaliza para todas as cargas, e a própria empresa esclareceu que o aprendizado se referia ao contexto específico daquele
+      componente.
+    </p>
+    <p>
+      <strong>Lições relacionadas aos pilares.</strong> No pilar de otimização de custos, o caso mostra que a escolha arquitetural tem efeito
+      direto sobre a fatura, e que a revisão periódica pode revelar decisões que deixaram de ser adequadas. Ao mesmo tempo, ilustra um cuidado
+      metodológico essencial: a generalização a partir de um caso isolado é um erro comum. A decisão deve ser tomada com medição da própria
+      carga, e não com base no relato de outra organização.
+    </p>
+  </div>
+</section>
+
+<section id="vantagens" data-toc="Vantagens e desvantagens" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-orange-400 mr-2"></i>Vantagens e desvantagens</h2>
+  <div class="ah-prose">
+    <p>
+      Qualquer instrumento de avaliação deve ser analisado quanto aos seus benefícios e às suas limitações. O framework não constitui exceção.
+      A análise a seguir considera a utilização do framework como guia de revisão por equipes de projeto.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+    <div class="ah-card p-5">
+      <p class="text-sm text-emerald-300 font-semibold mb-3"><i class="fa-solid fa-circle-check mr-2"></i>Vantagens</p>
+      <ul class="ah-prose text-sm space-y-2 list-disc pl-5">
+        <li><strong>Linguagem comum:</strong> os seis pilares permitem que engenheiros, gestores e auditores falem sobre risco com os mesmos termos.</li>
+        <li><strong>Cobertura ampla:</strong> o instrumento força a considerar aspectos que costumam ser esquecidos, como operação e sustentabilidade.</li>
+        <li><strong>Priorização:</strong> o registro de riscos converte achados em uma ordem de trabalho, o que facilita decisões sob restrição de tempo.</li>
+        <li><strong>Gratuidade e disponibilidade:</strong> a ferramenta de revisão disponível no console da AWS não tem custo e registra o histórico das revisões.</li>
+        <li><strong>Base para comparação:</strong> revisões sucessivas permitem medir a evolução do sistema ao longo do tempo.</li>
+      </ul>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-rose-300 font-semibold mb-3"><i class="fa-solid fa-circle-xmark mr-2"></i>Desvantagens e limitações</p>
+      <ul class="ah-prose text-sm space-y-2 list-disc pl-5">
+        <li><strong>Risco de formalismo:</strong> a revisão pode degenerar em preenchimento de checklist, sem reflexão sobre o contexto.</li>
+        <li><strong>Tensão entre pilares:</strong> o framework lista os pilares, mas não resolve os trade-offs; essa decisão continua a depender de julgamento.</li>
+        <li><strong>Dependência da honestidade:</strong> a avaliação só é tão boa quanto as respostas dadas. Respostas otimistas produzem diagnósticos falsos.</li>
+        <li><strong>Custo de tempo:</strong> revisões completas exigem horas de trabalho de pessoas com conhecimento de vários domínios.</li>
+        <li><strong>Escopo limitado ao técnico:</strong> aspectos de negócio, de mercado e de organização não são o foco principal do instrumento.</li>
+        <li><strong>Não é certificação:</strong> concluir uma revisão não garante que o sistema esteja seguro ou confiável; apenas indica que um processo de análise foi realizado.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      <strong>Síntese.</strong> O valor do framework reside menos nas respostas que ele fornece e mais nas perguntas que ele obriga a formular.
+      Quando usado como ponto de partida para uma discussão fundamentada, ele é um instrumento eficaz. Quando usado como fim em si mesmo, perde
+      seu sentido.
+    </p>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Uma equipe decide desligar o registro de auditoria (CloudTrail) para reduzir custos. Quais pilares são afetados, e qual é a avaliação?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a decisão afeta, principalmente, o pilar de segurança, por eliminar a capacidade de investigar acessos indevidos, e o pilar de excelência operacional, por remover a base para aprender com incidentes. O benefício econômico é pequeno quando comparado ao risco assumido. Uma abordagem adequada seria manter o registro e, se necessário, reduzir o custo por meio da escolha de destinos e de retenção, sem suprimir o registro.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Ao aplicar o ciclo de revisão, um achado é classificado como “alto impacto, baixa probabilidade”. Ele deve ser tratado antes de um achado de “baixo impacto, alta probabilidade”?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não necessariamente. A prioridade depende da combinação de impacto e probabilidade e do custo da ação. Um achado de alto impacto, ainda que improvável, costuma merecer tratamento antecipado quando a correção é barata. Já um achado de baixo impacto e alta probabilidade pode ser tratado em lote com outras melhorias. O critério deve ser explicitado no registro, para que a priorização seja defensável.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Os pilares do framework são conteúdo transversal às certificações da AWS. No CLF-C02, o estudante deve reconhecer os pilares e a
+      finalidade da ferramenta de revisão. No SAA-C03, os pilares orientam as escolhas de arquitetura em cenários, em particular nos domínios de
+      arquiteturas seguras, resilientes e de alto desempenho. Recomenda-se conferir o escopo vigente nos guias oficiais de cada exame, porque
+      a formulação das questões é revisada periodicamente.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual dos itens abaixo descreve adequadamente o conceito de trade-off em arquitetura?</p>
+      <button class="ah-quiz-opt">Uma solução que maximiza todos os pilares simultaneamente</button>
+      <button class="ah-quiz-opt">Uma métrica de desempenho medida apenas em horários de pico</button>
+      <button class="ah-quiz-opt">Um compromisso explícito em que a melhoria de um atributo implica algum custo em outro</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Trade-offs são compromissos entre atributos de qualidade, que devem ser declarados e justificados no contexto da carga.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No caso do incidente de 2019 descrito neste tópico, qual princípio foi violado de forma mais evidente?</p>
+      <button class="ah-quiz-opt">Otimização de custos, por excesso de armazenamento</button>
+      <button class="ah-quiz-opt">Mínimo privilégio, por permissões superiores às necessárias ao papel da aplicação</button>
+      <button class="ah-quiz-opt">Sustentabilidade, por consumo excessivo de energia</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O papel atribuído à aplicação possuía permissões excessivas, o que ampliou o alcance da credencial obtida indevidamente.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um relato de caso de outra organização não deve, por si só, orientar uma decisão de arquitetura?</p>
+      <button class="ah-quiz-opt">Porque cada carga de trabalho tem características próprias, e a generalização a partir de um caso isolado é inadequada</button>
+      <button class="ah-quiz-opt">Porque relatos técnicos não são publicados pelas empresas</button>
+      <button class="ah-quiz-opt">Porque a AWS proíbe a citação de casos externos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A decisão deve ser fundamentada na medição da própria carga; o caso externo serve como hipótese a ser verificada.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>Síntese do tópico</h2>
+  <ul class="ah-prose">
+    <li>O framework organiza a avaliação de arquiteturas em seis pilares, cada um com princípios e perguntas.</li>
+    <li>A revisão é um ciclo contínuo: escopo, avaliação, riscos, plano e medição.</li>
+    <li>Os pilares entram em tensão; os trade-offs devem ser explícitos e registrados.</li>
+    <li>Casos reais mostram que falhas de configuração, de processo e de manutenção são tão relevantes quanto as falhas de software.</li>
+    <li>O framework é um instrumento de apoio à reflexão, e não uma certificação de qualidade.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>AWS Well-Architected Framework</em>. Documento oficial, com os seis pilares e seus princípios. docs.aws.amazon.com/wellarchitected.</li>
+    <li>AWS. <em>AWS Well-Architected Tool</em>. Documentação da ferramenta de revisão disponível no console. docs.aws.amazon.com/wellarchitected.</li>
+    <li>AMAZON WEB SERVICES. <em>Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region</em>. Relatório pós-evento, 2017.</li>
+    <li>CAPITAL ONE. Comunicado público sobre o incidente de segurança de 2019 e documentação correlata. capitalone.com.</li>
+    <li>AMAZON WEB SERVICES. Relato técnico sobre a revisão de custos de um serviço de monitoramento de vídeo, publicado em 2023 no blog oficial da AWS.</li>
+    <li>BASS, Len; CLEMENTS, Paul; KAZMAN, Rick. <em>Software Architecture in Practice</em>. 3. ed. Upper Saddle River: Addison-Wesley, 2012. Capítulos sobre atributos de qualidade e táticas arquiteturais.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('wapilares');
+  DSA.monta('waciclo');
+})();
+</script>
+</body>
+</html>

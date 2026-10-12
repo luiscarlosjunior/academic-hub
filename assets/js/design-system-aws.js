@@ -667,6 +667,70 @@
     }
   });
 
+  /* ===================================================================
+     7. TÓPICO 17: Well-Architected Framework. Os seis pilares e o ciclo
+     de revisão, ambos com desenhaFluxo.
+     =================================================================== */
+  function geraWaPilares() {
+    const nos = [
+      { nome: 'Operação', sub: 'observar' },
+      { nome: 'Segurança', sub: 'proteger' },
+      { nome: 'Confiança', sub: 'recuperar' },
+      { nome: 'Desempenho', sub: 'dimensionar' },
+      { nome: 'Custos', sub: 'pagar o justo' },
+      { nome: 'Ambiente', sub: 'reduzir' }
+    ];
+    const textos = [
+      'Excelência operacional: executar e observar o sistema para entregar valor e melhorar continuamente. Pergunta-chave: como saberíamos que o sistema está saudável?',
+      'Segurança: proteger dados e sistemas com identidade forte, criptografia e detecção. Pergunta-chave: quem pode fazer o quê, e como perceberíamos um acesso indevido?',
+      'Confiabilidade: cumprir a função esperada mesmo diante de falhas, com recuperação testada. Pergunta-chave: o que acontece quando um componente deixa de responder?',
+      'Eficiência de desempenho: usar recursos compatíveis com a demanda. Pergunta-chave: o recurso escolhido ainda é adequado para a carga atual?',
+      'Otimização de custos: evitar gastos sem retorno, sem perder o valor entregue. Pergunta-chave: estamos pagando por capacidade que ninguém usa?',
+      'Sustentabilidade: reduzir o impacto ambiental da carga de trabalho. Pergunta-chave: o consumo de energia e de recursos é o mínimo necessário?'
+    ];
+    return textos.map((t, k) => ({ nos, foco: k, ate: k, t }));
+  }
+
+  function geraWaCiclo(opcao) {
+    const so = opcao === 'so-custo';
+    const nos = [
+      { nome: 'Escopo', sub: 'a carga' },
+      { nome: 'Avaliar', sub: so ? 'só custos' : 'seis pilares' },
+      { nome: 'Riscos', sub: 'priorizar' },
+      { nome: 'Plano', sub: 'dono e prazo' },
+      { nome: 'Medir', sub: 'antes e depois' }
+    ];
+    if (so) {
+      return [
+        { nos, foco: 0, ate: 0, t: 'Delimita-se a carga de trabalho que será revisada: a aplicação, seus dados e seus usuários.' },
+        { nos, foco: 1, ate: 1, t: 'A avaliação se restringe ao pilar de custos, por ser o mais visível na fatura mensal.' },
+        { nos, foco: 2, ate: 2, erro: 2, t: 'Sem avaliação de segurança e de confiabilidade, o quadro de riscos fica incompleto. Um vazamento ou uma queda regional não aparecem.' }
+      ];
+    }
+    return [
+      { nos, foco: 0, ate: 0, t: 'Delimita-se a carga de trabalho que será revisada: a aplicação, seus dados e seus usuários.' },
+      { nos, foco: 1, ate: 1, t: 'Cada um dos seis pilares é avaliado com perguntas objetivas, registrando-se o que foi encontrado.' },
+      { nos, foco: 2, ate: 2, t: 'Os achados viram riscos, classificados por impacto e probabilidade, para que o trabalho siga a ordem de prioridade.' },
+      { nos, foco: 3, ate: 3, t: 'Cada risco recebe uma ação, um responsável e um prazo. Sem dono, o plano não se executa.' },
+      { nos, foco: 4, ate: 4, t: 'A medição compara o estado antes e depois da mudança, o que confirma a melhoria e alimenta a próxima revisão.' }
+    ];
+  }
+
+  Object.assign(ANIMACOES, {
+    wapilares: {
+      canvas: 'cvWaPilares', ctl: 'ctlWaPilares', cap: 'capWaPilares',
+      desenha: desenhaFluxo, gera: geraWaPilares, velocidade: 2600
+    },
+    waciclo: {
+      canvas: 'cvWaCiclo', ctl: 'ctlWaCiclo', cap: 'capWaCiclo',
+      desenha: desenhaFluxo, gera: geraWaCiclo, velocidade: 2400,
+      opcoes: [
+        { v: 'completo', rotulo: 'Revisão completa' },
+        { v: 'so-custo', rotulo: 'Somente custos' }
+      ]
+    }
+  });
+
   function monta(nome) {
     const cfg = ANIMACOES[nome];
     if (!cfg || !document.getElementById(cfg.canvas)) return;
