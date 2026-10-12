@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance de frontend: Core Web Vitals e medição real · Design System em AWS · AcademicHub</title>
+<meta name="description" content="LCP, INP e CLS, divisão de código por rota, carregamento preguiçoso, orçamento de tamanho de pacote e medição com dados de usuários reais, com código e exemplos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/14-performance-frontend">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-orange-400 mr-2"></i>Tópico 14 · Performance de frontend</h2>
+  <div class="ah-prose">
+    <p>
+      Um design system pode ser perfeito em acessibilidade e ainda assim lento, se cada página carrega um pacote de centenas de kilobytes que o
+      usuário não usa. Performance não é um detalhe de acabamento: ela afeta conversão, retenção e o uso real do sistema. Este tópico ensina
+      a medir o que o usuário sente, a identificar o que atrasa a tela e a manter o pacote dentro de um orçamento combinado com o time.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar LCP, INP e CLS e os limites que o Google classifica como bons;</li>
+      <li>dividir o código por rota e carregar componentes pesados sob demanda;</li>
+      <li>definir um orçamento de tamanho de pacote e fazê-lo falhar o pipeline quando estourar;</li>
+      <li>medir a performance real com dados de usuários, e não só com testes de laboratório.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: Core Web Vitals" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: os três indicadores que o usuário sente</h2>
+  <div class="ah-prose">
+    <p>
+      Os <strong>Core Web Vitals</strong> são três métricas que o Google usa para medir a experiência de carregamento e de interação. Cada uma
+      captura um problema diferente, e as três devem ser acompanhadas juntas, porque melhorar uma pode piorar outra.
+    </p>
+    <ul>
+      <li><strong>LCP (Largest Contentful Paint):</strong> o tempo até o maior elemento visível da tela ser pintado. É a percepção de “a página carregou”. Bom até 2,5 segundos.</li>
+      <li><strong>INP (Interaction to Next Paint):</strong> o tempo entre uma interação, como um clique, e a próxima pintura da tela. Mede a responsividade durante o uso. Bom até 200 milissegundos. Substituiu o FID em 2024.</li>
+      <li><strong>CLS (Cumulative Layout Shift):</strong> a soma dos deslocamentos inesperados de elementos. É o que faz um botão mudar de lugar enquanto o usuário vai clicar. Bom até 0,1.</li>
+    </ul>
+    <p>
+      A medição tem duas formas. O <strong>laboratório</strong> roda a página em condições controladas, como o Lighthouse, e serve para comparar
+      mudanças e encontrar causas. O <strong>campo</strong> mede usuários reais, em aparelhos e redes variadas, e mostra o que as pessoas de
+      fato vivem. Uma página pode passar no laboratório e falhar no campo, por exemplo porque o usuário tem um celular intermediário e uma
+      conexão instável. O campo é a medida que importa para o usuário.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Métrica</th><th>Bom</th><th>Precisa melhorar</th><th>Causa mais comum no design system</th></tr></thead>
+      <tbody>
+        <tr><td>LCP</td><td>até 2,5 s</td><td>acima de 4 s</td><td>Pacote único grande, fonte que bloqueia a renderização, imagem sem dimensões</td></tr>
+        <tr><td>INP</td><td>até 200 ms</td><td>acima de 500 ms</td><td>Tarefas longas no JavaScript, como renderizar uma tabela inteira de uma vez</td></tr>
+        <tr><td>CLS</td><td>até 0,1</td><td>acima de 0,25</td><td>Fonte que troca após o carregamento, imagem ou banner sem reserva de espaço</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="rota" data-toc="Operação 1: dividir por rota" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-orange-400 mr-2"></i>Operação 1 · Dividir o código por rota</h2>
+  <div class="ah-prose">
+    <p>
+      Sem divisão, o navegador baixa o código de todas as telas antes de mostrar a primeira. Com divisão, cada rota carrega o seu código, e os
+      componentes pesados entram só quando são exibidos. A animação compara os dois cenários. Observe que o LCP só é afetado pelo que a
+      primeira tela precisa, não pelo tamanho total da aplicação.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: pacote único e pacote dividido</h3>
+  <p class="ah-lead text-sm mb-4">O cenário lento leva o LCP acima do limite; o dividido mantém a primeira tela leve.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvFrontend" style="height:300px"></canvas></div>
+  <div id="ctlFrontend" class="mt-4"></div>
+  <div id="capFrontend" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript (React) · carregamento preguiçoso de uma tabela pesada</p>
+<pre class="ah-code"><code>import { lazy, Suspense } from 'react';
+
+// a tabela só entra no pacote da página quando ela é renderizada
+const TabelaComponentes = lazy(() =&gt; import('./TabelaComponentes'));
+
+export function PaginaComponentes() {
+  return (
+    &lt;main&gt;
+      &lt;h1&gt;Componentes&lt;/h1&gt;
+      &lt;Suspense fallback={&lt;p&gt;Carregando tabela…&lt;/p&gt;}&gt;
+        &lt;TabelaComponentes /&gt;
+      &lt;/Suspense&gt;
+    &lt;/main&gt;
+  );
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o bundler separa <code>TabelaComponentes</code> num arquivo próprio, que é baixado somente quando o
+      componente é necessário. O <code>Suspense</code> mostra um texto enquanto isso acontece, o que evita tela em branco. Repare no
+      <code>fallback</code>: ele deve ter a mesma altura do conteúdo final para não gerar CLS.
+    </p>
+  </div>
+</section>
+
+<section id="orcamento" data-toc="Operação 2: orçamento de pacote" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-weight-hanging text-orange-400 mr-2"></i>Operação 2 · Orçamento de tamanho no pipeline</h2>
+  <div class="ah-prose">
+    <p>
+      Tamanho de pacote cresce sem alarde. Cada dependência nova parece pequena, e a soma vira um problema meses depois. Um orçamento
+      explícito, verificado no pipeline, transforma essa conversa em número: se o pacote passa do limite, o build falha, e o time decide se
+      vale o custo. A ferramenta <code>size-limit</code> faz essa medição, com o tamanho comprimido, que é o que o navegador de fato baixa.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · <code>package.json</code> com orçamento por arquivo de entrada</p>
+<pre class="ah-code"><code>{
+  "scripts": {
+    "tamanho": "size-limit"
+  },
+  "size-limit": [
+    {
+      "name": "Entrada principal",
+      "path": "dist/index.js",
+      "limit": "80 kB",
+      "gzip": true
+    },
+    {
+      "name": "Página de componentes",
+      "path": "dist/componentes.js",
+      "limit": "40 kB",
+      "gzip": true
+    }
+  ]
+}</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em YAML · etapa no pipeline</p>
+<pre class="ah-code"><code>- run: npm run build
+- run: npm run tamanho   # falha se algum arquivo passar do limite</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o limite é uma decisão registrada no repositório, e não uma impressão. Quando um pull request estoura
+      o orçamento, a discussão acontece sobre um número concreto: “esta dependência adiciona 35 kB; vale?”. Use o tamanho comprimido com
+      gzip, porque é ele que trafega na rede. Revise o orçamento a cada trimestre, para que ele acompanhe as necessidades reais.
+    </p>
+  </div>
+</section>
+
+<section id="imagens" data-toc="Operação 3: imagens e fontes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-image text-orange-400 mr-2"></i>Operação 3 · Imagens e fontes sem atrasar a tela</h2>
+  <div class="ah-prose">
+    <p>
+      Imagens e fontes são as causas mais frequentes de LCP alto e de CLS. A imagem que é a maior da tela precisa ser carregada logo; as
+      demais podem esperar. Dimensões explícitas reservam o espaço antes do download, e isso zera o deslocamento. A fonte precisa de uma
+      estratégia de exibição: o texto aparece com a fonte de reserva e troca depois, o que pode causar deslocamento se as métricas forem
+      diferentes.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em HTML · imagem da primeira dobra e imagens abaixo dela</p>
+<pre class="ah-code"><code>&lt;!-- imagem principal: carregada cedo, com dimensões reservadas --&gt;
+&lt;img src="/img/hero.webp" width="1200" height="630"
+     fetchpriority="high" alt="Painel de tokens do design system"&gt;
+
+&lt;!-- imagens abaixo da dobra: esperam o usuário se aproximar --&gt;
+&lt;img src="/img/exemplo-tabela.webp" width="640" height="360"
+     loading="lazy" decoding="async" alt="Tabela de componentes por produto"&gt;
+
+&lt;!-- fonte: texto visível logo, com troca suave --&gt;
+&lt;style&gt;
+  @font-face {
+    font-family: "Inter";
+    src: url("/fonts/inter.woff2") format("woff2");
+    font-display: swap;
+  }
+&lt;/style&gt;</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> <code>fetchpriority="high"</code> avisa o navegador que a imagem principal é prioridade, enquanto
+      <code>loading="lazy"</code> adia as outras. Os atributos <code>width</code> e <code>height</code> permitem ao navegador calcular o espaço
+      antes do download, o que evita o deslocamento. Não use <code>lazy</code> na imagem principal: isso atrasa justamente o elemento que
+      define o LCP.
+    </p>
+  </div>
+</section>
+
+<section id="medicao" data-toc="Operação 4: medir com usuários reais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-orange-400 mr-2"></i>Operação 4 · Medir o campo com a biblioteca web-vitals</h2>
+  <div class="ah-prose">
+    <p>
+      A biblioteca <code>web-vitals</code> mede as três métricas no navegador do usuário e envia os valores para um endpoint. O envio usa
+      <code>navigator.sendBeacon</code>, que não atrasa a navegação e funciona mesmo quando a página está sendo fechada. Com esses dados, é
+      possível ver a distribuição por página, por país e por tipo de aparelho.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>medir.ts</code></p>
+<pre class="ah-code"><code>import { onCLS, onINP, onLCP } from 'web-vitals';
+
+function enviar(metrica) {
+  const corpo = JSON.stringify({
+    nome: metrica.name,
+    valor: metrica.value,
+    rota: location.pathname,
+    id: metrica.id,
+  });
+  navigator.sendBeacon('/api/metricas', corpo);
+}
+
+onLCP(enviar);
+onINP(enviar);
+onCLS(enviar);</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o campo <code>id</code> identifica a medição de forma única, o que permite somar as duas partes
+      quando uma métrica é reportada mais de uma vez, como o INP, que pode mudar ao longo da visita. Não envie dados pessoais nesse payload:
+      o caminho da rota é suficiente para a análise, e isso está de acordo com a LGPD, como visto no tópico 8.
+    </p>
+  </div>
+</section>
+
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os dois exemplos cobrem o diagnóstico de um LCP alto e a escolha entre cache longo e cache curto, que é o que mais confunde quem começa.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Diagnosticando um LCP alto</h3>
+  <div class="ah-prose">
+    <p>
+      Quando o LCP de uma página passa de 4 segundos, a causa costuma ser uma de quatro. O processo de diagnóstico começa pelo próprio
+      elemento: descobrir qual é o maior elemento visível, e em seguida ver o que o atrasa até ser pintado. A tabela organiza as causas e os
+      sinais que as confirmam.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Sinal no relatório</th><th>Causa provável</th><th>Correção</th></tr></thead>
+      <tbody>
+        <tr><td>O elemento LCP é uma imagem grande, carregada tarde</td><td>Imagem sem <code>fetchpriority</code>, ou com <code>lazy</code> na dobra</td><td>Priorizar a imagem principal e reservar dimensões</td></tr>
+        <tr><td>O elemento LCP é texto, e a renderização espera uma fonte</td><td>Fonte com bloqueio de exibição</td><td>Usar <code>font-display: swap</code> e pré-carregar a fonte principal</td></tr>
+        <tr><td>Tempo de rede alto antes do primeiro byte</td><td>Origem distante ou cache ausente</td><td>Verificar a CDN e a política de cache (tópico 4)</td></tr>
+        <tr><td>Muito JavaScript antes do render</td><td>Pacote único ou bloqueio por script síncrono</td><td>Dividir por rota e carregar scripts com <code>defer</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela parte do sinal observado, e não de um palpite. Esse método evita o erro mais comum, que é
+      otimizar o JavaScript quando o problema é uma imagem sem dimensões. Sempre confirme a causa antes de mudar o código, e meça de novo
+      depois da correção.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Cache longo ou curto?</h3>
+  <div class="ah-prose">
+    <p>
+      A regra do tópico 4 separa dois tipos de arquivo. Arquivos com hash no nome podem ter cache de um ano, porque o nome muda quando o
+      conteúdo muda. O HTML e os arquivos sem hash precisam de revalidação. Um caso que vale estudar é a imagem sem hash, como um logotipo que
+      muda de cor. Ela não deve ter cache longo, porque o usuário veria a versão antiga por meses.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Tipo de arquivo</th><th>Cache-Control</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td>JavaScript e CSS com hash</td><td><code>public, max-age=31536000, immutable</code></td><td>O nome muda com o conteúdo</td></tr>
+        <tr><td>Imagem com hash no nome</td><td><code>public, max-age=31536000, immutable</code></td><td>Mesma lógica do código</td></tr>
+        <tr><td>Logotipo sem hash, que pode mudar</td><td><code>public, max-age=3600</code></td><td>Mudança visível precisa chegar em horas, não meses</td></tr>
+        <tr><td>HTML principal</td><td><code>no-cache</code></td><td>Aponta para os arquivos novos a cada deploy</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o cache longo é seguro somente quando o nome do arquivo garante a identidade do conteúdo. Sem essa
+      garantia, o cache longo vira um problema de atualização. Antes de aumentar o tempo de cache de um arquivo, pergunte o que acontece
+      se ele mudar sem o nome mudar.
+    </p>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Orçamento de performance como critério de revisão:</strong> pull requests que estouram o orçamento são bloqueados até haver decisão registrada.</li>
+      <li><strong>Lighthouse CI:</strong> roda a medição de laboratório em cada pull request e compara com a versão anterior.</li>
+      <li><strong>Medição contínua:</strong> os Core Web Vitals do campo entram no painel de produto junto com as métricas de negócio.</li>
+      <li><strong>Componentes sem efeitos colaterais de layout:</strong> o design system reserva espaço para estados de carregamento, o que protege todos os produtos contra CLS.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. O INP de uma tabela é de 650 ms ao filtrar. O que provavelmente acontece?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o clique dispara uma tarefa longa de JavaScript, provavelmente a renderização de todas as linhas de uma vez. O navegador não pinta até a tarefa terminar. A correção é reduzir o trabalho por interação: filtrar sobre dados já carregados, paginar, ou dividir a renderização em partes menores.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Ao carregar a página, o título desce meio centímetro após a fonte carregar. Qual métrica piora e como corrigir?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o CLS piora, porque o deslocamento é inesperado. A correção é usar uma fonte de reserva com métricas parecidas (com ajuste de tamanho e espaçamento), pré-carregar a fonte principal e manter <code>font-display: swap</code> com a reserva equivalente. O deslocamento some quando as duas fontes têm a mesma altura de linha.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Meça o LCP da página de documentação com o Lighthouse antes e depois de dividir o pacote por rota. Registre os dois valores.</li>
+    <li>Defina um orçamento de 60 kB para a entrada principal e veja se a versão atual passa. Se não passar, identifique a dependência que mais pesa.</li>
+    <li>Escreva o endpoint que recebe as métricas do <code>medir.ts</code> e grava apenas nome, valor e rota, com um limite de tamanho do corpo.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Performance de frontend não é tema das provas AWS. O ponto de contato está na entrega: a latência percebida depende da CDN e do cache,
+      que são cobrados no SAA-C03 como parte do domínio de alto desempenho. O CloudWatch RUM, serviço da AWS para medição de usuários reais,
+      aparece como referência para essa medição. O conteúdo técnico deste tópico vale por si, independentemente de exames.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é o limite de “bom” para o LCP segundo os Core Web Vitals?</p>
+      <button class="ah-quiz-opt">Até 1 segundo</button>
+      <button class="ah-quiz-opt">Até 4 segundos</button>
+      <button class="ah-quiz-opt">Até 2,5 segundos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Até 2,5 s é bom; acima de 4 s precisa de melhoria.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a imagem principal da tela não deve usar <code>loading="lazy"</code>?</p>
+      <button class="ah-quiz-opt">Porque ela costuma ser o elemento do LCP, e adiar seu carregamento piora a métrica</button>
+      <button class="ah-quiz-opt">Porque o atributo não funciona em imagens JPEG</button>
+      <button class="ah-quiz-opt">Porque o lazy desativa o cache do navegador</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O carregamento preguiçoso adia o download; na imagem principal, isso atrasa o próprio LCP.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a diferença entre medição de laboratório e de campo?</p>
+      <button class="ah-quiz-opt">Laboratório mede usuários reais; campo roda em condições controladas</button>
+      <button class="ah-quiz-opt">Laboratório roda em condições controladas; campo mede usuários reais</button>
+      <button class="ah-quiz-opt">São equivalentes, e a diferença é só o nome da ferramenta</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O campo reflete a experiência real, com aparelhos e redes variadas; o laboratório ajuda a comparar e a diagnosticar.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>LCP até 2,5 s, INP até 200 ms e CLS até 0,1 são os limites de bom desempenho.</li>
+    <li>Divida o código por rota e carregue sob demanda o que não aparece na primeira tela.</li>
+    <li>Orçamento de tamanho no pipeline transforma a discussão de peso em número.</li>
+    <li>Priorize a imagem principal; reserve dimensões; nunca use lazy na dobra.</li>
+    <li>Meça o campo com web-vitals; o laboratório serve para diagnosticar, não para julgar.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>GOOGLE. <em>Web Vitals</em>. web.dev/articles/vitals.</li>
+    <li>GOOGLE. <em>web-vitals</em>, biblioteca JavaScript de medição. github.com/GoogleChrome/web-vitals.</li>
+    <li>GOOGLE. <em>Lighthouse</em>, documentação de auditoria de desempenho. developer.chrome.com/docs/lighthouse.</li>
+    <li>SIZE-LIMIT. <em>Documentação oficial</em>. github.com/ai/size-limit.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('frontend');
+})();
+</script>
+</body>
+</html>

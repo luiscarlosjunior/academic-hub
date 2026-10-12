@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bancos de dados e modelos de dados · AcademicHub</title>
+<meta name="description" content="Por que arquivos não bastam, o que é um SGBD, os modelos hierárquico, em rede e relacional, e as propriedades ACID.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/01-introducao-bancos-dados">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Por que não usar arquivos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-cyan-400 mr-2"></i>Dados em vários lugares, verdades diferentes</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine a loja virtual guardando o endereço da cliente Ana em três lugares: a planilha de pedidos,
+      o cadastro do setor de entregas e um arquivo de boletos. Quando Ana se muda, alguém atualiza duas
+      planilhas e esquece a terceira. Agora a nota fiscal sai para o endereço antigo.
+    </p>
+    <p>
+      Esse é o problema que os <strong>bancos de dados</strong> resolvem. Os dados ficam em <em>um</em> lugar
+      organizado, com regras, e todos os programas consultam essa mesma fonte.
+    </p>
+  </div>
+
+  <div class="my-6">
+    <div class="flex items-center justify-between mb-3">
+      <span class="ah-badge ah-badge-slate">Animação · o endereço de Ana em arquivos separados</span>
+    </div>
+    <div id="anim-arquivos"></div>
+  </div>
+
+  <div class="ah-callout ah-callout-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Dado não é informação.</strong> Dado é o registro bruto, como “Ana, Curitiba, 2024-01-15”. Informação
+      é o que você extrai dele para decidir algo, como “a cidade com mais clientes ativos”. Um banco de dados
+      guarda dados de forma que a informação possa ser extraída com segurança.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SGBD ============================ -->
+<section id="sgbd" data-toc="O que é um SGBD" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-server text-cyan-400 mr-2"></i>SGBD: o software que guarda e protege os dados</h2>
+  <p class="ah-lead text-sm mb-5">
+    <strong>Banco de dados</strong> é a coleção organizada de dados. <strong>SGBD</strong> (Sistema de Gerenciamento de
+    Banco de Dados) é o software que cria, consulta, protege e recupera essa coleção. PostgreSQL, MySQL, Oracle,
+    SQL Server e SQLite são SGBDs; os dados em si ficam no banco.
+  </p>
+  <div class="ah-prose">
+    <p>Um SGBD oferece, em geral, seis funções:</p>
+    <ul>
+      <li><strong>Definição</strong>: descrever a estrutura dos dados (tabelas, tipos, restrições).</li>
+      <li><strong>Manipulação</strong>: consultar, inserir, alterar e remover registros.</li>
+      <li><strong>Integridade</strong>: impedir dados inválidos, como um preço negativo.</li>
+      <li><strong>Concorrência</strong>: deixar muitas pessoas usarem o banco ao mesmo tempo sem se atropelar.</li>
+      <li><strong>Recuperação</strong>: voltar a um estado consistente depois de uma queda de energia.</li>
+      <li><strong>Segurança</strong>: controlar quem pode ler ou escrever o quê.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ MODELOS ============================ -->
+<section id="modelos" data-toc="Modelos de dados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shapes text-cyan-400 mr-2"></i>Modelos de dados: como a estrutura é pensada</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um <strong>modelo de dados</strong> é o conjunto de conceitos que você usa para descrever dados. O modelo
+    determina o que pode ser representado e como se navega pelos dados. A história dos SGBDs é a história de três modelos.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#94a3b8">
+      <span class="ah-badge ah-badge-slate mb-3">Hierárquico (anos 60)</span>
+      <p class="text-xs text-slate-400 leading-relaxed mb-3">Os dados formam uma <strong>árvore</strong>. Cada registro tem um único pai. Para chegar a um dado, você segue o caminho a partir da raiz.</p>
+      <pre class="ah-code text-[11px]">Empresa
+ └─ Departamento Vendas
+     ├─ Ana
+     └─ Bruno</pre>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#f59e0b">
+      <span class="ah-badge ah-badge-amber mb-3">Em rede (anos 70)</span>
+      <p class="text-xs text-slate-400 leading-relaxed mb-3">Um registro pode ter <strong>vários pais</strong>. Ganha flexibilidade, mas o programador passa a navegar por ponteiros, o que torna o código frágil.</p>
+      <pre class="ah-code text-[11px]">Ana ──► Pedido 1
+ │         ▲
+ └──► Pedido 3 ◄── Bruno</pre>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#22d3ee">
+      <span class="ah-badge ah-badge-sky mb-3">Relacional (Codd, 1970)</span>
+      <p class="text-xs text-slate-400 leading-relaxed mb-3">Tudo são <strong>tabelas</strong>. Relações entre tabelas são expressas por <strong>valores</strong> (chaves), não por ponteiros. A consulta descreve <em>o que</em> quer, e o banco decide <em>como</em> buscar.</p>
+      <pre class="ah-code text-[11px]"><span class="kw">SELECT</span> nome
+<span class="kw">FROM</span> clientes
+<span class="kw">WHERE</span> cidade = <span class="str">'Recife'</span>;</pre>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip">
+    <i class="fa-solid fa-star"></i>
+    <div>
+      <strong>Por que o relacional venceu?</strong> Porque separa a <em>lógica</em> da <em>física</em>. Você muda o
+      índice ou a forma de armazenar sem reescrever suas consultas. Codd chamou isso de <em>independência de dados</em>.
+      Outros modelos aparecem depois, como documentos (NoSQL) e grafos, mas o relacional continua sendo a base da maioria
+      dos sistemas de informação.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ACID ============================ -->
+<section id="acid" data-toc="Transações e propriedades ACID" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-cyan-400 mr-2"></i>Transações e as propriedades ACID</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma <strong>transação</strong> é um conjunto de operações tratado como uma unidade só: ou tudo acontece, ou nada.
+    Transferir R$ 100 da conta A para a conta B são dois UPDATEs. Se a energia cair entre eles, o dinheiro some.
+    As propriedades ACID existem para evitar isso.
+  </p>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <div class="ah-card p-4"><div class="text-2xl font-bold text-cyan-400">A</div><div class="text-sm font-semibold text-white mt-1">Atomicidade</div><p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Tudo ou nada. Se uma parte falha, as demais são desfeitas.</p></div>
+    <div class="ah-card p-4"><div class="text-2xl font-bold text-cyan-400">C</div><div class="text-sm font-semibold text-white mt-1">Consistência</div><p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Leva o banco de um estado válido a outro estado válido, respeitando as restrições.</p></div>
+    <div class="ah-card p-4"><div class="text-2xl font-bold text-cyan-400">I</div><div class="text-sm font-semibold text-white mt-1">Isolamento</div><p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Transações simultâneas não enxergam o trabalho uma da outra pela metade.</p></div>
+    <div class="ah-card p-4"><div class="text-2xl font-bold text-cyan-400">D</div><div class="text-sm font-semibold text-white mt-1">Durabilidade</div><p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Depois do COMMIT, o dado sobrevive a uma queda do sistema.</p></div>
+  </div>
+
+  <div class="ah-card p-5">
+    <h3 class="ah-h3 mb-3">Animação · transferência com falha no meio</h3>
+    <div id="anim-acid"></div>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona por dentro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-cyan-400 mr-2"></i>Como funciona de verdade</h2>
+  <p class="ah-lead text-sm mb-5">
+    Quando você executa um <code>SELECT</code>, o texto percorre um pipeline de componentes. Entender esse caminho
+    explica por que algumas consultas são rápidas e outras, lentas.
+  </p>
+  <div class="sql-flow mb-5" id="flow-sgbd">
+    <div>1. Analisador<br><small class="text-slate-500">valida a sintaxe</small></div><i class="fa-solid fa-arrow-right"></i>
+    <div>2. Otimizador<br><small class="text-slate-500">escolhe o plano</small></div><i class="fa-solid fa-arrow-right"></i>
+    <div>3. Executor<br><small class="text-slate-500">lê e combina linhas</small></div><i class="fa-solid fa-arrow-right"></i>
+    <div>4. Buffer<br><small class="text-slate-500">páginas em memória</small></div><i class="fa-solid fa-arrow-right"></i>
+    <div>5. Disco<br><small class="text-slate-500">páginas de 4 a 8 KB</small></div>
+  </div>
+  <div class="ah-prose">
+    <ul>
+      <li>Os dados não ficam como texto. São guardados em <strong>páginas</strong> de tamanho fixo (em SQLite, 4 KB por padrão). Ler uma linha significa ler a página que a contém.</li>
+      <li>Antes de qualquer escrita, o SGBD registra a intenção num <strong>log</strong> (no SQLite, o arquivo WAL ou o journal). Se a energia cair, o log permite refazer ou desfazer o trabalho. É isso que dá a <em>durabilidade</em>.</li>
+      <li>O <strong>otimizador</strong> não executa a consulta como você escreveu. Ele estima quantas linhas cada passo produz e escolhe a ordem mais barata. Você descreve o resultado; o banco escolhe o caminho.</li>
+      <li>SQLite é uma <strong>biblioteca embutida</strong>: o banco inteiro é um único arquivo, sem servidor. PostgreSQL e MySQL rodam como servidores separados, atendendo muitos clientes pela rede. Os conceitos são os mesmos.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: a loja em um comando" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-cyan-400 mr-2"></i>Exemplo: a loja em um comando</h2>
+  <p class="ah-lead text-sm mb-5">
+    Todos os tópicos desta disciplina usam o mesmo banco: uma loja com clientes, produtos, pedidos, itens e
+    funcionários. A consulta abaixo pergunta ao banco quantos clientes existem. O resultado é calculado agora,
+    pelo SQLite rodando no seu navegador.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT COUNT(*) AS total_clientes
+FROM clientes;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Repare que você não disse <em>onde</em> os dados estão nem <em>como</em> percorrê-los. Só disse o resultado
+    desejado. Essa é a essência da linguagem declarativa SQL, que vamos explorar a partir do tópico 06.
+  </p>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-cyan-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Tente responder antes de abrir a solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Redundância na prática</summary>
+    <p class="sql-dica-prob">Uma planilha de pedidos tem as colunas: <code>pedido, cliente, cidade_cliente, produto, preco</code>.
+      Ana fez 3 pedidos. Quantas vezes o nome e a cidade dela aparecem? O que acontece se Ana mudar de cidade?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        O nome e a cidade aparecem <strong>três vezes</strong> (uma por pedido). Se Ana mudar de cidade e a planilha
+        for atualizada em apenas algumas linhas, o mesmo cliente ficará com duas cidades diferentes. Isso é uma
+        <em>anomalia de atualização</em>. O tópico 05 mostra como eliminá-la.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Consulta contra o modelo</summary>
+    <p class="sql-dica-prob">Escreva, em linguagem natural, o que a consulta a seguir pergunta ao banco:</p>
+    <pre class="ah-code sql-code" data-run>SELECT nome, cidade FROM clientes WHERE cidade = 'Curitiba';</pre>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        “Liste o nome e a cidade de todos os clientes que moram em Curitiba.” O resultado tem duas linhas
+        (Elisa e Helena). Note que o SQL não diz como procurar: o SGBD decide se faz uma varredura ou usa índice.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · ACID na vida real</summary>
+    <p class="sql-dica-prob">Um cliente paga um pedido. O sistema debita o cartão, mas cai antes de marcar o pedido como “pago”.
+      Qual propriedade ACID foi violada e o que a transação deveria ter feito?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A <strong>atomicidade</strong>. Débito e atualização do pedido deveriam estar na mesma transação. Sem o COMMIT,
+        o ROLLBACK desfaz o débito. Com o COMMIT, ambos ficam gravados de forma durável.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Um pouco de história</h3>
+  <div class="ah-prose">
+    <p>
+      Em 1970, Edgar F. Codd publicou o artigo “A Relational Model of Data for Large Shared Data Banks”, que propôs
+      tabelas, chaves e uma álgebra para consultar dados. Na IBM, o projeto System R criou a linguagem SEQUEL, que virou
+      SQL. Na Universidade de Berkeley, o Ingres seguiu um caminho paralelo com a linguagem QUEL, que não prosperou.
+    </p>
+    <p>
+      O SQL foi padronizado pelo ANSI em 1986 e pela ISO em 1987. O padrão cresceu desde então, com a versão de 2023 incluindo
+      recursos como consultas em JSON. Na prática, cada banco implementa um <em>dialeto</em>: o núcleo é o mesmo, mas funções,
+      tipos e recursos avançados mudam. Por isso a disciplina usa SQLite e aponta as diferenças quando elas importam.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Quando um banco relacional não é a resposta</h3>
+  <div class="ah-prose">
+    <p>O modelo relacional é a escolha padrão quando os dados têm relações, precisam de consistência e são consultados de formas variadas. Há casos em que outra ferramenta é mais adequada:</p>
+    <ul>
+      <li><strong>Documentos com estrutura variável</strong>, como catálogos em que cada produto tem atributos diferentes. Bancos de documentos (MongoDB, por exemplo) armazenam isso naturalmente, embora relacionar documentos seja mais trabalhoso.</li>
+      <li><strong>Travessias profundas em grafos</strong>, como “caminhos de amizade de até seis graus”. Bancos de grafos (Neo4j) fazem isso com um custo que a recursão em SQL pode não acompanhar (o tópico 13 mostra o limite).</li>
+      <li><strong>Séries temporais de alta frequência</strong>, como leituras de sensores a cada segundo. Bancos especializados comprimem e agregam esses dados com muito mais eficiência.</li>
+      <li><strong>Cache de chave e valor</strong>, em que a latência de microssegundos importa mais que a consulta. Redis e similares resolvem isso.</li>
+    </ul>
+    <p>Muitas arquiteturas reais combinam ferramentas: o relacional como fonte da verdade e os outros como complemento.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Como uma aplicação conversa com o banco</h3>
+  <div class="ah-prose">
+    <p>
+      Uma aplicação não abre uma conexão nova a cada requisição, porque o custo de autenticação e de criação de sessão
+      seria alto. Ela usa um <strong>pool de conexões</strong>: um conjunto de conexões abertas e reutilizadas. A mudança
+      do esquema é feita por <strong>migrações</strong> versionadas, arquivos SQL que rodam em ordem e registram o que já
+      foi aplicado. Backups e réplicas de leitura completam o quadro operacional.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Prática 1 · inventário do banco</h3>
+  <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+    Antes de consultar qualquer dado, um bom profissional confere o tamanho e a forma do banco. Esta consulta
+    conta as linhas de cada tabela numa única resposta, usando UNION ALL para empilhar os resultados.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT 'clientes' AS tabela, COUNT(*) AS linhas FROM clientes
+UNION ALL SELECT 'produtos', COUNT(*) FROM produtos
+UNION ALL SELECT 'pedidos', COUNT(*) FROM pedidos
+UNION ALL SELECT 'itens_pedido', COUNT(*) FROM itens_pedido
+UNION ALL SELECT 'funcionarios', COUNT(*) FROM funcionarios;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Prática 2 · catálogo de tabelas</h3>
+  <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+    O próprio banco guarda a lista das tabelas que criou. No SQLite, essa informação está na tabela de sistema <code>sqlite_master</code>.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT name AS tabela
+FROM sqlite_master
+WHERE type = 'table'
+ORDER BY name;</pre>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Dica de carreira.</strong> Nas empresas, perguntas como “quantas linhas tem esta tabela?” e “de onde vêm estes dados?”
+      são o começo de qualquer análise. Acostume-se a verificar o banco antes de confiar em um relatório.</div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c3440)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual é a principal vantagem do modelo relacional sobre o hierárquico?</p>
+      <button class="ah-quiz-opt">Os dados ocupam menos espaço em disco</button>
+      <button class="ah-quiz-opt">Não é preciso definir estrutura nenhuma</button>
+      <button class="ah-quiz-opt">A consulta descreve o resultado, sem depender de caminhos de navegação</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        No relacional, relações são valores (chaves), não ponteiros. Por isso a consulta é declarativa e o SGBD
+        pode otimizar o caminho sem que o programa precise mudar.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Num SGBD, qual componente garante que um pedido não fique pela metade após uma queda?</p>
+      <button class="ah-quiz-opt">O otimizador de consultas</button>
+      <button class="ah-quiz-opt">O log de transações, usado para desfazer ou refazer o trabalho</button>
+      <button class="ah-quiz-opt">A linguagem de definição de dados</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O log registra as operações antes de aplicá-las. Na recuperação, transações não confirmadas são desfeitas
+        e as confirmadas são garantidas. Isso sustenta a atomicidade e a durabilidade.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Uma transação transfere R$ 100 entre duas contas, mas o sistema cai após o primeiro UPDATE. Qual resultado o ACID garante?</p>
+      <button class="ah-quiz-opt">Nenhuma das duas contas muda, porque a transação não foi confirmada</button>
+      <button class="ah-quiz-opt">Só a conta de origem perde o dinheiro, e o banco fica assim</button>
+      <button class="ah-quiz-opt">Ambas mudam, porque o UPDATE já foi executado</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Sem COMMIT, a transação é desfeita na recuperação. É a atomicidade em ação: o estado parcial nunca fica visível.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação 1: arquivos separados ===================== */
+(function () {
+  const cabeca = ['Lugar', 'Nome', 'Endereço'];
+  const tabela = (titulo, linhas, dest) => `
+    <div class="ah-card p-3">
+      <div class="text-[11px] uppercase tracking-wide text-slate-400 mb-2">${titulo}</div>
+      <table class="sql-table"><tbody>${linhas.map((l, i) =>
+        `<tr class="${i === dest ? 'sql-hl' : ''}"><td>${l}</td></tr>`).join('')}</tbody></table>
+    </div>`;
+  SQLLab.passos(document.getElementById('anim-arquivos'), [
+    { titulo: 'Três cópias do mesmo fato',
+      texto: 'Cada setor guarda o endereço de Ana por conta própria.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        ${tabela('Planilha de pedidos', ['Ana · Rua A, 10 · Curitiba'], -1)}
+        ${tabela('Cadastro de entregas', ['Ana · Rua A, 10 · Curitiba'], -1)}
+        ${tabela('Arquivo de boletos', ['Ana · Rua A, 10 · Curitiba'], -1)}</div>` },
+    { titulo: 'Ana se muda',
+      texto: 'O endereço é atualizado em um dos três lugares. Os outros continuam com o endereço antigo.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        ${tabela('Planilha de pedidos', ['Ana · Rua B, 55 · Recife'], 0)}
+        ${tabela('Cadastro de entregas', ['Ana · Rua A, 10 · Curitiba'], -1)}
+        ${tabela('Arquivo de boletos', ['Ana · Rua A, 10 · Curitiba'], -1)}</div>` },
+    { titulo: 'Consequência',
+      texto: 'O boleto vai para o endereço antigo. Ninguém percebeu, porque cada sistema “está certo” sozinho.',
+      html: () => `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-triangle-exclamation"></i>
+        <div><strong>Inconsistência.</strong> Três respostas diferentes para a mesma pergunta: “onde mora a Ana?”</div></div>` },
+    { titulo: 'Com um banco de dados',
+      texto: 'Um único lugar guarda o endereço. Todas as consultas leem a mesma linha, então não há como divergir.',
+      html: () => `<div class="ah-card p-4">${SQLLab.tabelaHTML(['id_cliente', 'nome', 'cidade'],
+        [[1, 'Ana Souza', 'Recife']], { destaque: [0], animar: true })}
+        <p class="text-xs text-slate-400 mt-3">Planilhas e sistemas passam a ler desta única fonte.</p></div>` }
+  ]);
+})();
+
+/* ===================== Animação 2: ACID na transferência ===================== */
+(function () {
+  const saldos = (a, b, cls) => `
+    <div class="grid grid-cols-2 gap-3">
+      <div class="ah-card p-4 text-center"><div class="text-[11px] text-slate-400">Conta A</div>
+        <div class="text-2xl font-bold ${cls.a}">R$ ${a}</div></div>
+      <div class="ah-card p-4 text-center"><div class="text-[11px] text-slate-400">Conta B</div>
+        <div class="text-2xl font-bold ${cls.b}">R$ ${b}</div></div>
+    </div>`;
+  const ok = { a: 'text-white', b: 'text-white' };
+  const mudou = { a: 'text-rose-400', b: 'text-emerald-400' };
+  SQLLab.passos(document.getElementById('anim-acid'), [
+    { titulo: 'Estado inicial', texto: 'A tem R$ 500 e B tem R$ 200. Total: R$ 700.',
+      html: () => saldos(500, 200, ok) },
+    { titulo: 'BEGIN · UPDATE 1', texto: 'Debita R$ 100 de A. Ainda não há COMMIT: o dinheiro está “em trânsito”.',
+      html: () => `<div class="sql-q mb-3">BEGIN;\nUPDATE contas SET saldo = saldo - 100 WHERE id = 'A';</div>${saldos(400, 200, { a: 'text-amber-300', b: 'text-white' })}` },
+    { titulo: 'Queda de energia', texto: 'O sistema cai antes do segundo UPDATE. A transação nunca foi confirmada.',
+      html: () => `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-bolt"></i><div><strong>Falha.</strong> O UPDATE de B nunca foi executado.</div></div>` },
+    { titulo: 'Recuperação', texto: 'Ao reiniciar, o SGBD desfaz a transação não confirmada usando o log.',
+      html: () => `<div class="sql-q mb-3">ROLLBACK;  -- feito automaticamente na recuperação</div>${saldos(500, 200, ok)}
+        <div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i><div>Atomicidade preservada: o total continua R$ 700.</div></div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

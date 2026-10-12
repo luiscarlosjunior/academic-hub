@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultas recursivas e hierarquias (WITH RECURSIVE) · AcademicHub</title>
+<meta name="description" content="Organogramas e árvores em SQL: o ponto fixo de uma CTE recursiva, caminhos hierárquicos e detecção de ciclos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/13-consultas-recursivas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Hierarquias não cabem em JOIN fixo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>Quantos níveis tem o organograma?</h2>
+  <div class="ah-prose">
+    <p>
+      Para listar todos os subordinados de Marta, de qualquer nível, você precisaria de um JOIN para cada nível da
+      hierarquia. Com três níveis, dá para escrever. Com profundidade desconhecida, não dá. Quem garante isso é a
+      <strong>consulta recursiva</strong>: uma CTE que se referencia a si mesma até não encontrar mais nada.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · a iteração até o ponto fixo</h3>
+    <div id="anim-rec"></div>
+  </div>
+</section>
+
+<!-- ============================ ESTRUTURA ============================ -->
+<section id="estrutura" data-toc="A forma de uma consulta recursiva" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-fuchsia-400 mr-2"></i>Âncora e recursão: duas partes obrigatórias</h2>
+  <p class="ah-lead text-sm mb-5">
+    Toda CTE recursiva tem duas partes unidas por <code>UNION ALL</code> (ou UNION):
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div class="ah-card p-4 border-t-4 border-fuchsia-400">
+      <div class="text-sm font-semibold text-white mb-1">Âncora</div>
+      <p class="text-xs text-slate-400 leading-relaxed">A parte que não se referencia a si mesma. Define o conjunto inicial: o presidente, a raiz da árvore.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-cyan-400">
+      <div class="text-sm font-semibold text-white mb-1">Recursão</div>
+      <p class="text-xs text-slate-400 leading-relaxed">A parte que referencia o nome da própria CTE. Cada rodada encontra os “filhos” das linhas da rodada anterior.</p>
+    </div>
+  </div>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- a árvore inteira, a partir de Marta (id 1), com o nível de cada pessoa
+WITH RECURSIVE equipe(id_funcionario, nome, nivel) AS (
+  SELECT id_funcionario, nome, 0
+  FROM funcionarios
+  WHERE id_funcionario = 1                         -- âncora
+  UNION ALL
+  SELECT f.id_funcionario, f.nome, e.nivel + 1
+  FROM funcionarios f
+  JOIN equipe e ON f.id_supervisor = e.id_funcionario  -- recursão
+)
+SELECT nivel, nome FROM equipe ORDER BY nivel, nome;</pre>
+  </div>
+</section>
+
+<!-- ============================ CAMINHO ============================ -->
+<section id="caminho" data-toc="Caminhos e sequências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-fuchsia-400 mr-2"></i>Carregando o caminho e gerando sequências</h2>
+  <p class="ah-lead text-sm mb-5">
+    Como a recursão carrega colunas de uma rodada para a seguinte, é possível acumular informação: por exemplo,
+    o caminho completo da raiz até cada funcionário.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>WITH RECURSIVE caminho(id_funcionario, nome, trilha) AS (
+  SELECT id_funcionario, nome, nome
+  FROM funcionarios WHERE id_supervisor IS NULL
+  UNION ALL
+  SELECT f.id_funcionario, f.nome, c.trilha || ' &gt; ' || f.nome
+  FROM funcionarios f
+  JOIN caminho c ON f.id_supervisor = c.id_funcionario
+)
+SELECT trilha FROM caminho ORDER BY trilha;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Recursão também gera dados. Uma sequência de 1 a 5 é útil para preencher lacunas num relatório (por exemplo, meses sem vendas):
+  </p>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>WITH RECURSIVE n(x) AS (
+  SELECT 1
+  UNION ALL
+  SELECT x + 1 FROM n WHERE x &lt; 5
+)
+SELECT x FROM n;</pre>
+  </div>
+</section>
+
+<!-- ============================ CICLOS ============================ -->
+<section id="ciclos" data-toc="Ciclos e parada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-fuchsia-400 mr-2"></i>Quando a recursão não termina</h2>
+  <p class="ah-lead text-sm mb-5">
+    Numa árvore, a recursão sempre termina: cada passo desce um nível, e as folhas não têm filhos. Num <strong>grafo com
+    ciclos</strong> (A indica B, B indica A), a recursão pode girar para sempre. Toda consulta recursiva precisa de uma
+    condição de parada garantida.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">UNION ALL × UNION</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        <code>UNION ALL</code> mantém duplicatas e é mais rápido. <code>UNION</code> remove linhas repetidas a cada rodada,
+        e isso faz a recursão terminar em grafos com ciclos, porque nenhuma linha nova aparece. Em árvores, use UNION ALL.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">Limite explícito</h3>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Uma condição como <code>WHERE nivel &lt; 10</code> é a rede de segurança mais simples. Em produção, combine-a com
+        uma coluna de caminho para detectar ciclos (“este id já está na trilha?”).
+      </p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Recursão sem parada é um laço infinito disfarçado.</strong> Um UNION ALL sobre um ciclo nunca produz
+      uma linha vazia. O banco pode consumir memória até falhar, ou o SQLite pode parar por limite de profundidade.
+      Nunca execute uma consulta recursiva em dados de origem desconhecida sem limite.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-fuchsia-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>O SGBD avalia a consulta recursiva por <strong>iteração de ponto fixo</strong>, com duas tabelas de trabalho:</p>
+    <ol>
+      <li>Executa a âncora e guarda o resultado num conjunto <em>de trabalho</em> (working table). Esse conjunto também é o resultado parcial.</li>
+      <li>Executa a parte recursiva, substituindo a referência ao nome da CTE pelo conjunto de trabalho atual. As linhas novas formam o próximo conjunto de trabalho e são acrescentadas ao resultado.</li>
+      <li>Repete o passo 2 até que a parte recursiva não produza nenhuma linha nova.</li>
+    </ol>
+    <p>
+      Cada iteração corresponde a um nível da árvore. A animação acima mostra exatamente isso. Por ser uma iteração de
+      conjuntos, a recursão é mais previsível que um laço programado, mas não é gratuita: cada rodada é um passo do plano de execução.
+    </p>
+    <p>
+      Em PostgreSQL, a mesma lógica existe, com a diferença de que o banco pode usar um índice sobre a coluna de supervisor
+      em cada rodada. Sem esse índice, cada iteração varre a tabela inteira. O tópico 14 mostra
+      como verificar isso.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: quantos reportam a cada gerente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-fuchsia-400 mr-2"></i>Exemplo clássico: subordinados diretos e indiretos</h2>
+  <p class="ah-lead text-sm mb-5">
+    Para cada gerente, quantas pessoas estão abaixo dele em toda a cadeia? A recursão gera os pares (gerente, subordinado)
+    e a agregação conta.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>WITH RECURSIVE abaixo(gerente, subordinado) AS (
+  SELECT id_supervisor, id_funcionario
+  FROM funcionarios
+  WHERE id_supervisor IS NOT NULL
+  UNION
+  SELECT a.gerente, f.id_funcionario
+  FROM abaixo a
+  JOIN funcionarios f ON f.id_supervisor = a.subordinado
+)
+SELECT f.nome, COUNT(a.subordinado) AS total_abaixo
+FROM funcionarios f
+JOIN abaixo a ON a.gerente = f.id_funcionario
+GROUP BY f.id_funcionario, f.nome
+ORDER BY total_abaixo DESC, f.nome;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Este exemplo usa UNION (não ALL) para remover pares repetidos: um mesmo par aparece por mais de um caminho apenas se
+    a estrutura tiver ciclos ou múltiplos caminhos. Repare que a diretora, Marta, aparece com o total de toda a equipe.
+  </p>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-fuchsia-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Uma progressão geométrica gerada por recursão. Troque a condição de parada ou a multiplicação e execute.</p>
+  <div class="sql-play">WITH RECURSIVE potencias(x) AS (
+  SELECT 1
+  UNION ALL
+  SELECT x * 2 FROM potencias WHERE x &lt; 64
+)
+SELECT x FROM potencias;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-fuchsia-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Desenhe a árvore no papel antes de rodar.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Equipe de Roberto</summary>
+    <p class="sql-dica-prob">Liste todas as pessoas que estão abaixo de Roberto Alves (id 2), em qualquer nível, com o nível relativo a ele.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>WITH RECURSIVE equipe(id_funcionario, nome, nivel) AS (
+  SELECT id_funcionario, nome, 0 FROM funcionarios WHERE id_funcionario = 2
+  UNION ALL
+  SELECT f.id_funcionario, f.nome, e.nivel + 1
+  FROM funcionarios f
+  JOIN equipe e ON f.id_supervisor = e.id_funcionario
+)
+SELECT nivel, nome FROM equipe ORDER BY nivel, nome;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        O resultado mostra Roberto no nível 0, Tiago e Juliana no nível 1 e nenhuma outra pessoa. Lúcia e Paulo estão na outra
+        ramificação, sob Marta, e não aparecem.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Ancestrais de um funcionário</summary>
+    <p class="sql-dica-prob">Para a Renata Lopes (id 7), liste todos os seus superiores, até a diretora.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>WITH RECURSIVE acima(id_funcionario, nome, id_supervisor) AS (
+  SELECT id_funcionario, nome, id_supervisor FROM funcionarios WHERE id_funcionario = 7
+  UNION ALL
+  SELECT f.id_funcionario, f.nome, f.id_supervisor
+  FROM funcionarios f
+  JOIN acima a ON f.id_funcionario = a.id_supervisor
+)
+SELECT nome FROM acima;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A recursão sobe pela coluna de supervisor. A parada é natural: a diretora tem id_supervisor NULL, então o JOIN não encontra mais nada.
+        Renata aparece com Paulo, Lúcia, Marta.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Calendário de datas</summary>
+    <p class="sql-dica-prob">Gere as datas de 1 a 7 de outubro de 2024, usando recursão e a função date().</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>WITH RECURSIVE dias(dia) AS (
+  SELECT date('2024-10-01')
+  UNION ALL
+  SELECT date(dia, '+1 day') FROM dias WHERE dia &lt; date('2024-10-07')
+)
+SELECT dia FROM dias;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Esse calendário é útil para mostrar dias sem vendas: basta um LEFT JOIN da sequência com a tabela de pedidos.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Grafos: alcance e fecho transitivo</h3>
+  <div class="ah-prose">
+    <p>
+      Hierarquias são árvores, mas muitas estruturas reais são <strong>grafos</strong>: rotas de transporte, rede de indicações,
+      dependências entre pacotes. Nelas, a pergunta típica é “a partir deste ponto, o que consigo alcançar?”. Isso se chama
+      <strong>fecho transitivo</strong>, e a recursão responde a ele.
+    </p>
+    <p>
+      Num grafo com ciclos, o UNION (sem ALL) é essencial: ele descarta cidades já encontradas, e a recursão termina quando
+      nada novo aparece. A consulta abaixo parte de São Paulo e descobre todas as cidades alcançáveis, mesmo as que
+      só são alcançadas pelo caminho de volta.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE rota (origem TEXT, destino TEXT);
+INSERT INTO rota VALUES ('SP','RJ'), ('RJ','BH'), ('BH','SP'), ('SP','CWB');
+
+WITH RECURSIVE alcance(cidade) AS (
+  SELECT 'SP'
+  UNION
+  SELECT r.destino
+  FROM rota r
+  JOIN alcance a ON r.origem = a.cidade
+)
+SELECT cidade FROM alcance ORDER BY cidade;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O ciclo SP → RJ → BH → SP não gera linhas infinitas. Com UNION ALL, a mesma consulta nunca terminaria.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Guardar o caminho e cortar ciclos</h3>
+  <div class="ah-prose">
+    <p>
+      Às vezes importa <em>como</em> chegar a um lugar, não só se ele é alcançável. Acumulamos o caminho numa coluna de texto
+      e impedimos que a recursão revisite uma cidade já presente nele. Também limitamos a profundidade, como rede de segurança.
+      A função <code>instr</code> procura um texto dentro de outro; em produção, use separadores delimitados para não
+      confundir “SP” com “SPO”.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE rota (origem TEXT, destino TEXT);
+INSERT INTO rota VALUES ('SP','RJ'), ('RJ','BH'), ('BH','SP'), ('SP','CWB');
+
+WITH RECURSIVE caminho(atual, trilha, profundidade) AS (
+  SELECT 'SP', 'SP', 0
+  UNION ALL
+  SELECT r.destino,
+         c.trilha || ' &gt; ' || r.destino,
+         c.profundidade + 1
+  FROM rota r
+  JOIN caminho c ON r.origem = c.atual
+  WHERE c.profundidade &lt; 4
+    AND instr(c.trilha, r.destino) = 0
+)
+SELECT trilha FROM caminho WHERE atual = 'CWB' ORDER BY trilha;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Só o caminho direto SP → CWB aparece. O caminho SP → RJ → BH → SP foi cortado, porque SP já estava na trilha.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Quando a recursão em SQL deixa de ser a ferramenta certa</h3>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Grafos muito grandes e buscas de caminho mínimo:</strong> algoritmos como Dijkstra (tópico de estrutura de dados) são mais eficientes que a iteração de conjuntos do SQL.</li>
+      <li><strong>Profundidade sem limite conhecido:</strong> cada nível é uma rodada completa, e o custo cresce com o número de caminhos, não só de nós.</li>
+      <li><strong>Consultas repetidas em alta frequência:</strong> considere materializar o fecho (uma tabela de ancestrais, atualizada na escrita) em vez de recalcular a cada leitura.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#2a1436)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-fuchsia-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual é o papel da parte âncora numa CTE recursiva?</p>
+      <button class="ah-quiz-opt">Repetir a recursão quantas vezes for preciso</button>
+      <button class="ah-quiz-opt">Definir o conjunto inicial, sem se referenciar à própria CTE</button>
+      <button class="ah-quiz-opt">Filtrar o resultado final</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A âncora é o ponto de partida da iteração. Sem ela, a recursão não teria por onde começar.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que usar UNION em vez de UNION ALL num grafo com ciclos?</p>
+      <button class="ah-quiz-opt">UNION é sempre mais rápido</button>
+      <button class="ah-quiz-opt">UNION ALL não aceita ciclos</button>
+      <button class="ah-quiz-opt">UNION descarta linhas repetidas, então uma rodada sem linhas novas encerra a recursão</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Num ciclo, UNION ALL acrescenta sempre as mesmas linhas e nunca para. UNION impede repetição, e a iteração termina
+        quando nada novo aparece.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Na avaliação de uma CTE recursiva, o que cada iteração representa?</p>
+      <button class="ah-quiz-opt">Um nível de profundidade da hierarquia (ou um passo do caminho)</button>
+      <button class="ah-quiz-opt">Uma linha da tabela de origem, em ordem</button>
+      <button class="ah-quiz-opt">Uma nova conexão com o banco</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Cada rodada da recursão expande o conjunto de trabalho em um nível. A execução é uma sequência de rodadas até o ponto fixo.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: iteração até o ponto fixo ===================== */
+(function () {
+  const niveis = [
+    { nivel: 0, nomes: ['Marta Dias'] },
+    { nivel: 1, nomes: ['Roberto Alves', 'Lúcia Prado'] },
+    { nivel: 2, nomes: ['Tiago Gomes', 'Juliana Reis', 'Paulo Ramos'] },
+    { nivel: 3, nomes: ['Renata Lopes'] }
+  ];
+  const caixa = (titulo, nomes, cor) => `
+    <div class="ah-card p-3 min-h-[90px]" style="border-top:3px solid ${cor}">
+      <div class="text-[11px] text-slate-400 mb-2">${titulo}</div>
+      ${nomes.length ? nomes.map(n => `<div class="sql-in text-xs text-white font-mono">${n}</div>`).join('') : '<div class="text-xs text-slate-600 italic">vazio: fim</div>'}
+    </div>`;
+  const acumulado = k => niveis.slice(0, k + 1).flatMap(n => n.nomes);
+  SQLLab.passos(document.getElementById('anim-rec'), [
+    { titulo: 'Rodada 0 · a âncora', texto: 'WHERE id_supervisor IS NULL: só a diretora. Ela é o conjunto de trabalho inicial.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${caixa('conjunto de trabalho', niveis[0].nomes, '#e879f9')}${caixa('resultado acumulado', acumulado(0), '#22d3ee')}</div>` },
+    { titulo: 'Rodada 1 · a recursão', texto: 'JOIN com o conjunto de trabalho: quem tem como supervisor alguém da rodada anterior?',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${caixa('conjunto de trabalho', niveis[1].nomes, '#e879f9')}${caixa('resultado acumulado', acumulado(1), '#22d3ee')}</div>` },
+    { titulo: 'Rodada 2', texto: 'Quem reporta a alguém da rodada 1: Tiago e Juliana (de Roberto) e Paulo (de Lúcia).',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${caixa('conjunto de trabalho', niveis[2].nomes, '#e879f9')}${caixa('resultado acumulado', acumulado(2), '#22d3ee')}</div>` },
+    { titulo: 'Rodada 3 · e a última', texto: 'Renata reporta a Paulo. Ao procurar subordinados dela, a próxima rodada não encontra ninguém: o conjunto de trabalho fica vazio e a consulta termina.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${caixa('conjunto de trabalho', niveis[3].nomes, '#e879f9')}${caixa('resultado acumulado', acumulado(3), '#22d3ee')}</div>
+        <div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i><div>Sem linhas novas: a recursão para. Sete pessoas no total.</div></div>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

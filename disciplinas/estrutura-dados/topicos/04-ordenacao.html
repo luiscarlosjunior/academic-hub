@@ -376,6 +376,82 @@ static long inversoes(int a[], size_t n) {
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>04-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Chave composta: idade e nome</h3>
+    <div class="ah-prose text-sm"><p>A inserção ordena pela chave (idade, nome). Por ser estável, a ordem alfabética dentro de cada idade é mantida. Repare que o critério de comparação mudou, mas o algoritmo é o mesmo.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static void ordenar_pessoas(Pessoa p[], size_t n) {
+    for (size_t i = 1; i &lt; n; i++) {
+        Pessoa chave = p[i];
+        size_t j = i;
+        while (j &gt; 0) {
+            int menor = p[j - 1].idade &gt; chave.idade ||
+                        (p[j - 1].idade == chave.idade &amp;&amp; strcmp(p[j - 1].nome, chave.nome) &gt; 0);
+            if (!menor) break;
+            p[j] = p[j - 1];
+            j--;
+        }
+        p[j] = chave;
+    }
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Maior lacuna entre vizinhos</h3>
+    <div class="ah-prose text-sm"><p>Depois de ordenar, a maior diferença entre elementos consecutivos é a resposta. O custo é O(n log n), dominado pela ordenação.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int cmp_int(const void *x, const void *y) {
+    int a = *(const int *)x, b = *(const int *)y;
+    return (a &gt; b) - (a &lt; b);
+}
+
+static int maior_lacuna(int a[], size_t n) {
+    if (n &lt; 2) return 0;
+    qsort(a, n, sizeof *a, cmp_int);
+    int melhor = 0;
+    for (size_t i = 1; i &lt; n; i++)
+        if (a[i] - a[i - 1] &gt; melhor) melhor = a[i] - a[i - 1];
+    return melhor;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Maior número por concatenação</h3>
+    <div class="ah-prose text-sm"><p>O comparador ordena pares pela concatenação, não pelo valor: "9" vem antes de "5", e "34" antes de "3". Para {3, 30, 34, 5, 9}, o resultado é 9534330. É um exemplo de comparador que não é uma simples ordem numérica.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static int cmp_concat(const void *x, const void *y) {
+    const char *a = *(const char *const *)x, *b = *(const char *const *)y;
+    char ab[32], ba[32];
+    snprintf(ab, sizeof ab, "%s%s", a, b);
+    snprintf(ba, sizeof ba, "%s%s", b, a);
+    return strcmp(ba, ab);        /* o que começa com o maior prefixo vem antes */
+}
+
+static void maior_numero(const char *partes[], size_t n, char saida[]) {
+    qsort(partes, n, sizeof *partes, cmp_concat);
+    saida[0] = '\0';
+    for (size_t i = 0; i &lt; n; i++) strcat(saida, partes[i]);
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Ordenar caracteres por contagem</h3>
+    <div class="ah-prose text-sm"><p>Conta as ocorrências de cada caractere e reescreve o texto em ordem: O(n + 256). "estrutura" vira "aerrsttuu".</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static void ordenar_letras(char s[], size_t n) {
+    size_t freq[256] = {0};
+    for (size_t i = 0; i &lt; n; i++) freq[(unsigned char)s[i]]++;
+    size_t pos = 0;
+    for (int c = 0; c &lt; 256; c++)
+        for (size_t k = 0; k &lt; freq[c]; k++) s[pos++] = (char)c;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>por idade e nome: Ana(25) Dani(25) Bia(30) Caio(30)
+maior lacuna entre vizinhos: 7
+maior número concatenado: 9534330
+letras ordenadas: aerrsttuu</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

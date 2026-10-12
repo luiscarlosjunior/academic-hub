@@ -450,6 +450,223 @@
     }
   };
 
+  /* ===================================================================
+     6. TÓPICOS 10 A 16: rede, dados, serverless, operação, performance,
+     governança e projeto integrador. Todos reaproveitam desenhaFluxo.
+     =================================================================== */
+  function geraVPC(opcao) {
+    const errado = opcao === 'errado';
+    const nos = [
+      { nome: 'Internet', sub: 'usuário' },
+      { nome: 'ALB', sub: 'sub-rede pública' },
+      { nome: 'App', sub: 'sub-rede privada' },
+      { nome: 'Banco', sub: errado ? 'sub-rede pública' : 'sub-rede isolada' }
+    ];
+    const quadros = [
+      { nos, foco: 0, ate: 0, t: 'O tráfego chega pela internet ao Internet Gateway, que liga a VPC à internet.' },
+      { nos, foco: 1, ate: 1, t: 'O balanceador (ALB) fica numa sub-rede pública: é o único ponto exposto, com Security Group que aceita só a porta 443.' },
+      { nos, foco: 2, ate: 2, t: 'A aplicação fica numa sub-rede privada. Ela aceita tráfego só do Security Group do ALB e não tem IP público.' }
+    ];
+    if (errado) {
+      quadros.push({ nos, foco: 3, ate: 3, erro: 3,
+        t: 'Erro de desenho: o banco numa sub-rede pública, com a porta aberta ao mundo. Qualquer origem pode tentar a conexão.' });
+    } else {
+      quadros.push({ nos, foco: 3, ate: 3,
+        t: 'O banco fica numa sub-rede isolada, sem rota para a internet. Só o Security Group da aplicação alcança a porta.' });
+    }
+    return quadros;
+  }
+
+  function geraBanco(opcao) {
+    const nos = [
+      { nome: 'App', sub: 'aplicação' },
+      { nome: 'Primário', sub: 'escrita' },
+      { nome: 'Standby', sub: 'Multi-AZ, síncrono' },
+      { nome: 'Réplica', sub: 'leitura, assíncrona' }
+    ];
+    const quadros = [
+      { nos, foco: 0, ate: 0, t: 'A aplicação envia a escrita ao primário, o único nó que aceita gravações.' },
+      { nos, foco: 1, ate: 1, t: 'O primário replica cada transação de forma síncrona para o standby, em outra zona de disponibilidade, antes de confirmar.' }
+    ];
+    if (opcao === 'falha') {
+      quadros.push({ nos, foco: 1, ate: 1, erro: 1,
+        t: 'O primário falha: a zona dele cai e a aplicação perde a conexão de escrita.' });
+      quadros.push({ nos, foco: 2, ate: 2,
+        t: 'O Multi-AZ promove o standby a primário. O endpoint do banco é atualizado, e a aplicação volta a escrever sem mudança de código.' });
+    } else {
+      quadros.push({ nos, foco: 3, ate: 3,
+        t: 'Leituras podem ir a réplicas. A replicação é assíncrona, então a réplica pode estar alguns instantes atrás do primário.' });
+    }
+    return quadros;
+  }
+
+  function geraServerless(opcao) {
+    const frio = opcao === 'frio';
+    const nos = [
+      { nome: 'Cliente', sub: 'requisição HTTP' },
+      { nome: 'API Gateway', sub: 'HTTP API' },
+      { nome: 'Lambda', sub: frio ? 'cold start' : 'ambiente quente' },
+      { nome: 'DynamoDB', sub: 'leitura e escrita' }
+    ];
+    return [
+      { nos, foco: 0, ate: 0, t: 'O cliente chama uma rota HTTP. Nada precisa estar rodando antes da chamada: o custo existe só quando há invocações.' },
+      { nos, foco: 1, ate: 1, t: 'O API Gateway valida o pedido, aplica autenticação e encaminha o evento à função.' },
+      { nos, foco: 2, ate: 2, t: frio
+          ? 'Sem ambiente pronto, a Lambda cria um (cold start). Essa espera acontece antes do seu código e aparece na latência da primeira chamada.'
+          : 'Há um ambiente já inicializado: o handler roda de imediato, e o cliente do banco criado fora do handler é reaproveitado.' },
+      { nos, foco: 3, ate: 3, t: 'A função lê ou grava no DynamoDB com uma chave conhecida. Acesso por chave tem latência baixa e previsível.' },
+      { nos, foco: 2, ate: 3, t: 'A resposta volta pelo mesmo caminho. O ambiente fica quente por algum tempo e atende as próximas chamadas sem o atraso inicial.' }
+    ];
+  }
+
+  function geraObservabilidade(opcao) {
+    const incidente = opcao === 'incidente';
+    const nos = [
+      { nome: 'App', sub: 'métricas e logs' },
+      { nome: 'CloudWatch', sub: 'métricas e logs' },
+      { nome: 'Alarme', sub: 'duas janelas' },
+      { nome: 'Notificação', sub: 'SNS e e-mail' },
+      { nome: 'Runbook', sub: 'passo a passo' }
+    ];
+    const quadros = [
+      { nos, foco: 0, ate: 0, t: 'A aplicação emite métricas (latência, erros) e logs estruturados. Sem medição não há como decidir nada.' },
+      { nos, foco: 1, ate: 1, t: 'O CloudWatch guarda as métricas e permite consultar os logs com Logs Insights.' }
+    ];
+    if (incidente) {
+      quadros.push({ nos, foco: 2, ate: 2, erro: 2, t: 'A taxa de erros 5xx passa de 5% em duas janelas seguidas: o alarme entra em estado de ALARME.' });
+      quadros.push({ nos, foco: 3, ate: 3, erro: 2, t: 'A notificação chega ao plantão com o nome do alarme e o link do runbook.' });
+      quadros.push({ nos, foco: 4, ate: 4, erro: 2, t: 'O runbook guia o diagnóstico: conferir o último deploy, o cache e a origem antes de qualquer ação.' });
+    } else {
+      quadros.push({ nos, foco: 2, ate: 2, t: 'O alarme compara a métrica com o limiar e só muda de estado após duas janelas seguidas. Assim, um erro isolado não gera alerta.' });
+    }
+    return quadros;
+  }
+
+  function geraFrontend(opcao) {
+    const lento = opcao === 'lento';
+    const nos = [
+      { nome: 'Código', sub: 'componentes' },
+      { nome: 'Build', sub: 'divide em partes' },
+      { nome: 'CDN', sub: 'entrega do cache' },
+      { nome: 'Navegador', sub: 'renderiza' },
+      { nome: 'Medição', sub: 'RUM e Web Vitals' }
+    ];
+    if (lento) {
+      return [
+        { nos, foco: 0, ate: 0, t: 'Todos os componentes entram num pacote só, porque nada foi dividido por rota.' },
+        { nos, foco: 1, ate: 1, t: 'Sem divisão de código, o navegador baixa o pacote inteiro antes de pintar a primeira tela.' },
+        { nos, foco: 2, ate: 2, t: 'A CDN entrega o arquivo, mas ele é grande: o tempo até o maior elemento da tela (LCP) cresce.' },
+        { nos, foco: 3, ate: 3, erro: 3, t: 'LCP acima de 2,5 s é classificado como “precisa de melhoria”. O usuário espera olhando para uma tela vazia.' },
+        { nos, foco: 4, ate: 4, erro: 3, t: 'O RUM mostra o problema por página e por país, para priorizar a correção.' }
+      ];
+    }
+    return [
+      { nos, foco: 0, ate: 0, t: 'Os componentes são organizados por rota, e cada tela declara do que depende.' },
+      { nos, foco: 1, ate: 1, t: 'O build divide o código por rota. Tabelas pesadas entram com import() preguiçoso, só quando são exibidas.' },
+      { nos, foco: 2, ate: 2, t: 'Arquivos com hash têm cache longo, e o HTML principal continua pequeno.' },
+      { nos, foco: 3, ate: 3, t: 'A primeira tela chega com menos bytes: o LCP fica dentro de 2,5 s e o INP abaixo de 200 ms.' },
+      { nos, foco: 4, ate: 4, t: 'O RUM confirma a melhoria em dados reais e alimenta o orçamento de performance do time.' }
+    ];
+  }
+
+  function geraGovernanca(opcao) {
+    const nos = [
+      { nome: 'Descoberta', sub: 'conhece o DS' },
+      { nome: 'Adoção', sub: 'usa o pacote' },
+      { nome: 'Contribuição', sub: 'abre RFC' },
+      { nome: 'Revisão', sub: 'core team' },
+      { nome: 'Release', sub: 'publicada' }
+    ];
+    if (opcao === 'parado') {
+      return [
+        { nos, foco: 0, ate: 0, t: 'Times conhecem o design system, mas a documentação não explica como propor mudanças.' },
+        { nos, foco: 1, ate: 1, t: 'Os times usam o pacote, porém quando precisam de algo novo, não há caminho claro de contribuição.' },
+        { nos, foco: 2, ate: 2, erro: 2, t: 'Nenhuma RFC chega: cada time cria o próprio componente. A adoção estagna e o sistema perde relevância.' }
+      ];
+    }
+    return [
+      { nos, foco: 0, ate: 0, t: 'Times descobrem o design system pela documentação publicada e pelo onboarding.' },
+      { nos, foco: 1, ate: 1, t: 'Usam o pacote em produtos reais, e a medição de adoção mostra onde estão.' },
+      { nos, foco: 2, ate: 2, t: 'Quando falta um componente, o time abre uma RFC com problema, alternativas e impacto.' },
+      { nos, foco: 3, ate: 3, t: 'O core team decide em prazo combinado, e a decisão fica registrada.' },
+      { nos, foco: 4, ate: 4, t: 'A mudança entra numa versão com changelog, e o ciclo recomeça com mais adoção.' }
+    ];
+  }
+
+  function geraProjeto() {
+    const nos = [
+      { nome: 'Requisitos', sub: 'público e marca' },
+      { nome: 'Tokens', sub: 'primitivos' },
+      { nome: 'Componentes', sub: 'API e a11y' },
+      { nome: 'Hospedagem', sub: 'S3 + CF' },
+      { nome: 'Pipeline', sub: 'OIDC' },
+      { nome: 'Operação', sub: 'SLO e alarme' }
+    ];
+    return [
+      { nos, foco: 0, ate: 0, t: 'Comece pelos requisitos: quem usa o sistema, em quais produtos e com qual marca. Eles decidem o escopo.' },
+      { nos, foco: 1, ate: 1, t: 'Defina os tokens primitivos e semânticos. Nenhum componente deve usar cor literal.' },
+      { nos, foco: 2, ate: 2, t: 'Construa os componentes com API tipada, estados acessíveis e história no Storybook.' },
+      { nos, foco: 3, ate: 3, t: 'Publique a documentação em S3 e CloudFront com OAC, e o domínio no Route 53.' },
+      { nos, foco: 4, ate: 4, t: 'Automatize o pipeline com testes, teste visual e deploy por OIDC, com aprovação para produção.' },
+      { nos, foco: 5, ate: 5, t: 'Defina SLO, alarmes e runbook. O projeto só está completo quando a operação é observável.' }
+    ];
+  }
+
+  Object.assign(ANIMACOES, {
+    vpc: {
+      canvas: 'cvVpc', ctl: 'ctlVpc', cap: 'capVpc',
+      desenha: desenhaFluxo, gera: geraVPC, velocidade: 2200,
+      opcoes: [
+        { v: 'correto', rotulo: 'Desenho correto' },
+        { v: 'errado', rotulo: 'Banco em sub-rede pública' }
+      ]
+    },
+    banco: {
+      canvas: 'cvBanco', ctl: 'ctlBanco', cap: 'capBanco',
+      desenha: desenhaFluxo, gera: geraBanco, velocidade: 2200,
+      opcoes: [
+        { v: 'normal', rotulo: 'Operação normal' },
+        { v: 'falha', rotulo: 'Falha do primário' }
+      ]
+    },
+    serverless: {
+      canvas: 'cvServerless', ctl: 'ctlServerless', cap: 'capServerless',
+      desenha: desenhaFluxo, gera: geraServerless, velocidade: 2200,
+      opcoes: [
+        { v: 'quente', rotulo: 'Ambiente quente' },
+        { v: 'frio', rotulo: 'Cold start' }
+      ]
+    },
+    observabilidade: {
+      canvas: 'cvObservabilidade', ctl: 'ctlObservabilidade', cap: 'capObservabilidade',
+      desenha: desenhaFluxo, gera: geraObservabilidade, velocidade: 2200,
+      opcoes: [
+        { v: 'normal', rotulo: 'Sem incidente' },
+        { v: 'incidente', rotulo: 'Taxa de 5xx alta' }
+      ]
+    },
+    frontend: {
+      canvas: 'cvFrontend', ctl: 'ctlFrontend', cap: 'capFrontend',
+      desenha: desenhaFluxo, gera: geraFrontend, velocidade: 2200,
+      opcoes: [
+        { v: 'lento', rotulo: 'Pacote único (lento)' },
+        { v: 'otimizado', rotulo: 'Dividido por rota' }
+      ]
+    },
+    governanca: {
+      canvas: 'cvGovernanca', ctl: 'ctlGovernanca', cap: 'capGovernanca',
+      desenha: desenhaFluxo, gera: geraGovernanca, velocidade: 2200,
+      opcoes: [
+        { v: 'saudavel', rotulo: 'Contribuições fluem' },
+        { v: 'parado', rotulo: 'Sem caminho de contribuição' }
+      ]
+    },
+    projeto: {
+      canvas: 'cvProjeto', ctl: 'ctlProjeto', cap: 'capProjeto',
+      desenha: desenhaFluxo, gera: geraProjeto, velocidade: 2200
+    }
+  });
+
   function monta(nome) {
     const cfg = ANIMACOES[nome];
     if (!cfg || !document.getElementById(cfg.canvas)) return;

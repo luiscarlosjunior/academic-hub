@@ -294,6 +294,100 @@ dois somas para 9: índices 0 e 1</code></pre>
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>08-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Subvetor de soma zero</h3>
+    <div class="ah-prose text-sm"><p>Dois prefixos iguais delimitam um trecho de soma zero. A tabela guarda a primeira posição de cada prefixo. Para {3, 4, −7, 3, 1, 3, 1, −4}, o trecho é o dos índices 0 a 2.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>08-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static int subvetor_soma_zero(const int a[], int n, int *ini, int *fim) {
+    Tab t;
+    memset(&amp;t, 0, sizeof t);
+    long soma = 0;
+    inserir(&amp;t, 0, -1);                          /* prefixo vazio na posição -1 */
+    for (int i = 0; i &lt; n; i++) {
+        soma += a[i];
+        int antes;
+        if (buscar(&amp;t, soma, &amp;antes)) {
+            *ini = antes + 1;
+            *fim = i;
+            return 1;
+        }
+        inserir(&amp;t, soma, i);
+    }
+    return 0;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Elemento mais frequente</h3>
+    <div class="ah-prose text-sm"><p>A tabela conta cada valor; o primeiro valor a atingir a maior contagem é a resposta. Para {5, 2, 5, 3, 5, 2} o resultado é 5.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>08-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int mais_frequente(const int a[], int n) {
+    Tab t;
+    memset(&amp;t, 0, sizeof t);
+    int melhor = a[0], melhor_cont = 0;
+    for (int i = 0; i &lt; n; i++) {
+        int c = 0;
+        buscar(&amp;t, a[i], &amp;c);
+        c++;
+        inserir(&amp;t, a[i], c);
+        if (c &gt; melhor_cont) { melhor_cont = c; melhor = a[i]; }
+    }
+    return melhor;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Primeiro caractere único</h3>
+    <div class="ah-prose text-sm"><p>A primeira passagem conta, a segunda decide, respeitando a ordem do texto. Em "swiss", o primeiro caractere que aparece uma só vez é o "w".</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>08-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static int primeiro_unico(const char *s) {
+    int cont[256] = {0};
+    for (const char *p = s; *p; p++) cont[(unsigned char)*p]++;
+    for (const char *p = s; *p; p++)
+        if (cont[(unsigned char)*p] == 1) return (unsigned char)*p;
+    return -1;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Agrupar anagramas</h3>
+    <div class="ah-prose text-sm"><p>A assinatura de cada palavra é a contagem de suas letras; palavras com a mesma assinatura caem no mesmo grupo. "amor", "roma" e "mora" formam um grupo.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>08-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static void assinatura(const char *s, char out[27]) {
+    int cont[26] = {0};
+    for (const char *p = s; *p; p++) cont[*p - 'a']++;
+    for (int i = 0; i &lt; 26; i++) out[i] = (char)('A' + cont[i]);   /* contagem como caractere */
+    out[26] = '\0';
+}
+
+static void agrupar(const char *palavras[], int n) {
+    char chaves[16][27];
+    int grupos = 0;
+    for (int i = 0; i &lt; n; i++) {
+        char k[27];
+        assinatura(palavras[i], k);
+        int g = -1;
+        for (int j = 0; j &lt; grupos; j++)
+            if (strcmp(chaves[j], k) == 0) { g = j; break; }
+        if (g &lt; 0) { strcpy(chaves[grupos], k); g = grupos++; }
+        printf("  %s -&gt; grupo %d\n", palavras[i], g);
+    }
+    printf("  total de grupos: %d\n", grupos);
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>subvetor de soma zero: índices 0 a 2
+mais frequente de {5,2,5,3,5,2}: 5
+primeiro caractere único de "swiss": w
+primeiro caractere único de "aabb": nenhum
+agrupamento de anagramas:
+  amor -&gt; grupo 0
+  roma -&gt; grupo 0
+  casa -&gt; grupo 1
+  mora -&gt; grupo 0
+  saca -&gt; grupo 1
+  total de grupos: 2</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

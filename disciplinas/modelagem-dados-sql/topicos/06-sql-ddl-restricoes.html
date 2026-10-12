@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL: DDL, tipos e restrições de integridade · AcademicHub</title>
+<meta name="description" content="CREATE, ALTER e DROP; tipos de dados; PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL e DEFAULT na prática.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/06-sql-ddl-restricoes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="SQL: linguagem em três partes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-language text-cyan-400 mr-2"></i>SQL: uma linguagem em três partes</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>SQL</strong> (Structured Query Language) é a linguagem padrão para bancos relacionais. Ela se divide em
+      partes conforme o que faz com o banco:
+    </p>
+    <ul>
+      <li><strong>DDL</strong> (Data Definition Language): cria e altera a <em>estrutura</em>. <code>CREATE</code>, <code>ALTER</code>, <code>DROP</code>.</li>
+      <li><strong>DML</strong> (Data Manipulation Language): trabalha com os <em>dados</em>. <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, e também a consulta <code>SELECT</code>.</li>
+      <li><strong>DCL/TCL</strong>: controla permissões (<code>GRANT</code>, <code>REVOKE</code>) e transações (<code>COMMIT</code>, <code>ROLLBACK</code>, tópico 08).</li>
+    </ul>
+    <p>
+      Este tópico é sobre DDL: como o esquema da loja foi criado e como as restrições protegem os dados.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ CREATE TABLE ============================ -->
+<section id="create" data-toc="CREATE TABLE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hammer text-cyan-400 mr-2"></i>CREATE TABLE: definindo a estrutura</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada coluna tem <strong>nome</strong>, <strong>tipo</strong> e, opcionalmente, <strong>restrições</strong>. A ordem
+    das definições não importa para o banco, mas uma boa leitura começa pela chave primária.
+  </p>
+
+  <div class="ah-card p-5 mb-5">
+    <h3 class="ah-h3 mb-3">Animação · da linha de código à tabela</h3>
+    <div id="anim-create"></div>
+  </div>
+
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE avaliacoes (
+  id_avaliacao INTEGER PRIMARY KEY,
+  id_produto   INTEGER NOT NULL REFERENCES produtos(id_produto),
+  nota         INTEGER NOT NULL CHECK (nota BETWEEN 1 AND 5),
+  comentario   TEXT,
+  criada_em    TEXT    NOT NULL DEFAULT (date('now'))
+);
+INSERT INTO avaliacoes (id_produto, nota, comentario)
+VALUES (1, 5, 'Excelente'), (4, 3, NULL);
+SELECT * FROM avaliacoes;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Veja o que aconteceu: <code>id_avaliacao</code> não foi informado e recebeu um valor automaticamente, porque é
+    <code>INTEGER PRIMARY KEY</code> (no SQLite, um apelido para o identificador da linha). <code>criada_em</code> usou o
+    DEFAULT. O comentário ausente virou NULL.
+  </p>
+</section>
+
+<!-- ============================ TIPOS ============================ -->
+<section id="tipos" data-toc="Tipos de dados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shapes text-cyan-400 mr-2"></i>Tipos de dados</h2>
+  <p class="ah-lead text-sm mb-5">
+    O tipo define que valores a coluna aceita, quanto espaço ocupa e quais operações são possíveis. Escolher o tipo
+    certo é a primeira restrição do esquema.
+  </p>
+  <div class="overflow-x-auto mb-5">
+    <table class="ah-table">
+      <thead><tr><th>Tipo SQL padrão</th><th>Uso típico</th><th>Cuidado</th></tr></thead>
+      <tbody>
+        <tr><td><code>INTEGER</code></td><td>Identificadores, quantidades</td><td>Estoque não deveria aceitar negativo: use CHECK</td></tr>
+        <tr><td><code>DECIMAL(p, s)</code></td><td>Dinheiro</td><td>Nunca use ponto flutuante para dinheiro (REAL/FLOAT)</td></tr>
+        <tr><td><code>VARCHAR(n)</code> / <code>CHAR(n)</code></td><td>Textos com limite</td><td>CHAR preenche com espaços</td></tr>
+        <tr><td><code>DATE</code> / <code>TIMESTAMP</code></td><td>Datas e instantes</td><td>Fuso horário: guarde em UTC</td></tr>
+        <tr><td><code>BOOLEAN</code></td><td>Sim/não</td><td>Nem todo SGBD tem; SQLite usa 0/1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Dinheiro em REAL é um erro clássico.</strong> Números de ponto flutuante são binários e não representam
+      0,1 exatamente. Some 0,1 dez vezes e o total não é 1. A loja guarda os preços como REAL por simplicidade didática;
+      em produção use <code>DECIMAL</code> ou inteiros em centavos.
+    </div>
+  </div>
+  <div class="ah-prose mt-4">
+    <p>
+      O SQLite segue outra filosofia: usa <strong>afinidade de tipo</strong>. Uma coluna <code>INTEGER</code> tenta converter
+      o valor para inteiro, mas uma célula pode guardar texto se a conversão não for possível. Por isso o SQLite aceita
+      <code>VARCHAR(80)</code> e <code>DECIMAL(10,2)</code> sem reclamar, mas o tamanho e a escala não são impostos.
+      Bancos como PostgreSQL são mais rígidos. Escreva o esquema pensando no padrão.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ RESTRIÇÕES ============================ -->
+<section id="restricoes" data-toc="Restrições de integridade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-cyan-400 mr-2"></i>Restrições: o banco recusa o que é inválido</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma <strong>restrição</strong> é uma regra que o SGBD verifica em cada inserção e alteração. Se a regra falha, a
+    operação inteira é recusada. Não depende do programa que escreveu os dados: vale para qualquer cliente de banco.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1"><code>NOT NULL</code></div>
+      <p class="text-xs text-slate-400 leading-relaxed">A coluna precisa de valor. Ex.: todo cliente tem nome.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1"><code>UNIQUE</code></div>
+      <p class="text-xs text-slate-400 leading-relaxed">Não repete valores (NULLs contam como distintos na maioria dos bancos). Ex.: e-mail.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1"><code>CHECK (condição)</code></div>
+      <p class="text-xs text-slate-400 leading-relaxed">Expressão que precisa ser verdadeira. Ex.: preço não negativo.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1"><code>DEFAULT valor</code></div>
+      <p class="text-xs text-slate-400 leading-relaxed">Valor usado quando a coluna não é informada. Ex.: estoque começa em 0.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1"><code>PRIMARY KEY</code></div>
+      <p class="text-xs text-slate-400 leading-relaxed">Identifica a linha: única e não nula.</p></div>
+    <div class="ah-card p-4"><div class="text-sm font-semibold text-white mb-1"><code>REFERENCES</code></div>
+      <p class="text-xs text-slate-400 leading-relaxed">Chave estrangeira: o valor precisa existir na tabela referenciada.</p></div>
+  </div>
+
+  <div class="ah-card p-5">
+    <h3 class="ah-h3 mb-3">Animação · o banco recusa uma linha inválida</h3>
+    <div id="anim-restricoes"></div>
+  </div>
+</section>
+
+<!-- ============================ ALTER / DROP ============================ -->
+<section id="alter" data-toc="ALTER e DROP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-cyan-400 mr-2"></i>ALTER e DROP: evoluindo o esquema</h2>
+  <p class="ah-lead text-sm mb-5">
+    Esquemas mudam. <code>ALTER TABLE</code> altera uma tabela existente, e <code>DROP TABLE</code> a remove, com todos os
+    seus dados. Remover é irreversível: faça backup antes.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>ALTER TABLE clientes ADD COLUMN telefone TEXT;
+UPDATE clientes SET telefone = '41 99999-0007' WHERE id_cliente = 7;
+SELECT id_cliente, nome, telefone FROM clientes WHERE id_cliente IN (1, 7);</pre>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Limitações do ALTER no SQLite.</strong> O SQLite aceita ADD COLUMN, RENAME e DROP COLUMN, mas não altera
+      o tipo nem acrescenta restrições a uma coluna existente. Nesses casos, o procedimento padrão é criar uma tabela nova,
+      copiar os dados e renomear. Em PostgreSQL e MySQL, a maioria das alterações é direta.
+    </div>
+  </div>
+  <div class="sql-ex mt-5">
+    <pre class="ah-code sql-code" data-run>-- DROP TABLE IF EXISTS evita erro quando a tabela não existe
+DROP TABLE IF EXISTS avaliacoes;
+SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'avaliacoes';</pre>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-cyan-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Restrições custam trabalho.</strong> Cada INSERT precisa testar UNIQUE e consultar a tabela referenciada. Por isso o SGBD cria um <strong>índice</strong> automático para PRIMARY KEY e UNIQUE: a verificação vira uma busca rápida, não uma varredura.</li>
+      <li><strong>CHECK é avaliado linha a linha</strong>, sem olhar outras linhas. Uma regra que compara com outras linhas (“não pode haver dois pedidos no mesmo dia para o mesmo cliente”) precisa de UNIQUE sobre colunas, ou de um gatilho.</li>
+      <li><strong>Transações e DDL.</strong> Em PostgreSQL, DDL também é transacional: um CREATE TABLE pode ser desfeito com ROLLBACK. Em MySQL, DDL causa COMMIT implícito. Essa diferença aparece em migrações de esquema.</li>
+      <li><strong>O esquema é dado.</strong> O SQLite guarda o texto de cada CREATE TABLE em <code>sqlite_master</code>. Ferramentas de migração leem esse catálogo para comparar o banco real com o modelo.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: violando restrições" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-cyan-400 mr-2"></i>Exemplo: quatro inserções inválidas</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada instrução abaixo viola uma restrição do banco da loja. Cada bloco roda em um banco próprio, então uma
+    falha não interfere nas outras. Veja a mensagem que o SGBD devolve em cada caso.
+  </p>
+  <div class="sql-ex"><pre class="ah-code sql-code" data-run>INSERT INTO clientes VALUES (8, 'Igor', 'Porto Alegre', 'ana@loja.com', '2024-10-01');</pre></div>
+  <div class="sql-ex mt-3"><pre class="ah-code sql-code" data-run>INSERT INTO clientes VALUES (8, NULL, 'Porto Alegre', 'igor@loja.com', '2024-10-01');</pre></div>
+  <div class="sql-ex mt-3"><pre class="ah-code sql-code" data-run>INSERT INTO produtos VALUES (10, 'Teclado', 1, -50.00, 3);</pre></div>
+  <div class="sql-ex mt-3"><pre class="ah-code sql-code" data-run>INSERT INTO pedidos VALUES (10, 1, '2024-10-02', 'entregue');</pre></div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    As quatro mensagens são: e-mail duplicado (UNIQUE), nome ausente (NOT NULL), preço negativo (CHECK) e status fora da
+    lista (CHECK). Note que, nos dois últimos casos, a mensagem menciona a expressão exata que falhou: isso ajuda a depurar.
+  </p>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Altere o exemplo e execute. Cada execução parte de um banco novo, então você pode quebrar à vontade.</p>
+  <div class="sql-play">CREATE TABLE teste (id INTEGER PRIMARY KEY, valor INTEGER CHECK (valor &gt; 0));
+INSERT INTO teste VALUES (1, 10);
+INSERT INTO teste VALUES (2, -1);
+SELECT * FROM teste;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-cyan-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Escreva o comando antes de abrir a solução.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Tabela de cupons</summary>
+    <p class="sql-dica-prob">Crie a tabela <code>cupons</code> com: código único e obrigatório (texto), percentual de desconto entre 1 e 50
+      (inteiro, obrigatório) e uma data de validade obrigatória. Insira um cupom e consulte-o.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>CREATE TABLE cupons (
+  codigo     TEXT    PRIMARY KEY,
+  percentual INTEGER NOT NULL CHECK (percentual BETWEEN 1 AND 50),
+  validade   TEXT    NOT NULL
+);
+INSERT INTO cupons VALUES ('BEMVINDO10', 10, '2025-12-31');
+SELECT * FROM cupons;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Usar o código como PRIMARY KEY já garante unicidade e não nulidade. O CHECK limita o intervalo.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Só o CHECK segura?</summary>
+    <p class="sql-dica-prob">Tente inserir um produto de preço zero e outro com estoque negativo. Alguma das duas é recusada?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>INSERT INTO produtos VALUES (11, 'Brinde', 5, 0.00, 10);
+INSERT INTO produtos VALUES (12, 'Brinde 2', 5, 1.00, -3);
+SELECT id_produto, nome, preco, estoque FROM produtos WHERE id_produto IN (11, 12);</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Nenhuma é recusada. Preço zero satisfaz <code>preco &gt;= 0</code>. Estoque negativo passa porque a coluna
+        <code>estoque</code> não tem CHECK. Se, no negócio, estoque negativo é impossível, o banco precisa dizer isso,
+        com <code>CHECK (estoque &gt;= 0)</code>. Regra que não está no esquema não é garantida por ninguém.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Chave estrangeira sem regra de exclusão</summary>
+    <p class="sql-dica-prob">Explique o que acontece com os pedidos de um cliente quando o cliente é excluído, usando a
+      declaração padrão de <code>pedidos.id_cliente</code> (sem ON DELETE).</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Com o comportamento padrão (NO ACTION), a exclusão do cliente é <strong>recusada</strong> enquanto houver pedidos
+        referenciando-o (com a verificação ligada). Para apagar em cascata, é preciso declarar
+        <code>REFERENCES clientes(id_cliente) ON DELETE CASCADE</code>. Escolher entre as duas é uma decisão de negócio: apagar
+        pedidos junto com o cliente pode ser perigoso para a contabilidade.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Chaves geradas automaticamente</h3>
+  <div class="ah-prose">
+    <p>
+      Em quase todo sistema, a chave primária é gerada pelo banco, e não pela aplicação. Cada SGBD tem sua forma:
+    </p>
+  </div>
+  <div class="overflow-x-auto mt-3 mb-4">
+    <table class="ah-table">
+      <thead><tr><th>SGBD</th><th>Sintaxe típica</th></tr></thead>
+      <tbody>
+        <tr><td>SQLite</td><td><code>INTEGER PRIMARY KEY</code> (vira apelido do rowid)</td></tr>
+        <tr><td>PostgreSQL</td><td><code>id INTEGER GENERATED ALWAYS AS IDENTITY</code> (ou o antigo <code>SERIAL</code>)</td></tr>
+        <tr><td>MySQL</td><td><code>id INT AUTO_INCREMENT PRIMARY KEY</code></td></tr>
+        <tr><td>SQL Server</td><td><code>id INT IDENTITY(1,1) PRIMARY KEY</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Um detalhe que surpreende: a sequência <strong>não volta atrás</strong> quando uma transação sofre ROLLBACK. Se o
+      pedido 10 foi revertido, o próximo pedido será o 11, e o 10 nunca será reutilizado. Isso é correto (identificadores não
+      precisam ser contínuos), mas não serve como contagem de pedidos. Para contar, use COUNT.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Colunas calculadas pelo próprio banco</h3>
+  <div class="ah-prose">
+    <p>
+      Uma coluna <strong>gerada</strong> recebe o valor de uma expressão sobre outras colunas da mesma linha. O banco
+      recalcula sempre que a linha muda, então a cópia nunca fica desatualizada. É a forma segura de guardar um valor derivado
+      quando ele precisa estar disponível para índices ou relatórios (o tópico 02 discutiu esse trade-off).
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE itens_calc (
+  id INTEGER PRIMARY KEY,
+  quantidade INTEGER NOT NULL,
+  preco REAL NOT NULL,
+  total REAL GENERATED ALWAYS AS (quantidade * preco) STORED
+);
+INSERT INTO itens_calc (quantidade, preco) VALUES (2, 49.90), (3, 250);
+SELECT * FROM itens_calc;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Quando CHECK não basta: triggers</h3>
+  <div class="ah-prose">
+    <p>
+      CHECK só enxerga a própria linha. Uma regra que depende de <em>outro</em> valor, como “o estoque não pode ficar
+      negativo após uma atualização”, pode ser garantida por uma <strong>trigger</strong>: um bloco executado automaticamente
+      antes ou depois de uma operação. O exemplo abaixo recusa qualquer UPDATE que deixe o estoque negativo.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE TRIGGER impede_estoque_negativo
+BEFORE UPDATE OF estoque ON produtos
+WHEN NEW.estoque &lt; 0
+BEGIN
+  SELECT RAISE(ABORT, 'estoque não pode ser negativo');
+END;
+UPDATE produtos SET estoque = estoque - 100 WHERE id_produto = 1;</pre>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><strong>Trigger é lógica escondida.</strong> Quem lê o UPDATE não vê a regra, e uma migração pode desabilitá-la sem aviso.
+      Use triggers para invariantes que o banco precisa proteger de qualquer cliente, e documente-as junto com o esquema.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Boas práticas de DDL</h3>
+  <ul class="text-sm text-slate-300 space-y-2 leading-relaxed list-disc pl-5">
+    <li>Escreva o esquema em <strong>migrações versionadas</strong>, nunca alterando o banco à mão. Quem vier depois precisa reproduzir exatamente o mesmo estado.</li>
+    <li>Use <code>IF NOT EXISTS</code> e <code>IF EXISTS</code> apenas quando a migração for idempotente de propósito. Esconder erros de DDL costuma atrasar a descoberta de problemas.</li>
+    <li>Em tabelas grandes, uma alteração de coluna pode reescrever a tabela inteira e travá-la. Planeje essas mudanças em janelas de manutenção, ou em etapas (nova coluna, cópia, troca).</li>
+    <li>Nomeie as restrições (<code>CONSTRAINT chk_preco CHECK (preco &gt;= 0)</code>). Quando a mensagem de erro aparecer em produção, o nome aponta direto para a regra violada.</li>
+  </ul>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c3440)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual comando faz parte da DDL?</p>
+      <button class="ah-quiz-opt">UPDATE</button>
+      <button class="ah-quiz-opt">SELECT</button>
+      <button class="ah-quiz-opt">CREATE TABLE</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        DDL define estrutura: CREATE, ALTER, DROP. UPDATE e SELECT trabalham com dados (DML).
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que não se deve guardar dinheiro em tipo de ponto flutuante?</p>
+      <button class="ah-quiz-opt">Porque frações binárias não representam décimos exatamente, o que gera erros de arredondamento</button>
+      <button class="ah-quiz-opt">Porque ocupa mais espaço que inteiro</button>
+      <button class="ah-quiz-opt">Porque o SQL não permite números decimais</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        0,1 não tem representação binária exata. Somas repetidas acumulam erro. DECIMAL ou centavos em inteiro evitam isso.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Qual restrição garante que <code>estoque</code> nunca fique negativo?</p>
+      <button class="ah-quiz-opt">NOT NULL</button>
+      <button class="ah-quiz-opt">CHECK (estoque &gt;= 0)</button>
+      <button class="ah-quiz-opt">UNIQUE (estoque)</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        CHECK avalia uma condição em cada linha. NOT NULL só trata nulos, e UNIQUE impediria dois produtos com o mesmo estoque.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: CREATE ===================== */
+(function () {
+  const linhas = [
+    ['id_avaliacao', 'INTEGER PRIMARY KEY', 'chave, preenchida sozinha'],
+    ['id_produto', 'INTEGER NOT NULL REFERENCES produtos', 'obrigatória e chave estrangeira'],
+    ['nota', 'INTEGER NOT NULL CHECK (1..5)', 'regra do domínio'],
+    ['comentario', 'TEXT', 'opcional: aceita NULL'],
+    ['criada_em', "TEXT NOT NULL DEFAULT date('now')", 'valor padrão']
+  ];
+  SQLLab.passos(document.getElementById('anim-create'), [
+    { titulo: 'Escrever a definição', texto: 'Cada linha do CREATE descreve uma coluna: nome, tipo e regras.',
+      html: () => `<div class="sql-q">CREATE TABLE avaliacoes (
+  id_avaliacao INTEGER PRIMARY KEY,
+  ...
+);</div>` },
+    { titulo: 'Ler cada coluna', texto: 'O SGBD interpreta cada restrição como uma regra que precisa valer para toda linha.',
+      html: () => `<div class="space-y-2">${linhas.map((l, i) => `
+        <div class="ah-card p-3 flex flex-wrap gap-3 items-center text-xs" style="animation:sql-fadein .4s ease ${i * 0.15}s both">
+          <span class="font-mono text-cyan-300 w-28">${l[0]}</span>
+          <span class="font-mono text-slate-300 flex-1">${l[1]}</span>
+          <span class="text-slate-500">${l[2]}</span></div>`).join('')}</div>` },
+    { titulo: 'Inserir uma linha', texto: 'O id é gerado pelo banco e o criada_em recebe o padrão. A nota 4 passa no CHECK.',
+      html: () => `<div class="sql-q mb-3">INSERT INTO avaliacoes (id_produto, nota) VALUES (1, 4);</div>
+        ${SQLLab.tabelaHTML(['id_avaliacao', 'id_produto', 'nota', 'comentario', 'criada_em'],
+          [[1, 1, 4, null, '2026-10-12']], { destaque: [0], animar: true })}` },
+    { titulo: 'Inserir uma linha inválida', texto: 'Nota 9 viola o CHECK. O banco recusa a linha, e a tabela continua como estava.',
+      html: () => `<div class="sql-q mb-3">INSERT INTO avaliacoes (id_produto, nota) VALUES (1, 9);</div>
+        <div class="sql-erro"><i class="fa-solid fa-triangle-exclamation"></i> CHECK constraint failed: nota BETWEEN 1 AND 5</div>` }
+  ]);
+})();
+
+/* ===================== Animação: restrições ===================== */
+(function () {
+  const casos = [
+    { titulo: 'UNIQUE', sql: "INSERT INTO clientes VALUES (8, 'Igor', 'Porto Alegre', 'ana@loja.com', '2024-10-01');",
+      msg: 'UNIQUE constraint failed: clientes.email', regra: 'Já existe um cliente com este e-mail (Ana).' },
+    { titulo: 'NOT NULL', sql: "INSERT INTO clientes VALUES (8, NULL, 'Porto Alegre', 'igor@loja.com', '2024-10-01');",
+      msg: 'NOT NULL constraint failed: clientes.nome', regra: 'Nome é obrigatório.' },
+    { titulo: 'CHECK', sql: "INSERT INTO produtos VALUES (10, 'Teclado', 1, -50.00, 3);",
+      msg: 'CHECK constraint failed: preco >= 0', regra: 'Preço negativo não existe no negócio.' },
+    { titulo: 'FOREIGN KEY', sql: "PRAGMA foreign_keys = ON;\nINSERT INTO pedidos VALUES (10, 99, '2024-10-02', 'pago');",
+      msg: 'FOREIGN KEY constraint failed', regra: 'Cliente 99 não existe.' }
+  ];
+  SQLLab.passos(document.getElementById('anim-restricoes'), casos.map((c, i) => ({
+    titulo: `Caso ${i + 1} · ${c.titulo}`,
+    texto: c.regra,
+    html: () => `<div class="sql-q mb-3">${c.sql.replace(/</g, '&lt;')}</div>
+      <div class="sql-erro"><i class="fa-solid fa-ban"></i> ${c.msg}</div>
+      <p class="text-xs text-slate-400 mt-3">Nada foi gravado. A operação é atômica: ou a linha inteira entra, ou nada entra.</p>`
+  })));
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

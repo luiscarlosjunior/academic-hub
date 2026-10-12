@@ -272,6 +272,100 @@ triangular(5)=10  n_log_n(8)=24  misto(4)=20</code></pre>
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>01-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Busca linear × binária: contando comparações</h3>
+    <div class="ah-prose text-sm"><p>Com 16 elementos ordenados, buscar 31 custa 16 comparações na linear e 5 na binária. Quando o valor não existe, a linear percorre tudo: esse é o pior caso O(n), contra O(log n) da binária.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>01-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static long busca_linear(const int a[], int n, int x) {
+    for (int i = 0; i &lt; n; i++) {
+        cont++;
+        if (a[i] == x) return i;
+    }
+    return -1;
+}
+
+static long busca_binaria(const int a[], int n, int x) {
+    int lo = 0, hi = n - 1;
+    while (lo &lt;= hi) {
+        int m = lo + (hi - lo) / 2;
+        cont++;
+        if (a[m] == x) return m;
+        if (a[m] &lt; x) lo = m + 1;
+        else hi = m - 1;
+    }
+    return -1;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Consultas de soma: direta × prefixos</h3>
+    <div class="ah-prose text-sm"><p>100 consultas sobre 10 valores custam 1000 operações pelo método direto e 110 com somas de prefixos. O total calculado é o mesmo (5500); só o custo muda. O pré-processamento O(n) se paga quando há muitas consultas.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>01-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static long consultas_diretas(const long a[], int n, int q) {
+    long total = 0;
+    for (int k = 0; k &lt; q; k++) {
+        long s = 0;
+        for (int i = 0; i &lt; n; i++) {
+            cont++;
+            s += a[i];
+        }
+        total += s;
+    }
+    return total;
+}
+
+static long consultas_prefixo(const long a[], int n, int q) {
+    long p[64];
+    p[0] = 0;
+    for (int i = 0; i &lt; n; i++) {
+        cont++;
+        p[i + 1] = p[i] + a[i];
+    }
+    long total = 0;
+    for (int k = 0; k &lt; q; k++) {
+        cont++;
+        total += p[n];
+    }
+    return total;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Análise amortizada: contador binário</h3>
+    <div class="ah-prose text-sm"><p>Um incremento isolado pode mudar muitos bits, mas somando n incrementos o total fica abaixo de 2n. Por isso o custo médio por incremento é O(1), mesmo que um incremento específico custe mais.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>01-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static long bit_flips(int n) {
+    int bits[32] = {0};
+    long flips = 0;
+    for (int k = 0; k &lt; n; k++) {
+        int i = 0;
+        while (i &lt; 32 &amp;&amp; bits[i] == 1) {
+            bits[i] = 0;
+            flips++;
+            i++;
+        }
+        if (i &lt; 32) {
+            bits[i] = 1;
+            flips++;
+        }
+    }
+    return flips;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>ex-a: busca de 31 (posição 15)
+  linear:  16 comparações
+  binária: 5 comparações
+  linear ausente 2: 16 comparações
+ex-b: 100 consultas de soma em n=10
+  diretas: total=5500, custo=1000
+  prefixos: total=5500, custo=110
+ex-c: bit flips em n incrementos
+  n=   8: flips=15 (menos de 2n = 16)
+  n=  16: flips=31 (menos de 2n = 32)
+  n=1000: flips=1994 (menos de 2n = 2000)</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

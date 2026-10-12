@@ -262,6 +262,83 @@ mínimo de {4,5,6,7,0,1,2} = 0
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>05-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Busca em matriz achatada</h3>
+    <div class="ah-prose text-sm"><p>Uma matriz ordenada por linhas é, em ordem linear, um vetor ordenado. Basta converter o índice linear em (linha, coluna) com divisão e resto, e aplicar a busca binária.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static int busca_matriz(int l, int c, const int m[][4], int alvo) {
+    int lo = 0, hi = l * c - 1;
+    while (lo &lt;= hi) {
+        int mid = lo + (hi - lo) / 2;
+        int v = m[mid / c][mid % c];
+        if (v == alvo) return 1;
+        if (v &lt; alvo) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return 0;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Menor prefixo com soma mínima</h3>
+    <div class="ah-prose text-sm"><p>A soma dos prefixos cresce com k, então a condição "soma ≥ alvo" é monotônica. A busca sobre a resposta encontra o menor k em O(log n) testes.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int menor_prefixo(const int a[], int n, long alvo) {
+    long p[64];
+    p[0] = 0;
+    for (int i = 0; i &lt; n; i++) p[i + 1] = p[i] + a[i];
+    int lo = 1, hi = n, resp = -1;
+    while (lo &lt;= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (p[mid] &gt;= alvo) { resp = mid; hi = mid - 1; }
+        else lo = mid + 1;
+    }
+    return resp;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Contagem de ocorrências com limites</h3>
+    <div class="ah-prose text-sm"><p>contar(x) = primeira posição ≥ x+1 menos primeira posição ≥ x. Para um valor que não existe, como o 4 da lista, o resultado é 0.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static int primeiro_maior_igual(const int a[], int n, int x) {
+    int lo = 0, hi = n;
+    while (lo &lt; hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] &lt; x) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+
+static int contar(const int a[], int n, int x) {
+    return primeiro_maior_igual(a, n, x + 1) - primeiro_maior_igual(a, n, x);
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Máximo de função unimodal (busca ternária)</h3>
+    <div class="ah-prose text-sm"><p>Em cada passo, compara dois pontos internos e descarta um terço do intervalo. A função −(x − 3)² + 10 tem máximo em x = 3, e o método converge para ele.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static double f(double x) { return -(x - 3.0) * (x - 3.0) + 10.0; }
+
+static double maximo_unimodal(double lo, double hi, int passos) {
+    for (int k = 0; k &lt; passos; k++) {
+        double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
+        if (f(m1) &lt; f(m2)) lo = m1;
+        else hi = m2;
+    }
+    return (lo + hi) / 2.0;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>busca 12 em matriz 3x4: achou
+busca 13 em matriz 3x4: não
+menor prefixo com soma &gt;= 10: 4 elementos
+menor prefixo com soma &gt;= 100: -1
+ocorrências de 2: 3; de 5: 2; de 4: 0
+máximo de f(x) = -(x-3)^2 + 10 em [0, 10]: x = 3.0000</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

@@ -312,6 +312,95 @@ static const No *kesimo_menor(const No *r, int k) {
   </div>
 </section>
 
+<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
+  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>09-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo A: Diâmetro da árvore</h3>
+    <div class="ah-prose text-sm"><p>Para cada nó, combina as duas maiores profundidades dos filhos; o maior valor encontrado é o diâmetro, em arestas. Uma só visita: O(n).</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>09-mais-exemplos.c · ex-a</code></p>
+    <pre class="ah-code"><code>static int diam_aux(const No *r, int *melhor) {
+    if (!r) return -1;
+    int e = diam_aux(r-&gt;esq, melhor) + 1;
+    int d = diam_aux(r-&gt;dir, melhor) + 1;
+    if (e + d &gt; *melhor) *melhor = e + d;
+    return e &gt; d ? e : d;
+}
+
+static int diametro(const No *r) {
+    int melhor = 0;
+    diam_aux(r, &amp;melhor);
+    return melhor;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo B: Reconstruir uma BST a partir do pré-ordem</h3>
+    <div class="ah-prose text-sm"><p>Cada valor deve caber num intervalo (mínimo, máximo) que se estreita ao descer. Com o percurso pré-ordem, a árvore é reconstruída em O(n).</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>09-mais-exemplos.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int pos = 0;
+
+static No *reconstruir(const int pre[], int n, long min, long max) {
+    if (pos &gt;= n) return NULL;
+    int v = pre[pos];
+    if (v &lt;= min || v &gt;= max) return NULL;
+    pos++;
+    No *r = novo(v);
+    r-&gt;esq = reconstruir(pre, n, min, v);
+    r-&gt;dir = reconstruir(pre, n, v, max);
+    return r;
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo C: Somas por nível</h3>
+    <div class="ah-prose text-sm"><p>Percurso por níveis com uma fila que guarda o nó e sua profundidade; uma soma é impressa a cada mudança de nível.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>09-mais-exemplos.c · ex-c</code></p>
+    <pre class="ah-code"><code>static void somas_por_nivel(const No *raiz) {
+    const No *fila[64];
+    int prof[64];
+    size_t ini = 0, fim = 0;
+    if (!raiz) return;
+    fila[fim] = raiz;
+    prof[fim++] = 0;
+    long soma = 0;
+    int atual = 0;
+    while (ini &lt; fim) {
+        const No *r = fila[ini];
+        int p = prof[ini++];
+        if (p != atual) {
+            printf("  nível %d: soma %ld\n", atual, soma);
+            soma = 0;
+            atual = p;
+        }
+        soma += r-&gt;v;
+        if (r-&gt;esq) { fila[fim] = r-&gt;esq; prof[fim++] = p + 1; }
+        if (r-&gt;dir) { fila[fim] = r-&gt;dir; prof[fim++] = p + 1; }
+    }
+    printf("  nível %d: soma %ld\n", atual, soma);
+}</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exemplo D: Caminho da raiz até um valor</h3>
+    <div class="ah-prose text-sm"><p>Desce guardando o caminho e desfaz o registro ao voltar de um ramo sem o alvo. O caminho até 6 é 1, 2, 4, 6.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>09-mais-exemplos.c · ex-d</code></p>
+    <pre class="ah-code"><code>static int caminho(const No *r, int alvo, int trilha[], int *tam) {
+    if (!r) return 0;
+    trilha[(*tam)++] = r-&gt;v;
+    if (r-&gt;v == alvo) return 1;
+    if (caminho(r-&gt;esq, alvo, trilha, tam) || caminho(r-&gt;dir, alvo, trilha, tam)) return 1;
+    (*tam)--;                              /* desfaz: o ramo não contém o alvo */
+    return 0;
+}</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>diâmetro = 4 arestas
+somas por nível:
+  nível 0: soma 1
+  nível 1: soma 5
+  nível 2: soma 9
+  nível 3: soma 6
+caminho até 6: 1 2 4 6
+reconstruída a partir do pré-ordem: raiz 8, nós usados 8, diâmetro 5</code></pre>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">

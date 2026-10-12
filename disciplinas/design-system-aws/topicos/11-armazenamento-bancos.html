@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armazenamento e bancos de dados: S3, DynamoDB e RDS · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Classes e ciclo de vida do S3, modelagem de chaves e acessos no DynamoDB, e a diferença entre Multi-AZ e réplica de leitura no RDS, com código e critérios de escolha.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/11-armazenamento-bancos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-database text-orange-400 mr-2"></i>Tópico 11 · Armazenamento e bancos de dados</h2>
+  <div class="ah-prose">
+    <p>
+      Quase todo sistema guarda alguma coisa: arquivos, registros, métricas, histórico de versões. A escolha do armazenamento define o custo,
+      a velocidade e o que acontece quando algo falha. Um erro comum é usar o banco relacional para tudo, ou guardar arquivos grandes no
+      banco. Este tópico ensina a escolher a ferramenta a partir do padrão de acesso, que é a pergunta que deve vir antes de qualquer decisão.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>escolher a classe de armazenamento do S3 e configurar ciclo de vida com versionamento;</li>
+      <li>modelar uma tabela DynamoDB a partir dos padrões de acesso, e não das entidades;</li>
+      <li>diferenciar Multi-AZ de réplica de leitura no RDS, com o efeito de cada uma sobre disponibilidade e latência;</li>
+      <li>configurar backup e recuperação pontual, e saber o que eles não protegem.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: padrão de acesso primeiro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: a pergunta que decide a escolha</h2>
+  <div class="ah-prose">
+    <p>
+      Antes de escolher um serviço, responda quatro perguntas: <strong>como o dado é acessado</strong> (por chave, por consulta, por arquivo
+      inteiro), <strong>com que frequência</strong>, <strong>qual é o tamanho</strong> e <strong>quanto tempo de atraso é aceitável</strong>. O
+      S3 guarda objetos inteiros e é ótimo para arquivos e documentos. O DynamoDB responde a acessos por chave em latência baixa e previsível.
+      O RDS oferece SQL, junções e transações entre tabelas, ao custo de administração e de escala vertical, mesmo com recursos gerenciados.
+    </p>
+    <p>
+      Essas diferenças têm consequência direta no desenho. No DynamoDB, a modelagem começa pela lista de padrões de acesso. Cada consulta
+      necessária vira uma combinação de chave de partição e de ordenação, e as consultas que não cabem nessas chaves exigem um índice
+      secundário global (GSI). Num banco relacional, a modelagem começa pelas entidades e pela normalização, e as consultas se adaptam ao
+      modelo, com índices criados depois.
+    </p>
+    <p>
+      A disponibilidade tem duas dimensões separadas. <strong>Durabilidade</strong> é a chance de o dado não se perder; o S3 é projetado para
+      99,999999999% de durabilidade anual de objetos. <strong>Disponibilidade</strong> é a chance de o serviço responder agora. Replicação
+      protege a disponibilidade, mas não substitui backup: se um comando apaga dados, a réplica apaga também.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Serviço</th><th>Padrão de acesso ideal</th><th>Cobrança principal</th><th>Limite a conhecer</th></tr></thead>
+      <tbody>
+        <tr><td>S3</td><td>Objetos inteiros, leitura e escrita por chave de caminho</td><td>Armazenamento por GB e requisições</td><td>Não há consulta com filtros; é preciso indexar em outro lugar</td></tr>
+        <tr><td>DynamoDB</td><td>Acesso por chave de partição e ordenação</td><td>Leituras e escritas, ou capacidade provisionada</td><td>Consultas fora das chaves exigem GSI, que tem custo próprio</td></tr>
+        <tr><td>RDS</td><td>SQL com junções e transações</td><td>Instância por hora e armazenamento</td><td>Escala vertical na escrita; réplicas de leitura ajudam só na leitura</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s3" data-toc="Operação 1: S3, classes e ciclo de vida" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box-archive text-orange-400 mr-2"></i>Operação 1 · Classes do S3 e ciclo de vida</h2>
+  <div class="ah-prose">
+    <p>
+      As classes do S3 trocam custo de armazenamento por custo de acesso. A classe Standard é para dados acessados com frequência. As classes
+      de acesso infrequente são mais baratas para guardar, mas cobram por recuperação e têm duração mínima de cobrança. As classes de
+      arquivamento custam centavos por GB, mas a recuperação leva minutos a horas. A regra prática: se você não sabe quando um objeto será
+      lido, deixe a regra de ciclo de vida decidir, e não a memória de quem configurou.
+    </p>
+    <p>
+      O <strong>versionamento</strong> guarda cada versão de um objeto. Ele protege contra sobrescrita e exclusão acidental, mas cria custo
+      com versões antigas. Por isso, ele anda junto com uma regra que expira versões não atuais depois de um prazo. O conjunto das duas
+      regras é a configuração que se espera em qualquer bucket de documentação.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · regras de ciclo de vida</p>
+<pre class="ah-code"><code>{
+  "Rules": [
+    {
+      "ID": "arquivar-builds-antigos",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "builds/" },
+      "Transitions": [
+        { "Days": 30, "StorageClass": "STANDARD_IA" },
+        { "Days": 180, "StorageClass": "GLACIER_IR" }
+      ],
+      "Expiration": { "Days": 730 }
+    },
+    {
+      "ID": "limpar-versoes-antigas",
+      "Status": "Enabled",
+      "Filter": {},
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 90 }
+    }
+  ]
+}</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Bash · aplicando as regras</p>
+<pre class="ah-code"><code>aws s3api put-bucket-versioning \
+  --bucket ds-docs-producao \
+  --versioning-configuration Status=Enabled
+
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket ds-docs-producao \
+  --lifecycle-configuration file://ciclo-de-vida.json</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a primeira regra move builds antigos para classes mais baratas e os apaga após dois anos. A segunda
+      limpa versões não atuais após 90 dias. Repare que a regra de versões se aplica a todo o bucket (<code>Filter: {}</code>), porque o
+      acúmulo de versões acontece em qualquer prefixo. Antes de aplicar uma expiração, confirme com a equipe que o prazo está de acordo com
+      qualquer exigência de retenção.
+    </p>
+  </div>
+</section>
+
+<section id="dynamo" data-toc="Operação 2: DynamoDB e padrões de acesso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-orange-400 mr-2"></i>Operação 2 · Modelar pelo padrão de acesso</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine que o design system precisa guardar o uso de cada componente por produto. Os padrões de acesso são: listar os produtos que
+      usam um componente, e listar os componentes que um produto usa. Com uma tabela e duas chaves, cada padrão vira uma consulta direta.
+      A tabela abaixo usa a chave de partição <code>pk</code> e a de ordenação <code>sk</code>, e grava o mesmo fato em duas direções.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>pk</th><th>sk</th><th>Atributos</th><th>Padrão atendido</th></tr></thead>
+      <tbody>
+        <tr><td><code>COMP#button</code></td><td><code>PROD#loja</code></td><td>versao: 1.4.3</td><td>Produtos que usam um componente</td></tr>
+        <tr><td><code>PROD#loja</code></td><td><code>COMP#button</code></td><td>versao: 1.4.3</td><td>Componentes usados por um produto</td></tr>
+        <tr><td><code>PROD#loja</code></td><td><code>COMP#card</code></td><td>versao: 1.5.0</td><td>Consulta direta de um par</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript (CDK) · tabela com recuperação pontual</p>
+<pre class="ah-code"><code>import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+
+const tabela = new dynamodb.Table(this, 'UsoComponentes', {
+  partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
+  sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
+  billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+  pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+  deletionProtection: true,
+  removalPolicy: cdk.RemovalPolicy.RETAIN,
+});</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · consulta com o SDK v3</p>
+<pre class="ah-code"><code>import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+
+const doc = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'sa-east-1' }));
+
+export async function produtosQueUsam(componente: string) {
+  const resposta = await doc.send(new QueryCommand({
+    TableName: 'UsoComponentes',
+    KeyConditionExpression: 'pk = :p AND begins_with(sk, :prefixo)',
+    ExpressionAttributeValues: { ':p': 'COMP#' + componente, ':prefixo': 'PROD#' },
+  }));
+  return resposta.Items ?? [];
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a consulta usa a chave de partição (igualdade) e um prefixo na ordenação. O DynamoDB lê só os itens
+      daquela partição, por isso o custo e a latência não crescem com o tamanho total da tabela. O <code>deletionProtection</code> e a
+      <code>removalPolicy: RETAIN</code> protegem contra exclusão acidental, e a recuperação pontual permite voltar a um momento dos últimos
+      35 dias, desde que ela esteja ativa antes do incidente.
+    </p>
+  </div>
+</section>
+
+<section id="rds" data-toc="Operação 3: RDS, Multi-AZ e réplicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-server text-orange-400 mr-2"></i>Operação 3 · Multi-AZ, réplica de leitura e backup</h2>
+  <div class="ah-prose">
+    <p>
+      São três recursos com nomes parecidos e objetivos diferentes. A <strong>implantação Multi-AZ</strong> mantém um standby síncrono em outra
+      zona, e o failover é automático: ele serve para disponibilidade, e o standby não atende leituras comuns. A <strong>réplica de leitura</strong>
+      recebe a replicação de forma assíncrona e serve para escalar leituras; se o primário falha, a réplica não assume automaticamente.
+      O <strong>backup</strong> guarda o estado no tempo, e serve para recuperar dados apagados ou corrompidos, algo que replicação nenhuma faz.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Recurso</th><th>Protege contra</th><th>Não protege contra</th><th>Replicação</th></tr></thead>
+      <tbody>
+        <tr><td>Multi-AZ</td><td>Falha de zona ou da instância</td><td>Comando que apaga dados</td><td>Síncrona, standby não legível</td></tr>
+        <tr><td>Réplica de leitura</td><td>Gargalo de leitura</td><td>Falha do primário (não é promovida sozinha)</td><td>Assíncrona, pode estar atrás</td></tr>
+        <tr><td>Backup e recuperação pontual</td><td>Exclusão e corrupção de dados</td><td>Perda de disponibilidade da instância</td><td>Não é replicação</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: falha do primário e failover Multi-AZ</h3>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. Na falha, o standby assume o papel de primário e a aplicação volta a escrever pelo mesmo endpoint.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvBanco" style="height:300px"></canvas></div>
+  <div id="ctlBanco" class="mt-4"></div>
+  <div id="capBanco" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript (CDK) · banco com Multi-AZ e backup</p>
+<pre class="ah-code"><code>import * as rds from 'aws-cdk-lib/aws-rds';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+
+const banco = new rds.DatabaseInstance(this, 'Banco', {
+  engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_16 }),
+  instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MEDIUM),
+  vpc,
+  vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+  multiAz: true,
+  storageEncrypted: true,
+  backupRetention: cdk.Duration.days(14),
+  deletionProtection: true,
+  removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o banco fica na sub-rede isolada (tópico 10), criptografado, com retenção de backup de 14 dias e
+      proteção contra exclusão. O <code>removalPolicy: SNAPSHOT</code> cria um snapshot final se a pilha for removida, o que evita perda
+      definitiva. Os valores de versão e classe de instância mudam com o tempo; confirme os disponíveis na região antes do deploy.
+    </p>
+  </div>
+</section>
+
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os dois exemplos mostram decisões que aparecem em projetos reais: quando o DynamoDB não é a escolha certa, e como estimar o custo de uma regra de ciclo de vida.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Quando o DynamoDB não é a escolha certa</h3>
+  <div class="ah-prose">
+    <p>
+      Suponha que a equipe queira um relatório com filtros livres: “componentes usados em mais de três produtos, com versão anterior à 1.4,
+      agrupados por time”. Essa consulta cruza atributos que não fazem parte das chaves. No DynamoDB, cada combinação exigiria um GSI ou
+      uma varredura da tabela inteira. No RDS, a mesma consulta é uma junção com filtro e agregação, escrita em SQL. A regra é simples: se as
+      consultas são previsíveis e por chave, use DynamoDB; se são exploratórias e cruzam dados, use banco relacional, ou um armazenamento
+      analítico.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em SQL · consulta que o DynamoDB faria mal</p>
+<pre class="ah-code"><code>SELECT c.nome, p.time, COUNT(u.produto_id) AS produtos
+FROM componentes c
+JOIN uso u ON u.componente_id = c.id
+JOIN produtos p ON p.id = u.produto_id
+WHERE c.versao &lt; '1.4.0'
+GROUP BY c.nome, p.time
+HAVING COUNT(u.produto_id) &gt; 3
+ORDER BY produtos DESC;</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o SQL expressa a consulta sem que o modelo precise prever todas as combinações. O custo é outro: o
+      banco precisa de capacidade para executar a agregação, e essa carga não deve competir com a aplicação. Por isso, relatórios costumam
+      rodar numa réplica de leitura, que é exatamente o caso de uso dela.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Estimando o efeito de uma regra de ciclo de vida</h3>
+  <div class="ah-prose">
+    <p>
+      Uma regra de transição parece barata, mas o custo depende do tamanho dos objetos e do tempo de permanência. A conta abaixo compara
+      manter 500 GB em Standard com movimentar esses objetos para uma classe de acesso infrequente após 30 dias. Use os preços da calculadora
+      oficial da sua região; a estrutura do cálculo é a parte que se aplica em qualquer cenário.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Passo</th><th>Como calcular</th></tr></thead>
+      <tbody>
+        <tr><td>Custo mensal em Standard</td><td>500 GB × preço Standard por GB-mês</td></tr>
+        <tr><td>Custo em IA, se nenhum objeto for lido</td><td>500 GB × preço IA por GB-mês, mais o custo de cada transição</td></tr>
+        <tr><td>Custo de recuperação</td><td>GB lidos × preço de recuperação. Se o objeto for lido todo mês, a IA pode custar mais que a Standard</td></tr>
+        <tr><td>Duração mínima</td><td>Objetos apagados antes do prazo mínimo da classe são cobrados como se tivessem ficado o prazo inteiro</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o erro mais comum é transicionar para uma classe barata um dado que é lido com frequência. O custo
+      de recuperação passa a dominar a conta. Antes de criar a regra, consulte as métricas de acesso do bucket, ou use a classe
+      Intelligent-Tiering, que move objetos sozinha conforme o uso.
+    </p>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Migrações com expansão e contração:</strong> mudanças de esquema em bancos relacionais adicionam colunas antes de usá-las e removem as antigas depois, em versões separadas do software.</li>
+      <li><strong>Backup testado:</strong> restaurar um backup em conta separada, uma vez por trimestre, é o único jeito de saber que ele funciona.</li>
+      <li><strong>Criptografia e chaves gerenciadas:</strong> KMS com chaves por aplicação, e não uma chave única para tudo.</li>
+      <li><strong>Custo visível por recurso:</strong> tags de alocação de custo em cada bucket e tabela permitem ver quem gera a conta.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um time propõe usar uma réplica de leitura como plano de alta disponibilidade. Qual é a objeção?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a réplica de leitura não é promovida automaticamente quando o primário falha; a promoção é manual, e a réplica pode estar alguns instantes atrás. Para disponibilidade com failover automático, a escolha é a implantação Multi-AZ. A réplica continua útil para escalar leituras.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Alguém apagou, sem querer, todos os itens de uma tabela DynamoDB que tem replicação global e recuperação pontual ativa. Dá para recuperar?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a recuperação pontual permite restaurar a tabela para um momento dos últimos 35 dias, anterior à exclusão, e isso só funciona se ela estava ativa. A replicação global não ajuda aqui, porque ela copia a exclusão para as outras regiões. A lição é a mesma do tópico: replicação protege disponibilidade, e backup protege contra erro humano.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Liste os padrões de acesso do histórico de versões de tokens e modele a tabela com pk e sk, mostrando pelo menos três consultas.</li>
+    <li>Escreva a regra de ciclo de vida para um bucket de logs que deve expirar em 400 dias, e explique o efeito sobre as versões não atuais.</li>
+    <li>Compare o custo de guardar 1 TB de builds antigos em Standard e em Glacier Instant Retrieval, supondo leitura de 1% por mês. Use a calculadora oficial.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      O SAA-C03 cobra escolha de armazenamento em cenários: classe do S3, tipo de banco, Multi-AZ e backup. A dúvida mais comum na prova é
+      Multi-AZ versus réplica de leitura, e o critério está na pergunta: disponibilidade pede Multi-AZ, leitura intensiva pede réplica.
+      O DVA-C03 cobra DynamoDB, com chaves, índices e capacidade. O CLF-C02 pede apenas a ideia de cada serviço. Confira os guias vigentes.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma empresa precisa de failover automático de um banco relacional se uma zona cair. Qual recurso atende?</p>
+      <button class="ah-quiz-opt">Réplica de leitura</button>
+      <button class="ah-quiz-opt">Implantação Multi-AZ</button>
+      <button class="ah-quiz-opt">Snapshot diário</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Multi-AZ mantém um standby síncrono e faz o failover automaticamente. A réplica de leitura não é promovida sozinha.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma tabela DynamoDB é consultada sempre pelo identificador do produto. Qual deve ser a chave de partição?</p>
+      <button class="ah-quiz-opt">O identificador do produto</button>
+      <button class="ah-quiz-opt">A data da última modificação</button>
+      <button class="ah-quiz-opt">Um valor booleano de ativo ou inativo</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A chave de partição deve ser a de maior cardinalidade usada em consultas por igualdade. Booleanos concentram itens em duas partições e causam hot partition.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um objeto no S3 é lido todo dia. Qual classe evita custo desnecessário de recuperação?</p>
+      <button class="ah-quiz-opt">Glacier Deep Archive</button>
+      <button class="ah-quiz-opt">Standard-IA, com transição após 30 dias</button>
+      <button class="ah-quiz-opt">S3 Standard</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Dados lidos diariamente pagam caro para recuperar em classes de acesso infrequente ou de arquivamento. A Standard é a adequada para acesso frequente.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Escolha o armazenamento pelo padrão de acesso, e não pelo hábito.</li>
+    <li>S3: escolha a classe pelo acesso e configure versionamento com expiração de versões antigas.</li>
+    <li>DynamoDB: modele pelas consultas; chave de partição por igualdade; GSI tem custo próprio.</li>
+    <li>Multi-AZ dá disponibilidade; réplica dá leitura; backup dá recuperação. Nenhum substitui os outros.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>AWS. <em>Amazon S3 User Guide</em>, seções sobre classes de armazenamento e ciclo de vida. docs.aws.amazon.com/AmazonS3.</li>
+    <li>AWS. <em>Amazon DynamoDB Developer Guide</em>, seção sobre modelagem de dados. docs.aws.amazon.com/amazondynamodb.</li>
+    <li>AWS. <em>Amazon RDS User Guide</em>, seções sobre Multi-AZ e réplicas de leitura. docs.aws.amazon.com/AmazonRDS.</li>
+    <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly Media, 2017. Capítulos sobre replicação e particionamento.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('banco');
+})();
+</script>
+</body>
+</html>

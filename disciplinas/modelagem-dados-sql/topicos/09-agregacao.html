@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agregação: COUNT, SUM, GROUP BY e HAVING · AcademicHub</title>
+<meta name="description" content="Funções de agregação, GROUP BY, a diferença entre WHERE e HAVING e a ordem lógica de execução de uma consulta.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/09-agregacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="De linhas para resumos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-calculator text-sky-400 mr-2"></i>De muitas linhas para um número</h2>
+  <div class="ah-prose">
+    <p>
+      “Quanto vendemos por mês?”, “Qual o ticket médio?”, “Quantos pedidos cada status tem?”. Essas perguntas não
+      querem linhas: querem <strong>resumos</strong>. As funções de agregação recebem um conjunto de valores e devolvem um só:
+      <code>COUNT</code>, <code>SUM</code>, <code>AVG</code>, <code>MIN</code> e <code>MAX</code>.
+    </p>
+    <p>
+      Com <code>GROUP BY</code>, o conjunto é dividido em <strong>grupos</strong> e a agregação roda em cada um.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · GROUP BY separa linhas em baldes</h3>
+    <div id="anim-group"></div>
+  </div>
+</section>
+
+<!-- ============================ FUNÇÕES ============================ -->
+<section id="funcoes" data-toc="Funções de agregação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sigma text-sky-400 mr-2"></i>As funções e o tratamento de NULL</h2>
+  <div class="overflow-x-auto mb-5">
+    <table class="ah-table">
+      <thead><tr><th>Função</th><th>Resultado</th><th>Atenção com NULL</th></tr></thead>
+      <tbody>
+        <tr><td><code>COUNT(*)</code></td><td>Número de linhas</td><td>Conta todas, inclusive com NULL</td></tr>
+        <tr><td><code>COUNT(coluna)</code></td><td>Número de valores não nulos</td><td>Ignora NULL</td></tr>
+        <tr><td><code>COUNT(DISTINCT coluna)</code></td><td>Valores distintos não nulos</td><td>Ignora NULL</td></tr>
+        <tr><td><code>SUM(coluna)</code></td><td>Soma</td><td>Ignora NULL; sem linhas, devolve NULL</td></tr>
+        <tr><td><code>AVG(coluna)</code></td><td>Média</td><td>Ignora NULL: a média é sobre os valores presentes</td></tr>
+        <tr><td><code>MIN</code> / <code>MAX</code></td><td>Menor e maior</td><td>Ignoram NULL</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT COUNT(*)          AS clientes,
+       COUNT(email)     AS com_email,
+       COUNT(DISTINCT cidade) AS cidades,
+       ROUND(AVG(preco), 2) AS preco_medio
+FROM clientes, produtos;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Este exemplo mistura duas tabelas sem condição, de propósito, só para mostrar as funções. Repare que ele não
+    é a forma certa de combinar tabelas: isso é tema do tópico 10. Aqui, o importante é ver que <code>COUNT(email)</code>
+    é menor que o total de clientes, porque um deles não tem e-mail.
+  </p>
+</section>
+
+<!-- ============================ GROUP BY ============================ -->
+<section id="group-by" data-toc="GROUP BY" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>GROUP BY: uma linha por grupo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Tudo que aparece no SELECT, fora das funções de agregação, precisa estar no GROUP BY. Cada valor distinto
+    das colunas de agrupamento vira uma linha do resultado.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT status, COUNT(*) AS quantidade
+FROM pedidos
+GROUP BY status
+ORDER BY quantidade DESC, status;</pre>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Erro comum:</strong> <code>SELECT nome, COUNT(*) FROM clientes;</code> não tem GROUP BY. O padrão exige que
+      <code>nome</code> seja agrupado ou agregado. O SQLite aceita e devolve um valor arbitrário de nome, o que mascara o erro.
+      Não confie nessa tolerância.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ WHERE x HAVING ============================ -->
+<section id="having" data-toc="WHERE × HAVING" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-filter-circle-xmark text-sky-400 mr-2"></i>WHERE filtra linhas; HAVING filtra grupos</h2>
+  <p class="ah-lead text-sm mb-5">
+    <code>WHERE</code> decide quais linhas entram no agrupamento. <code>HAVING</code> decide quais grupos saem no resultado,
+    depois que as agregações já foram calculadas. Por isso, só o HAVING pode usar <code>SUM</code>, <code>COUNT</code> etc.
+    como condição.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- clientes cujo total gasto (sem cancelados) passa de 500
+SELECT p.id_cliente,
+       SUM(i.quantidade * i.preco_unitario) AS total
+FROM pedidos p
+JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+WHERE p.status &lt;&gt; 'cancelado'
+GROUP BY p.id_cliente
+HAVING SUM(i.quantidade * i.preco_unitario) &gt; 500
+ORDER BY total DESC;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O WHERE remove os pedidos cancelados <em>antes</em> de somar. O HAVING remove clientes com total de 500 ou menos
+    <em>depois</em> de somar. Trocar um pelo outro produz resultados errados ou erros de sintaxe.
+  </p>
+</section>
+
+<!-- ============================ ORDEM LÓGICA ============================ -->
+<section id="ordem" data-toc="Ordem lógica de execução" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-ol text-sky-400 mr-2"></i>A ordem lógica de execução</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma consulta é escrita em uma ordem e avaliada em outra. Conhecer a ordem explica quase todos os erros de “coluna não existe”.
+  </p>
+  <div class="sql-flow mb-4">
+    <div>FROM / JOIN</div><i class="fa-solid fa-arrow-right"></i>
+    <div>WHERE</div><i class="fa-solid fa-arrow-right"></i>
+    <div>GROUP BY</div><i class="fa-solid fa-arrow-right"></i>
+    <div>HAVING</div><i class="fa-solid fa-arrow-right"></i>
+    <div>SELECT</div><i class="fa-solid fa-arrow-right"></i>
+    <div>ORDER BY</div><i class="fa-solid fa-arrow-right"></i>
+    <div>LIMIT</div>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Consequências: o SELECT ainda não criou os aliases quando o WHERE roda, então o WHERE não pode usá-los (o SQLite
+      tolera; o padrão não). O HAVING vê as agregações, mas não as colunas que não foram agrupadas. O ORDER BY é o
+      último a ver os aliases do SELECT.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-sky-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>
+      Para agrupar, o banco precisa juntar as linhas de mesmo valor. Há duas estratégias clássicas:
+    </p>
+    <ul>
+      <li><strong>Agregação por hash.</strong> Uma tabela em memória mapeia cada valor de grupo ao acumulador (soma, contagem). Uma passada pela entrada basta. É rápida quando os grupos cabem na memória.</li>
+      <li><strong>Agregação por ordenação.</strong> Ordena as linhas pelo GROUP BY e acumula enquanto o valor não muda. Mais lenta, mas não depende de memória para os grupos, e o resultado já sai ordenado.</li>
+    </ul>
+    <p>
+      O SQLite usa principalmente a segunda, e por isso um índice sobre a coluna do GROUP BY pode eliminar a ordenação.
+      Em PostgreSQL, o planejador escolhe entre as duas conforme as estimativas. Você verá o plano escolhido no tópico 14.
+    </p>
+    <p>
+      Um detalhe: para o GROUP BY, todos os NULLs formam <strong>um único grupo</strong>, mesmo que a comparação
+      <code>NULL = NULL</code> seja desconhecida. É o único lugar em que o SQL trata NULLs como iguais.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: ranking de categorias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-sky-400 mr-2"></i>Exemplo: produtos e preço médio por categoria</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma pergunta clássica de relatório. Usamos LEFT JOIN para manter a categoria Esportes, que não tem produtos:
+    ela aparece com zero, em vez de sumir. Essa escolha de junção é o tema do tópico 10.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome AS categoria,
+       COUNT(p.id_produto)       AS produtos,
+       ROUND(AVG(p.preco), 2)    AS preco_medio
+FROM categorias c
+LEFT JOIN produtos p ON p.id_categoria = c.id_categoria
+GROUP BY c.id_categoria, c.nome
+ORDER BY preco_medio DESC;</pre>
+  </div>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Altere o exemplo e execute. Cada execução parte de um banco novo, então você pode quebrar à vontade.</p>
+  <div class="sql-play">SELECT cidade, COUNT(*) AS clientes
+FROM clientes
+GROUP BY cidade
+HAVING COUNT(*) &gt;= 1
+ORDER BY clientes DESC, cidade;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-sky-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Escreva antes de olhar a solução. Os resultados são calculados ao vivo.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Pedidos por status</summary>
+    <p class="sql-dica-prob">Quantos pedidos existem em cada status? Mostre apenas os status com mais de um pedido.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT status, COUNT(*) AS quantidade
+FROM pedidos
+GROUP BY status
+HAVING COUNT(*) &gt; 1
+ORDER BY quantidade DESC, status;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Três status têm mais de um pedido: “enviado”, “pago” e “pendente”. O filtro de grupos é HAVING, porque depende de COUNT.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Ticket médio por cliente</summary>
+    <p class="sql-dica-prob">Para cada cliente com pelo menos um pedido não cancelado, calcule o valor médio por pedido.
+      Use o total de cada pedido como base (quantidade × preço unitário, somado por pedido), depois a média por cliente.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT t.id_cliente,
+       ROUND(AVG(t.total_pedido), 2) AS ticket_medio
+FROM (
+  SELECT p.id_pedido, p.id_cliente,
+         SUM(i.quantidade * i.preco_unitario) AS total_pedido
+  FROM pedidos p
+  JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+  WHERE p.status &lt;&gt; 'cancelado'
+  GROUP BY p.id_pedido, p.id_cliente
+) t
+GROUP BY t.id_cliente
+ORDER BY ticket_medio DESC;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        São duas agregações em níveis diferentes: primeiro soma por pedido (dentro da subconsulta), depois tira a média por
+        cliente. Fazer AVG direto sobre os itens daria a média por item, não por pedido. Subconsultas são tema do tópico 11.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · O erro do GROUP BY</summary>
+    <p class="sql-dica-prob">A consulta a seguir está errada segundo o padrão SQL, mesmo rodando no SQLite. Por quê? Corrija-a.</p>
+    <pre class="ah-code sql-code">SELECT cidade, nome, COUNT(*) FROM clientes GROUP BY cidade;</pre>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT cidade, COUNT(*) AS clientes
+FROM clientes
+GROUP BY cidade
+ORDER BY clientes DESC, cidade;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A coluna <code>nome</code> não é agregada nem agrupada: dentro de uma cidade há vários nomes, e o padrão não sabe qual
+        mostrar. Ou se remove <code>nome</code>, ou se agrega (<code>GROUP_CONCAT(nome)</code>, por exemplo).
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Tabela dinâmica com CASE</h3>
+  <div class="ah-prose">
+    <p>
+      Relatórios costumam pedir um <strong>pivô</strong>: uma linha por cidade e uma coluna por status. SQL não tem um
+      comando PIVOT universal, mas a combinação de agregação com CASE faz o mesmo. Cada coluna soma apenas as linhas
+      que atendem à sua condição.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT c.cidade,
+       SUM(CASE WHEN p.status = 'pago'     THEN 1 ELSE 0 END) AS pagos,
+       SUM(CASE WHEN p.status = 'enviado'  THEN 1 ELSE 0 END) AS enviados,
+       SUM(CASE WHEN p.status = 'pendente' THEN 1 ELSE 0 END) AS pendentes,
+       COUNT(*) AS total
+FROM pedidos p
+JOIN clientes c ON c.id_cliente = p.id_cliente
+GROUP BY c.cidade
+ORDER BY total DESC, c.cidade;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Por que SUM e não COUNT dentro do CASE? Porque COUNT conta valores não nulos, e um CASE sem ELSE devolveria NULL
+    para as linhas de outros status, contando-as indevidamente. Com <code>ELSE 0</code> e SUM, o cálculo fica exato.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Juntar valores de um grupo em um texto</h3>
+  <div class="ah-prose">
+    <p>
+      <code>GROUP_CONCAT</code> (SQLite e MySQL) e <code>STRING_AGG</code> (PostgreSQL) concatenam valores de um grupo.
+      Útil para listar, por pedido, os produtos envolvidos. A ordem dos valores dentro do grupo não é garantida pelo padrão:
+      se importar, o ideal é ordenar numa subconsulta ou usar a sintaxe com ORDER BY do banco.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT id_pedido, GROUP_CONCAT(id_produto, ', ') AS produtos
+FROM itens_pedido
+GROUP BY id_pedido
+ORDER BY id_pedido;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">LEFT JOIN e COUNT: o cuidado com o que se conta</h3>
+  <div class="ah-prose">
+    <p>
+      Ao agregar depois de um LEFT JOIN, <code>COUNT(*)</code> conta a linha de todo cliente, mesmo sem pedido, porque a
+      linha existe (com NULLs). Para contar apenas pedidos reais, conte a coluna da tabela da direita:
+      <code>COUNT(p.id_pedido)</code> ignora os NULLs. A diferença aparece na própria saída abaixo.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome,
+       COUNT(*)          AS linhas,
+       COUNT(p.id_pedido) AS pedidos
+FROM clientes c
+LEFT JOIN pedidos p ON p.id_cliente = c.id_cliente
+GROUP BY c.id_cliente, c.nome
+ORDER BY c.nome
+LIMIT 3;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Roteiro para escrever um relatório</h3>
+  <ol class="text-sm text-slate-300 space-y-2 leading-relaxed list-decimal pl-5">
+    <li>Defina a <strong>granularidade</strong>: uma linha por pedido? por cliente? por mês? Tudo que vem depois depende disso.</li>
+    <li>Escreva o <strong>FROM e os JOINs</strong> sem agregar, e confira se a quantidade de linhas faz sentido.</li>
+    <li>Aplique os <strong>filtros de linha</strong> (WHERE), como período e status válidos.</li>
+    <li>Agregue com <strong>GROUP BY</strong> na granularidade do passo 1.</li>
+    <li>Filtre grupos com <strong>HAVING</strong>, se for o caso, e ordene a saída.</li>
+    <li>Compare o total com uma consulta independente. Diferenças quase sempre vêm de um JOIN que duplica linhas.</li>
+  </ol>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c2a44)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-sky-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual é a diferença entre <code>COUNT(*)</code> e <code>COUNT(email)</code>?</p>
+      <button class="ah-quiz-opt">Não há diferença</button>
+      <button class="ah-quiz-opt">COUNT(*) conta todas as linhas; COUNT(email) ignora os NULL</button>
+      <button class="ah-quiz-opt">COUNT(email) conta linhas duplicadas</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Funções de agregação ignoram NULL, exceto COUNT(*), que conta linhas. Por isso, em clientes, COUNT(email) é 6 e COUNT(*) é 7.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Para mostrar só os grupos com soma acima de 500, onde a condição vai?</p>
+      <button class="ah-quiz-opt">No WHERE, porque filtra linhas</button>
+      <button class="ah-quiz-opt">No ORDER BY</button>
+      <button class="ah-quiz-opt">No HAVING, porque filtra grupos depois da agregação</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Na ordem lógica, o HAVING roda depois do GROUP BY, quando a soma já existe. O WHERE roda antes, quando ela ainda não foi calculada.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Quantos grupos o GROUP BY cria para as linhas em que <code>cidade</code> é NULL?</p>
+      <button class="ah-quiz-opt">Um único grupo para todos os NULL</button>
+      <button class="ah-quiz-opt">Nenhum: linhas com NULL são descartadas</button>
+      <button class="ah-quiz-opt">Um grupo para cada linha com NULL</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Para agrupamento, NULLs são tratados como iguais e formam um único grupo. Este é um caso em que NULL se comporta diferente do WHERE.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: GROUP BY ===================== */
+(function () {
+  const pedidos = [[1, 'enviado'], [2, 'pago'], [3, 'pago'], [4, 'cancelado'], [5, 'enviado'],
+                   [6, 'pendente'], [7, 'enviado'], [8, 'pago'], [9, 'pendente']];
+  const grupos = ['enviado', 'pago', 'cancelado', 'pendente'];
+  const balde = (st, ids, ativo) => `
+    <div class="ah-card p-3 min-h-[120px] ${ativo ? 'border-t-4 border-cyan-400' : ''}">
+      <div class="text-xs font-bold text-white mb-2">${st}</div>
+      <div class="flex flex-wrap gap-1">${ids.map(i => `<span class="sql-hl px-2 py-0.5 rounded text-[11px] font-mono sql-in">#${i}</span>`).join('')}</div>
+      <div class="text-xs text-slate-400 mt-3">COUNT = <span class="text-cyan-300 font-bold">${ids.length}</span></div>
+    </div>`;
+  SQLLab.passos(document.getElementById('anim-group'), [
+    { titulo: 'Entrada', texto: 'Nove pedidos, cada um com um status. Ainda não há grupos.',
+      html: () => `<div class="flex flex-wrap gap-2">${pedidos.map(p => `<span class="ah-card px-3 py-1 text-xs font-mono text-slate-300">#${p[0]} · ${p[1]}</span>`).join('')}</div>` },
+    { titulo: 'GROUP BY status', texto: 'Cada valor distinto de status abre um balde. Os pedidos caem no balde do seu status.',
+      html: () => `<div class="grid grid-cols-2 md:grid-cols-4 gap-3">${grupos.map(g => balde(g, pedidos.filter(p => p[1] === g).map(p => p[0]), true)).join('')}</div>` },
+    { titulo: 'Agregação em cada balde', texto: 'COUNT(*) conta as linhas do balde. Uma linha de resultado sai por grupo.',
+      html: () => SQLLab.tabelaHTML(['status', 'quantidade'], grupos.map(g => [g, pedidos.filter(p => p[1] === g).length]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), { animar: true, destaque: [0] }) },
+    { titulo: 'HAVING COUNT(*) > 1', texto: 'O HAVING descarta os grupos pequenos depois de contar. “cancelado”, com um pedido, sai do resultado.',
+      html: () => SQLLab.tabelaHTML(['status', 'quantidade'], grupos.map(g => [g, pedidos.filter(p => p[1] === g).length]).filter(r => r[1] > 1).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), { animar: true })
+        + `<p class="text-xs text-slate-400 mt-2">“cancelado” foi descartado pelo HAVING.</p>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observabilidade e operação: métricas, logs, alarmes e SLO · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Os três pilares da observabilidade, SLI e SLO com orçamento de erro, alarmes do CloudWatch bem calibrados, consultas em Logs Insights e runbooks para incidentes.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/13-observabilidade">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-orange-400 mr-2"></i>Tópico 13 · Observabilidade e operação</h2>
+  <div class="ah-prose">
+    <p>
+      Um sistema que não se mede não se opera. Monitorar responde “está no ar?”. Observar responde “por que não está bem?”, mesmo para
+      perguntas que ninguém pensou em fazer antes do incidente. A diferença importa porque a maioria das falhas em produção é nova. Este tópico
+      ensina a instrumentar o design system, a definir o que significa estar bem e a responder a um alerta com método.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>distinguir métricas, logs e rastros, e saber quando usar cada um;</li>
+      <li>definir um SLI e um SLO, e calcular o orçamento de erro de um mês;</li>
+      <li>criar alarmes que avisam sem gerar ruído, com duas janelas de avaliação;</li>
+      <li>consultar logs com Logs Insights para encontrar a causa de uma falha;</li>
+      <li>escrever um runbook que guia quem está de plantão.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: três pilares e SLO" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Teoria: pilares, indicadores e orçamento de erro</h2>
+  <div class="ah-prose">
+    <p>
+      Os três pilares da observabilidade têm papéis complementares. <strong>Métricas</strong> são números agregados ao longo do tempo, baratas
+      de guardar e boas para alarmes e tendências. <strong>Logs</strong> são registros de eventos individuais, com contexto, e servem para
+      investigar uma falha específica. <strong>Rastros</strong> (traces) seguem uma requisição por vários serviços, e mostram onde o tempo foi
+      gasto. Um alarme nasce de uma métrica, a investigação passa pelos logs, e o rastro mostra qual serviço causou a demora.
+    </p>
+    <p>
+      Um <strong>SLI</strong> (indicador de nível de serviço) é uma medida do que o usuário percebe, como a fração de requisições bem-sucedidas
+      ou a fração de páginas com LCP abaixo de 2,5 segundos. Um <strong>SLO</strong> (objetivo de nível de serviço) é a meta para esse
+      indicador, por exemplo 99,9% de requisições bem-sucedidas em 30 dias. A diferença entre 100% e o SLO é o <strong>orçamento de erro</strong>:
+      a quantidade de falha que o time pode tolerar sem violar a meta. Quando o orçamento acaba, a prioridade passa de funcionalidade para
+      estabilidade.
+    </p>
+    <p>
+      O SLO deve ser medido a partir da perspectiva do usuário. Uma métrica interna de CPU pode estar perfeita enquanto a página falha para
+      metade dos visitantes, por causa de uma regra de cache. Por isso, o SLI do design system é a taxa de respostas de sucesso da CDN, e não
+      o uso de memória do servidor de origem, que não existe no caso do S3.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Pilar</th><th>Pergunta que responde</th><th>Exemplo no design system</th><th>Custo típico</th></tr></thead>
+      <tbody>
+        <tr><td>Métricas</td><td>O sistema está saudável agora e nas últimas semanas?</td><td>Taxa de 5xx da CDN, LCP mediano</td><td>Baixo</td></tr>
+        <tr><td>Logs</td><td>O que aconteceu nesta requisição?</td><td>Erro de publicação com o id do evento</td><td>Cresce com o volume</td></tr>
+        <tr><td>Rastros</td><td>Onde a requisição gastou tempo?</td><td>Lambda que espera o DynamoDB por 900 ms</td><td>Médio, com amostragem</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="slo" data-toc="Operação 1: SLI, SLO e orçamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-orange-400 mr-2"></i>Operação 1 · Calcular o orçamento de erro</h2>
+  <div class="ah-prose">
+    <p>
+      O cálculo é simples e vale ser feito à mão uma vez. Um mês tem cerca de 43.200 minutos. Com SLO de 99,9%, o orçamento é 0,1% desse
+      total: 43,2 minutos de indisponibilidade por mês. Com 99,95%, são 21,6 minutos. Cada “nove” a mais reduz o orçamento pela metade ou
+      mais, e custa muito mais para ser mantido, porque exige redundância e processos mais rígidos.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>SLO mensal</th><th>Orçamento de erro (30 dias)</th><th>Ordem de esforço</th></tr></thead>
+      <tbody>
+        <tr><td>99%</td><td>432 minutos (7,2 horas)</td><td>Baixo: adequado a ferramentas internas</td></tr>
+        <tr><td>99,9%</td><td>43,2 minutos</td><td>Médio: exige monitoramento e plantão</td></tr>
+        <tr><td>99,95%</td><td>21,6 minutos</td><td>Alto: exige redundância entre zonas</td></tr>
+        <tr><td>99,99%</td><td>4,3 minutos</td><td>Muito alto: exige testes de falha e automação</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela transforma uma meta abstrata em tempo, que é a unidade que o time entende. Quando alguém pede
+      “99,99% de disponibilidade para a documentação”, a pergunta correta é se o time aceita 4,3 minutos de indisponibilidade por mês, e se o
+      custo de redundância justifica. Para um site de documentação, 99,9% costuma ser suficiente.
+    </p>
+  </div>
+</section>
+
+<section id="alarmes" data-toc="Operação 2: alarmes com duas janelas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bell text-orange-400 mr-2"></i>Operação 2 · Alarmes que avisam sem gerar ruído</h2>
+  <div class="ah-prose">
+    <p>
+      Um alarme ruidoso é pior do que nenhum, porque ensina a equipe a ignorar alertas. A regra de duas janelas consecutivas evita a maioria
+      dos falsos positivos: o alarme só muda de estado quando a condição persiste por dois períodos. A animação mostra o fluxo completo, do
+      evento ao runbook. Compare o cenário normal com o de incidente.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: do sinal ao runbook</h3>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. No incidente, o alarme entra em estado de ALARME e a notificação segue até o runbook.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvObservabilidade" style="height:300px"></canvas></div>
+  <div id="ctlObservabilidade" class="mt-4"></div>
+  <div id="capObservabilidade" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript (CDK) · alarme de 5xx da CDN</p>
+<pre class="ah-code"><code>import * as cdk from 'aws-cdk-lib';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns from 'aws-cdk-lib/aws-sns';
+
+const topico = new sns.Topic(this, 'Plantao');
+
+const erros5xx = new cloudwatch.Metric({
+  namespace: 'AWS/CloudFront',
+  metricName: '5xxErrorRate',
+  dimensionsMap: { DistributionId: distribuicao.distributionId, Region: 'Global' },
+  statistic: 'Average',
+  period: cdk.Duration.minutes(5),
+});
+
+const alarme = new cloudwatch.Alarm(this, 'Erros5xxAlto', {
+  metric: erros5xx,
+  threshold: 5,
+  evaluationPeriods: 2,
+  datapointsToAlarm: 2,
+  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+  alarmDescription: 'Taxa de 5xx acima de 5% por 10 minutos. Runbook: docs/runbook-5xx.md',
+});
+alarme.addAlarmAction(new actions.SnsAction(topico));</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> <code>evaluationPeriods: 2</code> com <code>datapointsToAlarm: 2</code> exige dois pontos seguidos
+      acima do limiar, o que é a regra de duas janelas. A descrição aponta para o runbook, para que quem recebe o aviso saiba o próximo passo
+      sem procurar. A métrica da CDN fica na região us-east-1, como vimos no tópico 8, e por isso o alarme deve ser criado nessa região.
+    </p>
+  </div>
+</section>
+
+<section id="insights" data-toc="Operação 3: logs e Logs Insights" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-chart text-orange-400 mr-2"></i>Operação 3 · Encontrar a causa nos logs</h2>
+  <div class="ah-prose">
+    <p>
+      Logs úteis são estruturados: cada linha é um objeto JSON com campos previsíveis, como nível, mensagem, identificador da requisição e
+      duração. Com campos previsíveis, a consulta fica precisa. O Logs Insights usa uma linguagem própria, com comandos para filtrar,
+      agregar e ordenar. As consultas abaixo mostram o uso típico durante um incidente.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em JSON · linha de log estruturada</p>
+<pre class="ah-code"><code>{
+  "nivel": "ERROR",
+  "mensagem": "falha ao registrar publicacao",
+  "requestId": "3f9c1a2e-7b40-4d8e-9a11-0c5b2e7d9f10",
+  "evento": "EVENTO#8842",
+  "duracaoMs": 912,
+  "erro": "ProvisionedThroughputExceededException"
+}</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Logs Insights · erros da última hora, do mais recente ao mais antigo</p>
+<pre class="ah-code"><code>fields @timestamp, mensagem, erro, duracaoMs
+| filter nivel = "ERROR"
+| sort @timestamp desc
+| limit 20</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Logs Insights · percentis de duração por erro</p>
+<pre class="ah-code"><code>filter ispresent(duracaoMs)
+| stats count(*) as chamadas, pct(duracaoMs, 50) as mediana, pct(duracaoMs, 95) as p95 by erro
+| sort chamadas desc</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a primeira consulta mostra o que está falhando agora. A segunda separa a distribuição de duração por
+      tipo de erro: se o p95 de um erro específico é muito maior que a mediana, há um caminho lento que vale investigar. O campo
+      <code>requestId</code> liga as linhas de log de uma mesma requisição, e é a chave para reconstruir o que aconteceu.
+    </p>
+  </div>
+</section>
+
+<section id="runbook" data-toc="Operação 4: runbook" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clipboard-list text-orange-400 mr-2"></i>Operação 4 · Escrever um runbook</h2>
+  <div class="ah-prose">
+    <p>
+      Um runbook é um roteiro para quem está de plantão, às três da manhã, sem contexto. Ele deve ser curto, em ordem, com comandos prontos e
+      a condição que indica o próximo passo. Um runbook que depende de conhecimento tácito falha exatamente quando é necessário. O modelo
+      abaixo cobre o alarme de 5xx.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Markdown · <code>docs/runbook-5xx.md</code></p>
+<pre class="ah-code"><code># Runbook: taxa de 5xx alta na documentação
+
+## Sintoma
+Alarme "Erros5xxAlto" em ALARME. A documentação responde com erro para parte dos visitantes.
+
+## Passo 1: confirmar o escopo (2 min)
+- Abra o painel da distribuição e confira a taxa de 5xx por origem.
+- Se o erro aparece só num caminho, o problema é de conteúdo. Vá ao passo 3.
+
+## Passo 2: último deploy (2 min)
+- Se houve publicação nas últimas 2 horas, reverta para a versão anterior:
+  `aws s3 sync s3://ds-docs-producao-anterior s3://ds-docs-producao --delete`
+- Invalide o index: `aws cloudfront create-invalidation --distribution-id <ID> --paths "/index.html"`
+
+## Passo 3: origem (5 min)
+- Confira a política do bucket: o ARN da distribuição precisa estar correto.
+- Se a política mudou, restaure a versão anterior pelo histórico de versões.
+
+## Quando escalar
+- Sem melhora em 30 minutos, acione o responsável pela plataforma.
+- Registre o horário, os passos feitos e a causa encontrada.
+
+## Depois do incidente
+- Escreva a revisão sem culpados em até 5 dias úteis.</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> cada passo tem tempo estimado e uma condição de saída, o que impede a equipe de ficar presa num
+      diagnóstico longo. Os comandos são copiáveis e já apontam para o recurso certo. A última seção é o que transforma o incidente em
+      aprendizado, e não em repetição.
+    </p>
+  </div>
+</section>
+
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os dois exemplos tratam de decisões que aparecem em toda operação: quando um alarme deve ser criado e quando um incidente se encerra.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · O que deve ter um alarme</h3>
+  <div class="ah-prose">
+    <p>
+      Antes de criar um alarme, responda três perguntas. Qual decisão ele dispara? Quem deve agir, e o que essa pessoa faz? O que acontece se
+      ninguém agir? Se a resposta para a primeira é “nenhuma”, o alarme é um painel disfarçado e deve virar um gráfico. Se a segunda não tem
+      resposta, o alarme deve ser removido. A tabela ajuda a separar os tipos.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Sinal</th><th>Tipo adequado</th><th>Ação esperada</th></tr></thead>
+      <tbody>
+        <tr><td>Orçamento de erro em queda acelerada</td><td>Alarme de taxa de queima (burn rate)</td><td>Pausar mudanças e priorizar estabilidade</td></tr>
+        <tr><td>Taxa de 5xx acima de 5% por 10 minutos</td><td>Alarme com duas janelas</td><td>Seguir o runbook imediatamente</td></tr>
+        <tr><td>Fila de falhas crescendo</td><td>Alarme de tamanho de fila</td><td>Investigar a função antes do próximo deploy</td></tr>
+        <tr><td>Uso médio de CPU de 40%</td><td>Nenhum alarme: gráfico</td><td>Acompanhar tendência; não há ação</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a tabela mostra que alarme demais é um problema de desenho. Se um sinal não leva a uma ação, ele
+      pertence a um painel. A queima do orçamento de erro é o alarme mais útil para times maduros, porque avisa quando a meta está em risco
+      antes de ela ser violada.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Fechando um incidente</h3>
+  <div class="ah-prose">
+    <p>
+      Um incidente termina quando o impacto para e o sistema está estável, e não quando o alarme volta ao normal. Uma regra prática é esperar
+      o tempo de uma janela completa de avaliação antes de declarar o fim, para confirmar que o problema não voltou. O fechamento inclui uma
+      nota curta para quem não estava lá: o que aconteceu, por quanto tempo, quem foi afetado e qual ação evita a repetição.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em Markdown · modelo de nota de encerramento</p>
+<pre class="ah-code"><code>## Incidente 2026-10-08: documentação com 5xx por 22 minutos
+
+- Impacto: visitantes da documentação no Brasil viram erro 503 entre 14h03 e 14h25.
+- Causa: política do bucket publicada com ARN de distribuição antiga.
+- Detecção: alarme Erros5xxAlto, após 10 minutos de erro.
+- Ação imediata: política restaurada pelo histórico de versões.
+- Ação preventiva: teste de CDK que valida o ARN da distribuição (tópico 7).
+- Orçamento de erro consumido: 22 de 43,2 minutos do mês.</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> a nota registra o impacto em minutos e em orçamento de erro, que é a unidade do SLO. A ação preventiva
+      liga o incidente a uma mudança concreta no código, o que impede que a mesma falha volte. Uma nota sem ação preventiva é só um registro.
+    </p>
+  </div>
+</section>
+
+<section id="mercado" data-toc="Práticas do mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-orange-400 mr-2"></i>Práticas do mercado</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Padronização com OpenTelemetry:</strong> a instrumentação segue um padrão aberto, o que permite trocar o destino dos dados sem reescrever o código.</li>
+      <li><strong>Revisão sem culpados:</strong> o foco é o processo que permitiu a falha, e não a pessoa que a causou.</li>
+      <li><strong>Plantão com rodízio e escalonamento:</strong> o alarme chega a uma pessoa e, sem resposta, sobe para a próxima, com prazos definidos.</li>
+      <li><strong>Painéis por serviço e por jornada:</strong> cada painel responde a uma pergunta do usuário, como “a página de documentação carrega?”.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um SLO de 99,9% mensal foi violado após 50 minutos de indisponibilidade. Quanto do orçamento foi consumido, e o que muda no time?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o orçamento é de 43,2 minutos, e os 50 minutos o excedem em 6,8. A meta foi violada. Pela política de orçamento, mudanças de risco devem parar até o próximo mês, e o trabalho passa a ser de estabilidade: revisar o incidente e corrigir a causa antes de liberar novas funcionalidades.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Um alarme dispara toda madrugada por um pico de 30 segundos. O que ajustar?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a regra de duas janelas de cinco minutos já deveria filtrar um pico curto. Se ele dispara, a condição pode estar sem duas janelas, o período pode ser curto demais, ou o limiar está abaixo do comportamento normal. A correção é olhar o histórico da métrica, ajustar o limiar e exigir persistência, e não silenciar o alarme.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Exercícios propostos</h2>
+  <ol class="ah-prose text-sm space-y-3 list-decimal pl-5">
+    <li>Defina um SLI e um SLO para a documentação do design system, e calcule o orçamento de erro do seu SLO em minutos por mês.</li>
+    <li>Escreva uma consulta de Logs Insights que mostre os cinco identificadores de evento com mais erros nas últimas 24 horas.</li>
+    <li>Escreva o runbook de um alarme de fila de falhas crescendo, seguindo o modelo da operação 4.</li>
+  </ol>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      CloudWatch aparece em todos os exames de forma transversal: métricas, alarmes e logs são usados como resposta em cenários de
+      monitoramento. O DVA-C03 cobre instrumentação, logs e rastros da aplicação. O SAA-C03 cobra a escolha de métrica e alarme para uma
+      arquitetura resiliente. O CLF-C02 pede a função de cada serviço de monitoramento. Os conceitos de SLO não são cobrados nos exames, mas
+      são o que separa um operador de um usuário do console.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a diferença entre SLI e SLO?</p>
+      <button class="ah-quiz-opt">O SLI é a meta, e o SLO é a medição</button>
+      <button class="ah-quiz-opt">O SLI é a medição do que o usuário percebe, e o SLO é a meta para essa medição</button>
+      <button class="ah-quiz-opt">São sinônimos usados em documentos diferentes</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O SLI mede (por exemplo, a fração de requisições bem-sucedidas); o SLO define a meta para essa medição.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um alarme usa duas janelas de avaliação consecutivas?</p>
+      <button class="ah-quiz-opt">Para dobrar o custo do alarme</button>
+      <button class="ah-quiz-opt">Porque o CloudWatch exige duas métricas por alarme</button>
+      <button class="ah-quiz-opt">Para só disparar quando a condição persiste, reduzindo falsos positivos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Um pico isolado não dispara o alarme; a condição precisa se repetir nas duas janelas.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com SLO de 99,9% em 30 dias, quanto tempo de indisponibilidade o orçamento de erro permite?</p>
+      <button class="ah-quiz-opt">Cerca de 43 minutos</button>
+      <button class="ah-quiz-opt">Cerca de 4 minutos</button>
+      <button class="ah-quiz-opt">Cerca de 7 horas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. 0,1% de 43.200 minutos é 43,2 minutos. Quatro minutos corresponde a 99,99%, e sete horas a 99%.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Métricas alarmam, logs investigam, rastros localizam. Cada pilar responde a uma pergunta diferente.</li>
+    <li>SLO é medido do lado do usuário; o orçamento de erro em minutos é a unidade que o time entende.</li>
+    <li>Alarme sem ação é painel: use duas janelas e sempre aponte para um runbook.</li>
+    <li>Runbook tem tempo por passo e condição de saída; incidente se fecha com ação preventiva.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BEYER, Betsy et al. <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly Media, 2016. Capítulos sobre SLO e monitoramento.</li>
+    <li>BEYER, Betsy et al. <em>The Site Reliability Workbook</em>. Sebastopol: O'Reilly Media, 2018. Capítulo sobre alertas em SLO.</li>
+    <li>AWS. <em>Amazon CloudWatch User Guide</em>, seções sobre alarmes e Logs Insights. docs.aws.amazon.com/AmazonCloudWatch.</li>
+    <li>OPENTELEMETRY. <em>Documentação oficial</em>. opentelemetry.io.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('observabilidade');
+})();
+</script>
+</body>
+</html>

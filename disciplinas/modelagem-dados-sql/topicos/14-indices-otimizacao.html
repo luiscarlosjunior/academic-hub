@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Índices, planos de execução e otimização · AcademicHub</title>
+<meta name="description" content="Como uma B-tree encontra uma linha, quando o índice ajuda, o que EXPLAIN QUERY PLAN mostra e os erros que anulam um índice.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/14-indices-otimizacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Procurar sem ler tudo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-gauge-high text-fuchsia-400 mr-2"></i>Sem índice, o banco lê tudo</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine procurar um cliente numa lista de um milhão de nomes sem ordem alguma. Você precisa ler todos.
+      Se a lista estiver ordenada, pode ir direto ao meio, descartar metade e repetir. Um <strong>índice</strong> é
+      exatamente essa organização extra, mantida pelo banco ao lado da tabela.
+    </p>
+    <p>
+      Sem índice, uma consulta com filtro faz uma <strong>varredura completa</strong> (full scan). Com índice adequado,
+      faz uma <strong>busca</strong> que lê umas poucas páginas. A diferença entre as duas é, muitas vezes, a diferença
+      entre milissegundos e minutos.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ B-TREE ============================ -->
+<section id="btree" data-toc="A B-tree" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-fuchsia-400 mr-2"></i>A B-tree: a estrutura por trás do índice</h2>
+  <p class="ah-lead text-sm mb-5">
+    A maioria dos índices é uma <strong>B-tree</strong>: uma árvore balanceada em que cada nó guarda várias chaves ordenadas
+    e muitos filhos (o <em>fan-out</em>). Como o fan-out é grande, a árvore é rasa: poucos níveis bastam para milhões de linhas.
+  </p>
+  <div class="ah-card p-5 mb-5">
+    <h3 class="ah-h3 mb-3">Animação · buscando o id 6</h3>
+    <div id="anim-btree"></div>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Num banco real, cada nó é uma página de disco (4 a 16 KB). Com 300 chaves por página, três níveis cobrem cerca de
+      27 milhões de chaves: <strong>três leituras de página para achar uma linha</strong>, em vez de ler milhões.
+      Por isso o custo de busca cresce com o logaritmo do número de linhas.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ QUANDO AJUDA ============================ -->
+<section id="quando" data-toc="Quando um índice ajuda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-fuchsia-400 mr-2"></i>Quando um índice ajuda, e quando não</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um índice acelera filtros seletivos (que retornam poucas linhas), junções pela chave e ordenações. Não ajuda quando
+    a consulta precisa de quase todas as linhas: nesse caso, a varredura sequencial é mais barata.
+  </p>
+
+  <div class="ah-card p-5 mb-5">
+    <h3 class="ah-h3 mb-3">Primeiro: veja o plano</h3>
+    <p class="text-sm text-slate-400 leading-relaxed mb-3">
+      <code>EXPLAIN QUERY PLAN</code> mostra como o banco executará a consulta. Os dois termos que importam são
+      <strong>SCAN</strong> (lê a tabela inteira) e <strong>SEARCH … USING INDEX</strong> (busca pelo índice).
+    </p>
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>EXPLAIN QUERY PLAN
+SELECT * FROM pedidos WHERE status = 'pago';</pre>
+    </div>
+    <p class="text-sm text-slate-400 mt-3 leading-relaxed">
+      Sem índice em <code>status</code>, o resultado é <code>SCAN pedidos</code>. A próxima seção cria o índice e compara.
+    </p>
+  </div>
+
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>CREATE INDEX idx_pedidos_status ON pedidos(status);
+EXPLAIN QUERY PLAN
+SELECT * FROM pedidos WHERE status = 'pago';</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Agora o plano é <code>SEARCH pedidos USING INDEX idx_pedidos_status (status=?)</code>. O <code>?</code> é o valor
+    procurado, passado como parâmetro. Em aplicações, consultas com parâmetros também reutilizam o plano.
+  </p>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Seletividade.</strong> Um índice em <code>status</code> ajuda pouco quando há só quatro valores, porque
+      cada um cobre uma fatia grande da tabela. Em colunas de baixa seletividade (sexo, sim/não), o otimizador frequentemente
+      ignora o índice. Índices em colunas de alta cardinalidade, como e-mail ou CPF, são os mais úteis.</div>
+  </div>
+</section>
+
+<!-- ============================ COMPOSTO E COBERTURA ============================ -->
+<section id="composto" data-toc="Índices compostos e a ordem das colunas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-fuchsia-400 mr-2"></i>Índices compostos: a ordem importa</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um índice em <code>(a, b)</code> está ordenado por <code>a</code> e, dentro de cada valor de <code>a</code>, por <code>b</code>.
+    Ele serve a consultas que filtram por <code>a</code>, ou por <code>a</code> e <code>b</code>, mas não serve bem a consultas que
+    filtram só por <code>b</code>. É como uma lista telefônica ordenada por sobrenome e depois por nome.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>CREATE INDEX idx_ped_cli_status ON pedidos(id_cliente, status);
+EXPLAIN QUERY PLAN
+SELECT * FROM pedidos WHERE id_cliente = 1 AND status = 'pago';</pre>
+  </div>
+  <div class="sql-ex mt-4">
+    <pre class="ah-code sql-code" data-run>-- só status: o índice composto não ajuda, pois id_cliente é o primeiro da ordem
+CREATE INDEX idx_ped_cli_status ON pedidos(id_cliente, status);
+EXPLAIN QUERY PLAN
+SELECT * FROM pedidos WHERE status = 'pago';</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A primeira consulta usa o índice composto; a segunda cai em <code>SCAN</code>. Regra prática: coloque primeiro as colunas
+    usadas com igualdade e, em seguida, as de intervalo ou ordenação.
+  </p>
+
+  <div class="ah-card p-5 mt-5">
+    <h3 class="ah-h3 mb-2">Índice de cobertura</h3>
+    <p class="text-sm text-slate-300 leading-relaxed mb-3">
+      Se o índice contém todas as colunas que a consulta precisa, o banco nem lê a tabela: responde só pelo índice.
+      O plano mostra <code>COVERING INDEX</code>. Um exemplo com a chave primária composta da tabela de itens:
+    </p>
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>EXPLAIN QUERY PLAN
+SELECT id_pedido, id_produto FROM itens_pedido;</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS ============================ -->
+<section id="anular" data-toc="O que anula um índice" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ban text-fuchsia-400 mr-2"></i>O que anula um índice</h2>
+  <p class="ah-lead text-sm mb-5">
+    O índice está ordenado pelo valor da coluna <em>nua</em>. Qualquer operação sobre a coluna dentro do WHERE esconde
+    essa ordem do otimizador, que então faz varredura.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>CREATE INDEX idx_prod_preco ON produtos(preco);
+-- função sobre a coluna: não usa o índice
+EXPLAIN QUERY PLAN SELECT nome FROM produtos WHERE preco * 1.1 &gt; 100;
+-- condição isolada na coluna: usa
+EXPLAIN QUERY PLAN SELECT nome FROM produtos WHERE preco &gt; 100 / 1.1;</pre>
+  </div>
+  <div class="ah-card p-5 mt-5">
+    <h3 class="ah-h3 mb-3">Lista de vilões</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-300">
+      <div class="ah-card p-3"><strong class="text-white">Função na coluna</strong><br><code>WHERE UPPER(nome) = 'ANA'</code>. Reescreva o valor, não a coluna, ou crie um índice sobre a expressão.</div>
+      <div class="ah-card p-3"><strong class="text-white">Curinga à esquerda</strong><br><code>LIKE '%costa'</code> não tem ponto de partida na ordem. Já <code>LIKE 'Ana%'</code> pode usar índice, mas o SQLite só faz isso com collation NOCASE ou a opção case_sensitive_like desligada.</div>
+      <div class="ah-card p-3"><strong class="text-white">OR com colunas sem índice</strong><br><code>WHERE id_categoria = 1 OR preco &gt; 100</code> exige que <em>ambas</em> sejam indexadas.</div>
+      <div class="ah-card p-3"><strong class="text-white">Tipos incompatíveis</strong><br>Comparar texto com número força conversão em cada linha, e o índice não entra.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ORDENAÇÃO E PAGINAÇÃO ============================ -->
+<section id="ordenacao" data-toc="Ordenação e paginação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-down-wide-short text-fuchsia-400 mr-2"></i>Ordenação, paginação e o custo do OFFSET</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um índice pode também <strong>evitar uma ordenação</strong>. Se a consulta filtra por uma coluna e ordena por outra,
+    o índice composto certo entrega as linhas já na ordem pedida.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>CREATE INDEX idx_item_prod ON itens_pedido(id_produto);
+EXPLAIN QUERY PLAN
+SELECT id_pedido FROM itens_pedido WHERE id_produto = 3 ORDER BY id_pedido;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Aparece <code>USE TEMP B-TREE FOR ORDER BY</code>: o banco ainda precisa ordenar, porque o índice está por
+    <code>id_produto</code> e não por <code>id_pedido</code>. Um índice <code>(id_produto, id_pedido)</code> eliminaria essa etapa.
+  </p>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>OFFSET cresce o custo.</strong> <code>LIMIT 20 OFFSET 100000</code> lê e descarta 100 mil linhas antes de devolver 20.
+      Para paginar com desempenho, guarde o último valor visto e use um filtro sobre o índice:
+      <code>WHERE id_pedido &gt; 42 ORDER BY id_pedido LIMIT 20</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CUSTO ============================ -->
+<section id="custo" data-toc="O custo do índice" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-fuchsia-400 mr-2"></i>Índices não são de graça</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Escrita mais lenta.</strong> Cada INSERT, UPDATE ou DELETE precisa atualizar todos os índices da tabela. Tabela com dez índices sofre dez vezes a manutenção.</li>
+      <li><strong>Espaço.</strong> Um índice é uma cópia ordenada (parcial) da coluna, com ponteiros. Em tabelas grandes, pode ocupar tanto quanto os dados.</li>
+      <li><strong>Estatísticas.</strong> O otimizador depende de estatísticas atualizadas. O SQLite as mantém com <code>ANALYZE</code>; sem elas, pode escolher um plano ruim.</li>
+    </ul>
+    <p>
+      Por isso a regra é: crie índices para as consultas que existem e são lentas, medidas no plano, e não para cada coluna
+      “que pode ser pesquisada um dia”. Chaves primárias e UNIQUE já criam índices automaticamente; o restante é decisão de projeto.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-fuchsia-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Otimizador baseado em custo.</strong> Para cada plano possível, o banco estima o número de páginas lidas e o número de linhas produzidas, com base em estatísticas, e escolhe o de menor custo. Não existe “a melhor forma” universal: depende dos dados.</li>
+      <li><strong>Plano não é sempre o mesmo.</strong> Mudanças de dados ou de estatísticas podem mudar o plano. Consultas que eram rápidas ontem podem ficar lentas depois de um ANALYZE ou de muitas inserções. Por isso, monitore e não confie em memória.</li>
+      <li><strong>Sargable.</strong> Um predicado é “sargable” (search-argument-able) quando pode ser usado como ponto de busca no índice. <code>coluna &gt; valor</code> é sargable; <code>função(coluna) &gt; valor</code> geralmente não. Reescrever para sargable é o ajuste mais comum.</li>
+      <li><strong>Leitura de página.</strong> Mesmo com índice, a busca precisa buscar a linha na tabela (lookup), a menos que o índice seja de cobertura. Uma busca com muitos lookups aleatórios pode ser mais lenta que uma varredura sequencial, e o otimizador sabe disso.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: diagnosticar uma consulta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stethoscope text-fuchsia-400 mr-2"></i>Exemplo clássico: diagnosticar e corrigir</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma tela de busca de clientes por cidade está lenta. O procedimento é sempre o mesmo: ver o plano, criar o índice certo,
+    verificar o plano de novo.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- 1. o plano antes
+EXPLAIN QUERY PLAN
+SELECT nome, email FROM clientes WHERE cidade = 'Curitiba';
+
+-- 2. criar o índice e ver o plano depois
+CREATE INDEX idx_clientes_cidade ON clientes(cidade);
+EXPLAIN QUERY PLAN
+SELECT nome, email FROM clientes WHERE cidade = 'Curitiba';</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Em um banco de milhões de clientes, a primeira saída seria SCAN e a segunda, SEARCH. Aqui, com sete linhas, o
+    resultado é o mesmo, mas o plano mostra a mudança, e é isso que importa para aprender a ler o diagnóstico.
+  </p>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-fuchsia-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Crie um índice e veja o plano mudar. Depois troque a data do filtro por uma faixa mais estreita e observe se o plano se mantém.</p>
+  <div class="sql-play">CREATE INDEX idx_pedidos_data ON pedidos(data_pedido);
+EXPLAIN QUERY PLAN
+SELECT * FROM pedidos WHERE data_pedido &gt;= '2024-08-01';</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-fuchsia-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Antes de rodar, preveja se haverá SCAN ou SEARCH.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Índice para a tela de pedidos de um cliente</summary>
+    <p class="sql-dica-prob">A tela “meus pedidos” filtra por <code>id_cliente</code> e ordena por <code>data_pedido</code>.
+      Qual índice você criaria? Mostre o plano.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>CREATE INDEX idx_ped_cliente_data ON pedidos(id_cliente, data_pedido);
+EXPLAIN QUERY PLAN
+SELECT id_pedido, data_pedido, status
+FROM pedidos
+WHERE id_cliente = 1
+ORDER BY data_pedido;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A coluna de igualdade vem primeiro (<code>id_cliente</code>), e a de ordenação depois (<code>data_pedido</code>). Com isso,
+        as linhas do cliente já saem ordenadas, e a consulta não precisa de sort temporário.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Tornar sargable</summary>
+    <p class="sql-dica-prob">A consulta <code>SELECT nome FROM produtos WHERE preco * 1.1 &gt; 100</code> não usa o índice em <code>preco</code>.
+      Reescreva-a para que use, mantendo o mesmo resultado.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>CREATE INDEX idx_prod_preco ON produtos(preco);
+EXPLAIN QUERY PLAN
+SELECT nome FROM produtos WHERE preco &gt; 100 / 1.1;
+SELECT nome FROM produtos WHERE preco * 1.1 &gt; 100;
+SELECT nome FROM produtos WHERE preco &gt; 100 / 1.1;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Passar a operação para o outro lado da desigualdade isola a coluna. A saída mostra <code>SEARCH … USING INDEX</code>.
+        Os dois SELECT finais devolvem os mesmos produtos, então a reescrita é segura nesse caso.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Quando o índice não adianta</summary>
+    <p class="sql-dica-prob">Crie um índice em <code>pedidos(status)</code> e mostre o plano de <code>SELECT * FROM pedidos WHERE status &lt;&gt; 'cancelado'</code>.
+      Ele usa o índice? Por quê?</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>CREATE INDEX idx_pedidos_status ON pedidos(status);
+EXPLAIN QUERY PLAN
+SELECT * FROM pedidos WHERE status &lt;&gt; 'cancelado';</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        O plano é um <code>SCAN pedidos</code>, sem usar o índice. A condição “diferente de” cobre oito das nove linhas. Ler o índice
+        e depois buscar cada linha custaria mais que varrer a tabela de uma vez. Esse é o critério da seletividade.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Índice parcial: indexar só o que importa</h3>
+  <div class="ah-prose">
+    <p>
+      Muitas consultas só se interessam por uma fração da tabela. Na loja, a fila de pedidos pendentes é lida o tempo todo,
+      mas a grande maioria dos pedidos já está enviada ou cancelada. Um <strong>índice parcial</strong> guarda apenas as linhas
+      que satisfazem uma condição, deixando o índice pequeno e rápido de manter.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE INDEX idx_pendentes ON pedidos(data_pedido) WHERE status = 'pendente';
+EXPLAIN QUERY PLAN
+SELECT id_pedido FROM pedidos WHERE status = 'pendente' AND data_pedido &gt; '2024-09-01';</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    O plano usa o índice parcial. Note também a palavra <em>COVERING</em>: como o índice já contém a chave da tabela e a
+    data, a consulta é respondida sem ler a tabela. A condição da consulta precisa implicar a condição do índice (aqui, o
+    status literal), ou o banco não pode usá-lo.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Paginação eficiente com keyset</h3>
+  <div class="ah-prose">
+    <p>
+      Em vez de <code>OFFSET</code>, guarde o último identificador visto e peça as linhas seguintes. O índice da chave
+      primária leva direto ao ponto certo, sem descartar linhas antes. É a técnica usada por feeds e listas infinitas.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>-- “próxima página”, sabendo que a última linha vista tinha id 3
+SELECT id_pedido, data_pedido
+FROM pedidos
+WHERE id_pedido &gt; 3
+ORDER BY id_pedido
+LIMIT 3;</pre>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>Keyset não permite pular para a página 50. Essa é a troca: ele é rápido e estável, mas sequencial. Para telas com
+      números de página, o OFFSET continua valendo em tabelas pequenas ou médias.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Estatísticas: o otimizador só é tão bom quanto os números que recebe</h3>
+  <div class="ah-prose">
+    <p>
+      O otimizador estima quantas linhas cada filtro produz. Essas estimativas vêm de estatísticas, como a quantidade de
+      linhas e a distribuição de valores de um índice. O comando <code>ANALYZE</code> recalcula essas estatísticas, e o SQLite as
+      guarda na tabela <code>sqlite_stat1</code>. Depois de cargas grandes, um ANALYZE é uma das ações mais baratas e
+      eficazes para corrigir um plano ruim.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>ANALYZE;
+SELECT tbl, idx, stat FROM sqlite_stat1 ORDER BY tbl, idx;</pre>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Roteiro de diagnóstico de uma consulta lenta</h3>
+  <ol class="text-sm text-slate-300 space-y-2 leading-relaxed list-decimal pl-5">
+    <li><strong>Meça</strong> antes de mudar: quanto tempo leva, com que dados, em qual ambiente.</li>
+    <li><strong>Leia o plano</strong> (EXPLAIN): procure SCAN em tabelas grandes e ordenações temporárias.</li>
+    <li><strong>Verifique a sargabilidade</strong> dos filtros: há função ou conversão sobre a coluna indexada?</li>
+    <li><strong>Crie o índice certo</strong> (igualdade primeiro, depois faixa e ordenação) e meça de novo.</li>
+    <li><strong>Revise a consulta</strong>: colunas desnecessárias, junções que não precisa, OFFSET grande.</li>
+    <li><strong>Confirme as estatísticas</strong> com ANALYZE e repita o plano. Anote o ganho para justificar o índice no futuro.</li>
+  </ol>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#2a1436)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-fuchsia-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Num índice composto (a, b), qual consulta tende a usar o índice?</p>
+      <button class="ah-quiz-opt">WHERE b = 5</button>
+      <button class="ah-quiz-opt">WHERE b = 5 AND c = 2</button>
+      <button class="ah-quiz-opt">WHERE a = 1 AND b = 5</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O índice está ordenado primeiro por a. Filtros que começam em a (ou em a e b) conseguem usar essa ordem. Só b não tem ponto de partida.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Por que <code>WHERE preco * 1.1 &gt; 100</code> não usa o índice em preco?</p>
+      <button class="ah-quiz-opt">Porque a coluna está dentro de uma expressão, e o índice guarda o valor puro</button>
+      <button class="ah-quiz-opt">Porque índices não funcionam com números decimais</button>
+      <button class="ah-quiz-opt">Porque o SQL não permite multiplicação no WHERE</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Para usar a ordem do índice, o banco precisa comparar a coluna com um valor. Aplicar uma operação sobre a coluna
+        impede isso. Mova a operação para o outro lado.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Qual é o principal custo de criar muitos índices?</p>
+      <button class="ah-quiz-opt">As consultas SELECT ficam sempre mais lentas</button>
+      <button class="ah-quiz-opt">Cada INSERT, UPDATE e DELETE precisa manter todos os índices, e eles ocupam espaço</button>
+      <button class="ah-quiz-opt">O banco perde a capacidade de fazer junções</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Índices aceleram leituras à custa de escritas e espaço. Um SELECT bem indexado não fica mais lento por causa de índices extras.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: busca na B-tree ===================== */
+(function () {
+  /* Árvore simplificada: raiz [4]; folhas [1,2,3] e [5,6,7,8,9] */
+  const no = (chaves, cls, rotulo) => `
+    <div class="ah-card p-3 text-center ${cls}">
+      <div class="text-[10px] text-slate-400 mb-1">${rotulo}</div>
+      <div class="flex justify-center gap-1 flex-wrap">${chaves.map(k => `<span class="px-2 py-1 rounded font-mono text-xs ${k.hl ? 'sql-hl text-white' : 'bg-slate-800 text-slate-300'}">${k.v}</span>`).join('')}</div>
+    </div>`;
+  const raiz = (hl, msg) => no([{ v: 4, hl }], '', 'raiz (nó interno)') + (msg ? `<p class="text-xs text-slate-400 text-center mt-2">${msg}</p>` : '');
+  const folhas = (a, b) => `<div class="grid grid-cols-2 gap-3 mt-3">
+      ${no(a.map(v => ({ v, hl: b && b.includes(v) })), '', 'folha')}
+      ${no([1, 2, 3].map(v => ({ v, hl: false })), '', 'folha ·  não visitada')}</div>`;
+  SQLLab.passos(document.getElementById('anim-btree'), [
+    { titulo: 'Passo 1 · a raiz', texto: 'Comparamos 6 com a chave da raiz, 4. Como 6 > 4, o id deve estar à direita.',
+      html: () => `${raiz(true, '6 &gt; 4 → desce para a direita')}
+        <div class="grid grid-cols-2 gap-3 mt-3"><div class="ah-card p-2 opacity-40">${no([{ v: 1 }, { v: 2 }, { v: 3 }], '', 'esquerda · ignorada')}</div>
+        <div class="ah-card p-2 border border-fuchsia-400/60">${no([5, 6, 7, 8, 9].map(v => ({ v, hl: false })), '', 'direita · próximo passo')}</div></div>` },
+    { titulo: 'Passo 2 · a folha', texto: 'Na folha [5, 6, 7, 8, 9], o 6 está na segunda posição. Achamos a linha em 2 leituras de nó, sem varrer as outras chaves.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${no([{ v: 4 }], '', 'raiz')}
+        ${no([5, 6, 7, 8, 9].map(v => ({ v, hl: v === 6 })), 'border border-cyan-400/60', 'folha · encontrado')}</div>
+        <div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i><div>Id 6 encontrado. Dois nós lidos.</div></div>` },
+    { titulo: 'Passo 3 · por que a árvore é rasa', texto: 'Com páginas de centenas de chaves, a altura cresce devagar. A cada nível, o alcance multiplica por centenas.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+        <div class="ah-card p-4"><div class="text-[11px] text-slate-400">1 nível</div><div class="text-xl font-bold text-white">~300</div><div class="text-[11px] text-slate-500">chaves</div></div>
+        <div class="ah-card p-4"><div class="text-[11px] text-slate-400">2 níveis</div><div class="text-xl font-bold text-white">~90 mil</div><div class="text-[11px] text-slate-500">chaves</div></div>
+        <div class="ah-card p-4"><div class="text-[11px] text-slate-400">3 níveis</div><div class="text-xl font-bold text-cyan-300">~27 milhões</div><div class="text-[11px] text-slate-500">chaves, com 3 leituras</div></div></div>
+        <p class="text-xs text-slate-500 mt-2 text-center">Valores aproximados, para fan-out de 300 chaves por nó.</p>` }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Junções: INNER, LEFT, RIGHT, FULL, CROSS e auto-junção · AcademicHub</title>
+<meta name="description" content="Combinar tabelas pela chave: junção interna, externa, anti-junção, produto cartesiano e auto-junção, com animação das linhas que casam.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/sql-lab.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="bd/10-juncoes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Combinar pela chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Juntar tabelas é casar chaves</h2>
+  <div class="ah-prose">
+    <p>
+      No modelo relacional, a informação de um relacionamento fica em valores de chave. Para responder “qual o nome do
+      cliente de cada pedido?”, o banco casa <code>pedidos.id_cliente</code> com <code>clientes.id_cliente</code>. Esse
+      casamento é a <strong>junção</strong>, e é a operação mais importante de SQL.
+    </p>
+    <p>
+      A diferença entre os tipos de junção está em uma pergunta: <em>o que acontece com as linhas que não casam?</em>
+      Descartá-las (INNER), mantê-las de um lado (LEFT, RIGHT) ou dos dois (FULL)?
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-3">Animação · os seis tipos sobre as mesmas tabelas</h3>
+    <div id="anim-joins"></div>
+  </div>
+</section>
+
+<!-- ============================ INNER ============================ -->
+<section id="inner" data-toc="INNER JOIN" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-sky-400 mr-2"></i>INNER JOIN: só o que casa</h2>
+  <p class="ah-lead text-sm mb-5">
+    A junção interna devolve pares de linhas que satisfazem a condição do ON. Uma linha sem par é descartada.
+    Como todos os pedidos da loja têm cliente, o resultado tem uma linha por pedido.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome, p.id_pedido, p.status
+FROM clientes c
+INNER JOIN pedidos p ON p.id_cliente = c.id_cliente
+ORDER BY p.id_pedido;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Note o uso de <strong>aliases</strong> (<code>c</code>, <code>p</code>): eles encurtam a escrita e são obrigatórios
+    quando a mesma coluna existe nas duas tabelas (aqui, <code>id_cliente</code> existe em ambas).
+    <code>JOIN</code> sozinho significa <code>INNER JOIN</code>.
+  </p>
+</section>
+
+<!-- ============================ OUTER ============================ -->
+<section id="outer" data-toc="LEFT, RIGHT e FULL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-merge text-sky-400 mr-2"></i>Junções externas: LEFT, RIGHT e FULL</h2>
+  <p class="ah-lead text-sm mb-5">
+    <code>LEFT JOIN</code> mantém todas as linhas da tabela da esquerda; onde não há par, as colunas da direita viram NULL.
+    <code>RIGHT JOIN</code> faz o inverso. <code>FULL JOIN</code> mantém as duas. Na prática, LEFT JOIN é o mais usado.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>-- todos os clientes, com ou sem pedidos
+SELECT c.nome, COUNT(p.id_pedido) AS pedidos
+FROM clientes c
+LEFT JOIN pedidos p ON p.id_cliente = c.id_cliente
+GROUP BY c.id_cliente, c.nome
+ORDER BY pedidos DESC, c.nome;</pre>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <h3 class="ah-h3 mb-3">Anti-junção: “quem não tem…”</h3>
+    <p class="text-sm text-slate-400 mb-3 leading-relaxed">
+      Um LEFT JOIN seguido de um filtro por NULL na tabela da direita encontra linhas sem correspondência.
+      É a forma clássica de responder “quais clientes nunca compraram?”.
+    </p>
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>SELECT c.nome
+FROM clientes c
+LEFT JOIN pedidos p ON p.id_cliente = c.id_cliente
+WHERE p.id_pedido IS NULL;</pre>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>ON × WHERE em junções externas.</strong> Um filtro no <code>ON</code> da tabela opcional preserva a linha
+      da esquerda. O mesmo filtro no <code>WHERE</code> descarta as linhas sem par e <em>transforma o LEFT em INNER</em>.
+      Veja o exemplo na seção “Como funciona de verdade”.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CROSS E AUTO ============================ -->
+<section id="cross-self" data-toc="CROSS e auto-junção" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clone text-sky-400 mr-2"></i>CROSS JOIN e auto-junção</h2>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">CROSS JOIN: produto cartesiano</h3>
+      <p class="text-sm text-slate-300 leading-relaxed mb-3">
+        Sem condição, cada linha de uma tabela combina com cada linha da outra: 7 clientes × 9 produtos = 63 linhas.
+        Quase sempre é um erro de esquecer o ON. Tem uso legítimo, como gerar todas as combinações de tamanho e cor.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <h3 class="ah-h3 mb-2">Auto-junção: a tabela com ela mesma</h3>
+      <p class="text-sm text-slate-300 leading-relaxed mb-3">
+        Para ligar funcionário ao supervisor, a mesma tabela aparece duas vezes, com aliases diferentes. É a
+        forma de navegar um auto-relacionamento (tópico 03).
+      </p>
+    </div>
+  </div>
+  <div class="sql-ex mt-5">
+    <pre class="ah-code sql-code" data-run>SELECT f.nome AS funcionario, s.nome AS supervisor
+FROM funcionarios f
+LEFT JOIN funcionarios s ON s.id_funcionario = f.id_supervisor
+ORDER BY f.id_funcionario;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Usei LEFT JOIN na auto-junção porque a diretora não tem supervisor. Com INNER JOIN, ela desapareceria do resultado.
+  </p>
+</section>
+
+<!-- ============================ COMO FUNCIONA ============================ -->
+<section id="por-dentro" data-toc="Como funciona de verdade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-sky-400 mr-2"></i>Como funciona de verdade</h2>
+  <div class="ah-prose">
+    <p>O banco tem vários algoritmos para executar um mesmo JOIN. O otimizador escolhe conforme o tamanho das tabelas e os índices:</p>
+    <ul>
+      <li><strong>Nested loop</strong>: para cada linha de A, procura as linhas de B. Sem índice, custa O(n·m), mas é ótimo quando B tem um índice sobre a chave e A é pequena.</li>
+      <li><strong>Hash join</strong>: constrói uma tabela hash com a menor entrada e sonda com a outra. Custa O(n + m) e domina junções de grandes volumes sem índice útil.</li>
+      <li><strong>Merge join</strong>: ordena as duas entradas pela chave e as percorre em paralelo. Eficiente quando já estão ordenadas (por índices).</li>
+    </ul>
+    <p>
+      SQLite usa sobretudo nested loop, com índices automáticos quando ajudam. PostgreSQL escolhe entre os três. Você não escolhe o
+      algoritmo: escolhe a consulta e os índices, e o plano aparece no tópico 14.
+    </p>
+    <p><strong>O ON e o WHERE são diferentes em junções externas.</strong> Compare as duas versões abaixo com o mesmo filtro de “pago”:</p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>-- filtro no ON: todos os clientes aparecem
+SELECT c.nome, p.id_pedido
+FROM clientes c
+LEFT JOIN pedidos p
+  ON p.id_cliente = c.id_cliente AND p.status = 'pago'
+ORDER BY c.id_cliente;</pre>
+    </div>
+    <div class="sql-ex">
+      <pre class="ah-code sql-code" data-run>-- filtro no WHERE: só quem tem pedido pago
+SELECT c.nome, p.id_pedido
+FROM clientes c
+LEFT JOIN pedidos p ON p.id_cliente = c.id_cliente
+WHERE p.status = 'pago';</pre>
+    </div>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    A segunda consulta perde Carla, Elisa, Gabriel e Helena, porque para elas <code>p.status</code> é NULL e a condição do
+    WHERE é desconhecida. Pela lógica de três valores, o LEFT JOIN vira um INNER JOIN disfarçado. Se a intenção é “todos
+    os clientes, com seus pedidos pagos quando houver”, o filtro vai no ON.
+  </p>
+</section>
+
+<!-- ============================ EXEMPLO CLÁSSICO ============================ -->
+<section id="exemplo" data-toc="Exemplo: três tabelas em cadeia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-sky-400 mr-2"></i>Exemplo clássico: o pedido completo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma pergunta de relatório que cruza quatro tabelas: quem comprou, o quê, quanto e o valor da linha.
+    Cada JOIN segue uma chave estrangeira do modelo do tópico 04.
+  </p>
+  <div class="sql-ex">
+    <pre class="ah-code sql-code" data-run>SELECT c.nome AS cliente,
+       pr.nome AS produto,
+       i.quantidade,
+       i.quantidade * i.preco_unitario AS valor_linha
+FROM pedidos p
+JOIN clientes c     ON c.id_cliente  = p.id_cliente
+JOIN itens_pedido i ON i.id_pedido   = p.id_pedido
+JOIN produtos pr    ON pr.id_produto = i.id_produto
+WHERE p.status = 'enviado'
+ORDER BY valor_linha DESC;</pre>
+  </div>
+</section>
+
+<!-- ============================ EXPERIMENTE ============================ -->
+<section id="experimente" data-toc="Experimente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-flask text-sky-400 mr-2"></i>Experimente</h2>
+  <p class="text-sm text-slate-400 mb-4 leading-relaxed">Troque LEFT por INNER e veja quais funcionários somem. Depois troque o ON por um WHERE e compare.</p>
+  <div class="sql-play">SELECT f.nome AS funcionario, s.nome AS supervisor
+FROM funcionarios f
+LEFT JOIN funcionarios s ON s.id_funcionario = f.id_supervisor;</div>
+</section>
+
+<!-- ============================ PROBLEMAS ============================ -->
+<section id="problemas" data-toc="Problemas para resolver" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-puzzle-piece text-sky-400 mr-2"></i>Problemas para resolver</h2>
+  <p class="text-xs text-slate-400 mb-5">Os resultados são calculados ao vivo. Compare com a sua previsão.</p>
+
+  <details class="sql-prob">
+    <summary>Problema 1 · Produtos que nunca saíram em pedido enviado</summary>
+    <p class="sql-dica-prob">Liste os produtos que não aparecem em nenhum item de pedido com status “enviado”.
+      (Dica: todos os produtos já foram vendidos em algum pedido, então o filtro precisa considerar o status.)</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT pr.nome
+FROM produtos pr
+LEFT JOIN (
+  SELECT i.id_produto
+  FROM itens_pedido i
+  JOIN pedidos p ON p.id_pedido = i.id_pedido
+  WHERE p.status = 'enviado'
+) e ON e.id_produto = pr.id_produto
+WHERE e.id_produto IS NULL;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        É uma anti-junção: a subconsulta do lado direito lista só os produtos que saíram em pedidos enviados. Os produtos
+        sem par ficam com NULL e passam pelo filtro. O resultado é Smartphone, Camiseta Básica e Tênis de Corrida.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 2 · Clientes e total gasto, incluindo quem não comprou</summary>
+    <p class="sql-dica-prob">Para cada cliente, mostre o total gasto em pedidos não cancelados. Quem não comprou deve aparecer com zero.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT c.nome,
+       COALESCE(SUM(i.quantidade * i.preco_unitario), 0) AS total
+FROM clientes c
+LEFT JOIN pedidos p
+  ON p.id_cliente = c.id_cliente AND p.status &lt;&gt; 'cancelado'
+LEFT JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+GROUP BY c.id_cliente, c.nome
+ORDER BY total DESC;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        A condição de “não cancelado” está no ON do LEFT JOIN, não no WHERE, para preservar os clientes. COALESCE troca o NULL
+        por zero quando a soma não tem linhas. Helena aparece com zero.
+      </p>
+    </details>
+  </details>
+
+  <details class="sql-prob">
+    <summary>Problema 3 · Pares de funcionários na mesma equipe</summary>
+    <p class="sql-dica-prob">Liste pares de funcionários que têm o mesmo supervisor, sem repetir o par invertido (A, B) e (B, A)
+      e sem pares de uma pessoa com ela mesma.</p>
+    <details class="sql-sol">
+      <summary>Ver solução</summary>
+      <pre class="ah-code sql-code" data-run>SELECT a.nome AS um, b.nome AS outro
+FROM funcionarios a
+JOIN funcionarios b
+  ON b.id_supervisor = a.id_supervisor
+ AND a.id_funcionario &lt; b.id_funcionario;</pre>
+      <p class="text-sm text-slate-300 leading-relaxed mt-2">
+        Auto-junção com a condição <code>a.id &lt; b.id</code>, que elimina a versão invertida e a pessoa com ela mesma.
+        Note que a condição de mesmo supervisor é o ON: é ela que define o casamento.
+      </p>
+    </details>
+  </details>
+</section>
+
+<!-- ============================ APROFUNDAMENTO ============================ -->
+<section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
+
+  <h3 class="ah-h3 mb-2">Junção por intervalo (não é uma igualdade)</h3>
+  <div class="ah-prose">
+    <p>
+      Nem toda junção casa chaves iguais. Às vezes, a condição é um intervalo: “este produto cai nesta faixa de preço”.
+      O ON pode usar qualquer predicado, como BETWEEN, &lt; ou &gt;. O custo depende de índices: sem eles, cada linha
+      precisa ser comparada com todas as faixas, o que é aceitável para tabelas pequenas, mas não para grandes.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>CREATE TABLE faixas (nome TEXT, minimo REAL, maximo REAL);
+INSERT INTO faixas VALUES
+  ('econômico', 0, 99.99),
+  ('médio', 100, 499.99),
+  ('premium', 500, 1000000);
+
+SELECT f.nome AS faixa, COUNT(*) AS produtos
+FROM produtos p
+JOIN faixas f ON p.preco BETWEEN f.minimo AND f.maximo
+GROUP BY f.nome
+ORDER BY produtos DESC;</pre>
+  </div>
+  <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+    Cada produto aparece exatamente uma vez, porque as faixas não se sobrepõem. Se você esquecer de fazer isso e
+    deixar limites repetidos (como 100 em duas faixas), o produto de preço 100 será contado duas vezes.
+  </p>
+
+  <h3 class="ah-h3 mt-6 mb-2">Relatório que atravessa quatro tabelas</h3>
+  <div class="ah-prose">
+    <p>
+      Uma pergunta de gestão típica: quanto cada categoria vendeu? A cadeia de junções vai de itens até categorias, passando
+      por produtos. Note que a tabela de pedidos não entra: o status e a data não foram pedidos aqui, então ela é desnecessária.
+    </p>
+  </div>
+  <div class="sql-ex mt-3">
+    <pre class="ah-code sql-code" data-run>SELECT ca.nome AS categoria,
+       SUM(i.quantidade) AS unidades,
+       ROUND(SUM(i.quantidade * i.preco_unitario), 2) AS receita
+FROM itens_pedido i
+JOIN produtos p   ON p.id_produto   = i.id_produto
+JOIN categorias ca ON ca.id_categoria = p.id_categoria
+GROUP BY ca.id_categoria, ca.nome
+ORDER BY receita DESC;</pre>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-star"></i>
+    <div><strong>Junte só o necessário.</strong> Cada JOIN a mais aumenta o trabalho do banco e a chance de duplicar linhas.
+      Antes de adicionar uma tabela, pergunte se a resposta depende dela. Se não depende, ela só atrapalha.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Como o otimizador escolhe a ordem dos JOINs</h3>
+  <div class="ah-prose">
+    <p>
+      Para junções internas, a ordem não muda o resultado, mas muda o custo. O otimizador tenta começar pela entrada que
+      produz menos linhas, aplicando os filtros mais seletivos cedo. Por isso, um WHERE sobre uma coluna indexada pode
+      tornar a consulta muito mais rápida, mesmo sem mudar nenhuma junção. Em junções externas, a ordem é restrita: o lado
+      que deve ser preservado não pode ser reordenado de forma arbitrária.
+    </p>
+    <p>
+      Na prática, você não controla essa ordem diretamente, mas pode observá-la com <code>EXPLAIN</code> (tópico 14).
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Armadilhas de junção que geram números errados</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-amber-400">
+      <h4 class="text-sm font-semibold text-white mb-1">Duplicação silenciosa</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Juntar pedidos com itens e somar o total do pedido conta o pedido uma vez por item. Some no nível certo, ou use subconsulta (tópico 11).</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-amber-400">
+      <h4 class="text-sm font-semibold text-white mb-1">Produto cartesiano por esquecimento</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Duas tabelas separadas por vírgula, sem condição, multiplicam as linhas. O sintoma é um total absurdo, com dezenas de vezes o esperado.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-amber-400">
+      <h4 class="text-sm font-semibold text-white mb-1">Filtro no WHERE que apaga o LEFT</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Já visto nesta página: uma condição sobre a tabela opcional, no WHERE, transforma a junção externa em interna.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-amber-400">
+      <h4 class="text-sm font-semibold text-white mb-1">Ambiguidade de colunas</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Colunas com o mesmo nome em duas tabelas exigem prefixo. Sem ele, o banco recusa a consulta; com ele, o leitor sabe de onde vem cada dado.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#0c2a44)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-sky-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Três perguntas de fundamentos.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Qual junção devolve todos os clientes, inclusive os sem pedidos?</p>
+      <button class="ah-quiz-opt">INNER JOIN de clientes com pedidos</button>
+      <button class="ah-quiz-opt">LEFT JOIN, com clientes à esquerda</button>
+      <button class="ah-quiz-opt">CROSS JOIN, porque combina tudo</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        LEFT JOIN preserva todas as linhas da tabela da esquerda. Onde não há par, as colunas da direita ficam NULL.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Um LEFT JOIN com <code>WHERE p.status = 'pago'</code> se comporta como qual junção?</p>
+      <button class="ah-quiz-opt">CROSS JOIN</button>
+      <button class="ah-quiz-opt">FULL JOIN</button>
+      <button class="ah-quiz-opt">INNER JOIN, porque o filtro descarta as linhas sem par</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Linhas sem par têm status NULL, e a condição do WHERE não é verdadeira para elas. O efeito é o mesmo de um INNER JOIN.
+        O filtro deveria estar no ON.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Por que a auto-junção de funcionários usa aliases?</p>
+      <button class="ah-quiz-opt">Porque a mesma tabela aparece duas vezes, e o banco precisa distinguir as duas instâncias</button>
+      <button class="ah-quiz-opt">Porque aliases são obrigatórios em qualquer consulta</button>
+      <button class="ah-quiz-opt">Para deixar a consulta mais rápida</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Sem alias, <code>funcionarios.nome</code> seria ambíguo: é o funcionário ou o supervisor? Cada alias nomeia uma
+        instância da tabela para a consulta.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/sql-lab.js"></script>
+<script>
+/* ===================== Animação: tipos de junção ===================== */
+(function () {
+  const C = [[1, 'Ana'], [2, 'Bruno'], [7, 'Helena']];
+  const P = [[1, 1], [2, 2], [3, 1], [9, 6]]; // [id_pedido, id_cliente]
+  const tab = (cab, rows, dest) => SQLLab.tabelaHTML(cab, rows, { destaque: dest || [], animar: true });
+  const comparar = (nome, sqlTxt, rows, cab, dest) => `
+    <div class="sql-q mb-3">${sqlTxt}</div>
+    <div class="ah-card p-3">${tab(cab, rows, dest)}<div class="text-xs text-slate-400 mt-2">${rows.length} linha(s)</div></div>`;
+
+  /* pares de referência (cliente, pedido) */
+  const nomeDe = id => (C.find(c => c[0] === id) || [null, 'NULL'])[1];
+  const todosPares = P.map(p => [nomeDe(p[1]), p[0]]);
+  const inner = [], left = [], right = [], full = [];
+  const usadosP = new Set();
+  C.forEach(c => {
+    const casados = P.filter(p => p[1] === c[0]);
+    if (casados.length) casados.forEach(p => { inner.push([c[1], p[0]]); left.push([c[1], p[0]]); usadosP.add(p[0]); });
+    else left.push([c[1], null]);
+  });
+  P.forEach(p => { if (!C.find(c => c[0] === p[1])) right.push([null, p[0]]); });
+  inner.sort((a, b) => a[1] - b[1]);
+  const rightPares = [...inner.map(x => x), ...right].sort((a, b) => (a[1] || 0) - (b[1] || 0));
+  const fullPares = [...left, ...right];
+  const cross = []; C.forEach(c => P.forEach(p => cross.push([c[1], p[0]])));
+
+  SQLLab.passos(document.getElementById('anim-joins'), [
+    { titulo: 'As duas tabelas', texto: 'Clientes à esquerda, pedidos à direita. Ana tem 2 pedidos, Bruno tem 1, Helena nenhum, e o pedido 9 é de um cliente que não está nesta amostra.',
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 mb-2">clientes</div>${tab(['id', 'nome'], C)}</div>
+        <div class="ah-card p-3"><div class="text-xs text-cyan-300 mb-2">pedidos</div>${tab(['id_pedido', 'id_cliente'], P)}</div></div>` },
+    { titulo: 'INNER JOIN', texto: 'Só os pares que casam pela chave. Helena e o pedido 9 ficam de fora.',
+      html: () => comparar('inner', 'clientes c INNER JOIN pedidos p ON p.id_cliente = c.id', inner.map(x => [x[0], x[1]]), ['cliente', 'pedido'], [0, 1, 2]) },
+    { titulo: 'LEFT JOIN', texto: 'Todos os clientes. Helena entra, com o pedido em NULL.',
+      html: () => comparar('left', 'clientes c LEFT JOIN pedidos p ON ...', left, ['cliente', 'pedido'], [3]) },
+    { titulo: 'RIGHT JOIN', texto: 'Todos os pedidos. O pedido 9 entra, com o cliente em NULL, porque o cliente dele não está na tabela de clientes.',
+      html: () => comparar('right', 'clientes c RIGHT JOIN pedidos p ON ...', rightPares.map(r => [r[0] === null ? 'NULL' : r[0], r[1]]), ['cliente', 'pedido'], [3]) },
+    { titulo: 'FULL JOIN', texto: 'As duas direções: todos os clientes e todos os pedidos. Cada lado sem par recebe NULL.',
+      html: () => comparar('full', 'clientes c FULL OUTER JOIN pedidos p ON ...', fullPares.map(r => [r[0] === null ? 'NULL' : r[0], r[1] === null ? 'NULL' : r[1]]), ['cliente', 'pedido'], [3, 4]) },
+    { titulo: 'CROSS JOIN', texto: 'Sem condição: cada cliente com cada pedido. 3 × 4 = 12 linhas. Quase nunca é o que se quer.',
+      html: () => comparar('cross', 'clientes c CROSS JOIN pedidos p', cross, ['cliente', 'pedido'], []) }
+  ]);
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>
