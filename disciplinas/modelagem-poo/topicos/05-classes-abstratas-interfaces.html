@@ -393,6 +393,44 @@ classDiagram
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- EXEMPLO-EXEC:INI -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: meios de pagamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-credit-card text-emerald-400 mr-2"></i>Exemplo passo a passo: meios de pagamento plugáveis</h2>
+  <p class="ah-lead text-sm mb-5">Cartão, boleto e Pix têm o mesmo contrato e fluxos parecidos. Como separar o que é contrato, o que é roteiro e o que é detalhe?</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o contrato é uma interface</h3>
+  <pre class="ah-code"><code><span class="kw">public interface</span> <span class="ty">MeioDePagamento</span> {
+    <span class="ty">ResultadoCobranca</span> <span class="fn">cobrar</span>(<span class="kw">long</span> centavos);   <span class="cm">// obrigatório</span>
+    <span class="kw">default boolean</span> <span class="fn">aceitaParcelamento</span>() { <span class="kw">return false</span>; }  <span class="cm">// padrão</span>
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Interface porque cada meio pode ser um gateway, um banco ou um provedor de Pix, sem compartilhar estado. O <code>default</code> dá um comportamento razoável sem obrigar todos a implementarem.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o roteiro é uma classe abstrata</h3>
+  <pre class="ah-code"><code><span class="kw">public abstract class</span> <span class="ty">CobrancaBase</span> {
+    <span class="kw">public final</span> <span class="ty">ResultadoCobranca</span> <span class="fn">executar</span>(<span class="kw">long</span> centavos) {
+        <span class="kw">if</span> (centavos &lt;= <span class="num">0</span>) <span class="kw">return</span> <span class="ty">ResultadoCobranca</span>.recusado(<span class="str">"valor inválido"</span>);
+        <span class="kw">long</span> total = calcularTaxa(centavos);    <span class="cm">// varia</span>
+        <span class="kw">return</span> registrar(total);                 <span class="cm">// comum a todos</span>
+    }
+    <span class="kw">protected abstract long</span> <span class="fn">calcularTaxa</span>(<span class="kw">long</span> centavos);
+    <span class="kw">private</span> <span class="ty">ResultadoCobranca</span> <span class="fn">registrar</span>(<span class="kw">long</span> total) { <span class="cm">/* extrato */</span> <span class="kw">return</span> <span class="ty">ResultadoCobranca</span>.aprovado(total); }
+}</code></pre>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — qual ferramenta usar</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Pergunta</th><th>Resposta</th></tr></thead>
+      <tbody>
+        <tr><td>As implementações compartilham estado?</td><td>Se não, interface</td></tr>
+        <tr><td>Existe um roteiro fixo com passos variáveis?</td><td>Classe abstrata com método <code>final</code></td></tr>
+        <tr><td>Um tipo precisa de duas capacidades?</td><td>Duas interfaces (classe só herda uma)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> transformar o contrato em classe abstrata “porque é mais fácil”. Quando o cartão já herda de uma classe de transporte, a hierarquia trava. Interface evita esse acoplamento.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável: projeto Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: o projeto Melodia</h2>
   <p class="ah-lead text-sm mb-5">A interface <code>Reproduzivel</code> é implementada por <code>Musica</code> e por <code>Podcast</code>, que não têm nada em comum além do contrato. O método <code>duracaoFormatada()</code> é um <em>default</em>, herdado pelas duas. O bloco 8 mostra o player tratando ambas de forma idêntica.</p>

@@ -371,6 +371,50 @@ classDiagram
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- EXEMPLO-EXEC:INI -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: a mesma pessoa em três sistemas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-id-card text-emerald-400 mr-2"></i>Exemplo passo a passo: quanto de uma pessoa cabe em cada sistema</h2>
+  <p class="ah-lead text-sm mb-5">A abstração não é um atributo a mais ou a menos: é uma pergunta sobre o uso. Vamos decidir o que modelar de uma pessoa em três contextos.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — a pergunta de cada sistema</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sistema</th><th>Pergunta que precisa responder</th><th>Atributos que entram</th></tr></thead>
+      <tbody>
+        <tr><td>Locadora de carros</td><td>Esta pessoa pode dirigir este carro?</td><td>CNH, categoria, validade da CNH</td></tr>
+        <tr><td>Clínica</td><td>Há risco com este medicamento?</td><td>alergias, data de nascimento, peso</td></tr>
+        <tr><td>Cadastro de eleitores</td><td>Esta pessoa pode votar?</td><td>título, idade, situação</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o mesmo nome, três classes</h3>
+  <pre class="ah-code"><code><span class="cm">// Locadora: só o que decide a locação</span>
+<span class="kw">public class</span> <span class="ty">MotoristaLocadora</span> {
+    <span class="kw">private final</span> String cnh;
+    <span class="kw">private final</span> <span class="kw">char</span> categoria;
+    <span class="kw">private final</span> LocalDate validadeCnh;
+    <span class="kw">public boolean</span> <span class="fn">podeDirigir</span>(<span class="kw">char</span> categoriaVeiculo) {
+        <span class="kw">return</span> validadeCnh.isAfter(LocalDate.now()) &amp;&amp; categoria &gt;= categoriaVeiculo;
+    }
+}
+
+<span class="cm">// Clínica: outro recorte da mesma pessoa, com outras perguntas</span>
+<span class="kw">public class</span> <span class="ty">PacienteClinica</span> {
+    <span class="kw">private final</span> LocalDate nascimento;
+    <span class="kw">private final</span> Set&lt;String&gt; alergias;
+    <span class="kw">public boolean</span> <span class="fn">alergicoA</span>(String principioAtivo) {
+        <span class="kw">return</span> alergias.contains(principioAtivo);
+    }
+}</code></pre>
+  <p class="ah-prose text-sm mt-3">Nenhuma das duas classes tem o campo <code>cor dos olhos</code>, e isso é correto: nenhuma pergunta dos sistemas o usa. A abstração é o que <em>não</em> foi incluído.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o teste de inclusão</h3>
+  <p class="ah-prose text-sm">Para cada atributo candidato, pergunte: se eu remover este campo, alguma operação deixa de funcionar? Se a resposta for não, o campo fica de fora. Se a operação existe no futuro mas não hoje, deixe para depois (YAGNI).</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> criar uma classe <code>Pessoa</code> com trinta atributos para “servir a todos os sistemas”. Ela cresce sem dono, e cada sistema passa a depender de campos que não usa. Abstrair é recortar por pergunta, não reunir tudo.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="exemplo-executavel" data-toc="Exemplo executável: projeto Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: o projeto Melodia</h2>
   <p class="ah-lead text-sm mb-5">O encapsulamento que protege as regras R1 (saldo nunca negativo) e R4 (cancelada é final) está implementado. A saída mostra as operações recusadas: o objeto defende o próprio estado.</p>
