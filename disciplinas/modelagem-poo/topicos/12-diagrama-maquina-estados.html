@@ -305,6 +305,47 @@ stateDiagram-v2
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: pedido de restaurante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-utensils text-emerald-400 mr-2"></i>Exemplo passo a passo: o ciclo de vida de um pedido de restaurante</h2>
+  <p class="ah-lead text-sm mb-5">Um pedido passa por estados que determinam o que o cliente, a cozinha e o caixa podem fazer. Vamos modelar as transições e as ações de cada estado.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — listar estados e eventos</h3>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Estado</th><th>Significado</th><th>Ação ao entrar (entry)</th></tr></thead>
+      <tbody>
+        <tr><td>Aberto</td><td>cliente montando o pedido</td><td>reservar mesa</td></tr>
+        <tr><td>NaCozinha</td><td>pedido enviado ao preparo</td><td>imprimir comanda</td></tr>
+        <tr><td>Pronto</td><td>aguardando retirada</td><td>avisar garçom</td></tr>
+        <tr><td>Fechado</td><td>pago e entregue</td><td>liberar mesa</td></tr>
+        <tr><td>Cancelado</td><td>encerrado sem cobrança</td><td>estornar reserva</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o diagrama</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; Aberto
+    Aberto --&gt; NaCozinha : enviarParaPreparo [itens &gt; 0]
+    Aberto --&gt; Cancelado : cancelar
+    NaCozinha --&gt; Pronto : preparoConcluido
+    NaCozinha --&gt; Cancelado : cancelar [ainda não preparado]
+    Pronto --&gt; Fechado : pagar
+    Fechado --&gt; [*]
+    Cancelado --&gt; [*]
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">As guardas em colchetes são o que faz a máquina ser mais que um fluxo: não se envia para o preparo um pedido vazio, e não se cancela um prato já feito.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — testar a máquina</h3>
+  <p class="ah-prose text-sm">Teste as transições proibidas, não só as permitidas. Por exemplo: “um pedido Fechado não pode voltar a NaCozinha”, e “um pedido Cancelado não aceita pagamento”. Essas são as propriedades que o modelo deve garantir.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> deixar uma transição sem decisão explícita. Se o evento <code>cancelar</code> chega em <code>Pronto</code>, o modelo precisa dizer o que acontece: ignorar, recusar ou gerar reembolso. Um estado sem resposta para um evento é uma falha de projeto.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>

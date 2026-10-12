@@ -215,6 +215,51 @@ MELODIA_LOG_NIVEL=WARN</code></pre>
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
+<!-- APROF2:INI -->
+<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: aplicativo de delivery" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-motorcycle text-emerald-400 mr-2"></i>Exemplo passo a passo: topologia de um app de delivery</h2>
+  <p class="ah-lead text-sm mb-5">O mesmo sistema pode rodar de formas muito diferentes. Vamos escolher uma topologia e justificar a escolha com requisitos não funcionais.</p>
+
+  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — os requisitos que decidem</h3>
+  <ul class="ah-prose list-disc pl-5 space-y-2 text-sm">
+    <li>Pico de pedidos no almoço e no jantar (carga cinco vezes maior).</li>
+    <li>Entregadores atualizam a posição a cada 10 segundos.</li>
+    <li>Dados de pagamento precisam ficar isolados da área pública.</li>
+  </ul>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a topologia</h3>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TB
+    subgraph Publico["«device» Internet pública"]
+        App["«artifact» app do cliente"]
+    end
+    subgraph Nuvem["«executionEnvironment» Cluster de aplicação"]
+        API1["«artifact» api-pedidos (réplica 1)"]
+        API2["«artifact» api-pedidos (réplica 2)"]
+        Rastreio["«artifact» servico-rastreio"]
+    end
+    subgraph Privado["«executionEnvironment» Rede privada"]
+        Pag["«artifact» servico-pagamento"]
+        DB[("«device» Banco de dados")]
+    end
+    App -- "HTTPS" --&gt; API1
+    App -- "HTTPS" --&gt; API2
+    App -- "WebSocket" --&gt; Rastreio
+    API1 -- "gRPC" --&gt; Pag
+    API2 -- "gRPC" --&gt; Pag
+    Pag --&gt; DB
+    API1 --&gt; DB
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Duas réplicas da API para o pico. O pagamento fica em rede privada, sem caminho direto da internet. O rastreio tem seu próprio artefato porque tem perfil de carga diferente.</p>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o que a topologia não mostra</h3>
+  <p class="ah-prose text-sm">O diagrama não mostra o balanceador, os certificados nem as regras de firewall. Elas existem, e devem aparecer no diagrama de implantação de detalhe. O diagrama de alto nível deve mostrar só o que muda a decisão do time.</p>
+
+  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> desenhar um só nó “servidor” para um sistema que tem requisitos de isolamento. A topologia é justamente onde a segurança aparece no modelo; esconder esses nós esconde o risco.</div></div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
