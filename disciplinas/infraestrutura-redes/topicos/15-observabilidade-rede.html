@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observabilidade de rede: percentis, SLO, fluxos e alertas · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Como medir uma rede de verdade: por que a média engana, percentis e caudas de latência, orçamento de erro de um SLO, exportação de fluxos com IPFIX, SNMP e telemetria, e detecção de anomalias, com casos da indústria, animação, exemplo em Python com saída real e citação da RFC 7011.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/15-observabilidade-rede">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-emerald-400 mr-2"></i>Tópico 15 · Observabilidade de rede</h2>
+  <div class="ah-prose">
+    <p>
+      Uma rede sem medição é uma rede em que você só descobre o problema quando um cliente reclama. Observabilidade é a capacidade de entender o estado
+      interno de um sistema a partir do que ele emite: métricas, registros de eventos e rastros. Em rede, isso significa saber a latência de cada
+      caminho, a perda por enlace, o volume por aplicação, e a saúde de cada equipamento, em tempo real e com histórico.
+    </p>
+    <p>
+      Esta página trata do que medir e como interpretar. O ponto central é que <strong>a média engana</strong>: um serviço com média de 30 ms pode estar
+      deixando 1% dos usuários esperando mais de meio segundo. Os percentis, o orçamento de erro de um SLO e a detecção de anomalias são as ferramentas
+      que transformam medições em decisões.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar por que a média não basta e interpretar p50, p95 e p99;</li>
+      <li>converter um SLO de disponibilidade em minutos de orçamento de erro;</li>
+      <li>descrever os principais mecanismos de coleta: SNMP, fluxos (IPFIX, NetFlow, sFlow), sondas ativas e telemetria de streaming;</li>
+      <li>detectar anomalias com uma média móvel exponencial e entender seus limites;</li>
+      <li>separar sintoma de causa ao investigar um incidente.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      O SNMP, de 1988, foi o primeiro padrão amplo para consultar contadores e estados de equipamentos, e ainda é a base do monitoramento de muitos
+      roteadores e switches. Os contadores de interface que ele expõe, como bytes e pacotes por porta, continuam sendo o sinal mais barato de se ter.
+      Para saber <em>quem</em> conversa com <em>quem</em>, surgiu a exportação de fluxos: o roteador resume os pacotes em registros de origem, destino,
+      portas, protocolo e volume. O NetFlow, da Cisco, popularizou a ideia, e o IPFIX foi padronizado no IETF.
+    </p>
+    <p>
+      A RFC 7011 descreve o protocolo IPFIX em termos que servem de referência para tudo o que esta página discute:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "This document specifies the IP Flow Information Export (IPFIX) protocol, which serves as a means for transmitting Traffic Flow information over the network."
+    </blockquote>
+    <p class="text-xs text-slate-500">CLAISE, B. et al. RFC 7011 (2013), resumo. Tradução nossa: este documento especifica o protocolo IPFIX (exportação de informações de fluxo IP), que serve como meio de transmitir informações de fluxo de tráfego pela rede.</p>
+  </div>
+</section>
+
+<section id="medir" data-toc="Teoria: o que medir e como" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge text-emerald-400 mr-2"></i>Teoria · Quatro formas de medir uma rede</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Contadores de equipamento (SNMP, telemetria):</strong> bytes, erros, descartes e uso de CPU por interface. Barato, dá a saúde do equipamento, mas não diz quem gerou o tráfego.</li>
+      <li><strong>Fluxos (IPFIX, NetFlow, sFlow):</strong> resumos por conversa. Respondem a "quais aplicações consomem o enlace" e "para onde vai o tráfego de um servidor".</li>
+      <li><strong>Sondas ativas:</strong> o próprio monitor envia requisições (ping, HTTP, DNS) e mede o resultado. Mostram o que um usuário sentiria, independentemente do tráfego real.</li>
+      <li><strong>Medições do usuário e de aplicação:</strong> tempo de carregamento no navegador, latência medida pelo cliente. São as mais fiéis e as mais difíceis de coletar.</li>
+    </ul>
+    <p>
+      Cada tipo cobre um ponto cego do outro. Um enlace pode estar com contadores normais e clientes reclamando de lentidão: a sonda ativa e a medição do
+      usuário revelam o que os contadores escondem. Por isso, a indústria combina os quatro.
+    </p>
+  </div>
+</section>
+
+<section id="percentis" data-toc="Teoria: média, percentis e caudas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-emerald-400 mr-2"></i>Teoria · Por que a média engana</h2>
+  <div class="ah-prose">
+    <p>
+      A média soma tudo e divide. Se 99% das requisições levam 20 ms e 1% leva 2 segundos, a média é cerca de 40 ms, um número que não descreve a
+      experiência de ninguém. O percentil responde a uma pergunta mais útil: <em>qual latência 99% dos usuários não ultrapassam?</em> O p99 é o
+      valor que separa os 99% mais rápidos do 1% mais lento.
+    </p>
+    <p>
+      A cauda importa por duas razões. Primeiro, quem está na cauda costuma ser quem tem a operação mais importante: a compra com muitos itens, a conta
+      com mais dados. Segundo, em serviços que chamam outros, a latência se acumula: se uma requisição depende de dez chamadas, a chance de pelo menos uma
+      cair na cauda cresce muito. Por isso, as equipes de plataforma acompanham p95 e p99, e não a média.
+    </p>
+    <p>
+      Cuidado com a agregação: percentis não podem ser somados entre máquinas. Para combiná-los, é preciso guardar histogramas, que é o que as ferramentas
+      de métricas modernas fazem. Tirar a média dos p99 de cada servidor não dá o p99 global.
+    </p>
+  </div>
+</section>
+
+<section id="slo" data-toc="Teoria: SLO e orçamento de erro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-emerald-400 mr-2"></i>Teoria · SLO e orçamento de erro</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>SLI</strong> é a medida (a fração de requisições bem-sucedidas, a latência p99). Um <strong>SLO</strong> é a meta sobre essa medida, em
+      uma janela de tempo (99,9% de sucesso em 30 dias). O complemento da meta é o <strong>orçamento de erro</strong>: a quantidade de falha que o serviço
+      pode ter sem violar o acordo. Para 99,9% em 30 dias, são cerca de 43 minutos de indisponibilidade equivalente.
+    </p>
+    <p>
+      O orçamento transforma uma discussão subjetiva em uma decisão. Se o orçamento está quase no fim, a equipe desacelera mudanças e prioriza
+      confiabilidade. Se sobra muito, pode assumir mais risco e acelerar entregas. Esse é o núcleo da prática de SRE descrita por Beyer e colegas no
+      livro <em>Site Reliability Engineering</em>, publicado pelo Google em 2016.
+    </p>
+  </div>
+</section>
+
+<section id="anomalias" data-toc="Teoria: detecção de anomalia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>Teoria · Alertas que valem a pena</h2>
+  <div class="ah-prose">
+    <p>
+      Um alerta fixo, do tipo "tráfego acima de 800 Mb/s", quebra em duas direções: dispara toda noite no pico normal, e não dispara quando o padrão
+      muda aos poucos. A alternativa é comparar o valor atual com uma linha de base que se adapta. A média móvel exponencial (EWMA) faz isso com uma
+      conta simples: a nova base é uma fração do valor atual somada ao resto da base anterior. O exemplo usa alfa = 0,2 e limiar de 1,5 vez a base.
+    </p>
+    <p>
+      Os limites são importantes. Uma linha de base que se adapta rápido demais aprende o próprio pico e para de alertar; uma lenta demais alerta em
+      toda mudança legítima. Sazonalidade, como o pico das 21 h, exige uma base por horário do dia. Por isso, a indústria trata detecção de
+      anomalias como ajuste contínuo, e não como regra única.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: casos reais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-emerald-400 mr-2"></i>Na indústria · Observabilidade em produção</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Malha de serviços com métricas por requisição</div>
+      <p class="text-xs text-slate-400">Proxies de malha de serviços, como o Envoy, expõem histogramas de latência por chamada entre serviços. Uma equipe vê, sem alterar código, qual dependência estoura o p99 de uma API. É o uso mais comum de percentis em produção.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Fluxos para detectar exfiltração e abuso</div>
+      <p class="text-xs text-slate-400">Equipes de segurança usam fluxos IPFIX para encontrar um servidor que, de repente, envia gigabytes a um destino incomum. Um volume anômalo de saída costuma ser o primeiro sinal de vazamento de dados, antes de qualquer alerta de antivírus.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Post-mortems públicos de grandes redes</div>
+      <p class="text-xs text-slate-400">Provedores de nuvem e de CDN publicam análises de incidentes. Em muitos casos, a causa é uma mudança de configuração que se propagou, e a primeira pista foi uma queda de métricas de rede, não de aplicação. A observabilidade de rede reduz o tempo entre o sintoma e a causa.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Alerta por sintoma, não por causa</div>
+      <p class="text-xs text-slate-400">As boas práticas de alerta recomendam acionar a equipe pelo sintoma que o usuário sente (taxa de erro, latência p99 acima do SLO), e deixar as métricas de causa, como uso de CPU, para o diagnóstico. Um alerta por causa gera muito ruído sem garantir que o usuário seja afetado.</p>
+    </div>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: do agente ao alerta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Como uma medição vira alerta</h2>
+  <p class="ah-lead text-sm mb-4">O roteador exporta registros de fluxo. Um coletor agrega e grava. O detector compara o volume com a linha de base e dispara um alerta quando ele foge do padrão. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvObs" style="height:380px"></canvas></div>
+  <div id="ctlObs" class="mt-4"></div>
+  <div id="capObs" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: percentis, SLO e EWMA em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Média, cauda, orçamento e alerta</h2>
+  <div class="ah-prose">
+    <p>
+      O programa gera 2000 medições de latência com uma cauda de picos, calcula média e percentis, converte um SLO de 99,9% em minutos de orçamento e,
+      por fim, agrega fluxos por origem e dispara alerta quando o volume total do minuto ultrapassa 1,5 vez a média móvel. Um pico de uma origem, com
+      multiplicador 12, aparece como anomalia no minuto 22.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>15-observabilidade-rede.py · percentil</code></p>
+<pre class="ah-code"><code>def percentil(valores, p):
+    ordenados = sorted(valores)
+    k = max(0, min(len(ordenados) - 1, round(p / 100 * (len(ordenados) - 1))))
+    return ordenados[k]</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: média versus percentis (2000 medições de latência, em ms)
+  média: 30.1 ms
+  p50: 25.5 ms
+  p95: 46.6 ms
+  p99: 220.4 ms
+  pior medição: 254.7 ms
+
+Parte 2: orçamento de erro de um SLO
+  SLO 99,9% em 30 dias: orçamento de 43.2 minutos de indisponibilidade
+  um incidente de 20 min consome 46% do orçamento
+
+Parte 3: fluxos por origem e detecção de anomalia
+  maiores origens (bytes, 30 min):
+    10.0.2.7   18025
+    10.0.1.5   15783
+    10.0.3.3   15500
+    10.0.1.9   15266
+  alertas (EWMA, limiar de 1,5 vez a média):
+    minuto 22: 4037 bytes, média móvel 1950: ALERTA</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      Observe a parte 1: a média de 30 ms está próxima do p50, mas o p99 é de 220 ms. Uma decisão tomada pela média acharia o serviço saudável. Na parte 3,
+      o limiar de 2,5 vezes teria perdido o pico: a anomalia foi de cerca de 2 vezes a média móvel, e a lição é que o limiar precisa ser calibrado com dados
+      reais, não escolhido por intuição.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Escritório lento só às 10 h</div>
+      <p class="text-xs text-slate-400">Os contadores do switch mostram o enlace saturado no horário de backup de um servidor. Sem fluxos, a equipe acusa a rede; com fluxos, vê que a origem é o backup, e o problema é o agendamento.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Ping perfeito, sistema lento</div>
+      <p class="text-xs text-slate-400">O ping mostra latência baixa, mas a aplicação demora. Uma sonda HTTP ou uma medição de aplicação mostra o que o usuário sente. Ping mede a rede; não mede o serviço.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Conta de nuvem que sobe sem explicação</div>
+      <p class="text-xs text-slate-400">O custo de saída de dados pode crescer por um fluxo novo para a internet. Os fluxos e as métricas de saída de cada sub-rede apontam o serviço responsável antes da fatura chegar.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Um pico que ninguém sentiu</div>
+      <p class="text-xs text-slate-400">Um alerta por limiar fixo dispara num pico de backup que não afeta usuários. Um alerta por SLO só dispara quando o orçamento de erro está sendo consumido de verdade.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Pergunte pela cauda</div>
+      <p class="text-xs text-slate-400">Antes de confiar numa média, olhe p95 e p99 e o pior caso. Uma diferença grande entre média e p99 é um sinal de problema escondido.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Combine os quatro tipos de medição</div>
+      <p class="text-xs text-slate-400">Contadores, fluxos, sondas e medição do usuário se complementam. Use cada um para a pergunta que ele responde.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Calibre limiares com dados</div>
+      <p class="text-xs text-slate-400">Antes de fixar um limiar, plote duas ou quatro semanas de medições e veja o padrão normal, incluindo os picos de todo dia.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Alerte pelo que o usuário sente</div>
+      <p class="text-xs text-slate-400">Acione a equipe pelo sintoma e use as métricas de causa para diagnosticar. Menos alertas, mais úteis.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: orçamento de um SLO de 99,95%</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um serviço tem SLO de 99,95% em 30 dias. Quantos minutos de orçamento há? Dois incidentes de 15 e 25 minutos já aconteceram. Quanto resta?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> 0,05% de 30 × 24 × 60 = 0,0005 × 43 200 = 21,6 minutos. Os incidentes somam 40 minutos, que excedem o orçamento: o SLO foi violado no período.</p>
+      <p><strong>Lição.</strong> Com uma meta mais alta, o orçamento encolhe rápido. 99,95% dá metade do orçamento de 99,9%.</p>
+    </div>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: por que a latência se acumula</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Uma requisição de página chama 8 serviços em paralelo, e espera todos. Cada serviço tem p99 de 100 ms, e a chance de cair na cauda é de 1% por chamada. Qual a chance de a página sofrer ao menos uma chamada lenta?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Probabilidade de nenhuma chamada lenta: 0,99 elevado a 8, cerca de 0,923. Logo, a chance de pelo menos uma é cerca de 7,7%, quase oito vezes o 1% de cada chamada. Como a página espera todas, ela sofre.</p>
+      <p><strong>Lição.</strong> A cauda de cada componente se soma no conjunto. Por isso, a otimização de dependências em paralelo importa tanto.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Dois servidores têm p99 de 200 ms e 800 ms, com 1000 e 100 requisições. O p99 global é a média dos dois?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não. Percentis não se combinam por média. É preciso juntar as amostras (ou histogramas) e calcular o percentil sobre o conjunto. O resultado depende da forma de cada distribuição e dos volumes, e não apenas dos dois p99.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Por que um fluxo IPFIX é mais útil que um contador de bytes por interface para descobrir um vazamento de dados?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o contador diz quanto saiu pela interface, mas não para onde nem de qual origem. O fluxo registra o par origem e destino, com portas e protocolo, então permite localizar o servidor e o destino incomum.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um serviço tem média de 40 ms e p99 de 1,2 s. Qual é a conclusão mais segura?</p>
+      <button class="ah-quiz-opt">O serviço está saudável, pois a média é baixa</button>
+      <button class="ah-quiz-opt">Há uma cauda de latência que a média esconde, e ela precisa de investigação</button>
+      <button class="ah-quiz-opt">O p99 é um erro de medição</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Uma diferença tão grande entre média e p99 indica uma minoria de requisições muito lentas, que a média dilui.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual medição mostra o que o usuário sente, independentemente do tráfego real?</p>
+      <button class="ah-quiz-opt">Uma sonda ativa que faz uma requisição completa ao serviço</button>
+      <button class="ah-quiz-opt">Um contador de bytes por interface</button>
+      <button class="ah-quiz-opt">A tabela de rotas do roteador</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A sonda ativa gera sua própria requisição, então mede o caminho inteiro, mesmo quando não há tráfego real.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um SLO de 99,9% em 30 dias permite cerca de quanto de indisponibilidade?</p>
+      <button class="ah-quiz-opt">4 horas</button>
+      <button class="ah-quiz-opt">4 dias</button>
+      <button class="ah-quiz-opt">43 minutos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. 0,1% de 43 200 minutos é cerca de 43 minutos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>Média esconde a cauda; acompanhe p95, p99 e o pior caso.</li>
+    <li>Percentis não se somam nem se tiram médias; agregue histogramas ou amostras.</li>
+    <li>SLO e orçamento de erro transformam confiabilidade em decisão de engenharia.</li>
+    <li>Fluxos respondem "quem fala com quem"; contadores respondem "quão saudável está o equipamento".</li>
+    <li>Alerte pelo sintoma, calibre limiares com dados e aceite que a detecção de anomalias é um ajuste contínuo.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CLAISE, B. et al. <em>RFC 7011: Specification of the IP Flow Information Export (IPFIX) Protocol</em>. IETF, 2013.</li>
+    <li>CASE, J. et al. <em>RFC 1157: A Simple Network Management Protocol (SNMP)</em>. IETF, 1990.</li>
+    <li>BEYER, B. et al. <em>Site Reliability Engineering: How Google Runs Production Systems</em>. Sebastopol: O'Reilly, 2016.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. (Atraso e perda, no capítulo sobre medição de desempenho de rede.)</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Roteador (0), coletor (1), armazenamento (2) e detector de alertas (3) */
+  IR.liga(IR.criaSequencia({
+    participantes: ['Roteador', 'Coletor', 'Armazenamento', 'Detector'],
+    intro: 'O tráfego atravessa o roteador. Nada é medido até que ele exporte registros de fluxo.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'registros IPFIX', cap: 'O roteador resume o tráfego em registros de fluxo (origem, destino, portas, bytes) e os exporta.', fim: 'O coletor recebe os registros de fluxo de todos os minutos.' },
+      { de: 1, para: 2, rotulo: 'agregado/min', cap: 'O coletor soma os bytes por origem e por minuto, e grava a série temporal.', fim: 'A série fica disponível para consulta e para o detector.' },
+      { de: 3, para: 2, rotulo: 'consulta', cap: 'O detector consulta o volume do minuto atual e a base recente.', fim: 'Ele tem o valor atual e a média móvel exponencial.' },
+      { de: 3, para: 3, rotulo: 'compara', cap: 'Volume atual ÷ média móvel. Se passar de 1,5 vez, é anomalia.', fim: 'Na maioria dos minutos, a razão fica perto de 1.' },
+      { de: 3, para: 0, rotulo: 'alerta (minuto 22)', cap: 'No minuto 22, o volume salta com um pico de uma origem. O detector dispara o alerta.', fim: 'A equipe recebe o alerta com a origem responsável, pelo fluxo.' }
+    ]
+  }), {
+    canvas: 'cvObs', ctl: 'ctlObs', cap: 'capObs', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>

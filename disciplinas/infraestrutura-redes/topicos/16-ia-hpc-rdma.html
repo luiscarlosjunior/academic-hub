@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redes para IA e HPC: RDMA, all-reduce, InfiniBand e RoCE · Infraestrutura de Redes · AcademicHub</title>
+<meta name="description" content="Por que o treinamento de modelos de IA depende da rede: RDMA e a cópia zero, all-reduce em anel, largura de banda e latência, InfiniBand e RoCE, controle de congestionamento e fabricas de GPU, com casos da indústria, animação, exemplo em Python com saída real e citação da RFC 5040.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ir/16-ia-hpc-rdma">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-emerald-400 mr-2"></i>Tópico 16 · Redes para IA e HPC</h2>
+  <div class="ah-prose">
+    <p>
+      Treinar um modelo de linguagem grande pode exigir milhares de aceleradores (GPUs) trabalhando juntos por semanas. Em cada passo de treinamento,
+      eles precisam trocar os gradientes calculados, e a velocidade do treinamento passa a depender da rede tanto quanto do processador. Um cluster com
+      GPUs caras e uma rede lenta desperdiça dinheiro: as GPUs ficam paradas esperando dados.
+    </p>
+    <p>
+      Esta página é o encerramento avançado da disciplina. Ela mostra por que a computação de alto desempenho (HPC) e o treinamento de IA exigem
+      redes diferentes das de escritório: transferência direta de memória (RDMA), um padrão de comunicação chamado all-reduce, e tecnologias como
+      InfiniBand e RoCE. O tópico 11 mostrou a topologia de datacenter; aqui vemos o que roda sobre ela.
+    </p>
+    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
+    <ul>
+      <li>explicar o que é RDMA e por que a cópia zero reduz latência e uso de CPU;</li>
+      <li>descrever o all-reduce em anel e calcular o volume transferido por trabalhador;</li>
+      <li>distinguir largura de banda e latência, e prever qual domina em cada tamanho de mensagem;</li>
+      <li>comparar InfiniBand e RoCE e os problemas típicos de controle de congestionamento;</li>
+      <li>relacionar a topologia de fabric ao padrão de comunicação do treinamento.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historia" data-toc="Contexto histórico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Contexto histórico</h2>
+  <div class="ah-prose">
+    <p>
+      A computação de alto desempenho usa redes especializadas desde os anos 1980, com clusters de supercomputadores ligados por interconexões dedicadas.
+      O MPI, padrão de troca de mensagens entre processos, nasceu nos anos 1990 e continua sendo a base da maioria das aplicações científicas. O
+      InfiniBand, padronizado no início dos anos 2000, trouxe o RDMA para o mundo comercial, com latências de microssegundos.
+    </p>
+    <p>
+      A IA trouxe o mesmo problema para data centers de nuvem. A RFC 5040 define o protocolo RDMA e descreve o benefício central em termos que
+      continuam válidos:
+    </p>
+    <blockquote class="border-l-4 border-emerald-400 pl-4 text-sm text-slate-300 italic">
+      "enables data to be transferred directly into Upper Layer Protocol (ULP) Buffers without intermediate data copies"
+    </blockquote>
+    <p class="text-xs text-slate-500">RECIO, R. et al. RFC 5040 (2007), resumo. Tradução nossa: permite que os dados sejam transferidos diretamente para os buffers do protocolo de camada superior, sem cópias intermediárias.</p>
+  </div>
+</section>
+
+<section id="rdma" data-toc="Teoria: RDMA e a cópia zero" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-memory text-emerald-400 mr-2"></i>Teoria · RDMA: a memória do outro lado</h2>
+  <div class="ah-prose">
+    <p>
+      Numa transferência TCP comum, os dados são copiados várias vezes: da aplicação para o buffer do kernel, deste para a placa, e no destino o caminho
+      se repete. Cada cópia custa CPU e tempo. O RDMA (<em>remote direct memory access</em>) permite que a placa de rede leia e escreva diretamente na
+      memória da aplicação do outro host, sem envolver o sistema operacional a cada pacote. É o que a RFC 5040 chama de cópia zero.
+    </p>
+    <p>
+      Há duas consequências práticas. A latência cai para a faixa de microssegundos, e a CPU fica livre para o trabalho real. Em treinamento de IA, isso
+      significa que as GPUs não ficam esperando o processador de rede. O custo é uma rede que precisa ser sem perdas: o RDMA não tem a retransmissão
+      do TCP tratada pela pilha tradicional, por isso exige um transporte que não descarte pacotes em operação normal.
+    </p>
+  </div>
+</section>
+
+<section id="allreduce" data-toc="Teoria: all-reduce em anel" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-emerald-400 mr-2"></i>Teoria · O all-reduce em anel</h2>
+  <div class="ah-prose">
+    <p>
+      Após cada passo de retropropagação, todos os trabalhadores precisam ter a soma dos gradientes de todos. O all-reduce faz isso sem que ninguém
+      precise receber tudo de todos. No anel, o gradiente de cada trabalhador é dividido em N fatias. Em <strong>reduce-scatter</strong>, cada um envia
+      uma fatia ao vizinho, que soma à sua, por N−1 passos; ao fim, cada um tem a soma completa de uma fatia. Em <strong>all-gather</strong>, essas fatias
+      circulam por mais N−1 passos até todos terem o vetor completo.
+    </p>
+    <p>
+      O custo é o ponto forte do anel. Cada trabalhador envia 2 (N−1)/N vezes o tamanho do gradiente, que se aproxima de 2 à medida que N cresce. Ou seja,
+      o volume por máquina não cresce com o tamanho do cluster. O exemplo em Python verifica a correção do algoritmo e mostra essa convergência.
+    </p>
+    <p>
+      O anel não é a única forma. Em clusters grandes, a árvore e variantes hierárquicas reduzem a latência acumulada, porque o anel tem 2(N−1) passos
+      sequenciais, e cada passo espera o anterior. A escolha depende de quanto a latência pesa em relação à banda, para o tamanho típico da mensagem.
+    </p>
+  </div>
+</section>
+
+<section id="banda" data-toc="Teoria: banda, latência e tamanho da mensagem" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-emerald-400 mr-2"></i>Teoria · Quem domina o tempo</h2>
+  <div class="ah-prose">
+    <p>
+      O tempo de uma transferência é aproximadamente latência + tamanho ÷ banda. Para mensagens pequenas, a latência domina; para mensagens grandes, a
+      banda domina. O ponto de cruzamento define o tipo de otimização que faz diferença. Os exemplos do all-reduce mostram isso: uma fatia de 8 bytes
+      leva 2 µs, quase só latência; um gradiente de 1 GiB leva dezenas de milissegundos, quase só banda.
+    </p>
+    <p>
+      Em treinamento, há muitas mensagens de tamanho médio, de dezenas de kilobytes a megabytes, e a fração de tempo em comunicação depende de quanto a
+      rede e a computação conseguem se sobrepor. Técnicas como disparar a comunicação de camadas já calculadas, enquanto as próximas ainda rodam, são o
+      que a engenharia de treinamento faz para esconder a latência.
+    </p>
+  </div>
+</section>
+
+<section id="infiniband" data-toc="Teoria: InfiniBand e RoCE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-emerald-400 mr-2"></i>Teoria · InfiniBand e RoCE</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>InfiniBand</strong> é uma rede projetada para RDMA desde o início, com controle de fluxo baseado em crédito, que não descarta pacotes por
+      falta de buffer. É usado em supercomputadores e em clusters de IA dedicados. O <strong>RoCE</strong> (RDMA over Converged Ethernet) leva o RDMA
+      para redes Ethernet, o que é mais barato e familiar, mas exige configurar a Ethernet para não perder pacotes: controle de fluxo por prioridade (PFC) e
+      notificação explícita de congestionamento (ECN).
+    </p>
+    <p>
+      A escolha entre as duas é uma decisão de operação. O InfiniBand entrega comportamento previsível com menos configuração, mas exige equipamento e
+      fornecedor específicos. O RoCE aproveita a Ethernet do datacenter, mas um mau ajuste de PFC pode causar bloqueios em cadeia. A indústria usa as duas.
+    </p>
+  </div>
+</section>
+
+<section id="congestionamento" data-toc="Teoria: congestionamento em fabric de IA" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-car-burst text-emerald-400 mr-2"></i>Teoria · Incast e congestionamento no fabric</h2>
+  <div class="ah-prose">
+    <p>
+      No all-reduce, todos enviam ao mesmo tempo e os fluxos convergem em alguns enlaces. Esse padrão, chamado <em>incast</em> quando muitos remetentes
+      atacam um destino, sobrecarrega buffers em segundos. Com PFC, a fila cheia pausa o vizinho, que pode pausar outro, e a pausa se propaga. Em
+      casos extremos, surge um deadlock de pausa circular. Por isso, o controle de congestionamento de RDMA precisa reduzir a taxa dos remetentes antes
+      que a fila encha: o ECN marca pacotes, o receptor devolve a marca, e o remetente diminui a taxa.
+    </p>
+    <p>
+      Pesquisadores da Microsoft e de outros grupos propuseram o DCQCN, que combina ECN com uma redução de taxa baseada em notificações, para uso em RoCE
+      em larga escala. A ideia é reagir cedo e suavemente, em vez de deixar a fila encher e pausar tudo.
+    </p>
+  </div>
+</section>
+
+<section id="topologia" data-toc="Teoria: topologia de fabric de IA" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Teoria · Fabric e o padrão de comunicação</h2>
+  <div class="ah-prose">
+    <p>
+      A topologia leaf-spine do tópico 11 é uma base comum. Em clusters de IA, há um detalhe: o tráfego de all-reduce é mais intenso entre as GPUs de
+      mesma posição em servidores diferentes. Por isso, muitos projetos ligam as GPUs de índice igual de cada servidor a um mesmo switch (o chamado
+      <em>rail-optimized</em>), de modo que o tráfego de cada trilho fique num caminho curto, e o cruzamento entre trilhos use os spines.
+    </p>
+    <p>
+      O princípio geral é o mesmo do capítulo de datacenter: a rede deve casar com o padrão de comunicação. Uma topologia boa para tráfego aleatório
+      pode ser ruim para all-reduce, e vice-versa.
+    </p>
+  </div>
+</section>
+
+<section id="industria" data-toc="Na indústria: casos reais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-industry text-emerald-400 mr-2"></i>Na indústria · Redes de treinamento em produção</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Cluster de treinamento de um modelo grande</div>
+      <p class="text-xs text-slate-400">Clusters com milhares de GPUs usam uma rede dedicada de altíssima banda, separada da rede de serviço. Ao treinar por semanas, uma degradação de 10% na comunicação vira dias de GPU ociosa. Por isso, a equipe monitora a eficiência do all-reduce como métrica de primeira classe.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Falha de um enlace durante o treinamento</div>
+      <p class="text-xs text-slate-400">Um enlace com erros pode fazer o all-reduce inteiro esperar. A prática comum é detectar o enlace pela telemetria de erros (tópico 15) e reiniciar o treinamento a partir do último ponto de verificação, em vez de tentar continuar com a rede degradada.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Armazenamento e treinamento no mesmo fabric</div>
+      <p class="text-xs text-slate-400">Carregar dados e salvar pontos de verificação disputa a mesma rede do all-reduce. Equipes separam esses fluxos por prioridade ou por rede, porque um checkpoint grande pode atrasar um passo inteiro de treinamento.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-violet-400">
+      <div class="text-xs font-bold text-violet-300 mb-1">Escolha entre InfiniBand e RoCE</div>
+      <p class="text-xs text-slate-400">Organizações com equipe de rede experiente e necessidade de desempenho previsível escolhem RoCE em Ethernet de alta velocidade. Outras preferem InfiniBand pelo comportamento sem perdas com menos ajuste. A decisão depende da equipe tanto quanto da tecnologia.</p>
+    </div>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: all-reduce em anel" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-emerald-400 mr-2"></i>Animação · Os passos do anel</h2>
+  <p class="ah-lead text-sm mb-4">Quatro GPUs formam um anel. Primeiro, cada uma envia uma fatia ao vizinho e soma (reduce-scatter). Depois, as fatias completas circulam (all-gather). Ao fim, todas têm a soma inteira. Avance um passo de cada vez.</p>
+  <div class="ah-stage" style="height:380px"><canvas id="cvRing" style="height:380px"></canvas></div>
+  <div id="ctlRing" class="mt-4"></div>
+  <div id="capRing" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: all-reduce em anel em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Exemplo · Correção e volume do all-reduce</h2>
+  <div class="ah-prose">
+    <p>
+      O programa implementa o all-reduce em anel com quatro trabalhadores e confere o resultado contra a soma direta. Depois mostra o volume transferido
+      por trabalhador para diferentes tamanhos de cluster, e estima o tempo de um gradiente de 1 GiB numa banda de 400 Gb/s, desconsiderando a sobreposição
+      com a computação.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Em Python · <code>16-ia-hpc-rdma.py · ring_all_reduce</code></p>
+<pre class="ah-code"><code>for passo in range(n - 1):              # reduce-scatter
+    novos = [list(d) for d in dados]
+    for i in range(n):
+        k = (i - passo) % n                  # fatia que o trabalhador i envia
+        destino = (i + 1) % n                # vizinho no anel
+        for idx in fatia(k):
+            novos[destino][idx] += dados[i][idx]
+    dados = novos</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Parte 1: all-reduce em anel com 4 trabalhadores, gradiente de 8 elementos
+  soma direta:      [100, 104, 108, 112, 116, 120, 124, 128]
+  trabalhador 0:    [100, 104, 108, 112, 116, 120, 124, 128]
+  todos iguais à soma: True
+
+Parte 2: volume transferido por trabalhador (em múltiplos do gradiente)
+  N =    2: 1.000 x tamanho do gradiente
+  N =    4: 1.500 x tamanho do gradiente
+  N =    8: 1.750 x tamanho do gradiente
+  N =   64: 1.969 x tamanho do gradiente
+  N = 1024: 1.998 x tamanho do gradiente
+  simulado com N = 4: 12 elementos enviados por trabalhador, de 8: 1.500 x
+
+Parte 3: tempo por passo (latência 2 us, enlace de 400 Gb/s)
+  fatia de 8 bytes: 2.000 us por passo; passos totais: 6
+  gradiente de 1 GiB, N = 8: 1.75 GiB por trabalhador, ~37.6 ms na banda ideal
+  gradiente de 1 GiB, N = 64: 1.97 GiB por trabalhador, ~42.3 ms na banda ideal</code></pre>
+  <div class="ah-prose text-sm mt-4">
+    <p>
+      A linha "todos iguais à soma: True" é a prova de correção. O resultado do anel é idêntico ao da soma direta em todos os trabalhadores, o que é a
+      propriedade que o treinamento exige. Repare também que a diferença entre N = 8 e N = 1024 é pequena: o volume por máquina quase não cresce, mas o
+      número de passos sequenciais cresce com N, e isso é o que a latência paga.
+    </p>
+  </div>
+</section>
+
+<section id="cotidiano" data-toc="Exemplos do cotidiano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen text-emerald-400 mr-2"></i>Exemplos do cotidiano</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Resposta de um assistente de IA</div>
+      <p class="text-xs text-slate-400">A inferência, que gera a resposta, tem outro perfil de tráfego que o treinamento: menos troca entre GPUs, mais atenção à latência de cada token. Mas a rede também importa, porque o modelo pode ser distribuído entre várias máquinas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Previsão do tempo e simulações</div>
+      <p class="text-xs text-slate-400">Modelos de clima e de dinâmica de fluidos rodam em MPI, com trocas de fronteira entre processos a cada passo de tempo. Um atraso de comunicação em um único processo atrasa a simulação inteira.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Serviço de vídeo com mesmo princípio</div>
+      <p class="text-xs text-slate-400">Plataformas de vídeo que processam codificação em muitas máquinas trocam partes de quadros entre elas. A mesma lógica de medir o tempo de comunicação frente ao de computação se aplica.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Por que o investimento é em rede</div>
+      <p class="text-xs text-slate-400">Um acelerador parado custa caro por hora. Quando a rede é o gargalo, comprar mais aceleradores piora o custo por modelo treinado. O projeto da rede é, por isso, uma decisão financeira tanto quanto técnica.</p>
+    </div>
+  </div>
+</section>
+
+<section id="padroes" data-toc="Padrões de raciocínio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Padrões de raciocínio</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Descubra o padrão de comunicação</div>
+      <p class="text-xs text-slate-400">Antes de projetar a rede, identifique quem fala com quem, quanto e em que ritmo. Essa é a informação que escolhe a topologia.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Calcule a fração de comunicação</div>
+      <p class="text-xs text-slate-400">Compare o tempo de comunicação com o de computação. Se a comunicação não pode ser escondida atrás da computação, a rede é o limite do desempenho.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Não confie em rede sem perdas por padrão</div>
+      <p class="text-xs text-slate-400">RDMA exige ausência de perdas em operação normal. Valide PFC, ECN e a configuração de buffers com testes de carga antes de colocar treinamento em produção.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-emerald-400">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Monitore a eficiência, não só a ocupação</div>
+      <p class="text-xs text-slate-400">Uma GPU a 100% de uso pode estar em espera de rede dentro de um kernel. Meça o tempo gasto em comunicação, não apenas a utilização.</p>
+    </div>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 1: volume de um all-reduce com 16 GPUs</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um modelo tem gradiente de 2 GiB e roda em 16 GPUs com anel. Quanto cada GPU envia por passo de treinamento, e quanto tempo leva na banda ideal de 400 Gb/s?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Volume: 2 × (16 − 1)/16 × 2 GiB = 1,875 × 2 = 3,75 GiB enviados por GPU. Tempo na banda ideal: 3,75 × 2³⁰ × 8 bits / 400 × 10⁹ b/s, cerca de 0,0805 s, ou 80 ms, sem contar latência e sem sobreposição com a computação.</p>
+      <p><strong>Lição.</strong> O volume é quase o dobro do gradiente, e o tempo é do tamanho do modelo, não do número de GPUs. A latência entra como custo adicional por passo.</p>
+    </div>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Exercício 2: quando a latência domina</h3>
+    <p class="text-sm text-slate-300"><strong>Enunciado.</strong> Um all-reduce de 4 KB com 1024 GPUs em anel, latência de 2 µs por passo. Quanto tempo, no mínimo, é gasto só em latência?</p>
+    <div class="ah-prose text-sm mt-3">
+      <p><strong>Resolução.</strong> Passos: 2 × (1024 − 1) = 2046. Latência mínima: 2046 × 2 µs = 4092 µs, cerca de 4,1 ms, enquanto o volume de 4 KB transmitido por passo leva nanossegundos na banda de 400 Gb/s.</p>
+      <p><strong>Lição.</strong> Em mensagens pequenas com muitos participantes, o anel é ruim: a topologia de árvore, com menos passos, reduz esse termo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Exercícios propostos</h2>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P1. Por que o PFC sozinho pode causar problemas em uma rede de treinamento, mesmo sem perdas de pacote?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o PFC pausa o vizinho quando a fila passa de um limiar, sem descartar. Se a fila cheia é causada por um fluxo mal regulado, a pausa se propaga e congela tráfego que nem passa pelo ponto congestionado (head-of-line blocking). Por isso o PFC é combinado com ECN, que reduz a taxa na origem antes da pausa.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">P2. Num cluster, um modelo de 50 GiB com 512 GPUs usa anel. Estime o volume por GPU por passo. Por que o tempo de comunicação não cresce linearmente com o número de GPUs?</summary>
+      <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> volume = 2 × 511/512 × 50 GiB, cerca de 99,8 GiB. O termo 2(N−1)/N tende a 2, por isso o volume quase não depende de N. Só a latência cresce com N, pela quantidade de passos sequenciais.</p></div>
+    </details>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-emerald-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o RDMA elimina em relação ao TCP tradicional?</p>
+      <button class="ah-quiz-opt">A necessidade de endereços IP</button>
+      <button class="ah-quiz-opt">O uso de cabos de cobre</button>
+      <button class="ah-quiz-opt">As cópias intermediárias e o envolvimento do sistema operacional a cada pacote</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A placa de rede escreve diretamente na memória da aplicação do outro host, com cópia zero.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No all-reduce em anel com N trabalhadores, quanto cada um envia, em múltiplos do gradiente?</p>
+      <button class="ah-quiz-opt">2 (N−1)/N, que tende a 2</button>
+      <button class="ah-quiz-opt">N, pois cada um envia tudo a todos</button>
+      <button class="ah-quiz-opt">1/N</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O anel divide o gradiente em N fatias, e cada trabalhador envia 2(N−1) delas, de tamanho gradiente/N.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Para mensagens pequenas e muitos participantes, qual termo domina o tempo de um all-reduce em anel?</p>
+      <button class="ah-quiz-opt">A banda</button>
+      <button class="ah-quiz-opt">A latência acumulada pelo número de passos</button>
+      <button class="ah-quiz-opt">O tamanho do cabo</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com 2(N−1) passos sequenciais, cada um com latência fixa, a latência acumulada pesa mais que o volume pequeno.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>O que levar desta página</h2>
+  <ul class="ah-prose">
+    <li>RDMA transfere dados entre memórias sem cópias intermediárias, reduzindo latência e uso de CPU.</li>
+    <li>All-reduce em anel envia cerca de 2 vezes o gradiente por trabalhador, independentemente de N.</li>
+    <li>Pequenas mensagens sofrem com a latência; grandes, com a banda.</li>
+    <li>InfiniBand e RoCE são alternativas; RoCE exige configurar PFC e ECN para não perder pacotes.</li>
+    <li>A topologia deve casar com o padrão de comunicação; a eficiência, e não a ocupação, é a métrica certa.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>RECIO, R. et al. <em>RFC 5040: A Remote Direct Memory Access Protocol Specification</em>. IETF, 2007.</li>
+    <li>ZHU, Y. et al. Congestion control for large-scale RDMA deployments. In: <em>ACM SIGCOMM</em>, 2015.</li>
+    <li>KUROSE, J. F.; ROSS, K. W. <em>Redes de Computadores e a Internet: uma abordagem top-down</em>. 8. ed. São Paulo: Pearson, 2021. (Atraso, largura de banda e controle de congestionamento.)</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/infraestrutura-redes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* Quatro GPUs em anel: G0 (0), G1 (1), G2 (2) e G3 (3). Seis passos: três de reduce-scatter e três de all-gather */
+  IR.liga(IR.criaSequencia({
+    participantes: ['GPU 0', 'GPU 1', 'GPU 2', 'GPU 3'],
+    intro: 'Cada GPU tem um gradiente de quatro partes. O anel é fechado: a última GPU envia ao primeiro. Todas trabalham ao mesmo tempo em cada passo.',
+    mensagens: [
+      { de: 0, para: 1, rotulo: 'RS passo 1', cap: 'Reduce-scatter, passo 1: cada GPU envia uma fatia ao vizinho da direita (GPU 0 mostrada).', fim: 'GPU 1 soma a fatia recebida à sua. Todas fazem o mesmo ao mesmo tempo.' },
+      { de: 1, para: 2, rotulo: 'RS passo 2', cap: 'Passo 2: a fatia parcialmente somada segue pelo anel (GPU 1 mostrada).', fim: 'GPU 2 acumula mais uma contribuição.' },
+      { de: 2, para: 3, rotulo: 'RS passo 3', cap: 'Passo 3: última soma parcial. Cada GPU já tem a soma completa de uma fatia.', fim: 'GPU 3 completa a fatia que lhe cabe.' },
+      { de: 3, para: 0, rotulo: 'AG passo 1', cap: 'All-gather, passo 1: as fatias completas começam a circular, agora sem somar.', fim: 'GPU 0 recebe uma fatia já completa e a repassa.' },
+      { de: 0, para: 1, rotulo: 'AG passo 2', cap: 'Passo 2 do all-gather: mais uma fatia completa chega ao vizinho.', fim: 'Cada GPU tem agora duas fatias completas.' },
+      { de: 1, para: 2, rotulo: 'AG passo 3', cap: 'Passo 3: a última fatia chega ao último destino.', fim: 'Todas as GPUs têm o vetor de soma completo. O treinamento segue.' }
+    ]
+  }), {
+    canvas: 'cvRing', ctl: 'ctlRing', cap: 'capRing', velocidade: 2000
+  });
+
+})();
+</script>
+</body>
+</html>
