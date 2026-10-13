@@ -223,6 +223,27 @@ Da estatística básica à regressão paramétrica e não paramétrica, passando
 | 13 | Séries temporais: tendência, sazonalidade e Holt-Winters | Média móvel ajustável e dispersão Yₜ × Yₜ₋ₖ por defasagem |
 | 14 | Reamostragem e validação: bootstrap, permutação e validação cruzada | Histograma bootstrap se formando e sobreajuste por grau de polinômio |
 
+### ⚡ Programação Científica de Alto Desempenho — 14 tópicos
+
+Do que limita a velocidade de um programa à programação de GPUs com CUDA. A trilha segue os livros de Hennessy & Patterson (arquitetura), Kirk & Hwu (*Programming Massively Parallel Processors*), Grama et al. (*Introduction to Parallel Computing*) e as especificações de OpenMP, MPI e CUDA. Os exemplos são em **C** (serial, com saída real) e em **CUDA** (checados por sintaxe; ver a nota de execução em cada página).
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 01 | Fundamentos de desempenho: métricas, medição e as leis de Amdahl e Gustafson | Calculadora de Amdahl com curva de speedup |
+| 02 | Arquitetura para HPC: hierarquia de memória, cache e localidade | Mesma soma em dois percursos, com a medição real |
+| 03 | Otimização serial em C: layout de dados, vetorização e blocking | Três versões de matmul medidas lado a lado |
+| 04 | Memória compartilhada com OpenMP: threads, condições de corrida e escalonamento | Exemplos de redução, false sharing e escalonamento |
+| 05 | Passagem de mensagens com MPI: comunicação e decomposição de domínio | Simulação de calor com troca de halos |
+| 06 | Modelo de desempenho: intensidade aritmética e roofline | Roofline com controles de intensidade, pico e banda |
+| 07 | GPUs e o modelo de programação CUDA: kernels, threads e blocos | Soma de vetores completa com eventos e verificação |
+| 08 | Hierarquia de memória da GPU: coalescência, memória compartilhada e bank conflicts | Transposição ingênua × com memória compartilhada |
+| 09 | Padrões paralelos em CUDA: redução, scan e histograma | Redução em árvore, scan por bloco e histograma com atomicAdd |
+| 10 | Multiplicação de matrizes em CUDA: da versão ingênua ao tiling | Verificação contra a CPU e comparação de tempos |
+| 11 | Ocupação, divergência, streams e sobreposição de transferências | Cópia e computação em fatias com dois streams |
+| 12 | Simulação científica com stencil: equação do calor em CUDA | Malha 512 × 512 com ping-pong e verificação contra a CPU |
+| 13 | Multi-GPU e MPI+CUDA: escalando em cluster | Um processo por GPU, halos pelo host e CUDA-aware MPI |
+| 14 | Perfilamento e reprodutibilidade: nsys, ncu e um projeto integrador | Roteiro de otimização e projeto final |
+
 
 ---
 
@@ -258,6 +279,11 @@ academic-hub/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (16 páginas)
 │       └── exemplos-python/         # programas em Python de cada tópico (só biblioteca padrão, saída real na página)
+│   └── programacao-cientifica-hpc/
+│       ├── index.html
+│       ├── topicos/                 # uma página completa por tópico (14 páginas)
+│       ├── exemplos-c/              # programas em C de medição, localidade, blocking, OpenMP, MPI e roofline
+│       └── exemplos-cuda/           # programas em CUDA dos tópicos 7 a 13 (compilar com nvcc)
 │   └── analise-dados/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (14 páginas)
