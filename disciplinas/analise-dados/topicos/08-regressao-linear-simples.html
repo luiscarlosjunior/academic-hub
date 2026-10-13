@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regressão Linear Simples · AcademicHub</title>
+<meta name="description" content="Regressão linear simples (paramétrica): a reta de mínimos quadrados, resíduos, R², intervalos de previsão e diagnóstico, com animação interativa e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/08-regressao-linear-simples">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Prever com uma reta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Prever com uma reta</h2>
+  <div class="ah-prose">
+    <p>
+      Um corretor quer estimar o aluguel de um apartamento de 70 m² sem olhar todos os anúncios da cidade. Ele percebe que
+      quanto maior a área, maior o aluguel, e quer uma <strong>regra que traduza essa relação em número</strong>. A
+      regressão linear simples faz isso: encontra a reta que melhor resume como y depende de x.
+    </p>
+    <p>
+      É o modelo “paramétrico” mais básico: supõe que a relação é uma reta e que os erros são aleatórios em torno dela.
+      Se essas suposições são razoáveis, a reta é fácil de explicar, interpretar e usar.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Preço de um imóvel em função da área. Cada m² a mais custa, em média, um valor fixo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Consumo de combustível em função da velocidade média, para estimar o gasto de uma viagem.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Nota numa prova em função das horas de estudo, para planejar quanto tempo dedicar a uma matéria.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MODELO ============================ -->
+<section id="modelo" data-toc="O modelo e os resíduos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ruler text-amber-400 mr-2"></i>O modelo e os resíduos</h2>
+  <div class="ah-card p-5 mb-4">
+    <div class="font-mono text-sm text-center leading-loose">
+      ŷ = b₀ + b₁ · x &nbsp;&nbsp;&nbsp; resíduo eᵢ = yᵢ − ŷᵢ
+    </div>
+    <p class="text-xs text-slate-400 text-center mt-2">b₀ é o intercepto (valor de ŷ quando x = 0), b₁ é a inclinação (quanto ŷ muda por unidade de x).</p>
+  </div>
+  <p class="ah-lead text-sm mb-5">
+    Para cada apartamento, o <strong class="text-white">resíduo</strong> é a distância vertical entre o aluguel real e o que a reta
+    prevê. A reta de <strong class="text-white">mínimos quadrados</strong> é a que torna a soma dos quadrados desses resíduos
+    (SQE) a menor possível. Os quadrados evitam que erros positivos e negativos se anulem e penalizam erros grandes.
+  </p>
+
+  <h3 class="ah-h3 mb-3">Animação: ajuste a reta e veja o erro</h3>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="regCanvas" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="reg-otimo" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-bullseye"></i> Ajustar por mínimos quadrados</button>
+        <button id="reg-novos" class="ah-btn ah-btn-ghost text-xs"><i class="fa-solid fa-shuffle"></i> Novos dados</button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <label class="block text-xs text-slate-400">Intercepto b₀: <span id="reg-b0-v" class="font-mono text-white">0</span>
+        <input id="reg-b0" type="range" min="-300" max="700" step="5" value="0" class="w-full accent-amber-500"></label>
+      <label class="block text-xs text-slate-400">Inclinação b₁ (R$ por m²): <span id="reg-b1-v" class="font-mono text-white">10</span>
+        <input id="reg-b1" type="range" min="0" max="40" step="0.25" value="10" class="w-full accent-amber-500"></label>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">SQE (soma dos resíduos²)</div>
+        <div id="reg-sqe" class="text-xl font-bold text-rose-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">R²</div>
+        <div id="reg-r2" class="text-xl font-bold text-emerald-300 font-mono">—</div>
+        <p class="text-[11px] text-slate-500 mt-1">R² = 1 − SQE / SQT. Fica negativo quando a reta é pior que simplesmente usar a média de y.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MÍNIMOS QUADRADOS ============================ -->
+<section id="formulas" data-toc="A fórmula de mínimos quadrados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-root-variable text-amber-400 mr-2"></i>A fórmula de mínimos quadrados</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <div class="font-mono text-sm text-center mb-2">b₁ = Σ(xᵢ − x̄)(yᵢ − ȳ) / Σ(xᵢ − x̄)²</div>
+      <div class="font-mono text-sm text-center">b₀ = ȳ − b₁ · x̄</div>
+      <p class="text-xs text-slate-400 text-center mt-3">A reta sempre passa pelo ponto (x̄, ȳ): a média de x e a média de y.</p>
+    </div>
+    <div class="ah-card p-5">
+      <div class="font-mono text-sm text-center mb-2">R² = r²</div>
+      <p class="text-xs text-slate-400 text-center leading-relaxed">Em regressão simples, R² é o quadrado da correlação de Pearson. Ele mede a fração da variação de y explicada pela reta.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PRESSUPOSTOS ============================ -->
+<section id="pressupostos" data-toc="Pressupostos e diagnóstico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-clipboard-check text-amber-400 mr-2"></i>Pressupostos: o que precisa ser verdade</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-amber-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Linearidade</h3>
+      <p class="text-xs text-slate-400">A relação é, em média, uma reta. Confira com o gráfico de dispersão e com o gráfico de resíduos.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-amber-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Independência dos erros</h3>
+      <p class="text-xs text-slate-400">Um erro não puxa o próximo. Típico em séries temporais, onde essa suposição costuma falhar.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-amber-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Variância constante (homocedasticidade)</h3>
+      <p class="text-xs text-slate-400">Os resíduos têm a mesma dispersão em todo x. Se formam um funil, a previsão em faixas extremas é menos confiável.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-amber-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Normalidade dos resíduos</h3>
+      <p class="text-xs text-slate-400">Importa para os testes e intervalos. Com n grande, o teste tolera desvios moderados.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-amber-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">Adrien-Marie Legendre · 1805</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Publicou o método dos mínimos quadrados para ajustar órbitas de cometas, minimizando a soma dos erros ao quadrado.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Carl Friedrich Gauss · 1809</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Associou o método à distribuição normal dos erros, o que deu base probabilística aos intervalos e testes.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Francis Galton · 1886</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Estudando a altura de pais e filhos, notou a “regressão à média” (filhos de pais muito altos tendem a ser menos extremos), e o nome “regressão” ficou.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Ronald A. Fisher · 1920s</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Formalizou a inferência sobre os coeficientes de regressão e a análise da variância dos resíduos, base da tabela de resultados atual.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Interpretar a reta</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Ler b₁ como “cada unidade de x muda ŷ em b₁ unidades”, e b₀ com cuidado quando x = 0 não faz sentido.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Avaliar o ajuste</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">R², erro padrão residual e o p-valor da inclinação, juntos.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Intervalos de previsão</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Distinguir o intervalo da média (mais estreito) do intervalo de um imóvel individual (mais largo, porque inclui o erro próprio).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-amber-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-amber-300">disciplinas/analise-dados/exemplos-python/08-regressao-linear-simples.py</code>.
+    Usa <strong>statsmodels</strong> (OLS) para a tabela de resultados e numpy para a fórmula à mão.
+  </p>
+
+  <p class="text-xs font-bold text-amber-300 mb-2">1 · Mínimos quadrados à mão e com statsmodels</p>
+<pre class="ah-code"><code>b = Sxy / Sxx                          <span class="cm"># inclinação: Sxy / Sxx</span>
+a = y_bar - b * x_bar                  <span class="cm"># intercepto passa pela média</span>
+
+X = sm.<span class="fn">add_constant</span>(area)              <span class="cm"># coluna de 1 para o intercepto</span>
+modelo = sm.<span class="fn">OLS</span>(aluguel, X).<span class="fn">fit</span>()</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>reta: aluguel = 223.93 + 19.85 · área
+intercepto = 223.93   erro padrão = 86.53   p = 0.0136
+inclinação = 19.85   erro padrão = 1.17   p = 2.43e-19
+R² = 0.8836  (fração da variação do aluguel explicada pela área)
+erro padrão residual = R$ 158.37</code></pre>
+
+  <p class="text-xs font-bold text-sky-300 mt-6 mb-2">2 · Previsão: média × imóvel individual</p>
+<pre class="ah-code"><code>prev = modelo.<span class="fn">get_prediction</span>(novo).<span class="fn">summary_frame</span>(alpha=<span class="num">0.05</span>)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Previsão para 70 m²
+  aluguel esperado (média) = R$ 1613.09
+  IC 95% da média:     [1562.35 ; 1663.83]
+  IP 95% de um imóvel: [1288.50 ; 1937.68]</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Compare os dois intervalos:</strong> para a média de todos os imóveis de 70 m², a faixa é de R$ 1.562 a R$ 1.664.
+      Para um imóvel específico, a faixa vai de R$ 1.289 a R$ 1.938. A diferença é a variação própria de cada imóvel,
+      que a média não elimina.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-amber-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Prever fora do intervalo dos dados</h3>
+      <p class="text-xs text-slate-400">Estimar aluguel de um apartamento de 400 m² com dados de 35 a 120 m². A reta pode não valer lá fora (extrapolação).</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Confiar só no R²</h3>
+      <p class="text-xs text-slate-400">R² alto com resíduos em funil ou em curva não significa modelo bom. Veja os resíduos.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Causa a partir de regressão</h3>
+      <p class="text-xs text-slate-400">A área “explica” o aluguel no sentido estatístico. Não prova que a área causa o preço sozinha (bairro, por exemplo).</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Esquecer o intercepto</h3>
+      <p class="text-xs text-slate-400">Tirar b₀ força a reta a passar pela origem. Quase sempre é um erro, a menos que x = 0 faça sentido físico.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-amber-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Um modelo tem inclinação 19,85 para aluguel × área. O que isso significa?</p>
+    <button class="ah-quiz-opt">Cada m² explica 19,85% do aluguel</button>
+    <button class="ah-quiz-opt">Em média, cada m² a mais está associado a R$ 19,85 a mais no aluguel</button>
+    <button class="ah-quiz-opt">O aluguel de qualquer imóvel é R$ 19,85 por m²</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      A inclinação é a variação média de y por unidade de x. Não é porcentagem (isso seria R²) e não vale para cada imóvel
+      individual, porque cada um tem seu próprio resíduo.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Para prever o aluguel de <em>um</em> imóvel específico, qual intervalo você deve usar?</p>
+    <button class="ah-quiz-opt">O intervalo de confiança da média, que é mais estreito</button>
+    <button class="ah-quiz-opt">O intervalo de confiança do desvio padrão</button>
+    <button class="ah-quiz-opt">O intervalo de previsão, que inclui a variação própria do imóvel</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      O intervalo de previsão é mais largo, porque além da incerteza sobre a reta ele soma a variação individual de cada
+      imóvel. O intervalo da média só descreve onde está a reta, não cada caso.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Ajuste interativo de uma reta ===================== */
+/* Dados ilustrativos gerados com semente fixa: x = área (m²), y = aluguel (R$ mil) */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+let rnd = semente(88);
+function gaussiana() {
+  const u = Math.max(rnd(), 1e-9), v = rnd();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function gera() {
+  rnd = semente(88 + Math.floor(Math.random() * 1000));
+  const P = [];
+  for (let i = 0; i < 30; i++) {
+    const x = 35 + rnd() * 85;
+    const y = 0.3 + 0.0185 * x + 0.15 * gaussiana();
+    P.push({ x, y });
+  }
+  return P;
+}
+let PTS = gera();
+
+const XMIN = 30, XMAX = 125, YMIN = 0, YMAX = 2.8;   /* y em R$ mil */
+const cv = AH.canvas('regCanvas', desenha);
+const b0El = document.getElementById('reg-b0'), b1El = document.getElementById('reg-b1');
+/* Estado da reta em ponto flutuante (R$). O slider só exibe: ele arredonda para o seu passo. */
+const CUR = { b0: +b0El.value, b1: +b1El.value };
+
+function minimos() {
+  const n = PTS.length, mx = PTS.reduce((s, p) => s + p.x, 0) / n, my = PTS.reduce((s, p) => s + p.y, 0) / n;
+  let sxy = 0, sxx = 0;
+  PTS.forEach(p => { sxy += (p.x - mx) * (p.y - my); sxx += (p.x - mx) ** 2; });
+  const b1 = sxy / sxx;
+  return { b1, b0: my - b1 * mx };
+}
+function sqe(b0, b1) { return PTS.reduce((s, p) => s + (p.y - (b0 + b1 * p.x)) ** 2, 0); }
+function sqt() { const my = PTS.reduce((s, p) => s + p.y, 0) / PTS.length; return PTS.reduce((s, p) => s + (p.y - my) ** 2, 0); }
+
+function atualiza() {
+  const b0 = CUR.b0 / 1000, b1 = CUR.b1 / 1000;
+  document.getElementById('reg-b0-v').textContent = CUR.b0.toFixed(0);
+  document.getElementById('reg-b1-v').textContent = CUR.b1.toFixed(1).replace('.', ',');
+  const e = sqe(b0, b1);
+  document.getElementById('reg-sqe').textContent = e.toFixed(4).replace('.', ',');
+  document.getElementById('reg-r2').textContent = (1 - e / sqt()).toFixed(3).replace('.', ',');
+  cv.fit();
+}
+
+function desenha(ctx, w, h) {
+  const pad = 36;
+  const X = x => pad + (x - XMIN) / (XMAX - XMIN) * (w - pad * 2);
+  const Y = y => h - pad - (y - YMIN) / (YMAX - YMIN) * (h - pad * 2);
+  const b0 = CUR.b0 / 1000, b1 = CUR.b1 / 1000;
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(X(XMIN), Y(0)); ctx.lineTo(X(XMAX), Y(0)); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('área (m²)', w - 80, h - 10);
+  ctx.save(); ctx.translate(12, h / 2 + 20); ctx.rotate(-Math.PI / 2); ctx.fillText('aluguel (R$ mil)', 0, 0); ctx.restore();
+  /* resíduos como quadrados: a área do quadrado é o erro ao quadrado */
+  PTS.forEach(p => {
+    const yhat = b0 + b1 * p.x, r = p.y - yhat;
+    const sideX = Math.abs(r) * (X(1) - X(0));
+    ctx.strokeStyle = 'rgba(244,63,94,.55)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(X(p.x), Y(p.y)); ctx.lineTo(X(p.x), Y(yhat)); ctx.stroke();
+    ctx.fillStyle = 'rgba(244,63,94,.12)';
+    ctx.fillRect(X(p.x), Math.min(Y(p.y), Y(yhat)), Math.min(sideX, 30), Math.abs(Y(p.y) - Y(yhat)));
+  });
+  /* reta */
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(X(XMIN), Y(b0 + b1 * XMIN)); ctx.lineTo(X(XMAX), Y(b0 + b1 * XMAX)); ctx.stroke();
+  PTS.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#38bdf8'; ctx.fill();
+  });
+}
+
+/* Animação até a solução de mínimos quadrados */
+let alvo = null;
+const loop = AH.loop(cv.el, dt => {
+  if (!alvo) { loop.stop(); return; }
+  const T0 = alvo.b0 * 1000, T1 = alvo.b1 * 1000;     /* alvo em R$ */
+  const d0 = T0 - CUR.b0, d1 = T1 - CUR.b1;
+  if (Math.abs(d0) < 0.5 && Math.abs(d1) < 0.05) {
+    CUR.b0 = T0; CUR.b1 = T1; alvo = null; loop.stop();
+  } else {
+    CUR.b0 += d0 * Math.min(1, dt * 3);
+    CUR.b1 += d1 * Math.min(1, dt * 3);
+  }
+  b0El.value = CUR.b0; b1El.value = CUR.b1;          /* o slider mostra o valor arredondado */
+  atualiza();
+});
+document.getElementById('reg-otimo').addEventListener('click', () => {
+  alvo = minimos(); loop.start();
+});
+document.getElementById('reg-novos').addEventListener('click', () => {
+  PTS = gera(); alvo = null; loop.stop(); atualiza();
+});
+b0El.addEventListener('input', () => { alvo = null; loop.stop(); CUR.b0 = +b0El.value; atualiza(); });
+b1El.addEventListener('input', () => { alvo = null; loop.stop(); CUR.b1 = +b1El.value; atualiza(); });
+
+atualiza();
+AH.initReveal();
+</script>
+</body>
+</html>

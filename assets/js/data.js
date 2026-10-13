@@ -625,7 +625,11 @@ const AH_DATA = {
         { id: '07-testes-nao-parametricos', titulo: 'Testes não paramétricos: Mann-Whitney, Wilcoxon, Kruskal-Wallis e qui-quadrado', icone: 'fa-ranking-star',
           resumo: 'Quando a normalidade não vale: comparar postos em vez de valores, o teste de postos para pareados e três grupos, e o qui-quadrado para categorias.',
           trilha: 'testes',
-          tags: ['Mann-Whitney', 'Kruskal-Wallis', 'Qui-quadrado'], nivel: 'Intermediário', minutos: 28 }
+          tags: ['Mann-Whitney', 'Kruskal-Wallis', 'Qui-quadrado'], nivel: 'Intermediário', minutos: 28 },
+        { id: '08-regressao-linear-simples', titulo: 'Regressão linear simples: mínimos quadrados, resíduos e R²', icone: 'fa-chart-line',
+          resumo: 'Ajustar a reta que melhor prevê y a partir de x, interpretar a inclinação, medir o ajuste com R² e distinguir intervalo da média de intervalo de previsão.',
+          trilha: 'regressao',
+          tags: ['OLS', 'Resíduos', 'R²'], nivel: 'Intermediário', minutos: 26 }
       ]
     }
   ]
