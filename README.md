@@ -185,6 +185,45 @@ Da engenharia de software à prática de um time profissional: processos, requis
 | 12 | Entrega contínua: CI/CD, containers e “pronto para produção” | Pipeline com portões, aprovação manual e falha |
 | 13 | Erros frequentes e conceitos do dia a dia | Coletânea com causa e correção, e método para investigar um erro novo (sem animação) |
 
+### 📊 Análise de Dados — 14 tópicos em quatro trilhas
+
+Da estatística básica à regressão paramétrica e não paramétrica, passando por testes de hipótese e técnicas multivariadas e de séries temporais. Todos os exemplos de código são em **Python** (numpy, pandas, scipy, statsmodels e scikit-learn), com a saída real do programa exibida em cada página. Cada tópico traz exemplos do dia a dia, definições com autores, a motivação de uso, uma animação e um quiz.
+
+**Trilha 1 — Fundamentos (5 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 01 | Estatística básica: população, amostra, variáveis e o acaso | Amostragem da população e Lei dos Grandes Números ao vivo |
+| 02 | Estatística descritiva: centro, dispersão e posição | Gangorra média × mediana com outlier e boxplot que acompanha |
+| 03 | Distribuições e visualização: normal, binomial e TCL | Explorador de distribuições e média de grupos convergindo para a normal |
+| 04 | Correlação: Pearson, Spearman e causalidade | Clique para adicionar pontos e ver r e ρ mudarem |
+| 05 | Inferência: intervalo de confiança, p-valor, erros e poder | Intervalos de confiança repetidos, em que se vê quem erra |
+
+**Trilha 2 — Testes de hipótese (2 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 06 | Testes paramétricos: t de Student, pareado e ANOVA | Sinal sobre ruído do teste t e variação entre × dentro dos grupos |
+| 07 | Testes não paramétricos: Mann-Whitney, Wilcoxon, Kruskal-Wallis e qui-quadrado | Conversão de valores em postos e observado × esperado |
+
+**Trilha 3 — Regressão (4 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 08 | Regressão linear simples: mínimos quadrados, resíduos e R² | Ajuste da reta que converge para a solução de mínimos quadrados |
+| 09 | Regressão linear múltipla: controle, dummies e multicolinearidade | Ligar e desligar variáveis com coeficientes e VIF recalculados |
+| 10 | Regressão logística: probabilidade, chances e odds ratio | Curva em S com corte de decisão e conversão probabilidade → logit |
+| 11 | Regressão não paramétrica: Theil-Sen, LOWESS e kNN | Quatro ajustes sobre os mesmos dados, com remoção de outliers |
+
+**Trilha 4 — Estatística avançada (3 tópicos)**
+
+| # | Tópico | Laboratório interativo |
+|---|--------|------------------------|
+| 12 | Estatística multivariada: PCA e agrupamento k-means | Rotação até os eixos principais e k-means passo a passo |
+| 13 | Séries temporais: tendência, sazonalidade e Holt-Winters | Média móvel ajustável e dispersão Yₜ × Yₜ₋ₖ por defasagem |
+| 14 | Reamostragem e validação: bootstrap, permutação e validação cruzada | Histograma bootstrap se formando e sobreajuste por grau de polinômio |
+
+
 ---
 
 ## Estrutura do projeto
@@ -219,6 +258,10 @@ academic-hub/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (16 páginas)
 │       └── exemplos-python/         # programas em Python de cada tópico (só biblioteca padrão, saída real na página)
+│   └── analise-dados/
+│       ├── index.html
+│       ├── topicos/                 # uma página completa por tópico (14 páginas)
+│       └── exemplos-python/         # programas em Python de cada tópico (numpy, pandas, scipy, statsmodels, scikit-learn)
 └── simuladores/
     ├── busca-cega-visual.html       # laboratório BFS × DFS em tela cheia
     └── busca-heuristica-visual.html # laboratório gulosa × A* em tela cheia
