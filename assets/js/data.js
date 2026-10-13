@@ -617,7 +617,11 @@ const AH_DATA = {
         { id: '05-inferencia-hipoteses', titulo: 'Inferência: intervalo de confiança, p-valor, erros e poder', icone: 'fa-gavel',
           resumo: 'O que é um intervalo de confiança de verdade, como funciona um teste de hipótese, o que significa o p-valor e como planejar o poder do estudo.',
           trilha: 'fundamentos',
-          tags: ['IC', 'Hipótese', 'p-valor', 'Poder'], nivel: 'Intermediário', minutos: 28 }
+          tags: ['IC', 'Hipótese', 'p-valor', 'Poder'], nivel: 'Intermediário', minutos: 28 },
+        { id: '06-testes-parametricos', titulo: 'Testes paramétricos: t de Student, pareado e ANOVA', icone: 'fa-flask',
+          resumo: 'Sinal sobre ruído, t de Welch para grupos independentes, t pareado para as mesmas pessoas, ANOVA para três ou mais grupos e os pressupostos a checar.',
+          trilha: 'testes',
+          tags: ['t de Student', 'ANOVA', 'Pressupostos'], nivel: 'Intermediário', minutos: 30 }
       ]
     }
   ]

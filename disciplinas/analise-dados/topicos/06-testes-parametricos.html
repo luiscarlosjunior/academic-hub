@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testes Paramétricos · AcademicHub</title>
+<meta name="description" content="t de Student para amostras independentes e pareadas, ANOVA e os pressupostos de normalidade e variância, com animações de sinal × ruído e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/06-testes-parametricos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Comparar grupos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-sky-400 mr-2"></i>Comparar grupos sem se enganar</h2>
+  <div class="ah-prose">
+    <p>
+      A loja A vendeu em média R$ 532 mil por dia, e a loja B, R$ 557 mil. A loja B é melhor? Depende. Se a variação
+      diária for enorme, uma diferença de R$ 25 mil pode ser só ruído. <strong>Um teste paramétrico compara a diferença
+      entre médias com a variabilidade dos dados</strong>: quanto maior o sinal em relação ao ruído, mais forte a evidência.
+    </p>
+    <p>
+      “Paramétrico” significa que o teste assume uma forma para a distribuição (normal, em geral) e usa seus parâmetros
+      (média e variância). Quando essa suposição vale, são os testes mais poderosos. Quando não vale, o tópico 07 mostra
+      as alternativas.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <div class="text-xs font-bold text-sky-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Duas lojas da mesma rede: a média de vendas é diferente, ou é só variação de fim de semana?</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <div class="text-xs font-bold text-sky-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Os mesmos 20 alunos pesados antes e depois de um programa de treino. O efeito é o treino, não a pessoa.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <div class="text-xs font-bold text-sky-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Três métodos de ensino aplicados a turmas diferentes. Pelo menos um deles é diferente dos outros?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SINAL × RUÍDO ============================ -->
+<section id="sinal-ruido" data-toc="A estatística t: sinal sobre ruído" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wave-square text-sky-400 mr-2"></i>A estatística t: sinal sobre ruído</h2>
+  <p class="ah-lead text-sm mb-5">
+    A estatística t é a razão entre o <strong class="text-white">sinal</strong> (diferença entre as médias) e o
+    <strong class="text-white">ruído</strong> (erro padrão da diferença). Mexa nos controles: a diferença real entre as lojas
+    e a variabilidade diária. Observe como o mesmo sinal vira evidência clara ou some no ruído.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:260px"><canvas id="tCanvas" style="height:260px"></canvas></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <label class="text-xs text-slate-400">Diferença entre as médias: <span id="t-delta-v" class="font-mono text-white">25</span>
+          <input id="t-delta" type="range" min="0" max="80" step="1" value="25" class="w-full accent-sky-500"></label>
+        <label class="text-xs text-slate-400">Variabilidade (desvio padrão): <span id="t-sd-v" class="font-mono text-white">60</span>
+          <input id="t-sd" type="range" min="20" max="120" step="1" value="60" class="w-full accent-sky-500"></label>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Sinal (diferença)</div>
+        <div id="t-sinal" class="text-xl font-bold text-amber-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Ruído (erro padrão)</div>
+        <div id="t-ruido" class="text-xl font-bold text-slate-200 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">t = sinal / ruído</div>
+        <div id="t-val" class="text-2xl font-bold text-sky-300 font-mono">—</div>
+        <p id="t-veredito" class="text-[11px] text-slate-400 mt-2"></p></div>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <div class="font-mono text-sm text-center">
+      t = (x̄<sub>B</sub> − x̄<sub>A</sub>) / √(s<sub>A</sub>²/n<sub>A</sub> + s<sub>B</sub>²/n<sub>B</sub>)
+    </div>
+    <p class="text-xs text-slate-400 text-center mt-2">Forma de Welch: não exige variâncias iguais. Com n = 30 por grupo, |t| acima de cerca de 2 costuma ser significativo a 5%.</p>
+  </div>
+</section>
+
+<!-- ============================ T DE STUDENT ============================ -->
+<section id="tipos-t" data-toc="t: independentes e pareado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-compare text-sky-400 mr-2"></i>Qual t usar: independente ou pareado?</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Amostras independentes</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Grupos diferentes de pessoas ou objetos</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Duas lojas, dois tratamentos com pacientes distintos. Use o teste de Welch, que não exige variâncias iguais.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Amostras pareadas</span>
+      <h3 class="text-sm font-semibold text-white mb-2">As mesmas unidades medidas duas vezes</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Antes e depois, ou gêmeos com tratamentos diferentes. Trabalha com a diferença de cada par, e a variação entre pessoas desaparece.</p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Usar o teste errado muda a conclusão.</strong> Tratar dados pareados como independentes joga fora a informação do
+      pareamento e infla o erro padrão. No exemplo do tópico, o p-valor passa de próximo de zero para 0,11.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ANOVA ============================ -->
+<section id="anova" data-toc="ANOVA: três ou mais grupos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>ANOVA: três ou mais grupos</h2>
+  <p class="ah-lead text-sm mb-5">
+    Comparar três grupos com vários testes t aumenta o erro tipo I: com 3 pares e alpha = 0,05, a chance de pelo menos um
+    falso positivo sobe para cerca de 14%. A <strong class="text-white">ANOVA</strong> testa tudo de uma vez. Ela divide a
+    variação total em <span class="text-amber-300">entre grupos</span> (o sinal) e <span class="text-sky-300">dentro dos
+    grupos</span> (o ruído). A razão F = QM entre / QM dentro é a estatística.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:260px"><canvas id="anovaCanvas" style="height:260px"></canvas></div>
+      <label class="block text-xs text-slate-400 mt-3">Distância entre os métodos (notas): <span id="an-gap-v" class="font-mono text-white">4,0</span>
+        <input id="an-gap" type="range" min="0" max="80" step="1" value="40" class="w-full accent-sky-500"></label>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">F (sinal ÷ ruído)</div>
+        <div id="an-F" class="text-2xl font-bold text-sky-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">η² (fração explicada)</div>
+        <div id="an-eta" class="text-2xl font-bold text-amber-300 font-mono">—</div></div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Com F grande, os grupos se separam mais do que o esperado pelo acaso. O p-valor de F diz se isso é improvável sob
+        H0 (todas as médias iguais). Mas não diz <em>quais</em> grupos diferem: para isso, use um teste post hoc, como o de
+        Tukey.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PRESSUPOSTOS ============================ -->
+<section id="pressupostos" data-toc="Pressupostos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-clipboard-check text-sky-400 mr-2"></i>Os pressupostos que você precisa checar</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Independência</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma observação não influencia outra. Não se resolve com teste; resolve-se com o desenho do estudo.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Normalidade</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Shapiro-Wilk ou histograma. Com n grande (acima de ~30), a média tende a ser normal pelo TCL, e o teste tolera desvios.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Homogeneidade de variâncias</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Teste de Levene. Se falhar, use Welch (t) ou a ANOVA de Welch. Na dúvida, prefira as versões robustas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-sky-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">William S. Gosset (“Student”) · 1908</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Criou o teste t para comparar médias com amostras pequenas, em que o desvio padrão precisa ser estimado.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Ronald A. Fisher · 1925</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Desenvolveu a análise de variância (ANOVA) em <em>Statistical Methods for Research Workers</em>, para separar fontes de variação em experimentos agrícolas.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">Bernard L. Welch · 1947</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Generalizou o problema de Behrens-Fisher e propôs o teste t sem a suposição de variâncias iguais, hoje o padrão seguro.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">John W. Tukey · 1949</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs a comparação par a par após a ANOVA (HSD de Tukey), controlando o erro tipo I entre todas as comparações.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Dois grupos, uma medida</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Escolher entre t independente e pareado, e interpretar a diferença com o intervalo de confiança.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Verificar pressupostos</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Checar normalidade e variâncias antes do teste, e trocar para Welch quando necessário.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">ANOVA e post hoc</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Usar F para detectar diferença geral, eta² para medir o tamanho do efeito e Tukey para localizar os pares diferentes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-sky-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-sky-300">disciplinas/analise-dados/exemplos-python/06-testes-parametricos.py</code>.
+    Os pressupostos vêm primeiro; só depois o teste.
+  </p>
+
+  <p class="text-xs font-bold text-sky-300 mb-2">1 · Pressupostos e Welch</p>
+<pre class="ah-code"><code>stats.<span class="fn">shapiro</span>(loja_a).pvalue          <span class="cm"># normalidade</span>
+stats.<span class="fn">levene</span>(loja_a, loja_b).pvalue    <span class="cm"># variâncias iguais?</span>
+t, p = stats.<span class="fn">ttest_ind</span>(loja_a, loja_b, equal_var=<span class="kw">False</span>)   <span class="cm"># Welch</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Shapiro-Wilk loja A: p = 0.507  (p &gt; 0,05: sem evidência contra a normalidade)
+Levene (variâncias iguais?): p = 0.754
+t = -1.518   p-valor = 0.1344</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Pareado × ignorando o pareamento</p>
+<pre class="ah-code"><code>t_p, p_p = stats.<span class="fn">ttest_rel</span>(depois, antes)           <span class="cm"># pareado: cada pessoa é seu controle</span>
+p_errado = stats.<span class="fn">ttest_ind</span>(depois, antes, equal_var=<span class="kw">False</span>).pvalue  <span class="cm"># ignora o pareamento</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Teste t pareado (mesmos 20 alunos, antes e depois)
+  redução média = 2.69 kg
+  t = -9.440   p-valor = 0.000000
+  (se ignorássemos o pareamento: p = 0.1097 — a força do teste cai)</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">3 · ANOVA de um fator</p>
+<pre class="ah-code"><code>F, p_f = stats.<span class="fn">f_oneway</span>(metodo_a, metodo_b, metodo_c)
+<span class="cm"># eta² = SQ entre / SQ total: quanto da variação das notas é explicada pelo método</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>médias: A = 6.64, B = 6.73, C = 7.94
+F = 15.232   p-valor = 0.000003
+ANOVA diz SE há diferença entre grupos, não ONDE.
+eta² = 0.297  (fração da variação explicada)</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Repare na frase do programa:</strong> “ANOVA diz SE há diferença, não ONDE.” O F significativo é o começo da
+      análise. Os pares que diferem são descobertos com um teste post hoc, como o de Tukey (<code>statsmodels</code>).
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Vários t em vez de ANOVA</h3>
+      <p class="text-xs text-slate-400">Comparar três grupos com três testes t infla o erro tipo I. Use ANOVA e depois o post hoc.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Ignorar o pareamento</h3>
+      <p class="text-xs text-slate-400">Dados antes/depois tratados como independentes. Perde-se poder e a conclusão pode ser falsa.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Teste sem olhar a distribuição</h3>
+      <p class="text-xs text-slate-400">Em amostras pequenas e assimétricas, a média não representa bem o centro. Veja o gráfico e considere o tópico 07.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Dizer “são iguais” pelo p alto</h3>
+      <p class="text-xs text-slate-400">p = 0,3 significa que não há evidência de diferença, não que as médias são iguais.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-sky-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Você mede a pressão arterial de 15 pacientes antes e depois de uma dieta. Qual teste é o adequado?</p>
+    <button class="ah-quiz-opt">t de Student para amostras independentes</button>
+    <button class="ah-quiz-opt">t pareado, pois são as mesmas pessoas em dois momentos</button>
+    <button class="ah-quiz-opt">ANOVA de um fator</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      São medidas pareadas: cada paciente é o próprio controle. O teste pareado trabalha com a diferença de cada par e
+      elimina a variação entre pessoas.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. A ANOVA deu p &lt; 0,05 para três métodos de ensino. O que você pode concluir com segurança?</p>
+    <button class="ah-quiz-opt">Que os três métodos são diferentes entre si</button>
+    <button class="ah-quiz-opt">Que o método C é o melhor</button>
+    <button class="ah-quiz-opt">Que pelo menos um método tem média diferente dos outros</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      A ANOVA responde se existe alguma diferença entre os grupos, não quais são nem qual é a melhor. Para localizar as
+      diferenças, é preciso um teste post hoc.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* Valores-padrão de ruído fixos (semente), para que só os parâmetros mudem a cena */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const rnd = semente(2024);
+function normalFixa(n) {
+  const out = [];
+  while (out.length < n) {
+    const u = rnd() || 1e-9, v = rnd();
+    const r = Math.sqrt(-2 * Math.log(u));
+    out.push(r * Math.cos(2 * Math.PI * v), r * Math.sin(2 * Math.PI * v));
+  }
+  return out.slice(0, n);
+}
+const mean = v => v.reduce((a, b) => a + b, 0) / v.length;
+const vari = v => { const m = mean(v); return v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1); };
+/* Centraliza e padroniza o ruído: a média amostral do ruído vira exatamente 0,
+   assim a diferença entre grupos é exatamente o que o slider define */
+const padroniza = v => { const m = mean(v), s = Math.sqrt(vari(v)); return v.map(x => (x - m) / s); };
+const Z_A = padroniza(normalFixa(30)), Z_B = padroniza(normalFixa(30));
+const Z_C = padroniza(normalFixa(25)), Z_D = padroniza(normalFixa(25)), Z_E = padroniza(normalFixa(25));
+
+/* ===================== Sinal × ruído (t de Welch) ===================== */
+const tCv = AH.canvas('tCanvas', desenhaT);
+function estatT() {
+  const delta = +document.getElementById('t-delta').value, sd = +document.getElementById('t-sd').value;
+  const A = Z_A.map(z => 520 + sd * z), B = Z_B.map(z => 520 + delta + sd * z);
+  const t = (mean(B) - mean(A)) / Math.sqrt(vari(A) / A.length + vari(B) / B.length);
+  return { A, B, t, delta: mean(B) - mean(A), ruido: Math.sqrt(vari(A) / A.length + vari(B) / B.length) };
+}
+function desenhaT(ctx, w, h) {
+  const { A, B, t } = estatT();
+  const x0 = 40, x1 = w - 20, yC = h / 2;
+  const sdv = +document.getElementById('t-sd').value;
+  const lo = 520 - 3.2 * sdv, hi = 520 + 3.2 * sdv + 80;
+  const X = v => x0 + (v - lo) / (hi - lo) * (x1 - x0);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, h - 26); ctx.lineTo(x1, h - 26); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('vendas diárias (R$ mil)', x1 - 150, h - 8);
+  /* pontos de cada loja, em duas faixas */
+  A.forEach((v, i) => { ctx.beginPath(); ctx.arc(X(v), yC - 30 + (i % 5) * 4, 3.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(56,189,248,.75)'; ctx.fill(); });
+  B.forEach((v, i) => { ctx.beginPath(); ctx.arc(X(v), yC + 30 + (i % 5) * 4, 3.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(245,158,11,.75)'; ctx.fill(); });
+  /* médias */
+  [[mean(A), '#38bdf8'], [mean(B), '#f59e0b']].forEach(([m, cor]) => {
+    ctx.strokeStyle = cor; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(X(m), yC - 60); ctx.lineTo(X(m), yC + 60); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+  ctx.fillStyle = '#38bdf8'; ctx.fillText('loja A', x0, yC - 66);
+  ctx.fillStyle = '#f59e0b'; ctx.fillText('loja B', x0, yC + 72);
+
+  document.getElementById('t-delta-v').textContent = document.getElementById('t-delta').value;
+  document.getElementById('t-sd-v').textContent = sdv;
+  const r = estatT();
+  document.getElementById('t-sinal').textContent = r.delta.toFixed(1).replace('.', ',');
+  document.getElementById('t-ruido').textContent = r.ruido.toFixed(1).replace('.', ',');
+  document.getElementById('t-val').textContent = t.toFixed(2).replace('.', ',');
+  document.getElementById('t-veredito').textContent = Math.abs(t) >= 2
+    ? '|t| ≥ 2: diferença forte para o ruído (p < 0,05 aproximado).'
+    : '|t| < 2: a diferença se confunde com a variação diária.';
+}
+['t-delta', 't-sd'].forEach(id => document.getElementById(id).addEventListener('input', () => tCv.fit()));
+
+/* ===================== ANOVA: entre × dentro ===================== */
+const anCv = AH.canvas('anovaCanvas', desenhaAnova);
+function estatAnova() {
+  const gap = +document.getElementById('an-gap').value / 10;   /* slider em décimos de nota */
+  const g1 = Z_C.map(z => 60 + 8 * z - gap);
+  const g2 = Z_D.map(z => 60 + 8 * z);
+  const g3 = Z_E.map(z => 60 + 8 * z + gap);
+  const grupos = [g1, g2, g3];
+  const todos = [].concat(...grupos), gm = mean(todos);
+  const ssEntre = grupos.reduce((a, g) => a + g.length * (mean(g) - gm) ** 2, 0);
+  const ssDentro = grupos.reduce((a, g) => a + g.reduce((s, x) => s + (x - mean(g)) ** 2, 0), 0);
+  const dfE = 2, dfD = todos.length - 3;
+  const F = (ssEntre / dfE) / (ssDentro / dfD);
+  return { grupos, F, eta: ssEntre / (ssEntre + ssDentro) };
+}
+function desenhaAnova(ctx, w, h) {
+  const { grupos, F, eta } = estatAnova();
+  const gap = +document.getElementById('an-gap').value;
+  document.getElementById('an-gap-v').textContent = (gap / 10).toFixed(1).replace('.', ',');
+  /* a escala do slider é a mesma usada no cálculo acima (gap / 10) */
+  const x0 = 40, x1 = w - 20, yBase = h - 30, yTop = 20;
+  const Y = v => yBase - (v - 40) / 45 * (yBase - yTop);
+  ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(x0, yBase); ctx.lineTo(x1, yBase); ctx.stroke();
+  const cores = ['#f59e0b', '#38bdf8', '#10b981'];
+  const nomes = ['método A', 'método B', 'método C'];
+  grupos.forEach((g, k) => {
+    const cx = x0 + (k + 0.5) * (x1 - x0) / 3;
+    g.forEach((v, i) => {
+      const jit = ((i * 37) % 19 - 9) * 2.2;
+      ctx.beginPath(); ctx.arc(cx + jit, Y(v), 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = cores[k] + 'bb'; ctx.fill();
+    });
+    const m = mean(g);
+    ctx.strokeStyle = cores[k]; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - 60, Y(m)); ctx.lineTo(cx + 60, Y(m)); ctx.stroke();
+    ctx.fillStyle = '#cbd5e1'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(nomes[k], cx - 26, yBase + 16);
+  });
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('linha = média de cada método · pontos = notas', x0, yTop - 4);
+  document.getElementById('an-F').textContent = F.toFixed(2).replace('.', ',');
+  document.getElementById('an-eta').textContent = eta.toFixed(2).replace('.', ',');
+}
+document.getElementById('an-gap').addEventListener('input', () => anCv.fit());
+
+/* Primeira pintura */
+tCv.fit(); anCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>
