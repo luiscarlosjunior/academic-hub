@@ -601,7 +601,11 @@ const AH_DATA = {
         { id: '01-estatistica-basica', titulo: 'Estatística básica: população, amostra, variáveis e o acaso', icone: 'fa-chart-simple',
           resumo: 'Tipos de variável, população × amostra, amostragem aleatória e a Lei dos Grandes Números, com simulações em Python.',
           trilha: 'fundamentos',
-          tags: ['Variáveis', 'Amostragem', 'Probabilidade'], nivel: 'Introdutório', minutos: 22 }
+          tags: ['Variáveis', 'Amostragem', 'Probabilidade'], nivel: 'Introdutório', minutos: 22 },
+        { id: '02-estatistica-descritiva', titulo: 'Estatística descritiva: centro, dispersão e posição', icone: 'fa-scale-balanced',
+          resumo: 'Média, mediana, variância, desvio padrão, quartis e boxplot, com a regra de Tukey para outliers e um exemplo de salários em Python.',
+          trilha: 'fundamentos',
+          tags: ['Média', 'Desvio padrão', 'Boxplot'], nivel: 'Introdutório', minutos: 24 }
       ]
     }
   ]
