@@ -576,6 +576,33 @@ const AH_DATA = {
           trilha: 'prog',
           tags: ['Erros', 'Depuração', 'Conceitos'], nivel: 'Fundamental', minutos: 75 }
       ]
+    },
+    {
+      id: 'ad',
+      slug: 'analise-dados',
+      nome: 'Análise de Dados',
+      curto: 'Análise de Dados',
+      icone: 'fa-chart-column',
+      cor: 'rose',
+      corHex: '#f43f5e',
+      trilhas: [
+        { id: 'fundamentos', nome: 'Fundamentos', icone: 'fa-chart-simple', cor: '#34d399',
+          descricao: 'Estatística básica e descritiva, distribuições, correlação e a lógica da inferência: o que medir, como resumir e o que dá para concluir.' },
+        { id: 'testes', nome: 'Testes de hipótese', icone: 'fa-flask', cor: '#38bdf8',
+          descricao: 'Comparar grupos com testes paramétricos (t de Student, ANOVA) e não paramétricos (Mann-Whitney, Kruskal-Wallis, qui-quadrado).' },
+        { id: 'regressao', nome: 'Regressão', icone: 'fa-chart-line', cor: '#fbbf24',
+          descricao: 'Da reta mais simples à regressão logística e não paramétrica: prever uma variável a partir de outras, com e sem suposições sobre a distribuição.' },
+        { id: 'avancado', nome: 'Estatística avançada', icone: 'fa-brain', cor: '#f0abfc',
+          descricao: 'Análise multivariada (PCA e agrupamento), séries temporais, reamostragem e validação de modelos.' }
+      ],
+      descricao:
+        'Da estatística básica às técnicas avançadas: resumir dados, testar hipóteses, modelar relações com regressão (paramétrica e não paramétrica) e validar resultados em Python.',
+      topicos: [
+        { id: '01-estatistica-basica', titulo: 'Estatística básica: população, amostra, variáveis e o acaso', icone: 'fa-chart-simple',
+          resumo: 'Tipos de variável, população × amostra, amostragem aleatória e a Lei dos Grandes Números, com simulações em Python.',
+          trilha: 'fundamentos',
+          tags: ['Variáveis', 'Amostragem', 'Probabilidade'], nivel: 'Introdutório', minutos: 22 }
+      ]
     }
   ]
 };
