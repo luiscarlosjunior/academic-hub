@@ -198,6 +198,91 @@
   </div>
 </section>
 
+<!-- ============================ UM EXEMPLO RESOLVIDO: DIAGNOSTICAR UM CARRO QUE NÃO LIGA ============================ -->
+<section id="exemplo-resolvido" data-toc="Exemplo resolvido" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-car text-indigo-400 mr-2"></i>Um exemplo resolvido: diagnosticar um carro que não liga</h2>
+  <p class="ah-lead text-sm mb-5">Vamos seguir um sistema de produção em ação. A base de regras tem três regras, e a memória de trabalho começa com três fatos observados.</p>
+  <div class="ah-prose">
+    <p><strong>Base de regras:</strong><br>
+R1: SE luz do painel acesa E motor não gira ENTÃO bateria descarregada.<br>
+R2: SE bateria descarregada ENTÃO recarregar ou trocar a bateria.<br>
+R3: SE bateria descarregada E farol fraco ENTÃO alternador suspeito.</p><p><strong>Memória de trabalho inicial:</strong> {luz do painel acesa, motor não gira, farol fraco}.</p><p><strong>Ciclo 1.</strong> Reconhecimento: R1 tem todas as condições satisfeitas. Só ela dispara, então é a única ativa. Ação: adicionar “bateria descarregada” à memória.</p><p><strong>Ciclo 2.</strong> Reconhecimento: agora R2 (depende de bateria descarregada) e R3 (depende de bateria descarregada e farol fraco) estão ambas satisfeitas. O sistema precisa de uma <em>estratégia de resolução de conflitos</em>. Suponha que escolha a regra mais específica, R3. Ação: adicionar “alternador suspeito”.</p><p><strong>Ciclo 3.</strong> R2 ainda está ativa e dispara: adicionar “recarregar ou trocar a bateria”.</p><p>Ao final, a memória tem os três fatos observados e as três conclusões. Esse é o encadeamento para frente (<em>forward chaining</em>): partimos dos fatos e derivamos conclusões até que nenhuma regra nova dispare.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-3">Encadeamento para trás</h3>
+  <div class="ah-prose">
+    <p>Agora suponha que a pergunta seja “devo recarregar a bateria?”. Em vez de partir dos fatos, o sistema procura regras que concluam
+“recarregar ou trocar” (R2), depois regras que concluam “bateria descarregada” (R1), e então verifica se as condições de R1 são verdadeiras,
+perguntando ao usuário quando um fato não está na memória. Esse é o encadeamento para trás (<em>backward chaining</em>), típico de sistemas
+que respondem a uma pergunta específica.</p>
+  </div>
+</section>
+
+<!-- ============================ COMO UM SISTEMA DE PRODUÇÃO FUNCIONA POR DENTRO ============================ -->
+<section id="passo-a-passo" data-toc="Passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gears text-indigo-400 mr-2"></i>Como um sistema de produção funciona por dentro</h2>
+  <p class="ah-lead text-sm mb-5">Todo sistema de produção repete o mesmo ciclo: reconhecer, resolver conflitos e agir. A qualidade do sistema depende de como você escreve as regras e como ele escolhe entre regras concorrentes.</p>
+  <ol class="space-y-3 my-4">
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">1. Reconhecer</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Compare as condições de todas as regras com a memória de trabalho e liste as regras cujas condições estão satisfeitas. Esse conjunto se chama conjunto de conflito.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">2. Resolver o conflito</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Escolha uma regra. Estratégias comuns: a mais específica (mais condições), a mais recente (usa o fato mais novo), ou a primeira na ordem da base. A escolha muda o resultado, então documente-a.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">3. Agir</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Execute a conclusão da regra escolhida, que normalmente adiciona ou remove fatos da memória, ou dispara uma ação externa.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">4. Repetir até parar</div>
+      <p class="text-xs text-slate-400 leading-relaxed">O ciclo termina quando nenhuma regra nova está ativa, ou quando um fato-objetivo é alcançado.</p>
+    </li>
+  </ol>
+  <h3 class="ah-h3 mt-6 mb-3">Regras bem escritas</h3>
+  <div class="ah-prose">
+    <p>Uma regra deve ter uma única ideia e condições observáveis. Compare “SE o cliente é bom pagador ENTÃO aprovar” (vago: o que é bom pagador?)
+com “SE atraso médio nos últimos 12 meses &lt; 5 dias E nenhuma dívida em aberto ENTÃO aprovar” (testável). Regras vagas tornam
+a manutenção do sistema muito mais difícil, porque ninguém sabe o que elas significam depois de dois anos.</p>
+  </div>
+</section>
+
+<!-- ============================ REGRAS “SE… ENTÃO” NO DIA A DIA ============================ -->
+<section id="no-dia-a-dia" data-toc="No dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-indigo-400 mr-2"></i>Regras “se… então” no dia a dia</h2>
+  <p class="ah-lead text-sm mb-5">Você provavelmente já usa sistemas de produção, mesmo sem chamá-los assim. Automações de e-mail, planilhas com validações e ferramentas de integração funcionam com a mesma lógica.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Ferramenta</th><th>Exemplo de regra</th><th>Tipo de encadeamento</th></tr></thead>
+      <tbody><tr><td>Filtros de e-mail</td><td>SE remetente é da empresa E assunto contém “fatura” ENTÃO mover para a pasta Financeiro</td><td>para frente (fatos → ação)</td></tr><tr><td>Automação (ex.: IFTTT, Zapier)</td><td>SE nova linha na planilha ENTÃO enviar mensagem</td><td>para frente</td></tr><tr><td>Validação de planilha</td><td>SE célula de data é vazia E status = “fechado” ENTÃO destacar em vermelho</td><td>para frente</td></tr><tr><td>Triagem de suporte</td><td>SE o cliente relata erro 503 ENTÃO verificar status do servidor</td><td>para trás (pergunta → regras)</td></tr></tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>Se você montar suas próprias regras, um bom teste é o de pergunta: consigo dizer em uma frase o que cada regra faz, e a regra
+dispara exatamente nos casos que eu quero? Um pequeno motor de regras em Python mostra bem a ideia:</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">regras = [
+    ({&#x27;luz_acesa&#x27;, &#x27;motor_nao_gira&#x27;}, &#x27;bateria_descarregada&#x27;),
+    ({&#x27;bateria_descarregada&#x27;}, &#x27;recarregar_ou_trocar&#x27;),
+    ({&#x27;bateria_descarregada&#x27;, &#x27;farol_fraco&#x27;}, &#x27;alternador_suspeito&#x27;),
+]
+
+fatos = {&#x27;luz_acesa&#x27;, &#x27;motor_nao_gira&#x27;, &#x27;farol_fraco&#x27;}
+mudou = True
+while mudou:                       # repete até nenhuma regra nova disparar
+    mudou = False
+    for condicoes, conclusao in regras:
+        if condicoes &lt;= fatos and conclusao not in fatos:
+            fatos.add(conclusao)
+            mudou = True
+
+print(fatos)</pre>
+  <div class="ah-callout ah-callout-warn my-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>Com centenas de regras, elas começam a se contradizer ou a disparar em cascata de forma inesperada. Revise a base periodicamente e teste com casos reais antes de confiar nela.</div>
+  </div>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">

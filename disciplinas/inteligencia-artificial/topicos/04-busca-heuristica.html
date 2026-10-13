@@ -223,6 +223,94 @@
   </a>
 </section>
 
+<!-- ============================ UM EXEMPLO RESOLVIDO: DE ARAD A BUCARESTE COM A* ============================ -->
+<section id="exemplo-resolvido" data-toc="Exemplo resolvido" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-indigo-400 mr-2"></i>Um exemplo resolvido: de Arad a Bucareste com A*</h2>
+  <p class="ah-lead text-sm mb-5">O exemplo clássico é ir de Arad a Bucareste pela Romênia. Usaremos a distância em linha reta até Bucareste (h) como heurística, e o custo real acumulado (g) como medida do caminho já percorrido.</p>
+  <div class="ah-prose">
+    <p>A* ordena a fronteira pelo valor <strong>f = g + h</strong>. Os valores de <em>h</em> (linha reta até Bucareste) são: Arad 366, Sibiu 253, Fagaras 176, Rimnicu Vilcea 193, Pitesti 100.</p><p><strong>Passo 1.</strong> Partindo de Arad (g = 0), os vizinhos são Sibiu (g = 140, f = 393), Timisoara (g = 118, f = 447) e Zerind (g = 75, f = 449). A fronteira é ordenada por f, então Sibiu sai na frente.</p><p><strong>Passo 2.</strong> Expandindo Sibiu, aparecem Rimnicu Vilcea (g = 220, f = 273) e Fagaras (g = 239, f = 415). Rimnicu tem o menor f e é expandido.</p><p><strong>Passo 3.</strong> Expandindo Rimnicu, aparece Pitesti (g = 317, f = 417). Fagaras (415) ainda tem f menor, então é expandido, e ele leva a Bucareste com g = 450, f = 450.</p><p><strong>Passo 4.</strong> A fronteira agora tem Pitesti (417) e Bucareste (450). Pitesti é expandido e leva a Bucareste com g = 418, f = 418. Como 418 &lt; 450, esse é o caminho escolhido.</p><p>Resultado: Arad → Sibiu → Rimnicu Vilcea → Pitesti → Bucareste, custo 418 km. A busca de custo uniforme chegaria ao mesmo resultado, mas expandiria muito mais nós.</p>
+  </div>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Repare que o objetivo só é reconhecido quando o nó é <em>retirado</em> da fronteira com f mínimo, e não quando ele é gerado. Essa diferença é o que garante o caminho ótimo.</div>
+  </div>
+</section>
+
+<!-- ============================ COMO CRIAR UMA BOA HEURÍSTICA ============================ -->
+<section id="passo-a-passo" data-toc="Passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-indigo-400 mr-2"></i>Como criar uma boa heurística</h2>
+  <p class="ah-lead text-sm mb-5">A qualidade da busca depende quase toda da heurística. Uma boa heurística é rápida de calcular e nunca superestima muito o custo restante.</p>
+  <ol class="space-y-3 my-4">
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">1. Relaxe o problema</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Remova restrições e calcule o custo do problema mais fácil. No quebra-cabeça de 8 peças, a distância de Manhattan (somar as distâncias horizontais e verticais de cada peça até o seu lugar) vem de ignorar que peças não podem se sobrepor.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">2. Verifique a admissibilidade</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma heurística é admissível se nunca superestima o custo real restante. Isso garante que A* encontre o caminho ótimo. Pense no pior caso: ela ainda subestima o caminho real?</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">3. Verifique a consistência</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma heurística é consistente se h(n) ≤ custo(n, n′) + h(n′) para todo vizinho n′. Consistência implica admissibilidade e evita reexpansões.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">4. Compare heurísticas</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma heurística mais informativa (mais próxima do custo real, mas ainda admissível) expande menos nós. Teste pelo número de nós expandidos, não só pelo tempo.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">5. Cuidado com pesos</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Se você multiplicar h por um peso maior que 1, a busca fica mais rápida, mas o caminho pode deixar de ser ótimo. Esse é o princípio da busca gulosa ponderada.</p>
+    </li>
+  </ol>
+  <h3 class="ah-h3 mt-6 mb-3">Quando a busca gulosa é suficiente</h3>
+  <div class="ah-prose">
+    <p>A busca gulosa ordena só pela heurística (f = h). É rápida e muitas vezes boa, mas pode se perder em mínimos locais.
+Num mapa com uma montanha entre o início e o objetivo, ela pode seguir a linha reta até um beco sem saída. Use-a quando velocidade importa
+mais que otimalidade, por exemplo em jogos com muitos agentes.</p>
+  </div>
+</section>
+
+<!-- ============================ HEURÍSTICAS NO DIA A DIA ============================ -->
+<section id="no-dia-a-dia" data-toc="No dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-map-location-dot text-indigo-400 mr-2"></i>Heurísticas no dia a dia</h2>
+  <p class="ah-lead text-sm mb-5">Aplicativos de rota, jogos e robôs usam heurísticas o tempo todo. Entender a ideia ajuda a interpretar por que a rota sugerida nem sempre é a mais curta em tudo.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Aplicação</th><th>Heurística típica</th><th>Observação</th></tr></thead>
+      <tbody><tr><td>Navegação (GPS)</td><td>distância em linha reta ou tempo estimado</td><td>o trânsito em tempo real faz o custo mudar; o app recalcula</td></tr><tr><td>Personagens de jogos</td><td>distância até o alvo com obstáculos aproximados</td><td>basta um caminho “bom o suficiente” e rápido</td></tr><tr><td>Robôs em armazéns</td><td>distância de Manhattan em grade</td><td>movimentos só em quatro direções</td></tr><tr><td>Quebra-cabeças</td><td>peças fora do lugar; distância de Manhattan</td><td>a heurística decide se a busca termina em segundos ou em horas</td></tr></tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>Um A* simples em uma grade, com obstáculos, cabe em poucas linhas. Use a fila de prioridade do Python (<code>heapq</code>) e a distância
+de Manhattan como heurística:</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">import heapq
+
+def a_estrela(grade, inicio, fim):
+    # grade: lista de strings, &#x27;#&#x27; é obstáculo, &#x27;.&#x27; é livre
+    def h(p):
+        return abs(p[0] - fim[0]) + abs(p[1] - fim[1])
+    fronteira = [(h(inicio), 0, inicio)]
+    g = {inicio: 0}
+    while fronteira:
+        _, custo, atual = heapq.heappop(fronteira)
+        if atual == fim:
+            return custo
+        r, c = atual
+        for dr, dc in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            nr, nc = r + dr, c + dc
+            if 0 &lt;= nr &lt; len(grade) and 0 &lt;= nc &lt; len(grade[0]) and grade[nr][nc] != &#x27;#&#x27;:
+                novo = custo + 1
+                if novo &lt; g.get((nr, nc), float(&#x27;inf&#x27;)):
+                    g[(nr, nc)] = novo
+                    heapq.heappush(fronteira, (novo + h((nr, nc)), novo, (nr, nc)))
+    return None</pre>
+  <div class="ah-callout ah-callout-warn my-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>A heurística de linha reta pode subestimar o caminho real, o que é bom para a otimalidade, mas pode fazer a busca explorar muitos nós. Medir o número de nós expandidos é a forma honesta de comparar.</div>
+  </div>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">

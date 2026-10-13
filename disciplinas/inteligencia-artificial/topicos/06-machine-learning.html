@@ -244,6 +244,250 @@
   </div>
 </section>
 
+<!-- ============================ EXEMPLO COMPLETO ============================ -->
+<section id="exemplo" data-toc="Um exemplo do início ao fim" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-house text-indigo-400 mr-2"></i>Um exemplo do início ao fim: preço de apartamento</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine que você quer estimar o preço de um apartamento a partir da <strong>área em m²</strong>.
+      Você tem o histórico de vendas de uma imobiliária. Cada venda é um exemplo: a área é a <strong>entrada</strong>
+      (chamada de <em>atributo</em> ou <em>feature</em>) e o preço é a <strong>saída</strong> que queremos prever
+      (chamada de <em>rótulo</em> ou <em>alvo</em>). Este é um problema de <strong>regressão</strong>, porque a saída é um número.
+    </p>
+    <p>
+      O modelo mais simples possível é a reta <code>ŷ = w·área + b</code>. Treinar significa encontrar os
+      valores de <code>w</code> (quanto cada m² custa) e <code>b</code> (um valor fixo de partida) que deixam o
+      erro menor nos dados históricos. Vamos fazer isso à mão, com números pequenos.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 1 — separar os dados antes de qualquer coisa</h3>
+  <div class="ah-prose">
+    <p>
+      Você tem seis vendas. Antes de olhar qualquer padrão, separe-as em duas partes: quatro para <strong>treino</strong>
+      (o modelo aprende com elas) e duas para <strong>teste</strong> (guardadas numa gaveta, só usadas no fim).
+      Essa separação é o que impede o modelo de ser avaliado com provas que ele já decorou.
+    </p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Conjunto</th><th>Área (m²)</th><th>Preço real (R$ mil)</th></tr></thead>
+      <tbody>
+        <tr><td>Treino</td><td>40</td><td>205</td></tr>
+        <tr><td>Treino</td><td>60</td><td>285</td></tr>
+        <tr><td>Treino</td><td>80</td><td>392</td></tr>
+        <tr><td>Treino</td><td>100</td><td>468</td></tr>
+        <tr><td>Teste</td><td>70</td><td>350</td></tr>
+        <tr><td>Teste</td><td>120</td><td>530</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — treinar: achar a reta que erra menos</h3>
+  <div class="ah-prose">
+    <p>
+      O método dos <strong>mínimos quadrados</strong> calcula a reta cujo erro quadrático médio nos dados de treino é
+      o menor possível. Não é preciso adivinhar: a fórmula devolve <code>w ≈ 4,48</code> e <code>b ≈ 23,9</code>.
+      Leia isso como: cada m² adicional acrescenta cerca de R$ 4,48 mil ao preço previsto, e a base fixa é de R$ 23,9 mil.
+    </p>
+    <p>
+      Com esses valores, o modelo prevê, por exemplo, para 60 m²: <code>4,48 × 60 + 23,9 ≈ 292,7</code>
+      (o real foi 285). Para 40 m²: <code>≈ 203,1</code> (o real foi 205). Note que o modelo não decorou nada:
+      ele está dando uma <strong>reta</strong> que resume a tendência, e as previsões caem perto dos pontos, mas não exatamente neles.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — medir o erro de treino e o erro de teste</h3>
+  <div class="ah-prose">
+    <p>
+      Use o <strong>erro absoluto médio</strong> (MAE): a diferença média, em R$ mil, entre o previsto e o real.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#38bdf8">
+      <span class="ah-badge mb-2">Treino</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Erros: 1,9 · 7,7 · 9,7 · 3,9. MAE ≈ <strong class="text-sky-300">5,8 mil</strong>.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#f59e0b">
+      <span class="ah-badge mb-2">Teste</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Previsto 337,5 para 350 real (erro 12,5); previsto 561,5 para 530 real (erro 31,5). MAE ≈ <strong class="text-amber-300">22 mil</strong>.</p>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-4">
+    <i class="fa-solid fa-magnifying-glass-chart"></i>
+    <div>
+      <strong>Como ler esse resultado.</strong> O erro de teste (R$ 22 mil) é quase quatro vezes maior que o de treino (R$ 5,8 mil).
+      Isso é um sinal de alerta, mas com apenas seis vendas ele quase não tem significado estatístico. Com dados reais,
+      a regra prática é: se o erro de teste fica muito acima do de treino, o modelo está decorando o treino.
+      O que fazer depende de quanto erro você aceita para o negócio, e não só de uma métrica “boa” em abstrato.
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Passo 4 — o que você pode concluir</h3>
+  <div class="ah-prose">
+    <p>
+      Se o erro de R$ 22 mil for aceitável para quem vai usar a estimativa (por exemplo, um corretor que faz
+      uma primeira avaliação), o modelo está pronto para uso. Se não for, as saídas são: <strong>coletar mais vendas</strong>,
+      acrescentar atributos (número de quartos, bairro, andar, idade do prédio) ou trocar por um modelo mais flexível.
+      Trocar de modelo sem mais dados muitas vezes só aumenta o overfitting.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ROTEIRO DO PROJETO ============================ -->
+<section id="roteiro" data-toc="Roteiro de um projeto de ML" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-indigo-400 mr-2"></i>O roteiro de um projeto de ML</h2>
+  <p class="ah-lead text-sm mb-5">
+    Na prática, a maior parte do tempo não vai para o algoritmo. Vai para entender os dados e evitar erros
+    que invalidam o resultado sem gerar nenhum aviso. Estes são os passos, na ordem em que costumam acontecer.
+  </p>
+
+  <ol class="space-y-4">
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">1. Definir o problema e a métrica</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        “Melhorar as vendas” não é um problema de ML. “Prever, para cada cliente, a probabilidade de cancelar a
+        assinatura nos próximos 30 dias” é. Defina também a métrica de sucesso <em>antes</em> de treinar: se o custo de
+        deixar passar um cancelamento for alto, o recall importa mais que a acurácia (veja a seção de métricas).
+      </p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">2. Entender os dados</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Olhe as linhas, conte valores faltantes, procure erros de digitação (“SP” e “sp”, idade = −3), veja a distribuição
+        de cada coluna e a proporção das classes. Gaste tempo aqui: um gráfico simples costuma revelar mais que
+        uma semana de ajuste de modelo. Pergunte também: <strong>esses dados existirão no momento da decisão?</strong>
+      </p>
+    </li>
+    <li class="ah-card p-4 border-l-4 border-amber-500/70">
+      <div class="text-sm font-semibold text-white mb-1">3. Separar treino, validação e teste — antes de tudo</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Este é o passo que mais gera erro silencioso. Separe os dados <em>antes</em> de calcular médias, normalizar
+        valores ou escolher atributos. Se você calcula a média de toda a base e depois separa, parte da informação do teste
+        já “vazou” para o treino, e a métrica final sai otimista. Esse problema se chama <strong>vazamento de dados</strong>
+        (<em>data leakage</em>).
+      </p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">4. Pré-processar com cuidado</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Tratar valores faltantes, codificar categorias (“SP”, “RJ” viram colunas 0/1) e padronizar escalas. Regra de ouro:
+        <strong>ajuste</strong> essas transformações só com os dados de treino, e apenas <strong>aplique</strong> o resultado
+        ao validação e ao teste. Ajustar com a base inteira é vazamento.
+      </p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">5. Começar por um modelo de referência (baseline)</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Antes de qualquer modelo sofisticado, tente algo trivial: “sempre prever a classe mais comum”, ou “prever o
+        preço médio”. Se o seu modelo complexo não bate o baseline, o problema está nos dados ou na formulação, não no algoritmo.
+      </p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">6. Treinar, comparar e ajustar</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Teste poucas alternativas bem escolhidas, use validação cruzada (<em>k-fold</em>) para comparar, e registre
+        o que foi tentado. Ajustar hiperparâmetros é esperado; o que não se deve fazer é ajustar olhando o teste.
+      </p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">7. Avaliar uma vez, no teste</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Depois de escolhido o modelo final, rode-o no conjunto de teste <em>uma única vez</em> e reporte esse número.
+        Se você voltar ao teste para “melhorar um pouquinho”, ele deixa de ser teste.
+      </p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">8. Colocar em produção e monitorar</div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        O mundo muda. Um modelo treinado com dados de 2024 pode perder qualidade em 2026 porque o comportamento
+        dos clientes mudou (<strong>drift</strong>). Acompanhe as métricas com dados novos, compare as previsões com
+        os resultados reais quando eles aparecerem, e tenha um plano para retreinar.
+      </p>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================ DIA A DIA ============================ -->
+<section id="dia-a-dia" data-toc="Machine learning no dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mobile-screen-button text-indigo-400 mr-2"></i>Machine learning no dia a dia</h2>
+  <p class="ah-lead text-sm mb-5">
+    Você usa modelos de aprendizado de máquina várias vezes por dia, quase sempre sem perceber. Quase todos seguem
+    o mesmo padrão: um histórico de exemplos rotulados (ou de comportamento) gera um modelo que responde a uma pergunta nova.
+  </p>
+
+  <div class="ah-card overflow-x-auto mb-6">
+    <table class="ah-table">
+      <thead><tr><th>Onde aparece</th><th>Pergunta que o modelo responde</th><th>Tipo</th></tr></thead>
+      <tbody>
+        <tr><td>Filtro de spam do e-mail</td><td>Esta mensagem é spam?</td><td>Classificação supervisionada</td></tr>
+        <tr><td>Recomendação de vídeos e produtos</td><td>Que item esta pessoa provavelmente gostaria?</td><td>Recomendação (muitas vezes não supervisionada e por interação)</td></tr>
+        <tr><td>Alerta de fraude no cartão</td><td>Esta compra destoa do padrão desta pessoa?</td><td>Classificação ou detecção de anomalias</td></tr>
+        <tr><td>Previsão de tempo de entrega</td><td>Quanto tempo leva esta entrega?</td><td>Regressão</td></tr>
+        <tr><td>Correção automática do teclado</td><td>Qual palavra vem a seguir?</td><td>Modelos de linguagem</td></tr>
+        <tr><td>Desbloqueio por rosto</td><td>Esta imagem é do dono do aparelho?</td><td>Classificação de imagens</td></tr>
+        <tr><td>Previsão de cancelamento de clientes</td><td>Quem está prestes a sair?</td><td>Classificação supervisionada</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Como usar no seu trabalho ou estudo</h3>
+  <div class="ah-prose">
+    <p>
+      Você não precisa implementar o gradiente descendente do zero para aplicar ML. O caminho mais comum é usar uma
+      biblioteca pronta. O exemplo abaixo, em Python com a biblioteca <code>scikit-learn</code>, reproduz o caso do apartamento
+      com a estrutura que você deve usar em qualquer projeto: separar, treinar, medir teste.
+    </p>
+  </div>
+  <pre class="ah-code text-[11px] my-4"><span class="kw">from</span> sklearn.model_selection <span class="kw">import</span> train_test_split
+<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
+<span class="kw">from</span> sklearn.metrics <span class="kw">import</span> mean_absolute_error
+
+X = df[[<span class="str">"area_m2"</span>]]        <span class="cm"># atributos</span>
+y = df[<span class="str">"preco_mil"</span>]       <span class="cm"># rótulo que queremos prever</span>
+
+<span class="cm"># separa ANTES de qualquer outra coisa</span>
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=<span class="str">0.2</span>, random_state=<span class="str">42</span>)
+
+modelo = LinearRegression()
+modelo.fit(X_treino, y_treino)           <span class="cm"># treina só com o treino</span>
+
+<span class="kw">print</span>(<span class="str">"erro treino:"</span>, mean_absolute_error(y_treino, modelo.predict(X_treino)))
+<span class="kw">print</span>(<span class="str">"erro teste: "</span>, mean_absolute_error(y_teste,  modelo.predict(X_teste)))</pre>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Quando ML ajuda</h4>
+      <ul class="text-xs text-slate-400 space-y-1.5 leading-relaxed">
+        <li>• Há muitos exemplos com resultado conhecido.</li>
+        <li>• A regra é difícil de escrever à mão (“este e-mail parece golpe”).</li>
+        <li>• O padrão se repete e vale a pena automatizar a decisão.</li>
+        <li>• Você consegue medir se o modelo acerta, em dados que ele não viu.</li>
+      </ul>
+    </div>
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-circle-xmark text-rose-400 mr-1"></i> Quando ML não é a resposta</h4>
+      <ul class="text-xs text-slate-400 space-y-1.5 leading-relaxed">
+        <li>• A regra é simples e conhecida: use uma condição “se… então”.</li>
+        <li>• Há poucos dados e nenhum histórico confiável.</li>
+        <li>• Um erro custa caro e ninguém consegue explicar a decisão (crédito, saúde, justiça), sem supervisão humana.</li>
+        <li>• O problema muda tanto que o modelo estará obsoleto antes de ser útil.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Para começar hoje:</strong> pegue uma planilha com dados reais que você tenha (gastos mensais, notas, tempo de
+      estudo por dia), escolha uma pergunta concreta (“quanto vou gastar no próximo mês?”), separe 80% para treino e 20% para teste,
+      e compare o seu modelo com o baseline “a média dos últimos meses”. Se ele não bater o baseline, você já aprendeu algo importante.
+    </div>
+  </div>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">

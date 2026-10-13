@@ -206,6 +206,94 @@
   </div>
 </section>
 
+<!-- ============================ UM EXEMPLO RESOLVIDO: UM VENTILADOR QUE COMBINA GRAUS DE VERDADE ============================ -->
+<section id="exemplo-resolvido" data-toc="Exemplo resolvido" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-temperature-half text-indigo-400 mr-2"></i>Um exemplo resolvido: um ventilador que combina graus de verdade</h2>
+  <p class="ah-lead text-sm mb-5">Vamos controlar um ventilador com a temperatura ambiente. Definimos dois conjuntos fuzzy: “quente” e “frio”, cada um com uma função de pertinência que devolve um grau entre 0 e 1.</p>
+  <div class="ah-prose">
+    <p><strong>Funções de pertinência.</strong><br>
+quente(T) = 0 se T ≤ 25; (T − 25) / 5 se 25 &lt; T &lt; 30; 1 se T ≥ 30.<br>
+frio(T) = 1 se T ≤ 15; (20 − T) / 5 se 15 &lt; T &lt; 20; 0 se T ≥ 20.</p><p>Para T = 28 °C: quente = (28 − 25) / 5 = <strong>0,6</strong> e frio = <strong>0</strong>. Ou seja, o dia não é “quente” nem “frio” no sentido binário: ele é 60% quente.</p><p><strong>Regras.</strong><br>
+R1: SE temperatura é quente ENTÃO ventilador é alto.<br>
+R2: SE temperatura é frio ENTÃO ventilador é baixo.</p><p><strong>Avaliação.</strong> R1 dispara com grau 0,6. R2 dispara com grau 0. O conjunto “ventilador alto” fica com grau 0,6 e “ventilador baixo” com grau 0.
+A última etapa, a defuzzificação, transforma esses graus em um valor concreto de velocidade. O método mais usado é o centroide da área resultante,
+que, como o conjunto “alto” foi cortado em 0,6, resulta numa velocidade alta, mas abaixo do máximo. O código abaixo usa uma média ponderada mais simples, que é uma aproximação.</p>
+  </div>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Na lógica fuzzy, E é tipicamente o mínimo dos graus, OU é o máximo e NÃO é o complemento (1 − grau). Assim, uma regra como “quente E úmido” só fica forte se os dois graus forem altos.</div>
+  </div>
+</section>
+
+<!-- ============================ COMO CONSTRUIR UM CONTROLADOR FUZZY ============================ -->
+<section id="passo-a-passo" data-toc="Passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-indigo-400 mr-2"></i>Como construir um controlador fuzzy</h2>
+  <p class="ah-lead text-sm mb-5">Um controlador fuzzy segue um pipeline de quatro etapas. Ele é muito fácil de explicar a um operador, o que explica o sucesso dele em equipamentos domésticos e industriais.</p>
+  <ol class="space-y-3 my-4">
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">1. Fuzzificação</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Converta cada entrada numérica em graus de pertinência a conjuntos linguísticos (frio, morno, quente). Escolha as faixas com a ajuda de quem opera o sistema.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">2. Base de regras</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Escreva as regras “SE… ENTÃO…” com os conjuntos linguísticos. Comece com poucas regras, cobrindo os casos principais, e aumente só se necessário.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">3. Inferência</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Avalie cada regra com os graus de entrada: para E use o mínimo, para OU use o máximo. Depois, corte o conjunto de saída pelo grau de cada regra.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">4. Agregação</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Combine os conjuntos de saída das regras que apontam para a mesma ação, geralmente pelo máximo.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">5. Defuzzificação</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Transforme o conjunto resultante em um número, normalmente pelo centroide. É a etapa que devolve o valor que o equipamento vai usar.</p>
+    </li>
+  </ol>
+  <h3 class="ah-h3 mt-6 mb-3">Ajustando as faixas</h3>
+  <div class="ah-prose">
+    <p>As funções de pertinência são o que mais afeta o comportamento. Faixas estreitas dão reações bruscas; faixas largas suavizam, mas podem
+deixar o sistema pouco sensível. Teste com dados reais, observe os casos de borda (por exemplo, a temperatura exatamente no limite entre
+dois conjuntos) e ajuste com calma. Um controlador fuzzy é tão bom quanto a experiência que você codificou nele.</p>
+  </div>
+</section>
+
+<!-- ============================ LÓGICA FUZZY NO DIA A DIA ============================ -->
+<section id="no-dia-a-dia" data-toc="No dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-house-signal text-indigo-400 mr-2"></i>Lógica fuzzy no dia a dia</h2>
+  <p class="ah-lead text-sm mb-5">Você provavelmente já convive com controladores fuzzy: eles estão em aparelhos que ajustam potência ou ciclo de funcionamento de forma suave, sem liga e desliga brusco.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Aparelho</th><th>Entradas</th><th>Saída ajustada</th></tr></thead>
+      <tbody><tr><td>Ar-condicionado</td><td>temperatura e umidade</td><td>potência do compressor</td></tr><tr><td>Máquina de lavar</td><td>quantidade e sujeira da roupa</td><td>tempo e volume de água</td></tr><tr><td>Forno ou micro-ondas com sensor</td><td>umidade dos alimentos</td><td>tempo de cozimento</td></tr><tr><td>Controle de cruzeiro</td><td>velocidade e distância do veículo à frente</td><td>aceleração ou frenagem</td></tr></tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>Se você quer experimentar, a biblioteca scikit-fuzzy permite definir variáveis, funções de pertinência e regras sem implementar a inferência do zero.
+Um esboço da mesma lógica do exemplo, usando apenas funções simples, mostra o núcleo da ideia:</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">def quente(t):
+    return min(1.0, max(0.0, (t - 25) / 5))
+
+def frio(t):
+    return min(1.0, max(0.0, (20 - t) / 5))
+
+def potencia_ventilador(t):
+    g_alto, g_baixo = quente(t), frio(t)
+    soma = g_alto + g_baixo
+    if soma == 0:
+        return 50                    # faixa neutra: nenhuma regra disparou (simplificação)
+    # média ponderada dos níveis de saída (alto = 100, baixo = 20)
+    return (100 * g_alto + 20 * g_baixo) / soma
+
+print(round(potencia_ventilador(28), 1))   # 100: só a regra &quot;quente&quot; tem grau &gt; 0</pre>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>Lógica fuzzy não é o mesmo que probabilidade. “60% quente” descreve quão quente o dia está, não a chance de estar quente. Essa diferença é importante ao explicar os resultados a alguém de fora.</div>
+  </div>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">
