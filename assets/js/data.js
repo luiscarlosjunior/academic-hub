@@ -609,7 +609,11 @@ const AH_DATA = {
         { id: '03-distribuicoes-visualizacao', titulo: 'Distribuições e visualização: normal, binomial e o Teorema Central do Limite', icone: 'fa-bell',
           resumo: 'A curva normal, a binomial e a exponencial, como ler histogramas e por que a média de muitas amostras tende a ser normal, com animação.',
           trilha: 'fundamentos',
-          tags: ['Normal', 'Binomial', 'TCL'], nivel: 'Fundamental', minutos: 26 }
+          tags: ['Normal', 'Binomial', 'TCL'], nivel: 'Fundamental', minutos: 26 },
+        { id: '04-correlacao', titulo: 'Correlação: Pearson, Spearman e a diferença entre associação e causa', icone: 'fa-arrow-trend-up',
+          resumo: 'Medir a força e a direção de uma relação, quando usar Pearson ou Spearman, o efeito de outliers e a armadilha das causas ocultas.',
+          trilha: 'fundamentos',
+          tags: ['Pearson', 'Spearman', 'Causalidade'], nivel: 'Fundamental', minutos: 22 }
       ]
     }
   ]

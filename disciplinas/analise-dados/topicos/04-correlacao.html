@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Correlação · AcademicHub</title>
+<meta name="description" content="Pearson, Spearman e o cuidado com causalidade: como medir a força de uma relação, por que um outlier pode enganar e por que correlação não prova causa, com animação e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/04-correlacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Duas coisas andam juntas?" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-rose-400 mr-2"></i>Duas coisas andam juntas?</h2>
+  <div class="ah-prose">
+    <p>
+      Quando as horas de estudo sobem, a nota costuma subir também. Quando o preço de um produto sobe, as vendas costumam
+      cair. <strong>Correlação é a medida que resume quão forte e em que direção duas variáveis andam juntas</strong>, em
+      um número entre −1 e +1.
+    </p>
+    <p>
+      O cuidado essencial: correlação mede <em>associação</em>, não <em>causa</em>. Ela não diz qual variável puxa a outra,
+      nem se existe uma terceira variável por trás de ambas.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-rose-500">
+      <div class="text-xs font-bold text-rose-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma loja nota que quem compra pão também compra leite. A correlação orienta a disposição das prateleiras.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-rose-500">
+      <div class="text-xs font-bold text-rose-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Em verões quentes, vendem-se mais sorvetes e há mais afogamentos. Os dois sobem juntos, mas nenhum causa o outro.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-rose-500">
+      <div class="text-xs font-bold text-rose-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um app de corrida descobre que quem usa o modo “treino” tem mais assinaturas. Eles já eram mais engajados antes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PEARSON ============================ -->
+<section id="pearson" data-toc="Pearson: relação linear" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-rose-400 mr-2"></i>Pearson: a relação linear</h2>
+  <p class="ah-lead text-sm mb-5">
+    O coeficiente de Pearson mede o quanto os pontos se alinham numa reta. Ele vale +1 quando todos formam uma reta
+    crescente, −1 quando formam uma reta decrescente e 0 quando não há relação linear. <strong class="text-white">Clique no
+    gráfico para adicionar pontos</strong> e veja o r e o ρ de Spearman mudarem.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="corrCanvas" style="height:320px;cursor:crosshair"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="corr-limpa" class="ah-btn ah-btn-ghost text-xs"><i class="fa-solid fa-eraser"></i> Limpar</button>
+        <button id="corr-linear" class="ah-btn text-xs"><i class="fa-solid fa-arrow-trend-up"></i> Nuvem linear</button>
+        <button id="corr-curva" class="ah-btn text-xs"><i class="fa-solid fa-chart-line"></i> Nuvem curva</button>
+        <button id="corr-outlier" class="ah-btn text-xs"><i class="fa-solid fa-bolt"></i> Adicionar outlier</button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Pearson r</div>
+        <div id="c-r" class="text-2xl font-bold text-sky-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Spearman ρ</div>
+        <div id="c-rho" class="text-2xl font-bold text-emerald-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Pontos</div>
+        <div id="c-n" class="text-lg font-bold text-white font-mono">0</div></div>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <div class="font-mono text-sm text-center">
+      r = Σ (xᵢ − x̄)(yᵢ − ȳ) / √[ Σ(xᵢ − x̄)² · Σ(yᵢ − ȳ)² ]
+    </div>
+    <p class="text-xs text-slate-400 text-center mt-3 leading-relaxed">
+      O numerador soma a “concordância” de cada ponto (ambos acima ou ambos abaixo da média). Dividir pelo produto dos
+      desvios torna o resultado independente das unidades: centímetros e metros dão o mesmo r.
+    </p>
+  </div>
+  <div class="ah-card p-4 mt-4 border-l-4 border-l-amber-500">
+    <h3 class="text-sm font-semibold text-white mb-1">Teste de significância</h3>
+    <p class="text-xs text-slate-400 leading-relaxed">
+      Um r de 0,5 com 5 pontos pode surgir por puro acaso. O p-valor responde se a correlação observada é compatível com
+      “zero de verdade”. Com n grande, até um r pequeno vira “significativo”, por isso olhe a força (|r|) e o p-valor juntos.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ SPEARMAN ============================ -->
+<section id="spearman" data-toc="Spearman: ordem, não reta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-up-wide-short text-rose-400 mr-2"></i>Spearman: quando a ordem importa mais que a reta</h2>
+  <p class="ah-lead text-sm mb-5">
+    Spearman troca cada valor pelo seu <strong class="text-white">posto</strong> (1º, 2º, 3º…) e calcula a correlação dos postos.
+    Assim ele mede se uma variável <em>cresce sempre</em> quando a outra cresce, mesmo sem ser uma reta. Também é a escolha
+    natural para dados ordinais, como ranking e satisfação.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <h3 class="text-sm font-semibold text-white mb-2">Monotônica, não linear</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Se y = e^(x/3), a curva sobe sempre, mas não é uma reta. Pearson fica abaixo de 1 (cerca de 0,93), enquanto Spearman
+        dá exatamente 1, porque a ordem dos postos nunca se inverte.
+      </p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <h3 class="text-sm font-semibold text-white mb-2">Quando usar cada um</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        <strong class="text-white">Pearson</strong>: variáveis contínuas, relação linear, sem outliers fortes.
+        <strong class="text-white">Spearman</strong>: relação monotônica, ordinal ou com valores extremos. Em caso de dúvida,
+        calcule os dois e compare.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-rose-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Francis Galton · 1888</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Estudando a altura de pais e filhos, percebeu que a relação entre duas medidas podia ser quantificada. Foi quem
+        falou em “correlação” como medida dessa co-variação.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Karl Pearson · 1895</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Deu a fórmula do coeficiente de correlação produto-momento, o r de Pearson, que até hoje é o padrão para relações
+        lineares entre variáveis contínuas.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">Charles Spearman · 1904</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Propôs medir a associação usando postos, o que deu origem ao coeficiente de correlação de postos de Spearman (ρ),
+        robusto a relações não lineares e a valores extremos.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CAUSALIDADE ============================ -->
+<section id="causalidade" data-toc="Correlação não é causa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-rose-400 mr-2"></i>Correlação não é causa</h2>
+  <p class="ah-lead text-sm mb-5">
+    Três explicações podem produzir a mesma correlação: <strong class="text-white">A causa B</strong>,
+    <strong class="text-white">B causa A</strong> ou <strong class="text-white">C causa ambos</strong>. A última é a mais
+    traiçoeira: uma variável oculta, chamada de <em>confundidora</em>, cria uma associação entre duas coisas que não se
+    influenciam.
+  </p>
+  <div class="ah-card p-5">
+    <div class="font-mono text-sm text-center leading-loose text-slate-300">
+      temperatura ──► vendas de sorvete<br>
+      temperatura ──► afogamentos<br>
+      <span class="text-rose-300">vendas de sorvete ⟂̸ afogamentos (correlação aparente)</span>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Para afirmar causa, é preciso desenho experimental</strong> (um grupo recebe o tratamento, outro não) ou
+      técnicas que controlam o confundidor. Só a correlação de dados observacionais não basta.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-rose-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Ler o gráfico de dispersão</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Antes de qualquer número, olhe a nuvem de pontos: é linear, curva, em forma de funil ou tem um ponto isolado?</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Escolher Pearson ou Spearman</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Decidir pela forma da relação e pela presença de outliers, e calcular o p-valor junto com a força.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Correlação parcial</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Remover o efeito de um confundidor e medir a relação restante. Esse é o caminho para a regressão múltipla, no tópico 09.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-rose-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-rose-300">disciplinas/analise-dados/exemplos-python/04-correlacao.py</code>.
+    Usa <strong>scipy.stats</strong> para <code>pearsonr</code> e <code>spearmanr</code>, que devolvem o coeficiente e o p-valor.
+  </p>
+
+  <p class="text-xs font-bold text-sky-300 mb-2">1 · Pearson e o p-valor</p>
+<pre class="ah-code"><code>r, p = stats.<span class="fn">pearsonr</span>(horas, nota)
+<span class="fn">print</span>(<span class="str">f"r = {r:.4f}   p-valor = {p:.2e}"</span>)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Pearson: horas de estudo × nota
+  r = 0.9956   p-valor = 1.60e-09</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Um outlier e a comparação entre os dois coeficientes</p>
+<pre class="ah-code"><code>horas_out = np.<span class="fn">append</span>(horas, <span class="num">0.0</span>)
+nota_out = np.<span class="fn">append</span>(nota, <span class="num">10.0</span>)     <span class="cm"># um aluno: 0 hora, nota 10</span>
+r_out, _ = stats.<span class="fn">pearsonr</span>(horas_out, nota_out)
+rs_out, _ = stats.<span class="fn">spearmanr</span>(horas_out, nota_out)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Com um outlier (0 hora, nota 10):
+  Pearson  r = 0.3097  (caiu bastante)
+  Spearman ρ = 0.5000  (também cai: o ponto inverte a ordem dos postos)</code></pre>
+
+  <p class="text-xs font-bold text-sky-300 mt-6 mb-2">3 · Relação monotônica: Spearman vê o que Pearson não vê</p>
+<pre class="ah-code"><code>x = np.<span class="fn">linspace</span>(<span class="num">1</span>, <span class="num">10</span>, <span class="num">40</span>)
+y = np.<span class="fn">exp</span>(x / <span class="num">3</span>)                  <span class="cm"># cresce sempre, de forma curva</span>
+<span class="fn">print</span>(stats.<span class="fn">pearsonr</span>(x, y)[<span class="num">0</span>], stats.<span class="fn">spearmanr</span>(x, y)[<span class="num">0</span>])</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Pearson  r = 0.9335
+Spearman ρ = 1.0000  (perfeito: a ordem nunca muda)</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">4 · Correlação espúria e a correlação parcial</p>
+<pre class="ah-code"><code><span class="cm"># temperatura é o confundidor: gera sorvete e afogamentos</span>
+r_direta, _ = stats.<span class="fn">pearsonr</span>(sorvete, afogamentos)
+<span class="cm"># remove o efeito da temperatura (resíduos de uma reta) e correlaciona o que sobra</span>
+r_parcial, _ = stats.<span class="fn">pearsonr</span>(resíduo_sorvete, resíduo_afogamentos)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>correlação direta r = 0.6505
+correlação após remover o efeito da temperatura = -0.0085</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>O último resultado é a lição do tópico.</strong> O r de 0,65 entre sorvete e afogamentos desaparece, ficando
+      em −0,01, quando controlamos a temperatura. A correlação era real, mas não era causal.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-rose-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Calcular r sem plotar</h3>
+      <p class="text-xs text-slate-400">Um único outlier ou uma relação curva pode produzir um r baixo ou alto sem significar nada. Sempre faça o gráfico.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Interpretar r como porcentagem</h3>
+      <p class="text-xs text-slate-400">r = 0,6 não significa “60% de explicação”. Quem explica a variação é o r², aqui 36%.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Usar Pearson com categorias</h3>
+      <p class="text-xs text-slate-400">Correlacionar códigos de categorias não ordenadas. Para ordinais, prefira Spearman.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Concluir causa do observacional</h3>
+      <p class="text-xs text-slate-400">“Quem usa o app treina mais, logo o app causa treino”. Pode ser só que os mais dedicados usam o app.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-rose-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Um gráfico de dispersão mostra pontos que sobem em curva, sempre crescentes, mas não formam uma reta. Qual coeficiente é o mais adequado?</p>
+    <button class="ah-quiz-opt">Pearson, pois mede a relação linear</button>
+    <button class="ah-quiz-opt">Nenhum, pois a relação não é linear</button>
+    <button class="ah-quiz-opt">Spearman, pois mede se a relação é monotônica</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Spearman usa postos e captura relações sempre crescentes, mesmo curvas. Pearson subestima essa relação porque procura uma reta.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Dois fatores têm correlação de 0,8. Um pesquisador conclui que um causa o outro. O que falta para essa conclusão?</p>
+    <button class="ah-quiz-opt">Nada: r = 0,8 é forte o suficiente para provar causa</button>
+    <button class="ah-quiz-opt">Um desenho que controle confundidores e a direção da causa</button>
+    <button class="ah-quiz-opt">Apenas aumentar o tamanho da amostra</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Força da correlação não prova causa. Pode haver uma terceira variável, ou a direção pode ser a inversa. Só um desenho
+      experimental ou o controle adequado de confundidores sustenta a afirmação causal.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Pearson e Spearman ao vivo ===================== */
+let PTS = [];                       /* pontos em coordenadas de dados: x e y em [0, 10] */
+const cv = AH.canvas('corrCanvas', desenha);
+
+function pearson(xs, ys) {
+  const n = xs.length; if (n < 3) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - mx) * (ys[i] - my); dx += (xs[i] - mx) ** 2; dy += (ys[i] - my) ** 2;
+  }
+  return num / Math.sqrt(dx * dy);
+}
+/* Postos com empates resolvidos pela média dos postos */
+function postos(v) {
+  const idx = v.map((x, i) => i).sort((a, b) => v[a] - v[b]);
+  const r = new Array(v.length);
+  let i = 0;
+  while (i < idx.length) {
+    let j = i; while (j + 1 < idx.length && v[idx[j + 1]] === v[idx[i]]) j++;
+    const m = (i + j) / 2 + 1;
+    for (let k = i; k <= j; k++) r[idx[k]] = m;
+    i = j + 1;
+  }
+  return r;
+}
+function spearman(xs, ys) { return pearson(postos(xs), postos(ys)); }
+
+function atualiza() {
+  const xs = PTS.map(p => p.x), ys = PTS.map(p => p.y);
+  const r = pearson(xs, ys), rho = spearman(xs, ys);
+  const f = v => v === null ? '—' : v.toFixed(3).replace('.', ',');
+  document.getElementById('c-r').textContent = f(r);
+  document.getElementById('c-rho').textContent = f(rho);
+  document.getElementById('c-n').textContent = PTS.length;
+  cv.fit();
+}
+
+function desenha(ctx, w, h) {
+  const pad = 30;
+  const X = x => pad + x / 10 * (w - pad * 2), Y = y => h - pad - y / 10 * (h - pad * 2);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  [0, 2.5, 5, 7.5, 10].forEach(v => {
+    ctx.beginPath(); ctx.moveTo(X(v), Y(0)); ctx.lineTo(X(v), Y(10)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(0), Y(v)); ctx.lineTo(X(10), Y(v)); ctx.stroke();
+  });
+  ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('x (horas de estudo)', w / 2 - 50, h - 8);
+  ctx.save(); ctx.translate(12, h / 2 + 40); ctx.rotate(-Math.PI / 2); ctx.fillText('y (nota)', 0, 0); ctx.restore();
+
+  /* reta de mínimos quadrados */
+  if (PTS.length >= 2) {
+    const xs = PTS.map(p => p.x), ys = PTS.map(p => p.y);
+    const n = xs.length, mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
+    if (sxx > 0) {
+      const b = sxy / sxx, a = my - b * mx;
+      ctx.strokeStyle = 'rgba(56,189,248,.7)'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(X(0), Y(a)); ctx.lineTo(X(10), Y(a + b * 10)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  PTS.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.out ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = p.out ? '#f43f5e' : '#38bdf8'; ctx.fill();
+  });
+}
+
+/* clique adiciona um ponto na posição do mouse */
+cv.el.addEventListener('click', e => {
+  const rect = cv.el.getBoundingClientRect();
+  const pad = 30;
+  const x = (e.clientX - rect.left - pad) / (cv.w - pad * 2) * 10;
+  const y = (rect.bottom - e.clientY - pad) / (cv.h - pad * 2) * 10;
+  if (x < 0 || x > 10 || y < 0 || y > 10) return;
+  PTS.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
+  atualiza();
+});
+
+/* Conjuntos de exemplo com geração determinística (semente fixa) */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function gera(tipo) {
+  const rnd = semente(42), out = [];
+  for (let i = 0; i < 14; i++) {
+    const x = 1 + rnd() * 8;
+    const ruido = (rnd() - 0.5) * 2.2;
+    /* linear: reta com ruído · curva: sobe sempre, mas cada vez mais devagar (raiz de x) */
+    const y = tipo === 'linear' ? 1 + 0.9 * x + ruido : 2.4 * Math.sqrt(x) + 0.5 + ruido * 0.4;
+    out.push({ x: Math.round(x * 10) / 10, y: Math.round(Math.min(10, Math.max(0, y)) * 10) / 10 });
+  }
+  return out;
+}
+document.getElementById('corr-limpa').addEventListener('click', () => { PTS = []; atualiza(); });
+document.getElementById('corr-linear').addEventListener('click', () => { PTS = gera('linear'); atualiza(); });
+document.getElementById('corr-curva').addEventListener('click', () => { PTS = gera('curva'); atualiza(); });
+document.getElementById('corr-outlier').addEventListener('click', () => {
+  PTS.push({ x: 0.5, y: 9.5, out: true }); atualiza();
+});
+
+PTS = gera('linear');
+atualiza();
+AH.initReveal();
+</script>
+</body>
+</html>
