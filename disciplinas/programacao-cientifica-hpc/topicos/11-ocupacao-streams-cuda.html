@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocupação, divergência, streams e sobreposição de transferências · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Como o número de warps ativos limita a capacidade de esconder latência, o custo da divergência e como streams e memória pinned sobrepõem cópias e computação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/11-ocupacao-streams-cuda">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Tópico 11 · Ocupação, divergência e streams</h2>
+  <div class="ah-prose">
+    <p>
+      Os tópicos anteriores mostraram como escrever kernels corretos e com bom acesso à memória. Este tópico trata de três fatores que decidem se a GPU de fato fica
+      ocupada: quantas threads estão prontas para executar (<strong>ocupação</strong>), se as threads de um warp seguem o mesmo caminho (<strong>divergência</strong>) e
+      se as cópias de dados se sobrepõem à computação (<strong>streams</strong>).
+    </p>
+  </div>
+</section>
+
+<section id="ocupacao" data-toc="Ocupação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge text-sky-400 mr-2"></i>Ocupação: por que muitas threads ajudam</h2>
+  <div class="ah-prose">
+    <p>
+      Quando um warp espera por uma leitura da memória (centenas de ciclos), o multiprocessador troca para outro warp pronto, sem custo. Esse é o mecanismo de
+      <strong>esconder latência</strong> da GPU: ela depende de ter warps suficientes para trocar. A <strong>ocupação</strong> é a razão entre os warps ativos e o máximo
+      que o multiprocessador suporta.
+    </p>
+    <p>
+      A ocupação é limitada pelo que cada bloco usa: registradores por thread, memória compartilhada por bloco e o número de threads por bloco. Um kernel que usa muitos
+      registradores ocupa menos warps, e um que usa muita memória compartilhada pode impedir que dois blocos caibam no mesmo multiprocessador.
+    </p>
+    <p>
+      Um equívoco comum é achar que ocupação 100% é sempre o objetivo. Um kernel de tiling com alta reutilização pode ir bem com ocupação moderada, desde que o
+      trabalho por thread seja grande. Meça o tempo, não só a ocupação.
+    </p>
+  </div>
+</section>
+
+<section id="divergencia" data-toc="Divergência de warp" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-rose-400 mr-2"></i>Divergência: quando um warp se separa</h2>
+  <div class="ah-prose">
+    <p>
+      Como um warp executa uma instrução por vez para todas as suas threads (SIMT), um <code>if</code> cujo resultado difere entre as threads faz o warp executar
+      os dois caminhos em sequência. Threads que não tomam um caminho ficam mascaradas (inativas) durante ele. Se o caminho cai em cada thread de forma alternada,
+      o custo pode ser quase o dobro.
+    </p>
+  </div>
+<pre class="ah-code"><code>/* divergente: threads pares e ímpares tomam caminhos diferentes no mesmo warp */
+if (threadIdx.x % 2 == 0) a = f(x); else a = g(x);
+
+/* sem divergência: a condição é a mesma para todas as threads do warp */
+if (blockIdx.x % 2 == 0) a = f(x); else a = g(x);</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      A correção quase sempre é reorganizar o trabalho: fazer a condição depender do bloco (ou do warp, pois o warp é de 32 threads consecutivas), ou separar os
+      elementos de cada caminho em grupos antes do kernel. Divergência não é um erro, mas em laços pesados é um custo que merece ser medido.
+    </p>
+  </div>
+</section>
+
+<section id="streams" data-toc="Streams e sobreposição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-water text-emerald-400 mr-2"></i>Streams: cópia e computação em paralelo</h2>
+  <div class="ah-prose">
+    <p>
+      Por padrão, todas as operações na GPU entram em um mesmo <strong>stream</strong> (fila de execução) e rodam em ordem. Um <strong>stream</strong> adicional
+      permite que operações independentes se sobreponham: enquanto uma fatia de dados é copiada para a GPU, outra fatia já está sendo processada, e uma terceira
+      volta para o host. Para isso acontecer, dois requisitos precisam ser atendidos:
+    </p>
+    <ul>
+      <li><strong>Memória pinned (fixa)</strong>: alocada com <code>cudaMallocHost</code>. Cópias assíncronas (<code>cudaMemcpyAsync</code>) só são realmente assíncronas com ela; com memória paginável, a cópia passa por um buffer intermediário e bloqueia.</li>
+      <li><strong>Trabalho dividido em fatias independentes</strong>: cada fatia usa seu stream e não depende das outras.</li>
+    </ul>
+    <p>
+      O ganho máximo é limitado pela operação mais lenta: se a cópia é 10 vezes mais demorada que o kernel, sobrepor não reduz o tempo abaixo do tempo da cópia.
+    </p>
+  </div>
+<pre class="ah-code"><code>cudaStream_t fluxo[2];
+cudaStreamCreate(&amp;fluxo[0]); cudaStreamCreate(&amp;fluxo[1]);
+for (int f = 0; f &lt; fatias; f++) {
+    cudaStream_t s = fluxo[f % 2];
+    size_t off = (size_t)f * m;
+    cudaMemcpyAsync(din + off, hin + off, bf, cudaMemcpyHostToDevice, s);
+    transforma&lt;&lt;&lt;(m + 255) / 256, 256, 0, s&gt;&gt;&gt;(din + off, dout + off, m);
+    cudaMemcpyAsync(hout_str + off, dout + off, bf, cudaMemcpyDeviceToHost, s);
+}</code></pre>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-cuda/11-streams.cu">11-streams.cu</a>. Ele compara a versão sequencial (copia tudo, processa tudo, copia tudo) com a versão em 8 fatias e 2 streams, e verifica se os resultados são iguais.</p>
+</section>
+
+<section id="medicao" data-toc="Medindo a sobreposição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stopwatch text-violet-400 mr-2"></i>Como saber se a sobreposição funcionou</h2>
+  <div class="ah-prose">
+    <p>
+      Um tempo total menor não basta: é preciso ver as operações no tempo. Ferramentas como o <strong>Nsight Systems</strong> mostram a linha do tempo de cada stream,
+      com as cópias e os kernels. Se as barras das cópias de uma fatia e do kernel de outra estão lado a lado, a sobreposição está acontecendo. Se estão em sequência,
+      algo impede o paralelismo, quase sempre memória paginável ou uma sincronização implícita no meio do laço.
+    </p>
+    <p>
+      <strong>Nota sobre a execução:</strong> o exemplo não foi executado em GPU neste material. Os tempos e a diferença entre as versões dependem da placa e da
+      interconexão, e devem ser medidos no seu ambiente.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que <code>cudaMemcpyAsync</code> com memória paginável não se sobrepõe de verdade à computação?</p>
+      <button class="ah-quiz-opt">Porque a GPU não tem mais de um stream</button>
+      <button class="ah-quiz-opt">Porque o kernel precisa ser lançado antes da cópia</button>
+      <button class="ah-quiz-opt">Porque a cópia passa por um buffer intermediário do sistema e acaba bloqueando; a memória pinned evita isso</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com memória paginável, a cópia assíncrona não tem o caminho direto que a memória pinned oferece, e o resultado é um bloqueio.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Dentro de um warp, a condição de um <code>if</code> é verdadeira para metade das threads e falsa para a outra metade. O que acontece?</p>
+      <button class="ah-quiz-opt">Os dois caminhos são executados em sequência, com as threads inativas mascaradas em cada um</button>
+      <button class="ah-quiz-opt">O warp é dividido em dois warps de 16, sem custo</button>
+      <button class="ah-quiz-opt">O hardware descarta a parte que não é verdadeira</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Esse é o custo da divergência: o warp executa os dois caminhos, e cada thread só participa do seu.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>KIRK, D. B.; HWU, W. W. <em>Programming Massively Parallel Processors</em>. 4. ed. Morgan Kaufmann, 2022. Cap. 6 (streams e sobreposição) e cap. 4 (ocupação e divergência).</li>
+    <li>NVIDIA. <em>CUDA C++ Best Practices Guide</em>, seções sobre ocupação e streams. Disponível em docs.nvidia.com/cuda.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
