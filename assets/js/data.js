@@ -629,7 +629,11 @@ const AH_DATA = {
         { id: '08-regressao-linear-simples', titulo: 'Regressão linear simples: mínimos quadrados, resíduos e R²', icone: 'fa-chart-line',
           resumo: 'Ajustar a reta que melhor prevê y a partir de x, interpretar a inclinação, medir o ajuste com R² e distinguir intervalo da média de intervalo de previsão.',
           trilha: 'regressao',
-          tags: ['OLS', 'Resíduos', 'R²'], nivel: 'Intermediário', minutos: 26 }
+          tags: ['OLS', 'Resíduos', 'R²'], nivel: 'Intermediário', minutos: 26 },
+        { id: '09-regressao-linear-multipla', titulo: 'Regressão linear múltipla: controle, dummies e multicolinearidade', icone: 'fa-sliders',
+          resumo: 'Várias explicativas ao mesmo tempo, o efeito de cada uma mantendo as outras fixas, variáveis categóricas por dummy, VIF e R² ajustado.',
+          trilha: 'regressao',
+          tags: ['Múltipla', 'VIF', 'Dummy'], nivel: 'Intermediário', minutos: 28 }
       ]
     }
   ]

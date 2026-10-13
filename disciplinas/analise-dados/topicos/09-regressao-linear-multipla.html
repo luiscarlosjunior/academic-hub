@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regressão Linear Múltipla · AcademicHub</title>
+<meta name="description" content="Várias variáveis explicativas ao mesmo tempo: controle, multicolinearidade (VIF), variáveis dummy e R² ajustado, com animação interativa e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/09-regressao-linear-multipla">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Muitas causas, uma resposta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Muitas causas, uma resposta</h2>
+  <div class="ah-prose">
+    <p>
+      O aluguel não depende só da área. Depende de quartos, da distância ao centro, de o imóvel ser novo. A regressão
+      múltipla estende a reta para <strong>várias explicativas ao mesmo tempo</strong>: y = b₀ + b₁x₁ + b₂x₂ + … + bₖxₖ.
+    </p>
+    <p>
+      A grande vantagem é o <strong>controle</strong>. O coeficiente de cada variável responde: “qual o efeito de x₁
+      mantendo as outras fixas?”. Isso separa influências que, num modelo simples, apareceriam misturadas.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Nota de um aluno em função de horas de estudo, renda da família e acesso à internet, todas juntas.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Vendas de uma loja em função do preço, da verba de anúncios e do dia da semana.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Tempo de entrega de um pedido em função da distância, do horário e do número de itens.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CONTROLE ============================ -->
+<section id="controle" data-toc="Controle: o coeficiente muda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-amber-400 mr-2"></i>Animação: ligue e desligue variáveis</h2>
+  <p class="ah-lead text-sm mb-5">
+    Marque as variáveis que entram no modelo e veja os coeficientes, o R² e o R² ajustado serem recalculados. Repare como o
+    coeficiente da <span class="text-amber-300 font-semibold">área</span> muda quando <span class="text-sky-300 font-semibold">quartos</span>
+    entra no modelo: como quartos e área andam juntos, parte do efeito que parecia da área é, na verdade, dos quartos.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-1 space-y-2" id="mv-checks"></div>
+    <div class="lg:col-span-2 ah-card p-4">
+      <div class="text-xs uppercase tracking-wide text-slate-400 mb-3">Coeficientes (barras) com intervalo de 95%</div>
+      <div id="mv-barras" class="space-y-3"></div>
+      <div class="grid grid-cols-2 gap-3 mt-5">
+        <div class="ah-card p-3"><div class="text-[10px] uppercase text-slate-400">R²</div><div id="mv-r2" class="font-mono text-lg text-emerald-300">—</div></div>
+        <div class="ah-card p-3"><div class="text-[10px] uppercase text-slate-400">R² ajustado</div><div id="mv-r2a" class="font-mono text-lg text-amber-300">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>R² sempre sobe quando você adiciona uma variável</strong>, mesmo que ela seja lixo. O R² ajustado penaliza
+      variáveis que não ajudam de verdade: se ele cai ao entrar uma variável, ela não merece estar no modelo.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MULTICOLINEARIDADE ============================ -->
+<section id="vif" data-toc="Multicolinearidade e VIF" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-amber-400 mr-2"></i>Multicolinearidade: quando as explicativas são parecidas</h2>
+  <p class="ah-lead text-sm mb-5">
+    Se duas explicativas se movem juntas (área e quartos), o modelo não consegue separar o efeito de cada uma. Os coeficientes
+    ficam instáveis e os erros padrão crescem. O <strong class="text-white">VIF</strong> (fator de inflação da variância) mede
+    isso: VIF = 1 / (1 − R²ⱼ), onde R²ⱼ vem de regredir a variável j sobre as outras.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="vif-cards"></div>
+  <div class="ah-card p-4 mt-4 text-xs text-slate-400 leading-relaxed">
+    <strong class="text-white">Leitura prática:</strong> VIF perto de 1 significa que a variável é independente das demais.
+    Acima de 5 começa a preocupar; acima de 10, em geral, é preciso remover ou combinar variáveis. Neste conjunto, área e
+    quartos ficam em torno de 2,8, moderado, e por isso a estimativa ainda é confiável.
+  </div>
+</section>
+
+<!-- ============================ DUMMY ============================ -->
+<section id="dummy" data-toc="Variáveis categóricas (dummy)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-toggle-on text-amber-400 mr-2"></i>Variáveis categóricas: a dummy</h2>
+  <div class="ah-prose">
+    <p>
+      Uma categoria não entra numa reta como número. Para “imóvel novo” (sim ou não), cria-se uma <strong>variável dummy</strong>:
+      vale 1 para “sim” e 0 para “não”. Seu coeficiente é o <em>deslocamento médio</em> do intercepto entre as duas categorias,
+      mantendo as demais variáveis fixas.
+    </p>
+    <p>
+      Com três ou mais categorias, cria-se uma dummy a menos que o número de categorias (uma categoria vira a referência). Se
+      criar todas, a soma delas é sempre 1, e o modelo perde a identificação: é a <em>armadilha da variável dummy</em>.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <div class="font-mono text-sm text-center">aluguel = b₀ + b₁·área + b₂·quartos + b₃·distância + b₄·<span class="text-amber-300">novo</span></div>
+    <p class="text-xs text-slate-400 text-center mt-2">Com novo = 1, o aluguel previsto sobe b₄ em relação a um imóvel igual que não é novo.</p>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-amber-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">George Udny Yule · 1897</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Aplicou a regressão múltipla a dados sociais, mostrando como incluir várias causas ao mesmo tempo e interpretar cada coeficiente.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Ronald A. Fisher · 1920s</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Estabeleceu a teoria de inferência para os coeficientes e a decomposição da variância que sustenta o R² e os testes F do modelo.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Ragnar Frisch e Frederick Waugh · 1933</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Mostraram que o coeficiente múltiplo equivale ao efeito de x₁ depois de remover (regredir) o efeito das outras variáveis. É a justificativa formal do “mantendo as outras fixas”.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Arthur Hoerl e Robert Kennard · 1970</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propuseram a regressão ridge, que estabiliza os coeficientes quando as explicativas são muito correlacionadas, ao custo de um pequeno viés.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Interpretar com controle</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Ler cada coeficiente como “efeito mantendo as outras fixas” e comparar com o modelo simples.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Dummies e R² ajustado</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Codificar categorias sem a armadilha e escolher modelos pelo R² ajustado, não pelo R² bruto.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Diagnóstico e interações</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">VIF, influência de pontos e termos de interação (área × quartos) quando o efeito de uma variável depende de outra.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-amber-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-amber-300">disciplinas/analise-dados/exemplos-python/09-regressao-linear-multipla.py</code>.
+    Usa <strong>statsmodels</strong> para o modelo e <code>variance_inflation_factor</code> para o VIF.
+  </p>
+
+  <p class="text-xs font-bold text-amber-300 mb-2">1 · Simples × múltiplo</p>
+<pre class="ah-code"><code>m_simples = sm.<span class="fn">OLS</span>(df[<span class="str">"aluguel"</span>], sm.<span class="fn">add_constant</span>(df[[<span class="str">"area"</span>]])).<span class="fn">fit</span>()
+X_mult = sm.<span class="fn">add_constant</span>(df[[<span class="str">"area"</span>, <span class="str">"quartos"</span>, <span class="str">"distancia_km"</span>, <span class="str">"novo"</span>]])
+m_mult = sm.<span class="fn">OLS</span>(df[<span class="str">"aluguel"</span>], X_mult).<span class="fn">fit</span>()</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>só com área:           b = 18.62   R² = 0.7851
+controlando as demais: b = 16.61   R² = 0.9210</code></pre>
+
+  <p class="text-xs font-bold text-sky-300 mt-6 mb-2">2 · Diagnóstico de multicolinearidade</p>
+<pre class="ah-code"><code><span class="kw">for</span> i, nome <span class="kw">in</span> <span class="fn">enumerate</span>(X_mult.columns):
+    vif = <span class="fn">variance_inflation_factor</span>(X_mult.values, i)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>VIF (fator de inflação da variância)
+  area         VIF = 2.81
+  quartos      VIF = 2.82
+  distancia_km VIF = 1.01
+  novo         VIF = 1.02</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">3 · Tabela do modelo e previsão</p>
+<pre class="ah-code"><code>R² = 0.9210   R² ajustado = 0.9182
+aluguel esperado = R$ 2028.14
+IP 95%           = [R$ 1630.71 ; R$ 2425.57]</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>O efeito de área caiu de 18,62 para 16,61</strong> quando entraram as outras variáveis. Parte do que o modelo
+      simples atribuía à área era, na verdade, de quartos e de estar mais perto do centro. É o controle em ação.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-amber-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Escolher pelo R² bruto</h3>
+      <p class="text-xs text-slate-400">Adicionar variáveis sempre aumenta o R². Compare modelos pelo R² ajustado ou por critérios como AIC.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Ignorar a multicolinearidade</h3>
+      <p class="text-xs text-slate-400">Coeficientes com sinais trocados sem sentido e erros padrão enormes costumam indicar variáveis redundantes.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Dummy para todas as categorias</h3>
+      <p class="text-xs text-slate-400">Com um intercepto, use k − 1 dummies. Usar todas causa colinearidade perfeita.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Muitas variáveis para poucos dados</h3>
+      <p class="text-xs text-slate-400">Regra de bolso: pelo menos 10 a 20 observações por variável explicativa. Com menos, o modelo decora o ruído.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-amber-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Ao adicionar a variável “quartos” ao modelo, o coeficiente de área cai. Qual a interpretação correta?</p>
+    <button class="ah-quiz-opt">A área deixou de importar para o aluguel</button>
+    <button class="ah-quiz-opt">O modelo ficou pior, por isso o coeficiente mudou</button>
+    <button class="ah-quiz-opt">Parte do efeito que o modelo simples atribuía à área vem de quartos, que andam juntos com ela</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      O coeficiente múltiplo é o efeito de área mantendo quartos fixo. Como as duas variáveis são correlacionadas, parte do
+      efeito que estava “escondido” na área é agora atribuído a quartos. A área continua importando.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Você adicionou uma variável sem nenhuma relação com o aluguel e o R² subiu um pouco. O que observar?</p>
+    <button class="ah-quiz-opt">Nada, o R² subir sempre significa modelo melhor</button>
+    <button class="ah-quiz-opt">O R² ajustado deve cair ou ficar praticamente igual, indicando que a variável não ajuda</button>
+    <button class="ah-quiz-opt">O VIF da nova variável deve ser igual a zero</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      O R² sempre sobe um pouco por acaso, mesmo com lixo. O R² ajustado desconta isso pelo número de variáveis, e é ele que
+      revela que a variável não acrescenta informação.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Álgebra mínima: resolver (XᵀX)β = Xᵀy ===================== */
+function inversa(A) {
+  const n = A.length, M = A.map((row, i) => [...row, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    const piv = M[c][c];
+    for (let j = 0; j < 2 * n; j++) M[c][j] /= piv;
+    for (let r = 0; r < n; r++) if (r !== c) {
+      const f = M[r][c];
+      for (let j = 0; j < 2 * n; j++) M[r][j] -= f * M[c][j];
+    }
+  }
+  return M.map(row => row.slice(n));
+}
+const matMul = (A, B) => A.map(r => B[0].map((_, j) => r.reduce((s, v, k) => s + v * B[k][j], 0)));
+const transp = A => A[0].map((_, j) => A.map(r => r[j]));
+
+/* OLS: devolve coeficientes, erros padrão, R² e R² ajustado. X inclui a coluna de 1. */
+function ols(X, y) {
+  const Xt = transp(X), XtX = matMul(Xt, X), inv = inversa(XtX);
+  const Xty = matMul(Xt, y.map(v => [v])).map(r => r[0]);
+  const beta = inv.map(r => r.reduce((s, v, k) => s + v * Xty[k], 0));
+  const n = y.length, p = X[0].length - 1;
+  const yhat = X.map(r => r.reduce((s, v, k) => s + v * beta[k], 0));
+  const sse = y.reduce((s, v, i) => s + (v - yhat[i]) ** 2, 0);
+  const my = y.reduce((a, b) => a + b, 0) / n;
+  const sst = y.reduce((s, v) => s + (v - my) ** 2, 0);
+  const sigma2 = sse / (n - p - 1);
+  const se = inv.map((r, i) => Math.sqrt(sigma2 * r[i]));
+  const r2 = 1 - sse / sst;
+  return { beta, se, r2, r2a: 1 - (1 - r2) * (n - 1) / (n - p - 1) };
+}
+
+/* ===================== Dados ilustrativos (semente fixa) ===================== */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const rnd = semente(909);
+function gauss() { const u = Math.max(rnd(), 1e-9), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const N = 120, DADOS = [];
+for (let i = 0; i < N; i++) {
+  const area = 35 + rnd() * 115;
+  const quartos = Math.min(5, Math.max(1, Math.round(area / 35 + gauss() * 0.6)));
+  const dist = 0.5 + rnd() * 14.5;
+  const novo = rnd() < 0.5 ? 1 : 0;
+  const aluguel = 250 + 17 * area + 120 * quartos - 45 * dist + 350 * novo + gauss() * 180;
+  DADOS.push({ aluguel, area, quartos, dist, novo });
+}
+const VARS = [
+  { k: 'area', nome: 'área (m²)', cor: '#f59e0b' },
+  { k: 'quartos', nome: 'quartos', cor: '#38bdf8' },
+  { k: 'dist', nome: 'distância ao centro (km)', cor: '#a78bfa' },
+  { k: 'novo', nome: 'imóvel novo (dummy)', cor: '#10b981' }
+];
+const ATIVAS = new Set(['area']);
+
+function colunas(keys) {
+  return DADOS.map(d => [1, ...keys.map(k => d[k])]);
+}
+
+function atualiza() {
+  const keys = VARS.filter(v => ATIVAS.has(v.k)).map(v => v.k);
+  const y = DADOS.map(d => d.aluguel);
+  const barrasEl = document.getElementById('mv-barras');
+  if (!keys.length) {
+    barrasEl.innerHTML = '<p class="text-xs text-slate-500">Marque ao menos uma variável.</p>';
+    document.getElementById('mv-r2').textContent = '—';
+    document.getElementById('mv-r2a').textContent = '—';
+    document.getElementById('vif-cards').innerHTML = '';
+    return;
+  }
+  const m = ols(colunas(keys), y);
+  /* barras: escala pelo maior |b| entre as variáveis ativas */
+  const coefs = keys.map((k, i) => ({ k, b: m.beta[i + 1], se: m.se[i + 1], v: VARS.find(x => x.k === k) }));
+  const maxAbs = Math.max(...coefs.map(c => Math.abs(c.b) + 1.96 * c.se), 1);
+  barrasEl.innerHTML = coefs.map(c => {
+    const w = Math.abs(c.b) / maxAbs * 100, ci = 1.96 * c.se / maxAbs * 100;
+    return `<div>
+      <div class="flex justify-between text-xs mb-1"><span class="text-slate-300">${c.v.nome}</span>
+        <span class="font-mono text-white">${c.b.toFixed(2).replace('.', ',')} <span class="text-slate-500">± ${(1.96 * c.se).toFixed(2).replace('.', ',')}</span></span></div>
+      <div class="relative h-3 bg-slate-950 rounded">
+        <div class="absolute top-0 h-3 rounded transition-all duration-500" style="left:50%;width:${w / 2}%;transform:translateX(${c.b < 0 ? '-100%' : '0'});background:${c.v.cor}"></div>
+        <div class="absolute top-0 h-3 border-l border-r border-slate-400 opacity-60" style="left:${50 + (c.b < 0 ? -1 : 1) * (w / 2 - ci / 2)}%;width:${ci}%"></div>
+        <div class="absolute top-[-2px] h-4 w-px bg-white" style="left:50%"></div>
+      </div></div>`;
+  }).join('');
+  document.getElementById('mv-r2').textContent = m.r2.toFixed(4).replace('.', ',');
+  document.getElementById('mv-r2a').textContent = m.r2a.toFixed(4).replace('.', ',');
+
+  /* VIF só faz sentido com 2 ou mais variáveis explicativas */
+  const cards = document.getElementById('vif-cards');
+  if (keys.length < 2) {
+    cards.innerHTML = '<p class="text-xs text-slate-500 md:col-span-3">Ative pelo menos duas variáveis para ver o VIF.</p>';
+    return;
+  }
+  cards.innerHTML = keys.map((k, i) => {
+    const outras = keys.filter(x => x !== k);
+    const mi = ols(colunas(outras), DADOS.map(d => d[k]));
+    const vif = 1 / (1 - mi.r2);
+    const cor = vif > 10 ? 'text-rose-300' : vif > 5 ? 'text-amber-300' : 'text-emerald-300';
+    return `<div class="ah-card p-4"><div class="text-xs text-slate-400 mb-1">${VARS.find(x => x.k === k).nome}</div>
+      <div class="font-mono text-xl ${cor}">VIF = ${vif.toFixed(2).replace('.', ',')}</div></div>`;
+  }).join('');
+}
+
+/* Checkboxes */
+const checks = document.getElementById('mv-checks');
+checks.innerHTML = VARS.map(v => `
+  <label class="ah-card p-3 flex items-center gap-3 cursor-pointer">
+    <input type="checkbox" data-k="${v.k}" class="accent-amber-500 w-4 h-4" ${ATIVAS.has(v.k) ? 'checked' : ''}>
+    <span class="text-sm text-slate-200">${v.nome}</span>
+  </label>`).join('');
+checks.addEventListener('change', e => {
+  const k = e.target.dataset.k;
+  if (e.target.checked) ATIVAS.add(k); else ATIVAS.delete(k);
+  atualiza();
+});
+
+atualiza();
+AH.initReveal();
+</script>
+</body>
+</html>
