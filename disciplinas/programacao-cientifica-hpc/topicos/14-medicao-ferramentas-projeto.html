@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfilamento e reprodutibilidade: nsys, ncu e um projeto integrador · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Como identificar o gargalo com perfiladores, o roteiro de otimização iterativa e como documentar medições para que sejam reproduzíveis.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/14-medicao-ferramentas-projeto">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-chart text-amber-400 mr-2"></i>Tópico 14 · Perfilamento e projeto</h2>
+  <div class="ah-prose">
+    <p>
+      Todos os tópicos anteriores dependem de uma habilidade: <strong>medir corretamente e saber o que medir</strong>. Este tópico junta essas habilidades em um
+      método de trabalho. Otimizar sem perfilar é adivinhar; perfilar sem método gera números que ninguém consegue reproduzir. O objetivo é que cada decisão de
+      otimização seja justificada por uma medição, e que a medição possa ser repetida por outra pessoa.
+    </p>
+  </div>
+</section>
+
+<section id="roteiro" data-toc="Roteiro iterativo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-ol text-sky-400 mr-2"></i>O roteiro de otimização</h2>
+  <div class="ah-prose">
+    <ol>
+      <li><strong>Defina a carga de trabalho representativa</strong> e a métrica (tempo, GFLOP/s, eficiência). Um tamanho pequeno demais esconde o gargalo real.</li>
+      <li><strong>Garanta a correção</strong>: compare com uma referência (como nos tópicos 10 e 12). Uma versão rápida e errada não serve.</li>
+      <li><strong>Perfile</strong> e identifique o gargalo: CPU, memória, GPU, comunicação ou sincronização.</li>
+      <li><strong>Compare com o teto</strong> (roofline do tópico 6): a distância até o teto diz quanto ainda é possível ganhar.</li>
+      <li><strong>Escolha uma mudança</strong> dirigida pelo gargalo. Só uma por vez.</li>
+      <li><strong>Meça de novo</strong> com o mesmo protocolo. Se não melhorou, desfaça a mudança.</li>
+      <li><strong>Repita</strong> até o ganho marginal não justificar a complexidade.</li>
+    </ol>
+    <p>
+      A disciplina de mudar uma coisa por vez é o que transforma otimização em ciência. Sem ela, ninguém sabe qual mudança causou o ganho, e o código fica mais
+      complicado sem explicação.
+    </p>
+  </div>
+</section>
+
+<section id="nsys" data-toc="Nsight Systems" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-emerald-400 mr-2"></i>Nsight Systems: a linha do tempo</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>Nsight Systems</strong> (<code>nsys</code>) mostra o programa inteiro no tempo: CPU, threads, chamadas de API CUDA, kernels, cópias e comunicação MPI.
+      É a primeira ferramenta a usar, para descobrir onde o tempo vai. Perguntas típicas: a GPU fica ociosa entre os kernels? As cópias se sobrepõem aos kernels? O
+      programa espera a rede?
+    </p>
+  </div>
+<pre class="ah-code"><code># gera o relatório da execução
+nsys profile -o perfil ./programa
+
+# resumo textual: tempo de kernels, cópias e chamadas de API
+nsys stats perfil.nsys-rep</code></pre>
+</section>
+
+<section id="ncu" data-toc="Nsight Compute" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-violet-400 mr-2"></i>Nsight Compute: dentro de um kernel</h2>
+  <div class="ah-prose">
+    <p>
+      Depois de saber qual kernel é o gargalo, o <strong>Nsight Compute</strong> (<code>ncu</code>) mostra o que acontece dentro dele: ocupação, transações de memória
+      por requisição (um indicador direto de coalescência), bank conflicts, divergência e o gráfico roofline do kernel. É a ferramenta para validar as hipóteses dos
+      tópicos 8 a 11.
+    </p>
+  </div>
+<pre class="ah-code"><code># perfil completo de um kernel específico (por nome, com expressão regular)
+ncu --set full -k regex:transposta -o relatorio ./programa
+
+# abre a interface gráfica do relatório
+ncu-ui relatorio.ncu-rep</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Use a opção <code>-k</code> para analisar só o kernel de interesse: um perfil completo de todos os kernels de um programa grande pode ser muito lento. Compare as
+      métricas de memória com o que o tópico 8 previu: se o kernel deveria ser coalescido e não é, o relatório mostra isso.
+    </p>
+  </div>
+</section>
+
+<section id="reproducibilidade" data-toc="Reprodutibilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clipboard-check text-amber-400 mr-2"></i>Medições reprodutíveis</h2>
+  <div class="ah-prose">
+    <p>
+      Um número de desempenho só tem valor se alguém consegue refazê-lo. Ao reportar uma medição, registre pelo menos:
+    </p>
+    <ul>
+      <li><strong>Hardware</strong>: modelo do processador e da GPU, memória, número de núcleos, versão do driver e do CUDA.</li>
+      <li><strong>Software</strong>: versão do compilador, flags de otimização (<code>-O2</code>, <code>-O3</code>, <code>-arch=sm_70</code>) e versões das bibliotecas (MPI, OpenMP).</li>
+      <li><strong>Protocolo</strong>: tamanho do problema, número de repetições, aquecimento, e se o número é mínimo, mediana ou média.</li>
+      <li><strong>Ambiente</strong>: se a máquina estava ociosa, se havia frequência fixa ou <em>turbo</em> e quantos outros processos rodavam.</li>
+      <li><strong>Código</strong>: a versão exata (hash do commit do repositório).</li>
+    </ul>
+    <p>
+      Com esses dados, a medição do tópico 1 (repetições, mediana e dispersão) passa a ser um experimento, e não uma anedota.
+    </p>
+  </div>
+</section>
+
+<section id="projeto" data-toc="Projeto integrador" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-rose-400 mr-2"></i>Projeto integrador</h2>
+  <div class="ah-prose">
+    <p>
+      Para fixar a disciplina, escolha um problema com cálculo pesado e refaça o caminho de otimização nele. Um roteiro que cobre os tópicos inteiros:
+    </p>
+    <ol>
+      <li><strong>Escolha um problema</strong> que você conheça (uma simulação de difusão, um integrador de N-corpos, um filtro de imagem, um produto de matrizes esparsas).</li>
+      <li><strong>Versão serial em C</strong> correta e medida (tópicos 1 a 3). Documente o layout e a ordem dos laços.</li>
+      <li><strong>Modelo roofline</strong> da versão serial (tópico 6): a AI do kernel e o regime em que ele está.</li>
+      <li><strong>Paralelismo em memória compartilhada</strong> com OpenMP (tópico 4), com a verificação de que o resultado não muda.</li>
+      <li><strong>Versão em GPU</strong> (tópicos 7 a 12): primeiro ingênua, depois com a otimização que o perfil indicar.</li>
+      <li><strong>Escalabilidade</strong> em mais de uma GPU ou processo (tópicos 5 e 13), com as curvas de escalabilidade forte e fraca.</li>
+      <li><strong>Relatório reprodutível</strong>: ambiente, protocolo, tabelas e a análise do que limitou cada versão.</li>
+    </ol>
+    <p>
+      Entregue o código, os scripts de execução e o relatório. A nota considera a correção, o método de medição e a justificativa de cada otimização, mais do que o
+      número final de GFLOP/s.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Você quer saber se um kernel específico acessa a memória de forma coalescida. Qual ferramenta usar?</p>
+      <button class="ah-quiz-opt">Nsight Systems, porque mostra a linha do tempo do programa inteiro</button>
+      <button class="ah-quiz-opt">Um cronômetro na CPU, antes e depois do lançamento</button>
+      <button class="ah-quiz-opt">Nsight Compute (<code>ncu</code>), com as métricas do kernel</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O Nsight Compute mostra as métricas de memória do kernel, como transações por requisição, que indicam a coalescência.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma otimização deu um ganho de 20%, mas você mudou três coisas ao mesmo tempo. O que o roteiro recomenda?</p>
+      <button class="ah-quiz-opt">Separar as três mudanças e medir cada uma, para saber qual causou o ganho e se alguma piorou o desempenho</button>
+      <button class="ah-quiz-opt">Manter as três, porque o ganho total é o que importa</button>
+      <button class="ah-quiz-opt">Reportar só o melhor número da execução mais rápida</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Uma mudança por vez é o que permite atribuir o ganho e detectar regressões escondidas.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>NVIDIA. <em>Nsight Systems User Guide</em> e <em>Nsight Compute User Guide</em>. Disponíveis em docs.nvidia.com.</li>
+    <li>HENNESSY, J. L.; PATTERSON, D. A. <em>Computer Architecture: A Quantitative Approach</em>. 6. ed. Morgan Kaufmann, 2017. Cap. 1 (medição e relatório de desempenho).</li>
+    <li>BAILEY, D. H. Twelve ways to fool the masses when giving performance results on parallel computers. <em>Supercomputing Review</em>, 1991 (armadilhas na apresentação de resultados).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

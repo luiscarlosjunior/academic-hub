@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-GPU e MPI+CUDA: escalando em cluster · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Uma GPU por processo MPI, troca de halos entre dispositivos, o caminho com CUDA-aware MPI e como sobrepor comunicação com computação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/13-multi-gpu-mpi-cuda">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-server text-amber-400 mr-2"></i>Tópico 13 · Multi-GPU e MPI+CUDA</h2>
+  <div class="ah-prose">
+    <p>
+      Uma GPU tem memória limitada e, mesmo com a mais rápida, uma simulação grande pode levar semanas. Clusters científicos reúnem muitos nós, cada um com várias
+      GPUs. A combinação padrão é <strong>MPI + CUDA</strong>: MPI divide o problema entre processos (e nós), e cada processo usa uma GPU para o trabalho pesado.
+      É o mesmo modelo do tópico 5, com um acelerador em cada processo.
+    </p>
+  </div>
+</section>
+
+<section id="modelo" data-toc="Um processo, uma GPU" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-sky-400 mr-2"></i>Um processo, uma GPU</h2>
+  <div class="ah-prose">
+    <p>
+      Cada processo MPI escolhe uma GPU com <code>cudaSetDevice</code>. A escolha mais simples é <code>rank % número_de_GPUs</code>: com quatro GPUs por nó e quatro
+      processos, cada um fica com a sua. Todas as operações CUDA que o processo faz vão para o dispositivo escolhido, e as chamadas de MPI continuam sendo feitas
+      pelo processo.
+    </p>
+  </div>
+<pre class="ah-code"><code>int ngpu = 0;
+cudaGetDeviceCount(&amp;ngpu);
+cudaSetDevice(rank % ngpu);     /* cada processo fica com uma GPU */</code></pre>
+</section>
+
+<section id="halos" data-toc="Halos entre GPUs" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>Troca de halos: o caminho dos dados</h2>
+  <div class="ah-prose">
+    <p>
+      A mesma decomposição de domínio do tópico 5 se aplica, agora com dados na memória da GPU. Para trocar uma borda com o vizinho, o dado precisa ir da memória
+      da GPU ao host, depois ao vizinho pela rede, e depois para a GPU dele. Quanto mais passos desse caminho, mais lento. O exemplo faz essa cópia explícita, para
+      deixar o caminho visível:
+    </p>
+    <ol>
+      <li>Copiar as bordas da GPU para o host (<code>cudaMemcpy</code>).</li>
+      <li>Trocar as bordas com os vizinhos (<code>MPI_Sendrecv</code>, do tópico 5).</li>
+      <li>Copiar as bordas recebidas de volta para a GPU, só onde há vizinho.</li>
+      <li>Calcular o passo local na GPU.</li>
+    </ol>
+    <p>
+      Os passos 1 e 3 são o gargalo nessa versão: são quatro cópias pequenas por passo de tempo, e cada uma paga a latência do barramento. Em produção, o caminho
+      é outro, descrito a seguir.
+    </p>
+  </div>
+</section>
+
+<section id="cuda-aware" data-toc="CUDA-aware MPI" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-violet-400 mr-2"></i>CUDA-aware MPI: passar o ponteiro da GPU</h2>
+  <div class="ah-prose">
+    <p>
+      Implementações de MPI compiladas com suporte a CUDA (<em>CUDA-aware MPI</em>) aceitam ponteiros de dispositivo diretamente nas chamadas de envio e recebimento.
+      A biblioteca pode então usar transferências diretas entre GPUs (GPUDirect, NVLink) e evitar a passagem pelo host. O código fica mais curto e, em geral, mais rápido.
+    </p>
+  </div>
+<pre class="ah-code"><code>/* com CUDA-aware MPI: ponteiros de dispositivo direto para o MPI */
+MPI_Sendrecv(du + 1, 1, MPI_FLOAT, esq, 0,
+             du + n + 1, 1, MPI_FLOAT, dir, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Nem toda instalação de MPI tem esse suporte; verifique a documentação do seu cluster. Quando não tem, o caminho pelo host do exemplo é o que funciona em
+      qualquer lugar.
+    </p>
+  </div>
+</section>
+
+<section id="sobreposicao" data-toc="Sobrepor comunicação e cálculo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-rose-400 mr-2"></i>Sobrepor comunicação e computação</h2>
+  <div class="ah-prose">
+    <p>
+      A troca de halos é lenta; o cálculo do interior não depende dela. A técnica clássica é calcular primeiro as células da borda (que precisam dos halos), enviar
+      os halos em uma operação não bloqueante (<code>MPI_Isend</code> e <code>MPI_Irecv</code>), calcular o interior enquanto a rede trabalha, e só então esperar
+      (<code>MPI_Waitall</code>). Com um stream separado para o interior, a GPU também fica ocupada durante a troca.
+    </p>
+  </div>
+<pre class="ah-code"><code>MPI_Irecv(/* halos */, &amp;req[0]);
+MPI_Isend(/* bordas */, &amp;req[1]);
+passo_interior&lt;&lt;&lt;grade, bloco, 0, fluxo_interior&gt;&gt;&gt;(du, dv, n);   /* enquanto a rede trabalha */
+MPI_Waitall(2, req, MPI_STATUSES_IGNORE);
+passo_bordas&lt;&lt;&lt;grade_bordas, bloco&gt;&gt;&gt;(du, dv, n);             /* depois que os halos chegaram */</code></pre>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-cuda/13-multi-gpu-mpi-cuda.cu">13-multi-gpu-mpi-cuda.cu</a>. Ele implementa o caminho pelo host, com a decomposição de domínio, o passo na GPU e a redução global.</p>
+</section>
+
+<section id="escala" data-toc="Escalabilidade real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-emerald-400 mr-2"></i>Escalabilidade: quando mais GPUs não ajudam</h2>
+  <div class="ah-prose">
+    <p>
+      Em uma GPU, o cálculo costuma dominar. Ao espalhar o domínio por mais GPUs, cada uma fica com menos células, o cálculo encolhe, e a comunicação de halos não
+      encolhe (cada processo sempre troca duas bordas). Com domínio pequeno demais, a comunicação passa a dominar e a eficiência cai. O ponto em que isso acontece
+      depende da placa, da rede e do tamanho do problema, e precisa ser medido.
+    </p>
+    <p>
+      Uma regra útil: a relação entre trabalho (proporcional ao volume da sub-malha) e comunicação (proporcional à superfície) determina a escalabilidade. Quanto
+      maior o problema por GPU, melhor a relação. Em três dimensões, a superfície cresce mais lentamente que o volume, o que favorece a escalabilidade.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a troca de halos pelo host é mais lenta que com CUDA-aware MPI?</p>
+      <button class="ah-quiz-opt">Porque o MPI não aceita números de ponto flutuante</button>
+      <button class="ah-quiz-opt">Porque o dado passa pela memória do host e por cópias extras pelo barramento, em vez de ir direto entre as GPUs</button>
+      <button class="ah-quiz-opt">Porque a GPU não pode enviar dados a outras placas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada cópia extra soma latência e largura de banda do barramento; o caminho direto elimina essas etapas.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a comunicação de halos é mais pesada para malhas pequenas por GPU?</p>
+      <button class="ah-quiz-opt">Porque o trabalho local encolhe, mas a troca de bordas continua com o mesmo tamanho, e passa a dominar</button>
+      <button class="ah-quiz-opt">Porque halos menores exigem mais threads</button>
+      <button class="ah-quiz-opt">Porque o MPI cobra por mensagem, independentemente do tamanho</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A relação entre trabalho (volume) e comunicação (superfície) determina a escalabilidade.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>GROPP, W.; LUSK, E.; SKJELLUM, A. <em>Using MPI</em>. 3. ed. MIT Press, 2014. Cap. 4 (comunicação não bloqueante).</li>
+    <li>NVIDIA. <em>CUDA-aware MPI</em> e GPUDirect, documentação de programação. Disponível em docs.nvidia.com.</li>
+    <li>KIRK, D. B.; HWU, W. W. <em>Programming Massively Parallel Processors</em>. 4. ed. Morgan Kaufmann, 2022. Cap. 19 (computação em múltiplas GPUs).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
