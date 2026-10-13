@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regressão Não Paramétrica · AcademicHub</title>
+<meta name="description" content="Theil-Sen, LOWESS e k-vizinhos mais próximos: regressão sem forma fixa para curvas e outliers, com animação comparando os métodos e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/11-regressao-nao-parametrica">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Quando a reta não serve" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Quando a reta não serve</h2>
+  <div class="ah-prose">
+    <p>
+      O consumo de energia de uma casa sobe no frio (aquecedor) e no calor (ar-condicionado), e fica baixo nas temperaturas
+      amenas. É uma <strong>curva em U</strong>. Qualquer reta vai errar nos dois extremos e ainda por cima mostrar uma
+      inclinação que não descreve nada. Além disso, o medidor tem falhas de vez em quando.
+    </p>
+    <p>
+      A regressão <strong>não paramétrica</strong> não impõe uma forma (reta, parábola, exponencial). Ela deixa os dados
+      desenharem a curva, usando vizinhança, medianas ou pesos locais. O custo: precisa de mais dados e é mais difícil de
+      resumir em uma única fórmula.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Tempo de entrega em função da distância, quando a curva sobe devagar perto e muito depois de certo ponto.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Produtividade de um atleta em função da carga de treino: cresce, atinge um pico e depois cai.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Preço de imóveis em função da idade do prédio: novos caros, antigos mais baratos, e prédios históricos voltam a valorizar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ANIMAÇÃO ============================ -->
+<section id="comparacao" data-toc="Comparar os métodos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-amber-400 mr-2"></i>Animação: quatro formas de ajustar a mesma nuvem</h2>
+  <p class="ah-lead text-sm mb-5">
+    Ligue e desligue os métodos. A <span class="text-amber-300 font-semibold">reta de mínimos quadrados</span> é a referência
+    paramétrica; a <span class="text-rose-300 font-semibold">Theil-Sen</span> é uma reta robusta; a
+    <span class="text-emerald-300 font-semibold">LOWESS</span> e o <span class="text-sky-300 font-semibold">kNN</span> seguem a
+    curva. Depois, <strong class="text-white">remova as falhas do medidor</strong> e veja a reta mudar.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:340px"><canvas id="npCanvas" style="height:340px"></canvas></div>
+    </div>
+    <div class="space-y-3">
+      <div id="np-checks" class="space-y-2"></div>
+      <label class="block text-xs text-slate-400">Janela de suavização (fração dos pontos): <span id="np-frac-v" class="font-mono text-white">0,30</span>
+        <input id="np-frac" type="range" min="0.1" max="0.6" step="0.05" value="0.3" class="w-full accent-emerald-500"></label>
+      <label class="block text-xs text-slate-400">Vizinhos no kNN (k): <span id="np-k-v" class="font-mono text-white">7</span>
+        <input id="np-k" type="range" min="1" max="25" step="1" value="7" class="w-full accent-sky-500"></label>
+      <button id="np-outlier" class="ah-btn text-xs w-full"><i class="fa-solid fa-filter"></i> Remover falhas do medidor</button>
+      <div class="ah-card p-3 text-xs text-slate-400">Inclinação OLS: <span id="np-ols" class="font-mono text-amber-300">—</span><br>
+        Inclinação Theil-Sen: <span id="np-ts" class="font-mono text-rose-300">—</span></div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Compare as inclinações antes e depois de remover as falhas.</strong> Aqui quase não mudam, porque as falhas são
+      poucas e de sinais opostos. A robustez da Theil-Sen aparece mais quando os outliers são grandes e concentrados num
+      lado. Mesmo assim, ela continua sendo uma <em>reta</em>: robustez não conserta uma forma errada.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MÉTODOS ============================ -->
+<section id="metodos" data-toc="Os três métodos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-diagram-project text-amber-400 mr-2"></i>Os três métodos não paramétricos</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Theil-Sen</span>
+      <h3 class="text-sm font-semibold text-white mb-2">A mediana das inclinações</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Calcula a inclinação de todos os pares de pontos e usa a mediana. Um outlier afeta poucas inclinações, e a mediana as ignora. Continua linear.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">LOWESS</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Reta local, pesos decrescentes</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Para cada ponto, ajusta uma reta usando só os vizinhos mais próximos, com peso que cai com a distância. Juntando as retas locais, aparece a curva.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-sky-500">
+      <span class="ah-badge ah-badge-sky mb-2">kNN</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Média dos k vizinhos</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Para prever em x, pega os k casos mais próximos em x e faz a média de y. k pequeno segue o ruído; k grande suaviza demais.</p>
+    </div>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <div class="font-mono text-sm text-center">ŷ(x) = Σ wᵢ · yᵢ / Σ wᵢ &nbsp;&nbsp;onde wᵢ depende da distância de xᵢ até x</div>
+    <p class="text-xs text-slate-400 text-center mt-2">Essa é a forma geral dos suavizadores locais, com o peso definindo a janela.</p>
+  </div>
+</section>
+
+<!-- ============================ QUANDO USAR ============================ -->
+<section id="quando" data-toc="Quando usar cada um" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-sitemap text-amber-400 mr-2"></i>Paramétrico ou não paramétrico?</h2>
+  <div class="overflow-x-auto">
+    <table class="ah-table text-xs">
+      <thead><tr><th>Situação</th><th>Escolha</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>Relação aproximadamente linear, resíduos normais</td><td>Reta de mínimos quadrados</td><td>É a mais eficiente e fácil de explicar</td></tr>
+        <tr><td>Linear, mas com outliers</td><td><strong class="text-rose-300">Theil-Sen</strong></td><td>Estima a inclinação sem ser puxada pelos extremos</td></tr>
+        <tr><td>Curva desconhecida, muitos dados</td><td><strong class="text-emerald-300">LOWESS</strong></td><td>Segue a forma sem supor uma equação</td></tr>
+        <tr><td>Previsão de casos novos com base em semelhança</td><td><strong class="text-sky-300">kNN</strong></td><td>Simples de usar; a escolha de k controla o compromisso</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Não paramétrico não significa “sem regras”.</strong> A escolha da janela (frac no LOWESS, k no kNN) é o ajuste
+      que mais importa. Valores extremos fazem o modelo decorar o ruído; valores grandes demais apagam a curva. Use validação
+      (tópico 14) para escolher.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-amber-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Henri Theil · 1950 e Pranab K. Sen · 1968</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Theil propôs estimar a inclinação pela mediana das inclinações entre pares; Sen estendeu o método e estudou suas propriedades, dando o nome conjunto ao estimador.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">William S. Cleveland · 1979</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs o LOWESS (regressão local ponderada robusta), que ignora outliers de forma iterativa e suaviza dados com curvas complexas.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Evelyn Fix e Joseph Hodges · 1951</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Introduziram a regra dos k vizinhos mais próximos como método de decisão baseado em semelhança, origem do kNN.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">E. A. Nadaraya e G. S. Watson · 1964</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propuseram estimadores de regressão por núcleos: médias ponderadas de y, com peso definido por uma função da distância em x.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-amber-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-amber-300">disciplinas/analise-dados/exemplos-python/11-regressao-nao-parametrica.py</code>.
+    Usa <strong>scipy.stats.theilslopes</strong>, <strong>statsmodels lowess</strong> e um kNN escrito à mão, e avalia tudo em
+    dados de teste.
+  </p>
+
+  <p class="text-xs font-bold text-amber-300 mb-2">1 · Theil-Sen × reta</p>
+<pre class="ah-code"><code>b_ts, a_ts, _, _ = stats.<span class="fn">theilslopes</span>(yt, xt)   <span class="cm"># mediana das inclinações entre pares</span>
+b_ols, a_ols = np.<span class="fn">polyfit</span>(xt, yt, <span class="num">1</span>)              <span class="cm"># mínimos quadrados</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Mínimos quadrados (reta):  inclinação = -0.3395  intercepto = 17.594
+Theil-Sen (mediana das inclinações entre pares):  inclinação = -0.4192  intercepto = 16.902</code></pre>
+
+  <p class="text-xs font-bold text-sky-300 mt-6 mb-2">2 · LOWESS: a curva sem equação</p>
+<pre class="ah-code"><code>suave = <span class="fn">lowess</span>(yt, xt, frac=<span class="num">0.3</span>, return_sorted=<span class="kw">True</span>)
+pred_lowess = np.<span class="fn">interp</span>(x_novo, suave[:, <span class="num">0</span>], suave[:, <span class="num">1</span>])</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>   -5 °C -&gt; consumo suavizado =  25.97 kWh/dia
+   20 °C -&gt; consumo suavizado =   6.32 kWh/dia
+   38 °C -&gt; consumo suavizado =  16.65 kWh/dia</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">3 · Comparação no conjunto de teste</p>
+<pre class="ah-code"><code><span class="kw">def</span> <span class="fn">erro</span>(y_prev):
+    <span class="kw">return</span> np.<span class="fn">sqrt</span>(np.<span class="fn">mean</span>((yv - y_prev) ** <span class="num">2</span>))   <span class="cm"># RMSE: raiz do erro quadrático médio</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>reta de mínimos quadrados: 5.968
+Theil-Sen (linear robusto): 7.246
+LOWESS:                     3.896
+kNN (k = 7):                4.028</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>A lição está nos números:</strong> a Theil-Sen é mais robusta que o OLS a outliers, mas aqui erra mais, porque
+      ambas são retas e a curva em U é o problema. LOWESS reduz o erro da reta em cerca de um terço (de 5,97 para 3,90).
+      Escolha pela forma dos dados, não só pela robustez.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-amber-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Confiar no LOWESS para prever fora do intervalo</h3>
+      <p class="text-xs text-slate-400">Fora da faixa dos dados, a curva suavizada não tem base. Não extrapole.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">kNN sem padronizar variáveis</h3>
+      <p class="text-xs text-slate-400">Com várias explicativas em escalas diferentes (metros e reais), a distância é dominada pela de maior escala. Padronize antes.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Escolher a janela pelo gráfico</h3>
+      <p class="text-xs text-slate-400">Escolher o frac ou o k que “parece bonito” geralmente decora o ruído. Escolha por validação cruzada.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Comparar métodos pelo erro no treino</h3>
+      <p class="text-xs text-slate-400">O kNN com k = 1 tem erro zero no treino e é péssimo fora dele. Compare sempre no teste.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-amber-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Os dados têm uma curva em U e alguns outliers. Qual combinação faz mais sentido?</p>
+    <button class="ah-quiz-opt">Só a reta de mínimos quadrados, porque é a mais simples</button>
+    <button class="ah-quiz-opt">Só a Theil-Sen, porque ela resolve tudo que é outlier</button>
+    <button class="ah-quiz-opt">LOWESS ou kNN, com a janela escolhida por validação, e a robustez checada na Theil-Sen</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      A forma (curva) pede um método local. Outliers pedem atenção aos dados, o que a Theil-Sen ajuda a diagnosticar, mas
+      ela sozinha não captura a curva.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Em um kNN, o que acontece quando k é muito pequeno (k = 1)?</p>
+    <button class="ah-quiz-opt">O modelo fica muito suave e ignora a curva</button>
+    <button class="ah-quiz-opt">O modelo segue o ruído de cada ponto: alta variância, sobreajuste</button>
+    <button class="ah-quiz-opt">O erro de previsão fica sempre zero, em qualquer dado</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Com k = 1, cada previsão é o próprio valor do vizinho mais próximo, então a curva passa por todos os pontos de treino,
+      inclusive pelo ruído. Ela erra muito em dados novos. O k ideal equilibra viés e variância.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Dados ilustrativos (semente fixa) ===================== */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const rnd = semente(1111);
+function gauss() { const u = Math.max(rnd(), 1e-9), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const PTS_LIMPOS = [], OUT_IDX = new Set([7, 23, 41, 66, 98]);
+for (let i = 0; i < 150; i++) {
+  const x = -5 + rnd() * 43;
+  const y = 6 + 0.035 * (x - 20) ** 2 + gauss() * 1.2;
+  PTS_LIMPOS.push({ x, y, out: false });
+}
+/* falhas do medidor: 5 pontos deslocados */
+[...OUT_IDX].forEach((i, k) => { PTS_LIMPOS[i].y += k % 2 ? 15 : -12; PTS_LIMPOS[i].out = true; });
+
+let USAR_OUT = true;
+const pts = () => USAR_OUT ? PTS_LIMPOS : PTS_LIMPOS.filter(p => !p.out);
+
+/* ===================== Estimadores ===================== */
+function olsFit(P) {
+  const n = P.length, mx = P.reduce((s, p) => s + p.x, 0) / n, my = P.reduce((s, p) => s + p.y, 0) / n;
+  let sxy = 0, sxx = 0;
+  P.forEach(p => { sxy += (p.x - mx) * (p.y - my); sxx += (p.x - mx) ** 2; });
+  const b = sxy / sxx; return { b, a: my - b * mx };
+}
+function mediana(v) { const s = [...v].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function theilSen(P) {
+  const sl = [];
+  for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+    const dx = P[j].x - P[i].x; if (Math.abs(dx) > 1e-9) sl.push((P[j].y - P[i].y) / dx);
+  }
+  const b = mediana(sl);
+  const a = mediana(P.map(p => p.y - b * p.x));
+  return { b, a };
+}
+/* LOWESS simplificado: para cada x da grade, reta ponderada (tricúbica) nos k = frac·n vizinhos mais próximos */
+function lowessCurva(P, frac) {
+  const k = Math.max(3, Math.round(frac * P.length));
+  const grade = []; for (let x = -5; x <= 38; x += 0.5) grade.push(x);
+  return grade.map(x0 => {
+    const d = P.map(p => Math.abs(p.x - x0)).sort((a, b) => a - b);
+    const h = d[k - 1] || 1;
+    let sw = 0, swx = 0, swy = 0, swxx = 0, swxy = 0;
+    P.forEach(p => {
+      const u = Math.abs(p.x - x0) / h;
+      if (u >= 1) return;
+      const w = (1 - u ** 3) ** 3;
+      sw += w; swx += w * p.x; swy += w * p.y; swxx += w * p.x * p.x; swxy += w * p.x * p.y;
+    });
+    const den = sw * swxx - swx * swx;
+    const b = Math.abs(den) < 1e-9 ? 0 : (sw * swxy - swx * swy) / den;
+    const a = (swy - b * swx) / sw;
+    return { x: x0, y: a + b * x0 };
+  });
+}
+/* kNN: média de y dos k vizinhos em x, numa grade */
+function knnCurva(P, k) {
+  const grade = []; for (let x = -5; x <= 38; x += 0.5) grade.push(x);
+  return grade.map(x0 => {
+    const viz = [...P].sort((a, b) => Math.abs(a.x - x0) - Math.abs(b.x - x0)).slice(0, k);
+    return { x: x0, y: viz.reduce((s, p) => s + p.y, 0) / viz.length };
+  });
+}
+
+/* ===================== Canvas e controles ===================== */
+const METODOS = [
+  { id: 'ols', nome: 'reta de mínimos quadrados', cor: '#f59e0b', on: true },
+  { id: 'ts', nome: 'Theil-Sen', cor: '#f43f5e', on: true },
+  { id: 'low', nome: 'LOWESS', cor: '#10b981', on: true },
+  { id: 'knn', nome: 'kNN', cor: '#38bdf8', on: false }
+];
+const checks = document.getElementById('np-checks');
+checks.innerHTML = METODOS.map(m => `
+  <label class="ah-card p-2 flex items-center gap-2 cursor-pointer text-xs">
+    <input type="checkbox" data-id="${m.id}" class="w-4 h-4" ${m.on ? 'checked' : ''} style="accent-color:${m.cor}">
+    <span class="text-slate-200">${m.nome}</span>
+  </label>`).join('');
+checks.addEventListener('change', e => {
+  const m = METODOS.find(x => x.id === e.target.dataset.id); m.on = e.target.checked; npCv.fit();
+});
+
+const npCv = AH.canvas('npCanvas', desenha);
+function desenha(ctx, w, h) {
+  const P = pts();
+  const pad = 36;
+  const xmin = -5, xmax = 38, ymin = 0, ymax = 36;
+  const X = x => pad + (x - xmin) / (xmax - xmin) * (w - pad * 2);
+  const Y = y => h - pad - (y - ymin) / (ymax - ymin) * (h - pad * 2);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(X(xmin), Y(0)); ctx.lineTo(X(xmax), Y(0)); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif';
+  [-5, 10, 25, 38].forEach(t => ctx.fillText(t + '°C', X(t) - 10, h - 12));
+  ctx.save(); ctx.translate(12, h / 2 + 30); ctx.rotate(-Math.PI / 2); ctx.fillText('consumo (kWh/dia)', 0, 0); ctx.restore();
+
+  P.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.out ? 5 : 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = p.out ? 'rgba(244,63,94,.9)' : 'rgba(148,163,184,.7)'; ctx.fill();
+  });
+  const frac = +document.getElementById('np-frac').value, k = +document.getElementById('np-k').value;
+  const ols = olsFit(P), ts = theilSen(P);
+  const linha = (m, cor) => { ctx.strokeStyle = cor; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(X(xmin), Y(m.a + m.b * xmin)); ctx.lineTo(X(xmax), Y(m.a + m.b * xmax)); ctx.stroke(); };
+  const curva = (c, cor) => { ctx.strokeStyle = cor; ctx.lineWidth = 2.5; ctx.beginPath(); c.forEach((q, i) => i ? ctx.lineTo(X(q.x), Y(q.y)) : ctx.moveTo(X(q.x), Y(q.y))); ctx.stroke(); };
+  METODOS.forEach(m => {
+    if (!m.on) return;
+    if (m.id === 'ols') linha(ols, m.cor);
+    if (m.id === 'ts') linha(ts, m.cor);
+    if (m.id === 'low') curva(lowessCurva(P, frac), m.cor);
+    if (m.id === 'knn') curva(knnCurva(P, k), m.cor);
+  });
+  document.getElementById('np-ols').textContent = ols.b.toFixed(3).replace('.', ',');
+  document.getElementById('np-ts').textContent = ts.b.toFixed(3).replace('.', ',');
+  document.getElementById('np-frac-v').textContent = frac.toFixed(2).replace('.', ',');
+  document.getElementById('np-k-v').textContent = k;
+}
+document.getElementById('np-frac').addEventListener('input', () => npCv.fit());
+document.getElementById('np-k').addEventListener('input', () => npCv.fit());
+document.getElementById('np-outlier').addEventListener('click', e => {
+  USAR_OUT = !USAR_OUT;
+  e.currentTarget.innerHTML = USAR_OUT
+    ? '<i class="fa-solid fa-filter"></i> Remover falhas do medidor'
+    : '<i class="fa-solid fa-rotate-left"></i> Voltar com as falhas';
+  npCv.fit();
+});
+
+npCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>

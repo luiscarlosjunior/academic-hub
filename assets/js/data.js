@@ -637,7 +637,11 @@ const AH_DATA = {
         { id: '10-regressao-logistica', titulo: 'Regressão logística: probabilidade, chances e odds ratio', icone: 'fa-wave-square',
           resumo: 'Para desfechos sim/não: a curva em S, o logit, o odds ratio, o corte de decisão e a matriz de confusão, com um exemplo de cancelamento de assinatura.',
           trilha: 'regressao',
-          tags: ['Logit', 'Odds ratio', 'Classificação'], nivel: 'Avançado', minutos: 30 }
+          tags: ['Logit', 'Odds ratio', 'Classificação'], nivel: 'Avançado', minutos: 30 },
+        { id: '11-regressao-nao-parametrica', titulo: 'Regressão não paramétrica: Theil-Sen, LOWESS e kNN', icone: 'fa-wand-magic-sparkles',
+          resumo: 'Quando a forma da relação é desconhecida ou há curvas e outliers: medianas de inclinações, suavização local e vizinhos mais próximos, comparados lado a lado.',
+          trilha: 'regressao',
+          tags: ['Theil-Sen', 'LOWESS', 'kNN'], nivel: 'Avançado', minutos: 30 }
       ]
     }
   ]
