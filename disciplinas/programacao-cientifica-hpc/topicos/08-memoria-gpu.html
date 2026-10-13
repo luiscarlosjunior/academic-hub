@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hierarquia de memória da GPU: coalescência, memória compartilhada e bank conflicts · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Registradores, memória global, compartilhada e constante; como os acessos de um warp são agrupados (coalescência); e como a memória compartilhada resolve a transposição.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/08-memoria-gpu">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-memory text-amber-400 mr-2"></i>Tópico 8 · Hierarquia de memória da GPU</h2>
+  <div class="ah-prose">
+    <p>
+      Na GPU, a regra do tópico 2 vale com ainda mais força: <strong>o gargalo é quase sempre a memória</strong>. Uma GPU moderna pode executar dezenas de teraflops, mas
+      sua memória global entrega uma fração disso em largura de banda. Um kernel que lê a memória de forma desorganizada desperdiça a largura de banda, e o núcleo fica
+      parado esperando dados, mesmo com milhares de threads prontas.
+    </p>
+    <p>
+      Este tópico mostra os níveis de memória, como o acesso de um warp é agrupado em transações e como usar a memória compartilhada para reorganizar dados.
+    </p>
+  </div>
+</section>
+
+<section id="hierarquia" data-toc="Os níveis de memória" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2"></i>Os níveis de memória</h2>
+  <table class="ah-table">
+    <thead><tr><th>Memória</th><th>Escopo</th><th>Característica</th></tr></thead>
+    <tbody>
+      <tr><td>Registradores</td><td>uma thread</td><td>o mais rápido; limitados e divididos entre as threads do multiprocessador</td></tr>
+      <tr><td>Compartilhada (<code>__shared__</code>)</td><td>um bloco</td><td>on-chip, muito rápida; programada pelo usuário; dividida em bancos</td></tr>
+      <tr><td>Constante (<code>__constant__</code>)</td><td>toda a grade</td><td>cache de leitura; ótima quando todas as threads leem o mesmo endereço</td></tr>
+      <tr><td>Global (<code>cudaMalloc</code>)</td><td>toda a grade e o host</td><td>grande (GB), mas lenta; cache L2 em comum</td></tr>
+    </tbody>
+  </table>
+  <div class="ah-prose mt-5">
+    <p>
+      Um padrão recorrente nas aulas de GPU é: <strong>leia da memória global de forma organizada, trabalhe na memória compartilhada e escreva de forma organizada</strong>.
+      Os tópicos 9 e 10 usam esse padrão em redução e multiplicação de matrizes.
+    </p>
+  </div>
+</section>
+
+<section id="coalescencia" data-toc="Coalescência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-object-group text-emerald-400 mr-2"></i>Coalescência: o acesso de um warp</h2>
+  <div class="ah-prose">
+    <p>
+      Quando as 32 threads de um warp leem a memória global, o hardware tenta juntar esses acessos em poucas transações de tamanho fixo (32, 64 ou 128 bytes). Se as
+      threads leem endereços consecutivos, o warp inteiro cabe em uma ou duas transações. Esse é o caso <strong>coalescido</strong>. Se os endereços são espalhados,
+      o hardware faz uma transação por endereço, e a largura de banda efetiva cai na mesma proporção.
+    </p>
+    <p>
+      A consequência prática: o índice <code>threadIdx.x</code> deve variar no endereço que varia mais devagar, ou seja, o último índice de um array 2D em C. Trocar
+      essa relação é a causa mais comum de kernels lentos.
+    </p>
+  </div>
+<pre class="ah-code"><code>/* coalescido: thread i lê o elemento i */
+out[i] = in[i];
+
+/* passo 32: thread i lê o elemento 32 * i; o warp espalha os acessos */
+out[i] = in[(i * 32) % n];</code></pre>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-cuda/08-coalescencia.cu">08-coalescencia.cu</a>. Ele mede a cópia para passos 1, 2, 4, 8 e 32, e a transposição de uma matriz 4096 × 4096.</p>
+</section>
+
+<section id="transposta" data-toc="Transposição com compartilhada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-violet-400 mr-2"></i>Transposição: o problema e a solução</h2>
+  <div class="ah-prose">
+    <p>
+      Transpor uma matriz é um caso em que não há como ser coalescido nos dois sentidos ao mesmo tempo: se a leitura segue as linhas da entrada, a escrita segue as
+      colunas da saída, e vice-versa. A <strong>transposição ingênua</strong> escolhe um dos dois e paga no outro.
+    </p>
+    <p>
+      A solução usa a memória compartilhada como área de reorganização. Cada bloco lê um <em>tile</em> de linhas (coalescido), guarda o tile na memória
+      compartilhada, sincroniza com <code>__syncthreads()</code> e escreve o tile transposto em linhas (coalescido de novo). A leitura por colunas acontece agora na
+      memória compartilhada, que é rápida.
+    </p>
+    <p>
+      Repare no <code>tile[TILE][TILE + 1]</code>, com uma coluna extra. A memória compartilhada é dividida em <strong>bancos</strong> (32 em GPUs atuais), e
+      acessos de threads diferentes ao mesmo banco são serializados (<em>bank conflict</em>). Quando o tile tem 32 colunas, a leitura por colunas cai toda no mesmo banco.
+      A coluna extra desloca cada linha em um banco e elimina o conflito, com custo mínimo de memória.
+    </p>
+  </div>
+<pre class="ah-code"><code>__shared__ float tile[TILE][TILE + 1];     /* +1 evita bank conflicts */
+tile[threadIdx.y][threadIdx.x] = in[y * n + x];   /* leitura coalescida */
+__syncthreads();                           /* o tile inteiro está pronto */
+out[y2 * n + x2] = tile[threadIdx.x][threadIdx.y]; /* escrita coalescida */</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      O exemplo verifica que a transposta da transposta devolve a matriz original, para as duas versões. Os tempos dependem da GPU e não foram medidos neste material: a
+      diferença entre as versões costuma ser significativa, mas compare você mesmo com <code>nvprof</code> ou com o Nsight, como no tópico 14.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em um array 2D armazenado por linhas, qual atribuição de índices de thread tende a ser coalescida?</p>
+      <button class="ah-quiz-opt">threadIdx.x varia a coluna: threads consecutivas leem elementos consecutivos da mesma linha</button>
+      <button class="ah-quiz-opt">threadIdx.x varia a linha: threads consecutivas saltam uma linha inteira</button>
+      <button class="ah-quiz-opt">Tanto faz, o hardware reordena os acessos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O último índice do array deve variar com <code>threadIdx.x</code>, para que o warp leia endereços consecutivos.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o tile de memória compartilhada é declarado como <code>[TILE][TILE + 1]</code>?</p>
+      <button class="ah-quiz-opt">Para alinhar a memória a 64 bytes exigido pela GPU</button>
+      <button class="ah-quiz-opt">Porque o compilador exige um tamanho ímpar</button>
+      <button class="ah-quiz-opt">Para que a leitura por colunas caia em bancos diferentes e evite bank conflicts</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem a coluna extra, as threads de uma coluna acessam o mesmo banco e os acessos são serializados.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>KIRK, D. B.; HWU, W. W. <em>Programming Massively Parallel Processors</em>. 4. ed. Morgan Kaufmann, 2022. Cap. 4 (arquitetura de memória e acesso coalescido).</li>
+    <li>NVIDIA. <em>CUDA C++ Best Practices Guide</em>. Disponível em docs.nvidia.com/cuda.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

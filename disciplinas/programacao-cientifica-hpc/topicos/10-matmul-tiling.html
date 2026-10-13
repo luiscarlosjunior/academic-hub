@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplicação de matrizes em CUDA: da versão ingênua ao tiling · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Uma matriz multiplicada de duas formas: com acesso à memória global a cada produto e com tiles na memória compartilhada, verificadas contra a CPU.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/10-matmul-tiling">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-amber-400 mr-2"></i>Tópico 10 · Multiplicação de matrizes em CUDA</h2>
+  <div class="ah-prose">
+    <p>
+      A multiplicação de matrizes (GEMM) é o kernel mais importante da computação científica e do aprendizado de máquina: quase todo o custo de uma rede neural ou de
+      uma simulação linear passa por ela. Se você entender por que a versão ingênua é lenta e a versão com <em>tiling</em> é rápida, entende o essencial da otimização
+      de GPU.
+    </p>
+  </div>
+</section>
+
+<section id="ingenua" data-toc="Versão ingênua" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-1 text-sky-400 mr-2"></i>Versão ingênua: uma thread por elemento de C</h2>
+  <div class="ah-prose">
+    <p>
+      Para calcular <code>C = A × B</code> com N × N, cada thread calcula um elemento de <code>C</code> e faz N multiplicações e somas, lendo uma linha de A e uma
+      coluna de B direto da memória global. O problema: cada elemento de A é lido N vezes, por N threads diferentes, e cada elemento de B também. O mesmo dado trafega
+      pela memória muitas vezes.
+    </p>
+  </div>
+<pre class="ah-code"><code>__global__ void matmul_ingenua(const float *A, const float *B, float *C, int N) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row &lt; N &amp;&amp; col &lt; N) {
+        float acc = 0.0f;
+        for (int k = 0; k &lt; N; k++)
+            acc += A[row * N + k] * B[k * N + col];
+        C[row * N + col] = acc;
+    }
+}</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      A intensidade aritmética desse kernel é baixa (cerca de 2 flops para cada 8 bytes lidos, sem reuso no cache), então ele fica limitado pela memória, como previsto no
+      roofline do tópico 6.
+    </p>
+  </div>
+</section>
+
+<section id="tiling" data-toc="Tiling" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-grip text-emerald-400 mr-2"></i>Tiling: reusar o que já está perto</h2>
+  <div class="ah-prose">
+    <p>
+      A ideia é dividir A e B em <em>tiles</em> de TILE × TILE. O bloco de threads carrega um tile de A e um de B para a memória compartilhada, cada thread lê uma
+      posição de cada tile, e então o bloco inteiro calcula o produto parcial com esses dados. Em seguida carrega o próximo par de tiles. Cada elemento da memória
+      global é lido N / TILE vezes, e não N vezes: o reuso aumenta por um fator de TILE.
+    </p>
+    <p>
+      Dois <code>__syncthreads()</code> por fase têm papéis diferentes: o primeiro garante que o tile está completo antes do uso; o segundo garante que nenhuma thread
+      sobrescreve o tile que outra ainda está lendo.
+    </p>
+  </div>
+<pre class="ah-code"><code>for (int t = 0; t &lt; fases; t++) {
+    As[threadIdx.y][threadIdx.x] = A[row * N + (t * TILE + threadIdx.x)];
+    Bs[threadIdx.y][threadIdx.x] = B[(t * TILE + threadIdx.y) * N + col];
+    __syncthreads();                       /* tiles completos */
+    for (int k = 0; k &lt; TILE; k++)
+        acc += As[threadIdx.y][k] * Bs[k][threadIdx.x];
+    __syncthreads();                       /* ninguém sobrescreve ainda */
+}</code></pre>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-cuda/10-matmul-tiling.cu">10-matmul-tiling.cu</a>. Ele verifica as duas versões contra a CPU em N = 256 e mede as duas em N = 4096.</p>
+</section>
+
+<section id="medicao" data-toc="Como medir e o que esperar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-violet-400 mr-2"></i>Medindo: o que esperar</h2>
+  <div class="ah-prose">
+    <p>
+      O exemplo verifica a correção de ambas as versões antes de medir, o que é a ordem certa: um kernel rápido e errado não serve. A diferença de desempenho entre
+      elas costuma ser grande, na faixa de algumas vezes a dezenas de vezes, dependendo da GPU e do tamanho. Os números não estão neste material porque não há GPU
+      disponível onde ele foi preparado: execute no seu ambiente e compare com o teto de GFLOP/s da sua placa, no estilo do roofline do tópico 6.
+    </p>
+    <p>
+      Para ir além do tiling, as próximas otimizações são: carregar tiles com acessos vetorizados, usar registradores para acumular mais de um elemento por thread,
+      e tirar proveito de instruções de matriz (Tensor Cores), que a biblioteca cuBLAS já usa. Em código de produção, prefira o cuBLAS, e use o kernel escrito à mão para
+      entender o que ele faz por dentro.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com TILE = 16, quantas vezes cada elemento de A é lido da memória global no tiling, contra N vezes na versão ingênua, para N = 4096?</p>
+      <button class="ah-quiz-opt">4096 vezes nas duas</button>
+      <button class="ah-quiz-opt">256 vezes (N / TILE)</button>
+      <button class="ah-quiz-opt">16 vezes (TILE)</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. 4096 / 16 = 256 leituras por elemento, contra 4096 na versão ingênua: o reuso cresce com o tamanho do tile.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que existe o segundo <code>__syncthreads()</code> dentro do laço de fases do tiling?</p>
+      <button class="ah-quiz-opt">Para que nenhuma thread sobrescreva os tiles enquanto outra ainda os usa na fase atual</button>
+      <button class="ah-quiz-opt">Para liberar a memória global</button>
+      <button class="ah-quiz-opt">Para sincronizar com a CPU</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem ele, uma thread mais rápida poderia carregar o próximo tile por cima do atual antes que as outras terminassem de usá-lo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>KIRK, D. B.; HWU, W. W. <em>Programming Massively Parallel Processors</em>. 4. ed. Morgan Kaufmann, 2022. Cap. 5 (memória e tiling).</li>
+    <li>NVIDIA. <em>CUDA C++ Best Practices Guide</em>. Disponível em docs.nvidia.com/cuda.</li>
+    <li>GOTO, K.; VAN DE GEIJN, R. A. Anatomy of high-performance matrix multiplication. <em>ACM Transactions on Mathematical Software</em>, v. 34, n. 3, 2008.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

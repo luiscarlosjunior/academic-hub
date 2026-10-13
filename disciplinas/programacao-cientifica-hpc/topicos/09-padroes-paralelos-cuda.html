@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padrões paralelos em CUDA: redução, scan e histograma · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Redução em árvore com memória compartilhada, scan inclusivo por bloco e histograma com atomicAdd, com análise de quando cada padrão vale a pena.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/09-padroes-paralelos-cuda">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-amber-400 mr-2"></i>Tópico 9 · Padrões paralelos</h2>
+  <div class="ah-prose">
+    <p>
+      Muitos algoritmos paralelos úteis são combinações de um pequeno conjunto de padrões: <strong>mapa</strong> (aplicar a mesma função a cada elemento, como o
+      kernel do tópico 7), <strong>redução</strong> (combinar todos os elementos em um só valor), <strong>scan</strong> (todos os prefixos de uma operação associativa)
+      e <strong>histograma</strong> (contagem por categoria, com colisões). Reconhecer o padrão é o primeiro passo para escrever um kernel bom.
+    </p>
+  </div>
+</section>
+
+<section id="reducao" data-toc="Redução em árvore" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tree text-emerald-400 mr-2"></i>Redução: somar sem perder a ordem</h2>
+  <div class="ah-prose">
+    <p>
+      Somar n elementos sequencialmente leva n − 1 passos. Em paralelo, a redução em árvore faz pares de elementos se somarem: em cada passo, a metade das threads soma
+      seu par à distância <code>s</code>, e <code>s</code> é dividido por dois. Após log₂(n) passos, o resultado está no elemento 0.
+    </p>
+    <p>
+      Dentro de um bloco, a soma usa a memória compartilhada, e cada passo termina com <code>__syncthreads()</code>. Sem essa barreira, uma thread poderia ler um valor
+      que outra ainda não escreveu: uma condição de corrida. Cada bloco produz uma soma parcial, e a soma final é feita com um segundo passo (no exemplo, na CPU, porque
+      são poucos valores).
+    </p>
+  </div>
+<pre class="ah-code"><code>__shared__ float cache[BLOCO];
+cache[tid] = (i &lt; n) ? x[i] : 0.0f;
+__syncthreads();
+for (int s = blockDim.x / 2; s &gt; 0; s &gt;&gt;= 1) {
+    if (tid &lt; s)
+        cache[tid] += cache[tid + s];
+    __syncthreads();
+}
+if (tid == 0) parcial[blockIdx.x] = cache[0];</code></pre>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-cuda/09-reducao-scan.cu">09-reducao-scan.cu</a></p>
+  <div class="ah-prose mt-4">
+    <p>
+      Uma redução em CUDA com <code>atomicAdd</code> em cada thread também funciona, mas serializa as escritas no mesmo endereço e costuma ser mais lenta. A árvore na
+      memória compartilhada evita essa contenção. Este é um bom exemplo de que a forma do algoritmo importa tanto quanto o número de threads.
+    </p>
+  </div>
+</section>
+
+<section id="scan" data-toc="Scan por bloco" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-long text-sky-400 mr-2"></i>Scan: todos os prefixos</h2>
+  <div class="ah-prose">
+    <p>
+      O <strong>scan inclusivo</strong> produz <code>saída[i] = x[0] + x[1] + ... + x[i]</code>. Ele é a base de muitos algoritmos: compactação de dados (saber onde cada
+      elemento válido vai parar), ordenação por raiz, cálculo de índices em estruturas esparsas. A versão de Hillis-Steele usado aqui faz log₂(B) passos, em que cada
+      thread soma o valor de quem está <code>deslocamento</code> posições antes dela.
+    </p>
+    <p>
+      Esta versão é a mais simples e faz mais trabalho do que o necessário (O(n log n) no total, contra O(n) da versão de Blelloch). Para produção, use a biblioteca
+      <strong>CUB</strong> ou o Thrust, que implementam o scan eficiente. Entender a versão simples ajuda a ler as outras.
+    </p>
+  </div>
+<pre class="ah-code"><code>for (int d = 1; d &lt; blockDim.x; d &lt;&lt;= 1) {
+    int v = (tid &gt;= d) ? temp[tid - d] : 0;
+    __syncthreads();      /* todos leram antes de qualquer escrita */
+    temp[tid] += v;
+    __syncthreads();
+}</code></pre>
+</section>
+
+<section id="histograma" data-toc="Histograma e atomicAdd" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-violet-400 mr-2"></i>Histograma: colisões e operações atômicas</h2>
+  <div class="ah-prose">
+    <p>
+      Um histograma conta quantos elementos caem em cada categoria. Em paralelo, duas threads podem querer incrementar o mesmo bin ao mesmo tempo. Sem proteção, uma das
+      contagens se perde. <code>atomicAdd</code> faz a leitura, a soma e a escrita como uma operação indivisível.
+    </p>
+    <p>
+      O custo é a serialização das colisões: se todos os elementos caem no mesmo bin, o kernel vira quase sequencial. Duas técnicas reduzem isso: histogramas parciais
+      na memória compartilhada (um por bloco, somados no final) e a distribuição dos dados para que as colisões sejam raras. O laço de passo (<em>grid-stride loop</em>)
+      deixa o kernel funcionar com qualquer tamanho de grade.
+    </p>
+  </div>
+<pre class="ah-code"><code>__global__ void histograma(const unsigned char *x, unsigned int *bins, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int passo = blockDim.x * gridDim.x;
+    for (; i &lt; n; i += passo)
+        atomicAdd(&amp;bins[x[i]], 1u);
+}</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      <strong>Quando cada padrão vale a pena:</strong> redução e scan são ótimos quando a operação é associativa e o custo por elemento é baixo; o limite passa a ser a
+      largura de banda. O histograma é bom quando as categorias são muitas ou os dados são espalhados. Quando há poucas categorias muito disputadas, a versão com
+      histogramas parciais por bloco tende a ser bem mais rápida.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o <code>__syncthreads()</code> aparece dentro do laço da redução em árvore?</p>
+      <button class="ah-quiz-opt">Para medir o tempo de cada passo</button>
+      <button class="ah-quiz-opt">Para garantir que todas as threads terminem um passo antes que o próximo leia os valores escritos</button>
+      <button class="ah-quiz-opt">Para liberar a memória compartilhada entre os passos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem a barreira, uma thread poderia ler um valor que outra ainda não escreveu, o que é uma condição de corrida.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Muitas threads incrementam o mesmo bin de um histograma. O que acontece sem <code>atomicAdd</code>?</p>
+      <button class="ah-quiz-opt">Algumas incrementos se perdem, porque leitura, soma e escrita não são indivisíveis</button>
+      <button class="ah-quiz-opt">O resultado é sempre correto, porque a GPU reordena as threads</button>
+      <button class="ah-quiz-opt">O kernel falha ao compilar</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A condição de corrida é clássica: duas threads leem o mesmo valor e escrevem o mesmo resultado, perdendo um incremento.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>KIRK, D. B.; HWU, W. W. <em>Programming Massively Parallel Processors</em>. 4. ed. Morgan Kaufmann, 2022. Cap. 6 (padrões de computação paralela).</li>
+    <li>HARRIS, M. <em>Optimizing Parallel Reduction in CUDA</em>. NVIDIA, documento técnico, 2007.</li>
+    <li>HILLIS, W. D.; STEELE, G. L. Data parallel algorithms. <em>Communications of the ACM</em>, v. 29, n. 12, p. 1170–1183, 1986.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

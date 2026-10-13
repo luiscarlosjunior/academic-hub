@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPUs e o modelo de programação CUDA: kernels, threads e blocos · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Por que GPUs são diferentes das CPUs, a hierarquia grade-bloco-thread, o primeiro kernel, as cópias entre host e device e o cálculo do índice global, com um exemplo completo.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/07-gpu-arquitetura-cuda">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microchip text-amber-400 mr-2"></i>Tópico 7 · GPUs e CUDA</h2>
+  <div class="ah-prose">
+    <p>
+      Uma CPU é projetada para executar poucas threads muito rápido, com caches grandes e lógica de controle sofisticada. Uma GPU faz o oposto: tem milhares de
+      unidades de execução simples, pensadas para aplicar a mesma operação a muitos dados ao mesmo tempo. Para simulações científicas, que são em grande parte
+      laços sobre malhas, vetores e matrizes, isso é uma combinação poderosa.
+    </p>
+    <p>
+      <strong>CUDA</strong> é a plataforma da NVIDIA para programar essas GPUs. Ela estende C e C++ com um modelo de execução, uma hierarquia de threads e uma API para
+      gerenciar memória e lançar trabalho. Este tópico apresenta o modelo; os tópicos 8 a 12 tratam de memória, padrões e casos reais.
+    </p>
+  </div>
+</section>
+
+<section id="host-device" data-toc="Host e device" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-sky-400 mr-2"></i>Host e device: dois mundos com memórias separadas</h2>
+  <div class="ah-prose">
+    <p>
+      Em CUDA, a CPU é o <strong>host</strong> e a GPU é o <strong>device</strong>. Cada um tem sua própria memória. Um ponteiro obtido com <code>malloc</code> aponta
+      para a memória do host; um ponteiro obtido com <code>cudaMalloc</code> aponta para a memória da GPU, e o host não pode desreferenciá-lo diretamente. Por isso
+      o fluxo típico de um programa CUDA é sempre o mesmo:
+    </p>
+    <ol>
+      <li>Alocar memória na GPU com <code>cudaMalloc</code>.</li>
+      <li>Copiar os dados de entrada do host para a GPU com <code>cudaMemcpy</code>.</li>
+      <li>Lançar um <strong>kernel</strong>, a função que roda na GPU.</li>
+      <li>Copiar o resultado de volta e liberar a memória.</li>
+    </ol>
+    <p>
+      Cópias entre host e device atravessam o barramento PCIe (ou NVLink, em servidores), que é muito mais lento que a memória da GPU. Um erro comum de iniciantes é
+      copiar dados a cada operação pequena: o custo da cópia passa a dominar o ganho da GPU.
+    </p>
+  </div>
+</section>
+
+<section id="kernel" data-toc="Kernel e hierarquia de threads" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Kernel, grade, bloco e thread</h2>
+  <div class="ah-prose">
+    <p>
+      Um kernel é declarado com <code>__global__</code> e lançado com a sintaxe <code>&lt;&lt;&lt;blocos, threads&gt;&gt;&gt;</code>. Esse lançamento cria uma <strong>grade</strong>
+      de <strong>blocos</strong>, e cada bloco tem várias <strong>threads</strong>. Todas executam o mesmo código; cada uma descobre sua posição com as variáveis
+      <code>threadIdx</code> (posição dentro do bloco), <code>blockIdx</code> (posição do bloco na grade) e <code>blockDim</code> (tamanho do bloco).
+    </p>
+    <p>
+      O índice global de cada thread, que é o que se usa para escolher o elemento a processar, é:
+    </p>
+    <p class="text-center font-mono text-sky-300 my-4">i = blockIdx.x × blockDim.x + threadIdx.x</p>
+    <p>
+      Como o número de threads costuma não ser múltiplo exato do tamanho do vetor, o último bloco tem threads além do fim. A guarda <code>if (i &lt; n)</code> é obrigatória.
+    </p>
+  </div>
+<pre class="ah-code"><code>__global__ void soma_vetores(const float *a, const float *b, float *c, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; n)
+        c[i] = a[i] + b[i];
+}
+
+int blocos = (n + threads - 1) / threads;          /* arredonda para cima */
+soma_vetores&lt;&lt;&lt;blocos, threads&gt;&gt;&gt;(da, db, dc, n);</code></pre>
+</section>
+
+<section id="warps" data-toc="Warps e SIMT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-violet-400 mr-2"></i>Warps: a unidade real de execução</h2>
+  <div class="ah-prose">
+    <p>
+      O hardware não executa threads uma a uma. Threads de um bloco são agrupadas em <strong>warps</strong> de 32, que executam a mesma instrução em lockstep (modelo
+      <strong>SIMT</strong>, <em>single instruction, multiple threads</em>). Por isso, dentro de um warp, um <code>if</code> com caminhos diferentes para threads diferentes
+      faz as duas partes serem executadas em sequência: é a <strong>divergência de warp</strong>, tratada no tópico 11.
+    </p>
+    <p>
+      Por isso, o tamanho do bloco é um múltiplo de 32 (128, 256 ou 512 são escolhas comuns). Um bloco de 100 threads ocuparia quatro warps, com 28 threads inativas no último.
+    </p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: soma de vetores" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplo completo: soma de vetores com medição</h2>
+  <div class="ah-prose">
+    <p>
+      O programa a seguir soma dois vetores de 16 milhões de floats, mede o tempo do kernel com eventos CUDA, calcula a largura de banda efetiva e verifica o resultado
+      contra a CPU. Observe a checagem de erro em cada chamada da API e depois do lançamento do kernel.
+    </p>
+  </div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-cuda/07-vetor-add.cu">07-vetor-add.cu</a></p>
+<pre class="ah-code"><code>// Macro de checagem: sem isso, um erro passa em silêncio
+#define CHECK(chamada)                                  \
+    do {                                                \
+        cudaError_t e_ = (chamada);                     \
+        if (e_ != cudaSuccess) {                        \
+            fprintf(stderr, "erro CUDA %s em %s:%d\n",  \
+                    cudaGetErrorString(e_), __FILE__, __LINE__); \
+            exit(EXIT_FAILURE);                         \
+        }                                               \
+    } while (0)
+
+CHECK(cudaMalloc(&amp;da, bytes));
+CHECK(cudaMemcpy(da, ha, bytes, cudaMemcpyHostToDevice));
+soma_vetores&lt;&lt;&lt;blocos, threads&gt;&gt;&gt;(da, db, dc, n);
+CHECK(cudaGetLastError());          /* erro de configuração do lançamento */
+CHECK(cudaMemcpy(hc, dc, bytes, cudaMemcpyDeviceToHost));</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Dois detalhes importantes. <code>cudaGetLastError()</code> captura erros do <em>lançamento</em> (por exemplo, um número de threads inválido), que não são
+      retornados pelo próprio lançamento. E a medição com <code>cudaEvent</code> mede o tempo na GPU, sem contar o tempo de cópia; por isso é preciso separar
+      as duas medidas ao analisar o desempenho.
+    </p>
+    <p>
+      <strong>Nota sobre a execução:</strong> este material foi preparado em um Mac sem GPU NVIDIA e sem <code>nvcc</code>, e não foi executado em GPU. O código foi
+      verificado apenas com checagem de sintaxe e tipos por um cabeçalho de substituição. Execute em uma máquina com CUDA para obter os tempos.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um vetor tem 1000 elementos e o bloco tem 256 threads. Quantos blocos são necessários?</p>
+      <button class="ah-quiz-opt">3</button>
+      <button class="ah-quiz-opt">4</button>
+      <button class="ah-quiz-opt">1000</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. (1000 + 255) / 256 = 4 blocos, com 1024 threads ao todo. As 24 threads excedentes são barradas pela guarda <code>i &lt; n</code>.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um ponteiro de <code>cudaMalloc</code> não pode ser lido diretamente na CPU?</p>
+      <button class="ah-quiz-opt">Porque é sempre um ponteiro nulo</button>
+      <button class="ah-quiz-opt">Porque a CPU não suporta ponteiros de 64 bits</button>
+      <button class="ah-quiz-opt">Porque ele aponta para a memória da GPU, separada da memória do host</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Os dois espaços de memória são separados; a cópia com <code>cudaMemcpy</code> é o caminho entre eles.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>KIRK, D. B.; HWU, W. W. <em>Programming Massively Parallel Processors: A Hands-on Approach</em>. 4. ed. Morgan Kaufmann, 2022. Cap. 1–3.</li>
+    <li>NVIDIA. <em>CUDA C++ Programming Guide</em>. Disponível em docs.nvidia.com/cuda.</li>
+    <li>SANDERS, J.; KANDROT, E. <em>CUDA by Example: An Introduction to General-Purpose GPU Programming</em>. Addison-Wesley, 2010.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
