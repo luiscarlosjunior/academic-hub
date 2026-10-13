@@ -245,6 +245,86 @@ precisão  = 0.729   (dos que o modelo marcou, quantos cancelaram)</code></pre>
 </section>
 
 <!-- ============================ FIXAÇÃO ============================ -->
+<section id="aprofundar" data-toc="Aprofundando: de onde vem o logit e como ler a matriz" class="ah-card p-6 sm:p-8 ah-reveal">
+
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-magnifying-glass-plus text-amber-400 mr-2"></i>Aprofundando: de onde vem o logit e como ler a matriz</h2>
+
+  <h3 class="ah-h3 mt-2 mb-3">1. Da reta à curva em S</h3>
+  <div class="ah-prose">
+    <p>
+      Queremos um modelo em que o preditor linear z = b₀ + b₁x₁ + … possa ser qualquer número real, mas a probabilidade p
+      fique entre 0 e 1. A função que faz essa ponte é a logística:
+    </p>
+  </div>
+  <div class="ah-card p-5 mb-4">
+    <div class="font-mono text-sm text-center">p = 1 / (1 + e⁻ᶻ) &nbsp;&nbsp;⇔&nbsp;&nbsp; z = ln( p / (1 − p) ) = logit(p)</div>
+  </div>
+  <div class="overflow-x-auto mb-4">
+    <table class="ah-table text-sm">
+      <thead><tr><th>Probabilidade p</th><th>Chances p / (1 − p)</th><th>Logit ln(chances)</th></tr></thead>
+      <tbody>
+        <tr><td>0,20</td><td>0,25</td><td>−1,39</td></tr>
+        <tr><td>0,50</td><td>1,00</td><td>0,00</td></tr>
+        <tr><td>0,80</td><td>4,00</td><td>+1,39</td></tr>
+        <tr><td>0,90</td><td>9,00</td><td>+2,20</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Por isso o logit é o que varia de forma linear: cada unidade de x soma b ao logit, e isso multiplica as chances por eᵇ.
+      Na escala de probabilidade, o efeito não é constante: ele é maior perto de p = 0,5 e menor nas caudas, onde a curva
+      achata. Esse é o motivo de o odds ratio ser mais estável de interpretar do que “o aumento da probabilidade”.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">2. Como o modelo é estimado</h3>
+  <div class="ah-prose">
+    <p>
+      Não existe fórmula fechada como na regressão linear. O computador busca os b que tornam os dados observados os mais
+      prováveis possíveis (máxima verossimilhança), por um método iterativo que ajusta os coeficientes passo a passo. Por
+      isso o statsmodels mostra a log-verossimilhança e o pseudo R², e não o R² clássico.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">3. Ler a matriz de confusão sem se perder</h3>
+  <div class="overflow-x-auto mb-4">
+    <table class="ah-table text-sm">
+      <thead><tr><th></th><th>Previsto: cancela</th><th>Previsto: fica</th></tr></thead>
+      <tbody>
+        <tr><td class="font-semibold text-white">Cancelou de fato</td><td>VP = 188</td><td>FN = 47</td></tr>
+        <tr><td class="font-semibold text-white">Ficou de fato</td><td>FP = 70</td><td>VN = 95</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="ah-card p-4"><h4 class="text-sm font-semibold text-white mb-1">Precisão = VP / (VP + FP)</h4>
+      <p class="text-xs text-slate-400">188 / 258 = 0,729. Dos alertas, quantos estavam certos. Importa quando agir sobre um falso alerta é caro.</p></div>
+    <div class="ah-card p-4"><h4 class="text-sm font-semibold text-white mb-1">Recall = VP / (VP + FN)</h4>
+      <p class="text-xs text-slate-400">188 / 235 = 0,800. Dos que iam cancelar, quantos foram pegos. Importa quando deixar passar é caro.</p></div>
+    <div class="ah-card p-4"><h4 class="text-sm font-semibold text-white mb-1">F1 = 2 · P · R / (P + R)</h4>
+      <p class="text-xs text-slate-400">2 · 0,729 · 0,800 / 1,529 = 0,763. Um resumo que só é alto se precisão e recall forem altos juntos.</p></div>
+    <div class="ah-card p-4"><h4 class="text-sm font-semibold text-white mb-1">Acurácia = (VP + VN) / total</h4>
+      <p class="text-xs text-slate-400">(188 + 95) / 400 = 0,708. Engana quando uma classe é rara: um modelo que nunca prevê cancelamento teria acurácia alta.</p></div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">4. Escolher o corte e a curva ROC</h3>
+  <div class="ah-prose">
+    <p>
+      O corte 0,5 é um ponto de partida, não uma regra. Baixar o corte aumenta o recall e reduz a precisão. A curva ROC mostra
+      isso para todos os cortes de uma vez: no eixo horizontal, a taxa de falsos positivos; no vertical, o recall. A área
+      sob ela (AUC) vale 0,5 para um modelo que chuta e 1,0 para um modelo perfeito. Ela resume a capacidade de ordenar os
+      clientes do mais ao menos propenso a cancelar.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div><strong>Calibração:</strong> um bom modelo não só ordena, mas acerta a probabilidade. Se os clientes com P = 0,7 cancelam
+    de fato em 70% dos casos, o modelo está calibrado. Vale checar isso antes de usar a probabilidade como preço ou custo.</div>
+  </div>
+
+</section>
+
 <section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-amber-400 mr-2"></i>Teste seu entendimento</h2>
 
