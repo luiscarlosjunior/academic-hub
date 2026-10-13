@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reamostragem e Validação · AcademicHub</title>
+<meta name="description" content="Bootstrap para intervalos sem supor distribuição, teste de permutação e validação cruzada para escolher modelos sem sobreajuste, com animações e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔁</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/14-reamostragem-validacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Reusar a amostra" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-cyan-400 mr-2"></i>Reusar a amostra para confiar nela</h2>
+  <div class="ah-prose">
+    <p>
+      Muitas fórmulas de intervalo e de teste supõem normalidade ou uma forma específica. E para estatísticas como a mediana
+      ou o erro de um modelo, a fórmula nem sempre existe. A ideia da <strong>reamostragem</strong> é usar o próprio computador
+      para simular o acaso: <strong>sortear de novo, com base nos dados que já temos</strong>, e ver quanto a estatística oscila.
+    </p>
+    <p>
+      Há duas grandes famílias: o <strong>bootstrap</strong> (reamostrar com reposição para medir incerteza) e a
+      <strong>validação</strong> (separar dados para treinar e para testar, e medir a capacidade de prever casos novos).
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-cyan-500">
+      <div class="text-xs font-bold text-cyan-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma pesquisa de satisfação com 60 clientes dá uma nota média. Quão precisa é essa nota? O bootstrap responde.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-cyan-500">
+      <div class="text-xs font-bold text-cyan-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um modelo que prevê vendas parece ótimo nos dados usados para criá-lo. Ele prevê bem o mês seguinte?</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-cyan-500">
+      <div class="text-xs font-bold text-cyan-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Dois métodos de treino de atletas: a diferença observada é real ou é só a forma como os atletas foram sorteados?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ BOOTSTRAP ============================ -->
+<section id="bootstrap" data-toc="Bootstrap: incerteza sem fórmula" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-cyan-400 mr-2"></i>Bootstrap: a incerteza de qualquer estatística</h2>
+  <p class="ah-lead text-sm mb-5">
+    Sorteie n valores da amostra <strong class="text-white">com reposição</strong> (um mesmo valor pode aparecer duas vezes),
+    calcule a estatística de interesse e repita milhares de vezes. A distribuição dessas estatísticas é uma estimativa da
+    incerteza. <strong class="text-white">Acumule reamostragens e veja o histograma se formar.</strong>
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:280px"><canvas id="bootCanvas" style="height:280px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="boot-100" class="ah-btn text-xs"><i class="fa-solid fa-plus"></i> +100 reamostragens</button>
+        <button id="boot-novo" class="ah-btn ah-btn-ghost text-xs"><i class="fa-solid fa-shuffle"></i> Nova amostra</button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Reamostragens</div>
+        <div id="boot-n" class="text-xl font-bold text-white font-mono">0</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Mediana da amostra</div>
+        <div id="boot-med" class="text-xl font-bold text-emerald-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">IC percentil 95%</div>
+        <div id="boot-ic" class="text-base font-bold text-amber-300 font-mono">—</div>
+        <p class="text-[11px] text-slate-500 mt-1">2,5% e 97,5% das medianas reamostradas</p></div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Por que funciona?</strong> A amostra é a melhor aproximação que temos da população. Reamostrar a amostra
+      imita o processo de coletar novas amostras da população, e a variação entre as reamostras estima a variação entre
+      amostras reais.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PERMUTAÇÃO ============================ -->
+<section id="permutacao" data-toc="Teste de permutação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-cyan-400 mr-2"></i>Teste de permutação: e se os rótulos fossem trocados?</h2>
+  <div class="ah-prose">
+    <p>
+      Se a hipótese nula é “os dois grupos vêm da mesma distribuição”, então os rótulos “grupo A” e “grupo B” são arbitrários.
+      O teste de permutação embaralha os rótulos milhares de vezes, recalcula a diferença a cada vez, e pergunta: a diferença
+      observada é <em>rara</em> entre as embaralhadas? O p-valor é a fração de embaralhamentos tão extremos quanto o observado.
+    </p>
+    <p>
+      Não exige normalidade nem fórmula. Em troca, exige que o desenho seja aleatório (ou que a hipótese nula seja a de
+      intercambialidade). Foi formalizado pela ideia de aleatorização de Ronald Fisher (1935).
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <div class="font-mono text-sm text-center">p = #{ |diferença permutada| ≥ |diferença observada| } / B</div>
+  </div>
+</section>
+
+<!-- ============================ VALIDAÇÃO CRUZADA ============================ -->
+<section id="validacao" data-toc="Validação: prever o que não viu" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-cyan-400 mr-2"></i>Validação: escolher o modelo pelo que não viu</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um polinômio de grau alto sempre se ajusta melhor aos dados de treino. Mas o que importa é prever casos novos. <strong class="text-white">Aumente o grau</strong>
+    e observe: a curva passa cada vez mais perto dos pontos de treino, enquanto o erro de validação (pontos que o modelo
+    não viu) começa a subir. O grau escolhido é o do menor erro de validação.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:300px"><canvas id="valCanvas" style="height:300px"></canvas></div>
+      <label class="block text-xs text-slate-400 mt-3">Grau do polinômio: <span id="val-g-v" class="font-mono text-white">1</span>
+        <input id="val-g" type="range" min="1" max="9" step="1" value="1" class="w-full accent-cyan-500"></label>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Erro no treino (RMSE)</div>
+        <div id="val-tr" class="text-xl font-bold text-sky-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Erro na validação (RMSE)</div>
+        <div id="val-va" class="text-xl font-bold text-amber-300 font-mono">—</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Melhor grau pela validação</div>
+        <div id="val-best" class="text-xl font-bold text-emerald-300 font-mono">—</div></div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        <span class="text-sky-300">Azul</span>: pontos de treino. <span class="text-amber-300">Âmbar</span>: pontos de validação.
+        Quando o erro de treino cai e o de validação sobe, o modelo está decorando o ruído: sobreajuste.
+      </p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <div class="font-mono text-sm text-center">k-fold: divida em k partes; treine em k−1 e valide na que sobrou; repita k vezes e faça a média</div>
+    <p class="text-xs text-slate-400 text-center mt-2">A animação usa uma divisão treino/validação. A validação cruzada faz esse processo k vezes, para que todos os pontos sirvam de validação uma vez.</p>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-cyan-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Bradley Efron · 1979</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Introduziu o bootstrap: estimar a distribuição de uma estatística reamostrando a própria amostra com reposição. O nome vem da expressão “puxar-se pelas próprias botas”.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Ronald A. Fisher · 1935</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Em <em>The Design of Experiments</em>, mostrou como a aleatorização do experimento justifica testes exatos baseados em permutações dos dados.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">Mervyn Stone · 1974 e Seymour Geisser · 1975</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Formalizaram a validação cruzada como forma de escolher modelos e estimar seu erro de previsão usando dados não usados no ajuste.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Quenouille e Tukey · 1949–1958</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propuseram o jackknife, uma reamostragem por remoção de observações, precursora do bootstrap e da validação cruzada.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-cyan-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Separar treino e teste</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Nunca avaliar um modelo nos mesmos dados em que foi ajustado. É a regra que evita a maioria dos erros.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Bootstrap e k-fold</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Estimar intervalos de estatísticas complicadas e escolher hiperparâmetros com validação cruzada.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Viés, variância e dados dependentes</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Entender o compromisso entre viés e variância, e adaptar a reamostragem a séries temporais e grupos (validação por bloco ou por grupo).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-cyan-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-cyan-300">disciplinas/analise-dados/exemplos-python/14-reamostragem-validacao.py</code>.
+    Usa numpy para o bootstrap e a permutação, e <strong>scikit-learn</strong> para o <code>KFold</code> e o pipeline polinomial.
+  </p>
+
+  <p class="text-xs font-bold text-cyan-300 mb-2">1 · Bootstrap da mediana</p>
+<pre class="ah-code"><code>reamostras = np.<span class="fn">array</span>([np.<span class="fn">median</span>(rng.<span class="fn">choice</span>(tempos, size=<span class="fn">len</span>(tempos), replace=<span class="kw">True</span>)) <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(B)])
+ic_inf, ic_sup = np.<span class="fn">percentile</span>(reamostras, [<span class="num">2.5</span>, <span class="num">97.5</span>])</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>amostra: n = 60, mediana = 26.35 min
+erro padrão bootstrap = 1.43 min
+IC percentil 95% = [23.60 ; 28.35] min</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Validação cruzada: erro de treino × validação</p>
+<pre class="ah-code"><code>kf = <span class="fn">KFold</span>(n_splits=<span class="num">5</span>, shuffle=<span class="kw">True</span>, random_state=<span class="num">0</span>)
+modelo = <span class="fn">make_pipeline</span>(<span class="fn">PolynomialFeatures</span>(grau), <span class="fn">StandardScaler</span>(), <span class="fn">LinearRegression</span>()).<span class="fn">fit</span>(X[tr], y[tr])</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>grau | RMSE treino | RMSE validação
+   1 |    1.790    |     1.783
+   2 |    1.486    |     1.552
+   5 |    1.467    |     1.598
+   9 |    1.457    |     1.652
+grau escolhido pela validação: 2</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Veja a coluna de validação:</strong> ela é mínima no grau 2 e sobe depois. O treino continua caindo até o grau 9,
+      porque o modelo decora o ruído. Por isso a escolha é pela validação, nunca pelo treino.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-cyan-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Vazamento de dados</h3>
+      <p class="text-xs text-slate-400">Padronizar todos os dados antes de dividir em treino e validação. A média da validação entra no treino. Ajuste o pré-processamento só no treino.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Bootstrap com amostra pequena</h3>
+      <p class="text-xs text-slate-400">Com 5 observações, as reamostragens repetem demais e o intervalo fica enganoso. O bootstrap depende de uma amostra razoavelmente representativa.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Validação em séries temporais embaralhada</h3>
+      <p class="text-xs text-slate-400">Em dados com ordem no tempo, o k-fold aleatório deixa o futuro treinar o passado. Use validação por ordem de data (tópico 13).</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Relatar o melhor fold</h3>
+      <p class="text-xs text-slate-400">Escolher a melhor das cinco divisões e reportar só ela. O resultado honesto é a média e a dispersão entre os folds.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-cyan-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Um modelo tem erro de treino de 0,5 e erro de validação de 3,0. O que isso indica?</p>
+    <button class="ah-quiz-opt">Um modelo excelente, com erro baixo</button>
+    <button class="ah-quiz-opt">Sobreajuste: o modelo decorou o treino e não generaliza</button>
+    <button class="ah-quiz-opt">Que a validação está errada e deve ser ignorada</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Erro de treino muito menor que o de validação é a assinatura do sobreajuste. O que vale é o erro em dados que o modelo
+      não viu, e ele é alto.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Você quer um intervalo de confiança para a mediana de um tempo de entrega assimétrico, sem fórmula conhecida. Qual método é o indicado?</p>
+    <button class="ah-quiz-opt">Teste t de uma amostra, pois é a ferramenta padrão para médias</button>
+    <button class="ah-quiz-opt">Um intervalo baseado em normalidade, com desvio padrão e 1,96</button>
+    <button class="ah-quiz-opt">Bootstrap da mediana, reamostrando a amostra com reposição</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      O teste t é para médias e supõe normalidade. Para a mediana de dados assimétricos, o bootstrap estima a incerteza
+      diretamente, sem fórmula fechada e sem supor forma para a distribuição.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Dados e utilidades ===================== */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+let rnd = semente(1414);
+function gauss() { const u = Math.max(rnd(), 1e-9), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const mediana = v => { const s = [...v].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+/* Amostra assimétrica de tempos de entrega (lognormal) */
+let AMOSTRA = [];
+function novaAmostra(seed) {
+  rnd = semente(seed);
+  AMOSTRA = Array.from({ length: 60 }, () => Math.exp(3.2 + 0.35 * gauss()));
+  BOOT = []; acumB = 0;
+  atualizaBoot();
+}
+
+/* ===================== Bootstrap ===================== */
+let BOOT = [], acumB = 0;
+const bootCv = AH.canvas('bootCanvas', desenhaBoot);
+function sortear() {
+  const n = AMOSTRA.length, r = [];
+  for (let i = 0; i < n; i++) r.push(AMOSTRA[Math.floor(Math.random() * n)]);
+  return mediana(r);
+}
+function atualizaBoot() {
+  document.getElementById('boot-n').textContent = BOOT.length;
+  document.getElementById('boot-med').textContent = mediana(AMOSTRA).toFixed(2).replace('.', ',') + ' min';
+  if (BOOT.length > 10) {
+    const s = [...BOOT].sort((a, b) => a - b);
+    const lo = s[Math.floor(0.025 * s.length)], hi = s[Math.floor(0.975 * s.length)];
+    document.getElementById('boot-ic').textContent = `[${lo.toFixed(2).replace('.', ',')} ; ${hi.toFixed(2).replace('.', ',')}] min`;
+  }
+  bootCv.fit();
+}
+function desenhaBoot(ctx, w, h) {
+  const x0 = 40, x1 = w - 16, yB = h - 28, yT = 16;
+  const vmin = 17, vmax = 38, bins = 42;
+  const X = v => x0 + (v - vmin) / (vmax - vmin) * (x1 - x0);
+  const cont = new Array(bins).fill(0);
+  BOOT.forEach(v => { const b = Math.floor((v - vmin) / (vmax - vmin) * bins); if (b >= 0 && b < bins) cont[b]++; });
+  const maior = Math.max(1, ...cont);
+  ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(x0, yB); ctx.lineTo(x1, yB); ctx.stroke();
+  cont.forEach((c, b) => {
+    const bh = c / maior * (yB - yT - 8);
+    const xb = x0 + b / bins * (x1 - x0);
+    ctx.fillStyle = 'rgba(34,211,238,.6)';
+    ctx.fillRect(xb + 1, yB - bh, (x1 - x0) / bins - 2, bh);
+  });
+  if (BOOT.length > 10) {
+    const s = [...BOOT].sort((a, b) => a - b);
+    const lo = s[Math.floor(0.025 * s.length)], hi = s[Math.floor(0.975 * s.length)];
+    ctx.fillStyle = 'rgba(245,158,11,.12)';
+    ctx.fillRect(X(lo), yT, X(hi) - X(lo), yB - yT);
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    [lo, hi].forEach(v => { ctx.beginPath(); ctx.moveTo(X(v), yT); ctx.lineTo(X(v), yB); ctx.stroke(); });
+    ctx.setLineDash([]);
+  }
+  const med = mediana(AMOSTRA);
+  ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(X(med), yT); ctx.lineTo(X(med), yB); ctx.stroke();
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('mediana de cada reamostragem · verde = mediana da amostra · âmbar = IC 95%', x0 + 4, yT + 12);
+  ctx.fillText('minutos', x1 - 50, h - 8);
+}
+function reamostra(n) { for (let i = 0; i < n; i++) BOOT.push(sortear()); atualizaBoot(); }
+document.getElementById('boot-100').addEventListener('click', () => reamostra(100));
+document.getElementById('boot-novo').addEventListener('click', () => novaAmostra(Math.floor(Math.random() * 100000)));
+
+/* ===================== Validação: grau do polinômio ===================== */
+/* Dados: distância × tempo de entrega, com ruído. Treino 70%, validação 30% (divisão fixa) */
+const DIST = [], TEMPO = [];
+for (let i = 0; i < 80; i++) {
+  const d = 0.5 + rnd() * 11.5;
+  DIST.push(d);
+  TEMPO.push(8 + 2.2 * d - 0.08 * d * d + gauss() * 1.5);
+}
+const IDX_TR = DIST.map((_, i) => i).filter(i => i % 10 < 7);
+const IDX_VA = DIST.map((_, i) => i).filter(i => i % 10 >= 7);
+
+function inversa(A) {
+  const n = A.length, M = A.map((row, i) => [...row, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    const piv = M[c][c];
+    for (let j = 0; j < 2 * n; j++) M[c][j] /= piv;
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c]; for (let j = 0; j < 2 * n; j++) M[r][j] -= f * M[c][j]; }
+  }
+  return M.map(row => row.slice(n));
+}
+/* Ajuste polinomial de grau g em x normalizado (x/12) para estabilidade numérica */
+function ajustaPoli(idx, g) {
+  const X = idx.map(i => Array.from({ length: g + 1 }, (_, p) => Math.pow(DIST[i] / 12, p)));
+  const y = idx.map(i => TEMPO[i]);
+  const XtX = Array.from({ length: g + 1 }, (_, a) => Array.from({ length: g + 1 }, (_, b) => X.reduce((s, r) => s + r[a] * r[b], 0)));
+  const Xty = Array.from({ length: g + 1 }, (_, a) => X.reduce((s, r, k) => s + r[a] * y[k], 0));
+  const inv = inversa(XtX);
+  return inv.map(r => r.reduce((s, v, k) => s + v * Xty[k], 0));  /* coeficientes em x/12 */
+}
+const predPoli = (beta, d) => beta.reduce((s, b, p) => s + b * Math.pow(d / 12, p), 0);
+const rmse = (idx, beta) => Math.sqrt(idx.reduce((s, i) => s + (TEMPO[i] - predPoli(beta, DIST[i])) ** 2, 0) / idx.length);
+
+const valCv = AH.canvas('valCanvas', desenhaVal);
+function desenhaVal(ctx, w, h) {
+  const g = +document.getElementById('val-g').value;
+  const beta = ajustaPoli(IDX_TR, g);
+  const x0 = 40, x1 = w - 16, yB = h - 28, yT = 16;
+  const vmin = 0, vmax = 12, ymin = 4, ymax = 34;
+  const X = d => x0 + (d - vmin) / (vmax - vmin) * (x1 - x0), Y = t => yB - (t - ymin) / (ymax - ymin) * (yB - yT);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, yB); ctx.lineTo(x1, yB); ctx.moveTo(x0, yB); ctx.lineTo(x0, yT); ctx.stroke();
+  IDX_TR.forEach(i => { ctx.beginPath(); ctx.arc(X(DIST[i]), Y(TEMPO[i]), 3.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(56,189,248,.85)'; ctx.fill(); });
+  IDX_VA.forEach(i => { ctx.beginPath(); ctx.arc(X(DIST[i]), Y(TEMPO[i]), 3.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(245,158,11,.9)'; ctx.fill(); });
+  ctx.beginPath();
+  for (let d = 0.5; d <= 12; d += 0.1) {
+    const t = predPoli(beta, d);
+    const yy = Math.min(Math.max(Y(t), yT), yB);
+    d < 0.6 ? ctx.moveTo(X(d), yy) : ctx.lineTo(X(d), yy);
+  }
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('distância (km)', x1 - 100, h - 8);
+  ctx.fillText('tempo (min)', x0 + 6, yT + 12);
+
+  const tr = rmse(IDX_TR, beta), va = rmse(IDX_VA, beta);
+  document.getElementById('val-g-v').textContent = g;
+  document.getElementById('val-tr').textContent = tr.toFixed(3).replace('.', ',');
+  document.getElementById('val-va').textContent = va.toFixed(3).replace('.', ',');
+  /* melhor grau pela validação, entre 1 e 9 */
+  let best = 1, bestV = Infinity;
+  for (let k = 1; k <= 9; k++) { const v = rmse(IDX_VA, ajustaPoli(IDX_TR, k)); if (v < bestV) { bestV = v; best = k; } }
+  document.getElementById('val-best').textContent = 'grau ' + best;
+}
+document.getElementById('val-g').addEventListener('input', () => valCv.fit());
+
+novaAmostra(1414);
+valCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>

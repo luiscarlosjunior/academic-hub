@@ -649,7 +649,11 @@ const AH_DATA = {
         { id: '13-series-temporais', titulo: 'Séries temporais: tendência, sazonalidade e Holt-Winters', icone: 'fa-chart-line',
           resumo: 'Médias móveis, decomposição em tendência, sazonalidade e resíduo, autocorrelação e previsão validada no tempo, com vendas mensais em Python.',
           trilha: 'avancado',
-          tags: ['Tendência', 'Sazonalidade', 'Holt-Winters'], nivel: 'Avançado', minutos: 30 }
+          tags: ['Tendência', 'Sazonalidade', 'Holt-Winters'], nivel: 'Avançado', minutos: 30 },
+        { id: '14-reamostragem-validacao', titulo: 'Reamostragem e validação: bootstrap, permutação e validação cruzada', icone: 'fa-arrows-rotate',
+          resumo: 'Intervalos por bootstrap sem fórmula, teste de permutação sem distribuição e validação cruzada para escolher modelos sem sobreajuste, com animações.',
+          trilha: 'avancado',
+          tags: ['Bootstrap', 'Permutação', 'Sobreajuste'], nivel: 'Avançado', minutos: 30 }
       ]
     }
   ]
