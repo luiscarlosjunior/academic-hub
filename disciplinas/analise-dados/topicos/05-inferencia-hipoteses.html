@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inferência e Testes de Hipótese · AcademicHub</title>
+<meta name="description" content="Intervalo de confiança, hipótese nula, p-valor, erro tipo I e erro tipo II, e o poder do teste: como tirar conclusões sobre uma população a partir de uma amostra, com animação e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/05-inferencia-hipoteses">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Julgar com dados incompletos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-scale-balanced text-rose-400 mr-2"></i>Julgar com dados incompletos</h2>
+  <div class="ah-prose">
+    <p>
+      A cafeteria provou a nova receita com 25 clientes. A média deu 7,6, acima do padrão de 7,0. <strong>Isso prova que
+      a receita é melhor?</strong> Não. Com outros 25 clientes a média poderia dar 6,8. A inferência estatística é o
+      método para transformar uma amostra num julgamento <em>quantificado</em>: quanto a média pode variar, e quão
+      surpreendente seria o resultado se a receita não tivesse mudado nada.
+    </p>
+    <p>
+      Esse raciocínio é um tribunal: presume-se <strong>inocência</strong> (H0: nada mudou) e só se condena quando a
+      evidência for forte o bastante. Nunca se “prova” a inocência; no máximo, não há evidência suficiente.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-rose-500">
+      <div class="text-xs font-bold text-rose-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um remédio testado em 200 pessoas reduz a dor em média 1,2 ponto. Esse efeito é real ou acaso da amostra?</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-rose-500">
+      <div class="text-xs font-bold text-rose-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um site testa dois botões de compra. A versão B vendeu mais por 3 dias. Já dá para trocar o botão em todo o site?</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-rose-500">
+      <div class="text-xs font-bold text-rose-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma fábrica quer saber se a peça média está dentro da especificação de 10 mm, a partir de 30 peças medidas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ INTERVALO DE CONFIANÇA ============================ -->
+<section id="ic" data-toc="Intervalo de confiança" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right-to-line text-rose-400 mr-2"></i>Intervalo de confiança: a faixa plausível</h2>
+  <p class="ah-lead text-sm mb-5">
+    Em vez de um único número, o intervalo de confiança (IC) dá uma faixa: <em>x̄ ± t · s/√n</em>. O “95%” <strong class="text-white">não</strong>
+    significa “95% de chance de a média estar aqui”. Significa que o <em>procedimento</em> acerta a média real em 95% das
+    vezes em que é repetido. <strong class="text-white">Veja isso acontecer.</strong>
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="icCanvas" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="ic-novo" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-shuffle"></i> Novo lote de 40 amostras</button>
+        <label class="flex items-center gap-2 text-xs text-slate-400 ml-auto">
+          nível de confiança
+          <select id="ic-nivel" class="ah-input text-xs py-1 px-2 w-auto">
+            <option value="0.90">90%</option>
+            <option value="0.95" selected>95%</option>
+            <option value="0.99">99%</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Média real (μ)</div>
+        <div class="text-xl font-bold text-emerald-300 font-mono">7,00</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Intervalos que erraram</div>
+        <div id="ic-erros" class="text-xl font-bold text-rose-300 font-mono">—</div>
+        <p class="text-[11px] text-slate-500 mt-1">Esperado: cerca de <span id="ic-esp">5%</span> dos intervalos.</p></div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Cada barra é um IC construído a partir de uma amostra nova. Barras <span class="text-rose-300">vermelhas</span> não
+        contêm a média real (linha verde). Aumente a confiança e veja menos erros, mas barras mais largas.
+      </p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <div class="font-mono text-sm text-center">IC(μ) = x̄ ± t<sub>(n−1; α/2)</sub> · s / √n</div>
+    <p class="text-xs text-slate-400 text-center mt-2">Usa a distribuição t de Student (apresentada por “Student”, pseudônimo de William Gosset, em 1908) porque o desvio s é estimado da amostra.</p>
+  </div>
+</section>
+
+<!-- ============================ TESTE DE HIPÓTESE ============================ -->
+<section id="teste" data-toc="Teste de hipótese e p-valor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gavel text-rose-400 mr-2"></i>Teste de hipótese e p-valor</h2>
+  <div class="ah-prose">
+    <p>
+      Um teste começa com duas hipóteses: <strong>H0</strong> (a hipótese nula: “nada mudou”, média = 7,0) e <strong>H1</strong>
+      (a alternativa: média ≠ 7,0). Calcula-se uma estatística (aqui, t) e depois o <strong>p-valor</strong>: a probabilidade
+      de observar algo tão extremo quanto o observado <em>se H0 fosse verdadeira</em>.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Passo 1</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Defina H0 e H1 antes de olhar os dados. Escolha alpha (normalmente 0,05), que é o limite de erro tipo I aceito.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Passo 2</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Calcule a estatística t = (x̄ − 7,0) / (s/√n) e o p-valor correspondente.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Passo 3</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Se p &lt; alpha, rejeite H0. Se não, diga “não há evidência suficiente”, nunca “H0 é verdadeira”.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS ============================ -->
+<section id="erros-tipo" data-toc="Erro tipo I e tipo II" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-rose-400 mr-2"></i>Erro tipo I, erro tipo II e poder</h2>
+  <p class="ah-lead text-sm mb-5">
+    Há duas formas de errar. O <strong class="text-white">erro tipo I</strong> é condenar um inocente (rejeitar H0 quando ela é
+    verdadeira); seu limite é alpha. O <strong class="text-white">erro tipo II</strong> é absolver um culpado (não rejeitar H0 quando
+    ela é falsa). O <strong class="text-white">poder</strong> é 1 − β: a chance de detectar um efeito real.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="ah-table text-sm">
+      <thead><tr><th></th><th>H0 verdadeira</th><th>H0 falsa</th></tr></thead>
+      <tbody>
+        <tr><td class="font-semibold text-white">Não rejeita H0</td><td class="text-emerald-300">Decisão correta (1 − α)</td><td class="text-rose-300">Erro tipo II (β)</td></tr>
+        <tr><td class="font-semibold text-white">Rejeita H0</td><td class="text-rose-300">Erro tipo I (α)</td><td class="text-emerald-300">Decisão correta: poder (1 − β)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Diminuir alpha aumenta β.</strong> Exigir provas mais fortes reduz condenações erradas, mas deixa passar mais
+      efeitos reais. Escolher alpha é uma decisão sobre o custo de cada erro, não um número sagrado.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-rose-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Ronald A. Fisher · 1925</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Popularizou o p-valor como medida de evidência contra uma hipótese nula e o nível de significância como
+        convenção. Em <em>Statistical Methods for Research Workers</em>, o limite de 0,05 aparece como referência prática.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Jerzy Neyman e Egon Pearson · 1933</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Estruturaram o teste como escolha entre duas hipóteses, com erro tipo I controlado por alpha e o conceito de poder.
+        Essa é a base da forma moderna do teste de hipótese.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">Jerzy Neyman · 1937</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Formalizou o intervalo de confiança como procedimento que cobre o parâmetro verdadeiro com a frequência
+        especificada, justamente a leitura que a animação acima mostra.
+      </p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">William S. Gosset (“Student”) · 1908</span>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Publicou a distribuição t para amostras pequenas, quando o desvio padrão é estimado da própria amostra. Trabalhava
+        numa cervejaria e precisava de médias confiáveis com poucos dados.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-rose-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Ler o IC</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Interpretar a faixa: se ela é estreita ou larga, e se contém o valor de referência.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Formular H0 e H1 e decidir</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Escrever as hipóteses antes dos dados, escolher alpha e concluir sem exagero.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Planejar com poder</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Calcular o tamanho de amostra necessário para detectar o efeito que importa, antes de coletar dados.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-rose-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-rose-300">disciplinas/analise-dados/exemplos-python/05-inferencia-hipoteses.py</code>.
+    Usa <strong>scipy.stats.ttest_1samp</strong> para o teste e simulações para verificar erro tipo I e poder.
+  </p>
+
+  <p class="text-xs font-bold text-sky-300 mb-2">1 · Intervalo de confiança e teste t</p>
+<pre class="ah-code"><code>erro_padrao = dp / np.<span class="fn">sqrt</span>(n)
+t_crit = stats.t.<span class="fn">ppf</span>(<span class="num">0.975</span>, df=n - <span class="num">1</span>)     <span class="cm"># quantil bicaudal de 95%</span>
+ic_inf, ic_sup = media - t_crit * erro_padrao, media + t_crit * erro_padrao
+
+t_obs, p_valor = stats.<span class="fn">ttest_1samp</span>(notas, popmean=<span class="num">7.0</span>)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Amostra: n = 25, média = 7.572, desvio padrão = 1.097
+[7.119 ; 8.025]
+estatística t = 2.608
+p-valor (bicaudal) = 0.0154
+com alpha = 0.05: rejeita H0</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Erro tipo I: H0 verdadeira, 10 mil experimentos</p>
+<pre class="ah-code"><code><span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">10_000</span>):
+    amostra = rng.<span class="fn">normal</span>(<span class="num">7.0</span>, <span class="num">1.2</span>, size=<span class="num">25</span>)   <span class="cm"># média real = 7,0 (H0 é verdadeira)</span>
+    <span class="kw">if</span> stats.<span class="fn">ttest_1samp</span>(amostra, popmean=<span class="num">7.0</span>).pvalue &lt; alpha:
+        rejeicoes += <span class="num">1</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>taxa de rejeição = 0.0529   (esperado: alpha = 0.05)</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">3 · Poder: quanto maior a amostra, mais efeitos reais aparecem</p>
+<pre class="ah-code"><code><span class="cm"># diferença real de 0,5 (média real = 7,5), testada contra 7,0</span>
+<span class="fn">print</span>(<span class="str">f"Poder com n = {tamanho:&gt;3}: {detectados / 4_000:.3f}"</span>)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>Poder com n =  10 (diferença real de 0,5): 0.217
+Poder com n =  25 (diferença real de 0,5): 0.534
+Poder com n = 100 (diferença real de 0,5): 0.986</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Leia a saída como um todo:</strong> a taxa de erro tipo I ficou perto de 0,05, como o teórico prevê. Já o poder
+      com n = 10 é de apenas 22%: quatro de cada cinco vezes o estudo deixaria passar uma melhoria real de 0,5 ponto.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-rose-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">p-valor como probabilidade de H0</h3>
+      <p class="text-xs text-slate-400">p = 0,02 não significa “2% de chance de a nula ser verdadeira”. Mede o quão surpreendentes são os dados sob H0.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Caçar p &lt; 0,05</h3>
+      <p class="text-xs text-slate-400">Testar muitas variáveis ou parar a coleta quando o resultado “aparece”. Com 20 testes, em média 1 dá falso positivo mesmo sem efeito.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">“Não significativo” = “não há efeito”</h3>
+      <p class="text-xs text-slate-400">Em amostras pequenas, o poder é baixo e um efeito real pode passar despercebido.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Significativo, mas irrelevante</h3>
+      <p class="text-xs text-slate-400">Com milhões de registros, uma diferença de 0,01 ponto pode ser estatisticamente significativa e sem nenhum valor prático.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-rose-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Um IC de 95% para a média de um processo é [9,8; 10,6]. O que ele significa?</p>
+    <button class="ah-quiz-opt">Há 95% de probabilidade de a média real estar entre 9,8 e 10,6</button>
+    <button class="ah-quiz-opt">95% dos dados individuais estão entre 9,8 e 10,6</button>
+    <button class="ah-quiz-opt">O procedimento usado acerta a média real em 95% das vezes em que for repetido</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Na visão frequentista, a média real é fixa e desconhecida. É o intervalo que varia de amostra para amostra, e é o
+      procedimento que tem 95% de cobertura. A animação mostra exatamente isso.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Você quer aumentar o poder de um teste sem elevar o erro tipo I. Qual ação faz mais sentido?</p>
+    <button class="ah-quiz-opt">Diminuir alpha para 0,001</button>
+    <button class="ah-quiz-opt">Aumentar o tamanho da amostra</button>
+    <button class="ah-quiz-opt">Trocar H0 por H1 depois de olhar os dados</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Mais dados reduzem o erro padrão e aumentam o poder, mantendo alpha fixo. Diminuir alpha reduz o erro tipo I mas também
+      o poder. Trocar a hipótese depois dos dados é uma forma de fraude estatística.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Intervalos de confiança repetidos ===================== */
+const MU = 7.0, SIGMA = 1.2, N = 25;
+/* Quantil t aproximado (Cornish-Fisher) a partir do z normal, bom para df >= 10 */
+function tCrit(conf, df) {
+  const zs = { 0.90: 1.6449, 0.95: 1.9600, 0.99: 2.5758 };
+  const z = zs[conf], z3 = z ** 3, z5 = z ** 5;
+  return z + (z3 + z) / (4 * df) + (5 * z5 + 16 * z3 + 3 * z) / (96 * df * df);
+}
+/* Box-Muller */
+function normal(mu, s) {
+  const u = 1 - Math.random(), v = Math.random();
+  return mu + s * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+let LOTE = [], NIVEL = 0.95;
+const icCv = AH.canvas('icCanvas', desenhaIC);
+
+function gera() {
+  const t = tCrit(NIVEL, N - 1);
+  LOTE = [];
+  for (let i = 0; i < 40; i++) {
+    const amostra = Array.from({ length: N }, () => normal(MU, SIGMA));
+    const m = amostra.reduce((a, b) => a + b, 0) / N;
+    const s = Math.sqrt(amostra.reduce((a, b) => a + (b - m) ** 2, 0) / (N - 1));
+    const e = t * s / Math.sqrt(N);
+    LOTE.push({ m, lo: m - e, hi: m + e, erra: MU < m - e || MU > m + e });
+  }
+  const erros = LOTE.filter(l => l.erra).length;
+  document.getElementById('ic-erros').textContent = `${erros} de ${LOTE.length}`;
+  document.getElementById('ic-esp').textContent = ((1 - NIVEL) * 100).toFixed(0) + '%';
+  icCv.fit();
+}
+
+function desenhaIC(ctx, w, h) {
+  const x0 = 40, x1 = w - 16, yTop = 16, yBot = h - 24;
+  const xmin = 5.4, xmax = 8.6;
+  const X = v => x0 + (v - xmin) / (xmax - xmin) * (x1 - x0);
+  /* eixo e linha da média real */
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  [6, 7, 8].forEach(v => {
+    ctx.beginPath(); ctx.moveTo(X(v), yTop); ctx.lineTo(X(v), yBot); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(String(v), X(v) - 6, h - 6);
+  });
+  ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(X(MU), yTop); ctx.lineTo(X(MU), yBot); ctx.stroke();
+  const rowH = (yBot - yTop) / LOTE.length;
+  LOTE.forEach((l, i) => {
+    const y = yTop + i * rowH + rowH / 2;
+    ctx.strokeStyle = l.erra ? '#f43f5e' : 'rgba(56,189,248,.8)';
+    ctx.lineWidth = Math.max(1.4, rowH * 0.45);
+    ctx.beginPath(); ctx.moveTo(X(l.lo), y); ctx.lineTo(X(l.hi), y); ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(l.m), y, 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = '#e2e8f0'; ctx.fill();
+  });
+  ctx.fillStyle = '#10b981'; ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.fillText('μ = 7,0', X(MU) + 4, yTop + 10);
+}
+
+document.getElementById('ic-novo').addEventListener('click', gera);
+document.getElementById('ic-nivel').addEventListener('change', e => { NIVEL = +e.target.value; gera(); });
+
+gera();
+AH.initReveal();
+</script>
+</body>
+</html>

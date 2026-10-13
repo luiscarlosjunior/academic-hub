@@ -613,7 +613,11 @@ const AH_DATA = {
         { id: '04-correlacao', titulo: 'Correlação: Pearson, Spearman e a diferença entre associação e causa', icone: 'fa-arrow-trend-up',
           resumo: 'Medir a força e a direção de uma relação, quando usar Pearson ou Spearman, o efeito de outliers e a armadilha das causas ocultas.',
           trilha: 'fundamentos',
-          tags: ['Pearson', 'Spearman', 'Causalidade'], nivel: 'Fundamental', minutos: 22 }
+          tags: ['Pearson', 'Spearman', 'Causalidade'], nivel: 'Fundamental', minutos: 22 },
+        { id: '05-inferencia-hipoteses', titulo: 'Inferência: intervalo de confiança, p-valor, erros e poder', icone: 'fa-gavel',
+          resumo: 'O que é um intervalo de confiança de verdade, como funciona um teste de hipótese, o que significa o p-valor e como planejar o poder do estudo.',
+          trilha: 'fundamentos',
+          tags: ['IC', 'Hipótese', 'p-valor', 'Poder'], nivel: 'Intermediário', minutos: 28 }
       ]
     }
   ]
