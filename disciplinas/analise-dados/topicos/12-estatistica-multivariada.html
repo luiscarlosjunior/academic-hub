@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estatística Multivariada · AcademicHub</title>
+<meta name="description" content="Análise de componentes principais (PCA) e agrupamento por k-means: resumir muitas variáveis em poucas e encontrar perfis, com animações passo a passo e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/12-estatistica-multivariada">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Muitas variáveis, poucas ideias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-violet-400 mr-2"></i>Muitas variáveis, poucas ideias</h2>
+  <div class="ah-prose">
+    <p>
+      Um cadastro de clientes tem renda, idade, gasto com alimentos, gasto com viagens e frequência de compras. Cinco números
+      por pessoa são difíceis de olhar de uma vez, e muitas dessas variáveis dizem coisas parecidas. A estatística
+      multivariada trabalha com <strong>muitas variáveis ao mesmo tempo</strong> para responder duas perguntas:
+      <strong>quais combinações de variáveis explicam a maior parte da variação</strong> (redução de dimensão) e
+      <strong>quais casos se parecem entre si</strong> (agrupamento).
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-violet-500">
+      <div class="text-xs font-bold text-violet-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um índice de qualidade de vida das cidades que combina saúde, renda, educação e segurança numa só nota.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-violet-500">
+      <div class="text-xs font-bold text-violet-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma loja que separa clientes em perfis (econômico, família, viajante) para campanhas diferentes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-violet-500">
+      <div class="text-xs font-bold text-violet-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um painel de sensores de uma fábrica: 40 medidas viram 3 componentes que apontam o problema de uma máquina.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PCA ============================ -->
+<section id="pca" data-toc="PCA: girar para os eixos principais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-compass text-violet-400 mr-2"></i>PCA: girar os eixos para onde os dados se espalham</h2>
+  <p class="ah-lead text-sm mb-5">
+    Quando duas variáveis andam juntas, a nuvem de pontos forma uma elipse inclinada. A <strong class="text-white">componente
+    principal 1</strong> é o eixo que segue a maior dispersão dessa nuvem; a 2 é perpendicular a ela. Ao projetar os pontos
+    na PC1, perde-se pouca informação. <strong class="text-white">Clique para girar os eixos</strong> até as direções principais.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="pcaCanvas" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="pca-gira" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-rotate"></i> Girar para os eixos principais</button>
+        <button id="pca-reset" class="ah-btn ah-btn-ghost text-xs"><i class="fa-solid fa-rotate-left"></i> Eixos originais</button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Ângulo da PC1</div>
+        <div id="pca-ang" class="text-xl font-bold text-violet-300 font-mono">0°</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Variância explicada pela PC1</div>
+        <div id="pca-var" class="text-xl font-bold text-amber-300 font-mono">—</div>
+        <p class="text-[11px] text-slate-500 mt-1">= autovalor da PC1 / soma dos autovalores</p></div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Os autovetores são as direções da PC1 e da PC2, e os autovalores dizem quanta variância cada direção captura.
+      </p>
+    </div>
+  </div>
+
+  <div class="ah-card p-5 mt-5">
+    <div class="font-mono text-sm text-center">Σ v = λ v &nbsp;&nbsp;·&nbsp;&nbsp; Z = X_padronizado · V<sub>1..k</sub></div>
+    <p class="text-xs text-slate-400 text-center mt-2">Σ é a matriz de covariância; v, os autovetores (direções); λ, os autovalores (variância em cada direção).</p>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Padronize antes.</strong> Se uma variável está em reais e outra em anos, a de maior escala domina a PCA
+      sem ser mais importante. Por isso o programa usa <code>StandardScaler</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ K-MEANS ============================ -->
+<section id="kmeans" data-toc="k-means: agrupar passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-object-group text-violet-400 mr-2"></i>k-means: agrupar passo a passo</h2>
+  <p class="ah-lead text-sm mb-5">
+    O algoritmo repete duas etapas até estabilizar: <strong class="text-white">atribuir</strong> cada ponto ao centróide mais
+    próximo e <strong class="text-white">recalcular</strong> cada centróide como a média dos pontos do seu grupo. Não há
+    garantia de ótimo global: o resultado depende das posições iniciais. <strong class="text-white">Use “Passo” para ver cada iteração.</strong>
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="kmCanvas" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="km-passo" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-forward-step"></i> Passo</button>
+        <button id="km-auto" class="ah-btn text-xs"><i class="fa-solid fa-play"></i> Automático</button>
+        <button id="km-novo" class="ah-btn ah-btn-ghost text-xs"><i class="fa-solid fa-shuffle"></i> Novos centróides</button>
+        <label class="flex items-center gap-2 text-xs text-slate-400 ml-auto">k
+          <select id="km-k" class="ah-input text-xs py-1 px-2 w-auto">
+            <option value="2">2</option><option value="3" selected>3</option><option value="4">4</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Iteração</div>
+        <div id="km-it" class="text-xl font-bold text-white font-mono">0</div>
+        <p id="km-estado" class="text-[11px] text-slate-500 mt-1"></p></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Inércia (soma das distâncias²)</div>
+        <div id="km-in" class="text-xl font-bold text-amber-300 font-mono">—</div></div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Como escolher k?</strong> A inércia sempre cai quando k aumenta, então não basta olhar para ela. O
+      <em>coeficiente de silhueta</em> compara a distância média de cada ponto ao seu próprio grupo com a distância ao grupo
+      vizinho. Valores perto de 1 indicam grupos bem separados; o pico do valor sugere o k.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ AUTORES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-violet-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge mb-2">Karl Pearson · 1901</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs ajustar um conjunto de pontos a uma reta ou plano que minimiza as distâncias perpendiculares: a origem das componentes principais.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Harold Hotelling · 1933</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Desenvolveu a análise de componentes principais como método de transformação linear de variáveis correlacionadas em variáveis não correlacionadas.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">James MacQueen · 1967</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Batizou o método de “k-means” e estudou sua convergência para classificar observações em k grupos.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Peter Rousseeuw · 1987</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs o coeficiente de silhueta, que avalia a qualidade do agrupamento ponto a ponto.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-violet-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Padronizar e olhar a correlação</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Colocar variáveis na mesma escala e identificar quais andam juntas antes de qualquer método.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">PCA e variância explicada</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Escolher quantas componentes manter (por exemplo, até 90% da variância) e interpretar as cargas.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Agrupamento e validação</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Escolher k com silhueta, rodar com várias inicializações e validar os grupos com as variáveis originais e com um negócio real.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-violet-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-violet-300">disciplinas/analise-dados/exemplos-python/12-estatistica-multivariada.py</code>.
+    O PCA é feito à mão com <code>np.linalg.eigh</code>; o k-means e a silhueta vêm do <strong>scikit-learn</strong>.
+  </p>
+
+  <p class="text-xs font-bold text-violet-300 mb-2">1 · PCA: variância explicada</p>
+<pre class="ah-code"><code>Z = StandardScaler().<span class="fn">fit_transform</span>(X)
+autovalores, autovetores = np.linalg.<span class="fn">eigh</span>(np.<span class="fn">cov</span>(Z, rowvar=<span class="kw">False</span>))
+variancia_explicada = autovalores / autovalores.<span class="fn">sum</span>()</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>PC1: 61.8%   acumulada: 61.8%
+PC2: 30.8%   acumulada: 92.5%
+PC3: 4.4%    acumulada: 96.9%</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Escolha de k pela silhueta</p>
+<pre class="ah-code"><code>km = KMeans(n_clusters=k, n_init=<span class="num">10</span>, random_state=<span class="num">0</span>).<span class="fn">fit</span>(componentes)
+s = <span class="fn">silhouette_score</span>(componentes, km.labels_)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>k = 2: silhueta = 0.606   inércia = 560.4
+k = 3: silhueta = 0.779   inércia = 97.5
+k = 4: silhueta = 0.648   inércia = 81.8
+k = 5: silhueta = 0.469   inércia = 67.0</code></pre>
+
+  <p class="text-xs font-bold text-sky-300 mt-6 mb-2">3 · Perfil dos grupos nas variáveis originais</p>
+<pre class="ah-code"><code>m = X[km3.labels_ == g].<span class="fn">mean</span>(axis=<span class="num">0</span>)   <span class="cm"># média em unidades reais, para interpretar o grupo</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>grupo      renda   idade     alim   viagem  compras
+0         11,009    52.5    1,004    2,199      5.0
+1          6,034    37.2    1,197      148      8.8
+2          2,505    26.6      580      182      5.0</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>O k = 3 venceu pela silhueta (0,78):</strong> ele coincide com os três perfis que geraram os dados. Mas no mundo real
+      não há rótulo verdadeiro. A interpretação dos grupos (viajantes, famílias, econômicos) é o passo que dá sentido ao resultado.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-violet-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">PCA sem padronizar</h3>
+      <p class="text-xs text-slate-400">A variável com maior escala vira a PC1 por causa da unidade, não da importância.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Interpretar grupos sem nomear</h3>
+      <p class="text-xs text-slate-400">Um cluster é uma hipótese. Sem olhar as médias originais, ele não diz nada útil.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">k-means em formas não esféricas</h3>
+      <p class="text-xs text-slate-400">Grupos alongados ou em anel são mal separados, porque o método assume grupos compactos e de tamanho parecido.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Uma única inicialização</h3>
+      <p class="text-xs text-slate-400">O resultado depende do ponto de partida. Use <code>n_init</code> alto, como no programa.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-violet-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Na PCA, o que é a variância explicada pela PC1?</p>
+    <button class="ah-quiz-opt">A correlação entre a PC1 e a variável original mais importante</button>
+    <button class="ah-quiz-opt">A fração da variância total dos dados capturada pela direção da PC1</button>
+    <button class="ah-quiz-opt">O número de variáveis originais usadas na componente</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      É o autovalor da PC1 dividido pela soma de todos os autovalores. Ela mede quanta informação dos dados cabe numa única
+      direção, o que orienta quantas componentes manter.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Ao aumentar k no k-means, a inércia sempre cai. Então, para escolher k, o melhor critério é:</p>
+    <button class="ah-quiz-opt">Escolher o maior k possível, pois a inércia é menor</button>
+    <button class="ah-quiz-opt">Escolher o k em que a inércia é zero</button>
+    <button class="ah-quiz-opt">Usar a silhueta, que avalia separação e coesão, e não só a inércia</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      A inércia cai sempre que k cresce, mesmo sem grupos reais (no limite, cada ponto vira um grupo). A silhueta penaliza
+      grupos mal separados e permite comparar valores de k.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Dados ilustrativos (semente fixa) ===================== */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const rnd = semente(1212);
+function gauss() { const u = Math.max(rnd(), 1e-9), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ===================== PCA: nuvem alongada e rotação ===================== */
+const NUVEM = [];
+for (let i = 0; i < 160; i++) {
+  const a = gauss() * 2.2, b = gauss() * 0.55;             /* alongada na diagonal */
+  const ang = Math.PI / 6;                                  /* 30° */
+  NUVEM.push({ x: a * Math.cos(ang) - b * Math.sin(ang), y: a * Math.sin(ang) + b * Math.cos(ang) });
+}
+/* PCA 2D em forma fechada: ângulo do autovetor de maior autovalor */
+const mx = NUVEM.reduce((s, p) => s + p.x, 0) / NUVEM.length, my = NUVEM.reduce((s, p) => s + p.y, 0) / NUVEM.length;
+let sxx = 0, syy = 0, sxy = 0;
+NUVEM.forEach(p => { sxx += (p.x - mx) ** 2; syy += (p.y - my) ** 2; sxy += (p.x - mx) * (p.y - my); });
+const N1 = NUVEM.length - 1; sxx /= N1; syy /= N1; sxy /= N1;
+const THETA_PC1 = 0.5 * Math.atan2(2 * sxy, sxx - syy);      /* em radianos */
+const TR = (sxx + syy) / 2, DET = Math.sqrt(((sxx - syy) / 2) ** 2 + sxy * sxy);
+const L1 = TR + DET, L2 = TR - DET;
+
+let angAtual = 0, angAlvo = 0;
+const pcaCv = AH.canvas('pcaCanvas', desenhaPCA);
+function desenhaPCA(ctx, w, h) {
+  const cx = w / 2, cy = h / 2, esc = Math.min(w, h) / 9.5;
+  const X = x => cx + x * esc, Y = y => cy - y * esc;
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+  NUVEM.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.x - mx), Y(p.y - my), 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(167,139,250,.75)'; ctx.fill();
+  });
+  /* eixos atuais: começam nos originais (x, y) e giram para os principais */
+  const dx = Math.cos(angAtual), dy = Math.sin(angAtual);
+  const eixo = (vx, vy, cor) => {
+    const L = 3.6 * esc;
+    ctx.strokeStyle = cor; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - vx * L, cy + vy * L); ctx.lineTo(cx + vx * L, cy - vy * L); ctx.stroke();
+  };
+  eixo(dx, dy, '#f59e0b');
+  eixo(-dy, dx, '#38bdf8');
+  ctx.fillStyle = '#f59e0b'; ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('PC1', cx + dx * 3.7 * esc, cy - dy * 3.7 * esc);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fillText('PC2', cx - dy * 3.7 * esc, cy - dx * 3.7 * esc);
+  document.getElementById('pca-ang').textContent = (angAtual * 180 / Math.PI).toFixed(1).replace('.', ',') + '°';
+  document.getElementById('pca-var').textContent = (L1 / (L1 + L2) * 100).toFixed(1).replace('.', ',') + '%';
+}
+const pcaLoop = AH.loop(pcaCv.el, dt => {
+  const d = angAlvo - angAtual;
+  if (Math.abs(d) < 0.002) { angAtual = angAlvo; pcaLoop.stop(); }
+  else angAtual += d * Math.min(1, dt * 2.5);
+  pcaCv.fit();
+});
+document.getElementById('pca-gira').addEventListener('click', () => { angAlvo = THETA_PC1; pcaLoop.start(); });
+document.getElementById('pca-reset').addEventListener('click', () => { angAlvo = 0; pcaLoop.start(); });
+
+/* ===================== k-means passo a passo ===================== */
+const PTS = [];
+const CENTROS_REAIS = [[-2.2, 1.8], [1.8, 2.2], [0.4, -2.1]];
+for (let c = 0; c < 3; c++) for (let i = 0; i < 40; i++) {
+  PTS.push({ x: CENTROS_REAIS[c][0] + gauss() * 0.75, y: CENTROS_REAIS[c][1] + gauss() * 0.75, g: -1 });
+}
+let K = 3, CENT = [], IT = 0, FINAL = false;
+const kmCv = AH.canvas('kmCanvas', desenhaKM);
+
+function iniciaCentros() {
+  /* k-means++ simplificado: primeiro centro ao acaso; os demais, longe dos já escolhidos */
+  CENT = [];
+  CENT.push({ x: PTS[Math.floor(rnd() * PTS.length)].x, y: PTS[Math.floor(rnd() * PTS.length)].y });
+  while (CENT.length < K) {
+    let melhor = null, dmax = -1;
+    PTS.forEach(p => {
+      const d = Math.min(...CENT.map(c => (p.x - c.x) ** 2 + (p.y - c.y) ** 2));
+      if (d > dmax) { dmax = d; melhor = p; }
+    });
+    CENT.push({ x: melhor.x, y: melhor.y });
+  }
+  PTS.forEach(p => p.g = -1);
+  IT = 0; FINAL = false;
+}
+function passo() {
+  if (FINAL) return;
+  let mudou = false;
+  PTS.forEach(p => {
+    let g = 0, d = Infinity;
+    CENT.forEach((c, j) => { const dj = (p.x - c.x) ** 2 + (p.y - c.y) ** 2; if (dj < d) { d = dj; g = j; } });
+    if (p.g !== g) mudou = true;
+    p.g = g;
+  });
+  CENT.forEach((c, j) => {
+    const mem = PTS.filter(p => p.g === j);
+    if (mem.length) { c.x = mem.reduce((s, p) => s + p.x, 0) / mem.length; c.y = mem.reduce((s, p) => s + p.y, 0) / mem.length; }
+  });
+  IT++;
+  if (!mudou && IT > 1) FINAL = true;
+  kmCv.fit();
+}
+function inercia() {
+  return PTS.reduce((s, p) => { const c = CENT[p.g]; return s + (c ? (p.x - c.x) ** 2 + (p.y - c.y) ** 2 : 0); }, 0);
+}
+function desenhaKM(ctx, w, h) {
+  const cx = w / 2, cy = h / 2, esc = Math.min(w, h) / 8.5;
+  const X = x => cx + x * esc, Y = y => cy - y * esc;
+  const cores = ['#f59e0b', '#38bdf8', '#10b981'];
+  PTS.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 4, 0, Math.PI * 2);
+    ctx.fillStyle = p.g >= 0 ? cores[p.g] + 'cc' : 'rgba(148,163,184,.8)'; ctx.fill();
+  });
+  CENT.forEach((c, j) => {
+    ctx.beginPath(); ctx.moveTo(X(c.x) - 9, Y(c.y)); ctx.lineTo(X(c.x) + 9, Y(c.y));
+    ctx.moveTo(X(c.x), Y(c.y) - 9); ctx.lineTo(X(c.x), Y(c.y) + 9);
+    ctx.strokeStyle = cores[j]; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(c.x), Y(c.y), 13, 0, Math.PI * 2); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+  document.getElementById('km-it').textContent = IT;
+  document.getElementById('km-estado').textContent = FINAL ? 'convergiu: nenhum ponto mudou de grupo' : 'centróides ainda se movendo';
+  document.getElementById('km-in').textContent = inercia().toFixed(1).replace('.', ',');
+}
+/* automático: um passo a cada 0,8 s, para dar tempo de acompanhar a mudança */
+let acumKM = 0;
+const kmLoop = AH.loop(kmCv.el, dt => {
+  if (FINAL) { kmLoop.stop(); document.getElementById('km-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+  acumKM += dt;
+  if (acumKM >= 0.8) { acumKM = 0; passo(); }
+});
+document.getElementById('km-passo').addEventListener('click', () => { kmLoop.stop(); passo(); });
+document.getElementById('km-auto').addEventListener('click', e => {
+  if (kmLoop.running) { kmLoop.stop(); e.currentTarget.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; }
+  else { kmLoop.start(); e.currentTarget.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar'; }
+});
+document.getElementById('km-novo').addEventListener('click', () => { kmLoop.stop(); iniciaCentros(); kmCv.fit(); });
+document.getElementById('km-k').addEventListener('change', e => { K = +e.target.value; kmLoop.stop(); iniciaCentros(); kmCv.fit(); });
+
+iniciaCentros();
+pcaCv.fit(); kmCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>

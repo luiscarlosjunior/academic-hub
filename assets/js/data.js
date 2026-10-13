@@ -641,7 +641,11 @@ const AH_DATA = {
         { id: '11-regressao-nao-parametrica', titulo: 'Regressão não paramétrica: Theil-Sen, LOWESS e kNN', icone: 'fa-wand-magic-sparkles',
           resumo: 'Quando a forma da relação é desconhecida ou há curvas e outliers: medianas de inclinações, suavização local e vizinhos mais próximos, comparados lado a lado.',
           trilha: 'regressao',
-          tags: ['Theil-Sen', 'LOWESS', 'kNN'], nivel: 'Avançado', minutos: 30 }
+          tags: ['Theil-Sen', 'LOWESS', 'kNN'], nivel: 'Avançado', minutos: 30 },
+        { id: '12-estatistica-multivariada', titulo: 'Estatística multivariada: PCA e agrupamento k-means', icone: 'fa-compass',
+          resumo: 'Resumir muitas variáveis em poucas componentes principais, escolher o número de grupos pela silhueta e interpretar perfis de clientes, com animações.',
+          trilha: 'avancado',
+          tags: ['PCA', 'k-means', 'Silhueta'], nivel: 'Avançado', minutos: 32 }
       ]
     }
   ]
