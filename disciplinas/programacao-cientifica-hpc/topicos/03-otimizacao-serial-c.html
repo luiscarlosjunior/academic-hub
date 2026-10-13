@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Otimização serial em C: layout de dados, vetorização e blocking · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Como organizar dados e laços para o cache e o SIMD, com a multiplicação de matrizes em três versões medidas, incluindo o caso em que o blocking não compensa.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/03-otimizacao-serial-c">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gears text-amber-400 mr-2"></i>Tópico 3 · Otimização serial em C</h2>
+  <div class="ah-prose">
+    <p>
+      Antes de criar threads ou usar GPUs, esgote o que a versão serial pode dar. Um programa serial bem escrito costuma ser 10 a 100 vezes mais rápido que um ingênuo,
+      e isso multiplica qualquer ganho de paralelismo que venha depois. A ordem recomendada é: <strong>medir, entender o gargalo, mudar o layout de dados, depois mudar os laços,
+      depois vetorizar</strong>. Sem medir, não se sabe o que mudar.
+    </p>
+  </div>
+</section>
+
+<section id="layout" data-toc="Layout de dados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-sky-400 mr-2"></i>Layout: array de estruturas ou estrutura de arrays</h2>
+  <div class="ah-prose">
+    <p>
+      Suponha que cada partícula tenha posição, velocidade e massa. A forma natural em C é um vetor de <code>struct</code> (AoS). Mas, se o laço só usa a posição,
+      cada iteração carrega também velocidade e massa, que ocupam a linha de cache sem serem usadas. A alternativa, uma <strong>estrutura de arrays</strong> (SoA), mantém
+      cada campo contíguo:
+    </p>
+  </div>
+<pre class="ah-code"><code>/* AoS: uma linha de cache traz partículas inteiras */
+typedef struct { double x, y, z, vx, vy, vz, massa; } Particula;
+Particula p[N];
+
+/* SoA: o laço de posições só toca em memória de posições */
+typedef struct { double *x, *y, *z, *vx, *vy, *vz, *massa; } Particulas;</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      A regra prática: se um laço usa poucos campos de muitos registros, prefira SoA. Se usa todos os campos de cada registro, AoS pode ser melhor. O layout deve seguir o padrão de acesso,
+      não a elegância do modelo. Esse é o mesmo raciocínio que volta na GPU, onde a coalescência depende do layout (tópico 8).
+    </p>
+  </div>
+</section>
+
+<section id="laços" data-toc="Ordem dos laços" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-repeat text-emerald-400 mr-2"></i>Ordem dos laços e blocking</h2>
+  <div class="ah-prose">
+    <p>
+      A multiplicação de matrizes <code>C = A × B</code> faz <code>N³</code> multiplicações. A ordem clássica <code>ijk</code> percorre <code>B</code> por colunas no laço interno.
+      Trocar para <code>ikj</code> faz o laço interno andar em linha em <code>B</code> e em <code>C</code>, sem mudar o resultado. Já o <strong>blocking</strong> divide as matrizes em
+      sub-blocos de <code>B × B</code> elementos, escolhidos para caber no cache, e reutiliza cada bloco o máximo possível antes de descartá-lo.
+    </p>
+  </div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/03-matmul-blocking.c">03-matmul-blocking.c</a></p>
+<pre class="ah-code"><code>/* ikj: o laço interno é contíguo em B e em C */
+for (size_t i = 0; i &lt; N; i++)
+    for (size_t k = 0; k &lt; N; k++) {
+        double a = A[i * N + k];
+        for (size_t j = 0; j &lt; N; j++)
+            C[i * N + j] += a * B[k * N + j];
+    }</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real (N = 512, bloco = 64, Apple clang -O2)</p>
+<pre class="ah-code"><code>versao      tempo (s)      GFLOP/s   erro max
+ijk            0.2808         0.96       ref.
+ikj            0.0578         4.65   0.00e+00
+bloco          0.0561         4.79   0.00e+00</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Dois resultados importantes. Primeiro, a troca de <code>ijk</code> para <code>ikj</code> já dá cerca de 5×, sem nenhuma técnica avançada: a maior parte do ganho é de
+      localidade. Segundo, com <code>N = 512</code> o blocking praticamente empata com <code>ikj</code>, porque as três matrizes ainda cabem bem na hierarquia de cache
+      e o compilador já faz boa parte do trabalho.
+    </p>
+    <p>
+      O blocking compensa quando as matrizes são grandes o bastante para não caberem no cache. Experimente <code>N = 2048</code> no código e veja a diferença crescer. Medir
+      em mais de um tamanho é a única forma de saber se a técnica vale a pena para o seu caso.
+    </p>
+  </div>
+</section>
+
+<section id="vetorizacao" data-toc="Vetorização" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-violet-400 mr-2"></i>Vetorização: deixar o compilador trabalhar</h2>
+  <div class="ah-prose">
+    <p>Três cuidados fazem o compilador vetorizar o laço interno:</p>
+    <ul>
+      <li><strong>Sem dependência entre iterações</strong> que impeça a execução paralela. Um acumulador simples costuma ser reconhecido como redução.</li>
+      <li><strong>Ponteiros que não se sobrepõem</strong>: declare <code>restrict</code> quando for verdade, para o compilador não temer aliasing.</li>
+      <li><strong>Laço com contador simples</strong> e limite conhecido, sem <code>break</code> no meio.</li>
+    </ul>
+  </div>
+<pre class="ah-code"><code>void soma_vetores(double *restrict c, const double *restrict a,
+                  const double *restrict b, size_t n) {
+    for (size_t i = 0; i &lt; n; i++)     /* vetorizável: sem dependência entre i */
+        c[i] = a[i] + b[i];
+}</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Verifique com <code>gcc -O3 -fopt-info-vec-optimized</code> ou <code>clang -O3 -Rpass=loop-vectorize</code>. Se o compilador disser que não vetorizou, ele está informando
+      o motivo: quase sempre aliasing ou uma dependência real.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um laço usa só a coordenada x de milhões de partículas, que estão em um array de estruturas. Qual layout tende a ser melhor?</p>
+      <button class="ah-quiz-opt">Manter o array de estruturas, porque é mais legível</button>
+      <button class="ah-quiz-opt">Estrutura de arrays, com um vetor de x separado, para o laço só carregar dados úteis</button>
+      <button class="ah-quiz-opt">Uma lista encadeada, para evitar cópias</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com SoA, as linhas de cache trazem só x, e não também velocidades e massas que o laço não usa.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o blocking pode não ajudar em matrizes pequenas?</p>
+      <button class="ah-quiz-opt">Porque as matrizes já cabem no cache, e não há reuso fora dele para evitar</button>
+      <button class="ah-quiz-opt">Porque o blocking sempre aumenta o número de multiplicações</button>
+      <button class="ah-quiz-opt">Porque o compilador desliga a vetorização quando há blocos</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O benefício do blocking é reduzir a transferência entre memória e cache. Se tudo já cabe no cache, essa redução não aparece.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>DREPPER, U. <em>What Every Programmer Should Know About Memory</em>. Red Hat, 2007. Seções sobre cache e otimização de laços.</li>
+    <li>LAM, M. S.; ROTHBERG, E. E.; WOLF, M. E. The cache performance and optimizations of blocked algorithms. <em>ASPLOS</em>, 1991.</li>
+    <li>WOLF, M. E.; LAM, M. S. A data locality optimizing algorithm. <em>PLDI</em>, 1991.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

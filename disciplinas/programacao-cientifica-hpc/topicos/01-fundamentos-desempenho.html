@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fundamentos de desempenho: métricas, medição e as leis de Amdahl e Gustafson · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Como medir tempo sem se enganar, o que são speedup e eficiência, e por que a parte serial limita o ganho do paralelismo, com calculadora interativa e exemplo em C.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/01-fundamentos-desempenho">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-stopwatch text-amber-400 mr-2"></i>Tópico 1 · Fundamentos de desempenho</h2>
+  <div class="ah-prose">
+    <p>
+      Computação de alto desempenho (HPC, do inglês <em>high-performance computing</em>) é o uso de muitos processadores, ou de processadores muito rápidos, para resolver
+      problemas que levariam dias ou anos em um computador comum: previsão do tempo, dinâmica molecular, simulação de escoamento de fluidos, treinamento de modelos. A pergunta
+      central é sempre a mesma: <strong>quanto tempo leva, e quanto do hardware está sendo aproveitado?</strong>
+    </p>
+    <p>
+      Antes de paralelizar qualquer coisa, é preciso aprender a medir. Um número sem método é pior que nenhum número: ele dá confiança falsa. Este tópico estabelece
+      as métricas, o modo de medir e as duas leis que dizem até onde o paralelismo pode ir.
+    </p>
+  </div>
+</section>
+
+<section id="metricas" data-toc="Métricas básicas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ruler text-sky-400 mr-2"></i>Métricas: tempo, speedup e eficiência</h2>
+  <div class="ah-prose">
+    <p>Seja <code>T(p)</code> o tempo de execução com <code>p</code> processadores e <code>T(1)</code> o tempo da melhor versão serial. Três métricas resumem o ganho:</p>
+    <ul>
+      <li><strong>Speedup</strong>: <code>S(p) = T(1) / T(p)</code>. Quantas vezes a versão paralela é mais rápida.</li>
+      <li><strong>Eficiência</strong>: <code>E(p) = S(p) / p</code>. Que fração do hardware realmente trabalha para o programa. Um valor de 100% é o ideal, quase nunca atingido.</li>
+      <li><strong>Vazão</strong>: trabalho por unidade de tempo, como GFLOP/s ou GB/s. Útil para comparar com o limite da máquina (tópico 6).</li>
+    </ul>
+    <p>
+      Um detalhe que costuma passar despercebido: <code>T(1)</code> deve ser o tempo da <em>melhor</em> versão serial, não da versão paralela rodando com um
+      thread. Comparar uma versão paralela com uma versão serial ruim infla o speedup e esconde o problema real.
+    </p>
+  </div>
+</section>
+
+<section id="medir" data-toc="Medir sem se enganar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Medir sem se enganar</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Use relógio monotônico</strong> (<code>clock_gettime(CLOCK_MONOTONIC)</code>). <code>time()</code> tem resolução de segundo e pode dar saltos.</li>
+      <li><strong>Faça aquecimento.</strong> A primeira execução paga falhas de página e cache frio. Não a inclua.</li>
+      <li><strong>Repita e use mediana.</strong> Ruído do sistema operacional cria outliers; a mediana é robusta a eles. Reporte também mínimo e máximo para mostrar a dispersão.</li>
+      <li><strong>Impeça a otimização que elimina o trabalho.</strong> Se o resultado não é usado, o compilador pode remover o laço inteiro. Use <code>volatile</code> ou escreva o resultado em algum lugar observável.</li>
+      <li><strong>Meça o que importa.</strong> Separe o tempo de inicialização, de E/S e do cálculo principal.</li>
+    </ul>
+  </div>
+  <h3 class="text-sm font-bold text-emerald-300 mt-6 mb-2">Exemplo: medição com repetições e mediana</h3>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/01-medicao.c">01-medicao.c</a></p>
+<pre class="ah-code"><code>double t[7];
+for (int r = 0; r &lt; reps; r++) {
+    double t0 = agora();
+    trabalho(v, n);            /* o que está sendo medido */
+    t[r] = agora() - t0;
+}
+qsort(t, reps, sizeof t[0], compara);
+double mediana = t[reps / 2];</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa (executado neste ambiente, Apple clang, macOS)</p>
+<pre class="ah-code"><code>n = 20000000, repeticoes = 7
+minimo  = 0.035453 s
+mediana = 0.037278 s
+maximo  = 0.038198 s
+vazao   = 4.29 GB/s (lidos 160000000 bytes por execucao)</code></pre>
+  <p class="text-xs text-slate-400 mt-2">Os números variam de máquina para máquina. O que importa é a dispersão pequena entre mínimo e máximo: ela indica uma medição estável.</p>
+</section>
+
+<section id="amdahl" data-toc="Lei de Amdahl" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-rose-400 mr-2"></i>Lei de Amdahl: a parte serial manda</h2>
+  <div class="ah-prose">
+    <p>
+      Suponha que uma fração <code>f</code> do tempo serial possa ser paralelizada perfeitamente e o restante <code>(1 − f)</code> seja obrigatoriamente serial.
+      Com <code>p</code> processadores, o tempo passa a ser <code>(1 − f) + f / p</code> (em unidades do tempo serial). Logo:
+    </p>
+    <p class="text-center font-mono text-sky-300 my-4">S(p) = 1 / ((1 − f) + f / p)  &nbsp;&nbsp; e, com p → ∞, &nbsp; S ≤ 1 / (1 − f)</p>
+    <p>
+      Esse é o resultado de Amdahl (1967). Mesmo com processadores infinitos, uma parte serial de 5% limita o speedup a 20. Por isso a otimização de HPC começa pela
+      pergunta "o que ainda é serial?", e não pela pergunta "quantos núcleos tenho?".
+    </p>
+  </div>
+  <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+    <div class="space-y-4">
+      <label class="block text-sm text-slate-300">Fração paralelizável <code>f</code>: <span id="amF" class="font-mono text-white">0.95</span>
+        <input id="amFin" type="range" min="0.50" max="0.999" step="0.001" value="0.95" class="w-full mt-2">
+      </label>
+      <label class="block text-sm text-slate-300">Processadores <code>p</code>: <span id="amP" class="font-mono text-white">8</span>
+        <input id="amPin" type="range" min="1" max="1024" step="1" value="8" class="w-full mt-2">
+      </label>
+      <div class="ah-card p-4 space-y-1 text-sm">
+        <div>Speedup: <strong id="amS" class="text-white">—</strong></div>
+        <div>Eficiência: <strong id="amE" class="text-white">—</strong></div>
+        <div>Teto (p → ∞): <strong id="amT" class="text-white">—</strong></div>
+      </div>
+    </div>
+    <div>
+      <svg id="amSvg" viewBox="0 0 400 240" class="w-full" role="img" aria-label="Curva de speedup pela lei de Amdahl"></svg>
+      <p class="text-xs text-slate-500 mt-2">Linha tracejada: speedup ideal (S = p). Curva: Amdahl com a fração escolhida.</p>
+    </div>
+  </div>
+</section>
+
+<section id="gustafson" data-toc="Lei de Gustafson" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-expand text-violet-400 mr-2"></i>Lei de Gustafson: problemas que crescem</h2>
+  <div class="ah-prose">
+    <p>
+      Amdahl assume um problema de tamanho fixo. Na prática científica, quando mais processadores estão disponíveis, o cientista usa uma malha mais fina, mais partículas ou mais
+      iterações. Gustafson (1988) propôs medir o speedup com o <strong>tamanho do problema crescendo junto com p</strong>:
+    </p>
+    <p class="text-center font-mono text-sky-300 my-4">S(p) = (1 − f) + f · p &nbsp;&nbsp;(f é a fração paralela do tempo <em>no problema escalado</em>)</p>
+    <p>
+      As duas leis não se contradizem: uma responde "quanto mais rápido fico para o mesmo problema?" e a outra "quanto maior posso resolver no mesmo tempo?".
+      Em HPC, a segunda é a pergunta de escalabilidade fraca (weak scaling), e a primeira é a de escalabilidade forte (strong scaling). O tópico 5 usa essa distinção ao analisar MPI.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um programa tem 10% de trabalho serial. Qual é o speedup máximo possível, mesmo com infinitos processadores?</p>
+      <button class="ah-quiz-opt">10</button>
+      <button class="ah-quiz-opt">90</button>
+      <button class="ah-quiz-opt">Não há limite</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto, a parte serial é 0,1 e o teto é 1 / 0,1 = 10. Esse é o limite de Amdahl quando p tende ao infinito.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o tempo de um programa deve ser medido com mediana de várias execuções, depois de um aquecimento?</p>
+      <button class="ah-quiz-opt">Porque ruídos do sistema criam outliers e a primeira execução paga custos de cache e de paginação</button>
+      <button class="ah-quiz-opt">Porque a mediana é sempre igual à média</button>
+      <button class="ah-quiz-opt">Porque o compilador só otimiza na segunda execução</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A mediana resiste a outliers, e o aquecimento tira da medição o custo de estado inicial.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um speedup de 6 com 8 processadores corresponde a qual eficiência?</p>
+      <button class="ah-quiz-opt">6%</button>
+      <button class="ah-quiz-opt">75%</button>
+      <button class="ah-quiz-opt">133%</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. E = S / p = 6 / 8 = 0,75.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>AMDAHL, G. M. Validity of the single processor approach to achieving large scale computing capabilities. <em>AFIPS Spring Joint Computer Conference</em>, 1967.</li>
+    <li>GUSTAFSON, J. L. Reevaluating Amdahl's law. <em>Communications of the ACM</em>, v. 31, n. 5, p. 532–533, 1988.</li>
+    <li>GRAMA, A. et al. <em>Introduction to Parallel Computing</em>. 2. ed. Addison-Wesley, 2003. Cap. 5 (análise de desempenho).</li>
+    <li>HENNESSY, J. L.; PATTERSON, D. A. <em>Computer Architecture: A Quantitative Approach</em>. 6. ed. Morgan Kaufmann, 2017. Apêndice sobre medição e lei de Amdahl.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+(function () {
+  var f = document.getElementById('amFin'), p = document.getElementById('amPin');
+  if (!f || !p) return;
+  var svg = document.getElementById('amSvg');
+  function amdahl(fr, n) { return 1 / ((1 - fr) + fr / n); }
+  function desenha() {
+    var fr = +f.value, n = +p.value;
+    var S = amdahl(fr, n), E = S / n, T = 1 / (1 - fr);
+    document.getElementById('amF').textContent = fr.toFixed(3);
+    document.getElementById('amP').textContent = n;
+    document.getElementById('amS').textContent = S.toFixed(2) + '×';
+    document.getElementById('amE').textContent = (100 * E).toFixed(1) + '%';
+    document.getElementById('amT').textContent = T.toFixed(1) + '×';
+    var W = 400, H = 240, pad = 34, pmax = 1024, smax = 1100;
+    function x(v) { return pad + (Math.log2(v) / Math.log2(pmax)) * (W - pad - 10); }
+    function y(v) { return H - pad - Math.min(v, smax) / smax * (H - pad - 10); }
+    var pts = [], ideal = [];
+    for (var k = 0; k <= 10; k++) {
+      var v = Math.pow(2, k);
+      pts.push(x(v) + ',' + y(amdahl(fr, v)));
+      ideal.push(x(v) + ',' + y(v));
+    }
+    svg.innerHTML =
+      '<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - 10) + '" y2="' + (H - pad) + '" stroke="#475569"/>' +
+      '<line x1="' + pad + '" y1="10" x2="' + pad + '" y2="' + (H - pad) + '" stroke="#475569"/>' +
+      '<polyline points="' + ideal.join(' ') + '" fill="none" stroke="#64748b" stroke-dasharray="4 4"/>' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#f59e0b" stroke-width="2.5"/>' +
+      '<circle cx="' + x(n) + '" cy="' + y(S) + '" r="5" fill="#f59e0b"/>' +
+      '<text x="' + pad + '" y="' + (H - 8) + '" fill="#94a3b8" font-size="11">p (escala log₂)</text>' +
+      '<text x="' + (pad + 6) + '" y="16" fill="#94a3b8" font-size="11">speedup</text>';
+  }
+  f.addEventListener('input', desenha);
+  p.addEventListener('input', desenha);
+  desenha();
+})();
+</script>
+</body>
+</html>
