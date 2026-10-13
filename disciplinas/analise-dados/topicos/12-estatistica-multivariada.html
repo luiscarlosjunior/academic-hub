@@ -255,6 +255,67 @@ k = 5: silhueta = 0.469   inércia = 67.0</code></pre>
 </section>
 
 <!-- ============================ FIXAÇÃO ============================ -->
+<section id="aprofundar" data-toc="Aprofundando: PCA e k-means passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundando: PCA e k-means passo a passo</h2>
+
+  <h3 class="ah-h3 mt-2 mb-3">1. O roteiro da PCA</h3>
+  <div class="ah-prose">
+    <ol>
+      <li><strong>Padronize</strong> cada variável (média 0, desvio 1). Sem isso, a unidade decide a direção.</li>
+      <li><strong>Calcule a matriz de covariância</strong> Σ. Ela guarda quanto cada par de variáveis varia junto.</li>
+      <li><strong>Encontre os autovetores e autovalores</strong> de Σ. Cada autovetor é uma direção; o autovalor é a variância dos dados nessa direção.</li>
+      <li><strong>Ordene</strong> pelos autovalores. A primeira componente é a direção de maior variância; as seguintes são perpendiculares a ela.</li>
+      <li><strong>Projete</strong> os dados: o escore de cada cliente na PC1 é o produto escalar entre seus valores padronizados e o autovetor.</li>
+      <li><strong>Escolha quantas componentes manter</strong>, geralmente as que somam 80% a 90% da variância, ou até o “cotovelo” no gráfico de autovalores.</li>
+    </ol>
+  </div>
+  <div class="ah-callout ah-callout-info mb-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div><strong>Interprete as cargas:</strong> o peso de cada variável em uma componente diz o que ela “mede”. Se renda, idade e
+    gasto têm o mesmo sinal na PC1, a componente é um eixo geral de capacidade de gasto. Se as cargas têm sinais opostos, a
+    componente é um contraste entre dois tipos de comportamento.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">2. O k-means em cinco passos</h3>
+  <div class="ah-prose">
+    <ol>
+      <li><strong>Escolha k</strong> e posicione k centróides iniciais (no código, com k-means++: o próximo centróide tende a ser escolhido longe dos anteriores).</li>
+      <li><strong>Atribua</strong> cada ponto ao centróide mais próximo (distância euclidiana).</li>
+      <li><strong>Recalcule</strong> cada centróide como a média dos pontos do seu grupo.</li>
+      <li><strong>Repita</strong> os passos 2 e 3 até que nenhum ponto mude de grupo.</li>
+      <li><strong>Repita o processo</strong> com outras inicializações (<code>n_init</code>) e fique com a solução de menor inércia.</li>
+    </ol>
+    <p>
+      A <strong>inércia</strong> é a soma das distâncias² de cada ponto ao seu centróide. Ela sempre cai com mais grupos.
+      O “cotovelo” é o ponto em que a queda passa a ser pequena; a silhueta complementa essa leitura.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">3. A silhueta, por dentro</h3>
+  <div class="ah-card p-5 mb-4">
+    <div class="font-mono text-sm text-center">s(i) = (b(i) − a(i)) / max(a(i), b(i))</div>
+    <p class="text-xs text-slate-400 text-center mt-2">a(i): distância média de i aos pontos do próprio grupo. b(i): distância média de i ao grupo vizinho mais próximo.</p>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Se um ponto está muito mais perto do seu grupo do que do vizinho, s(i) fica perto de 1. Se está na fronteira, s(i)
+      fica perto de zero. Se estiver no grupo errado, s(i) é negativo. A média de s(i) sobre todos os pontos é o coeficiente
+      de silhueta, e o k com maior média costuma ser o escolhido, como no exemplo da página.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">4. Armadilhas do agrupamento</h3>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Agrupar qualquer coisa:</strong> o k-means sempre devolve k grupos, mesmo quando não existe estrutura. Valide com silhueta e com o significado do negócio.</li>
+      <li><strong>Grupos de tamanhos e densidades muito diferentes:</strong> o método tende a dividir o grupo grande e a juntar os pequenos.</li>
+      <li><strong>Dados em alta dimensão:</strong> a distância perde contraste. Por isso a PCA costuma vir antes do agrupamento.</li>
+    </ul>
+  </div>
+
+</section>
+
 <section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-violet-400 mr-2"></i>Teste seu entendimento</h2>
 
