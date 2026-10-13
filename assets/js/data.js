@@ -645,7 +645,11 @@ const AH_DATA = {
         { id: '12-estatistica-multivariada', titulo: 'Estatística multivariada: PCA e agrupamento k-means', icone: 'fa-compass',
           resumo: 'Resumir muitas variáveis em poucas componentes principais, escolher o número de grupos pela silhueta e interpretar perfis de clientes, com animações.',
           trilha: 'avancado',
-          tags: ['PCA', 'k-means', 'Silhueta'], nivel: 'Avançado', minutos: 32 }
+          tags: ['PCA', 'k-means', 'Silhueta'], nivel: 'Avançado', minutos: 32 },
+        { id: '13-series-temporais', titulo: 'Séries temporais: tendência, sazonalidade e Holt-Winters', icone: 'fa-chart-line',
+          resumo: 'Médias móveis, decomposição em tendência, sazonalidade e resíduo, autocorrelação e previsão validada no tempo, com vendas mensais em Python.',
+          trilha: 'avancado',
+          tags: ['Tendência', 'Sazonalidade', 'Holt-Winters'], nivel: 'Avançado', minutos: 30 }
       ]
     }
   ]

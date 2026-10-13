@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Séries Temporais · AcademicHub</title>
+<meta name="description" content="Tendência, sazonalidade, médias móveis, autocorrelação e previsão com Holt-Winters: como analisar dados ao longo do tempo, com animação e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📉</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/13-series-temporais">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Dados com ordem no tempo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-violet-400 mr-2"></i>Dados com ordem no tempo</h2>
+  <div class="ah-prose">
+    <p>
+      Numa série temporal, a <strong>ordem importa</strong>. As vendas de dezembro não são um sorteio independente das
+      vendas de novembro. Isso quebra a suposição de independência que os testes do tópico 05 fazem, e exige ferramentas
+      próprias para separar o que é <strong>tendência</strong> (direção de longo prazo), <strong>sazonalidade</strong> (padrão
+      que se repete em um ciclo) e <strong>resíduo</strong> (o que sobra, em geral o acaso).
+    </p>
+    <p>
+      A pergunta mais comum é “o que acontece daqui a seis meses?”. Responder bem exige entender o padrão antes de projetá-lo.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-violet-500">
+      <div class="text-xs font-bold text-violet-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Vendas de agasalhos: sobem no inverno, acompanham o crescimento da loja e variam de dia para dia.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-violet-500">
+      <div class="text-xs font-bold text-violet-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Número de chamados a uma central por hora: picos no início da manhã e após o almoço, todo dia útil.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-violet-500">
+      <div class="text-xs font-bold text-violet-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Cotação diária de uma moeda ou o nível de um reservatório, ao longo de meses.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MÉDIAS MÓVEIS ============================ -->
+<section id="media-movel" data-toc="Médias móveis: suavizar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wave-square text-violet-400 mr-2"></i>Médias móveis: enxergar a tendência</h2>
+  <p class="ah-lead text-sm mb-5">
+    A média móvel substitui cada valor pela média dos últimos (ou centrais) k pontos. Ela apaga o ruído e, com janela de 12
+    meses, também apaga a sazonalidade, deixando a tendência à vista. <strong class="text-white">Aumente a janela e veja a
+    curva ficar mais lisa e mais atrasada.</strong>
+  </p>
+  <div class="ah-stage" style="height:280px"><canvas id="tsCanvas" style="height:280px"></canvas></div>
+  <label class="block text-xs text-slate-400 mt-3">Janela da média móvel: <span id="ts-k-v" class="font-mono text-white">1</span> meses
+    <input id="ts-k" type="range" min="1" max="24" step="1" value="1" class="w-full accent-violet-500"></label>
+  <div class="ah-callout ah-callout-info mt-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Janela = período da sazonalidade (12 meses):</strong> o pico de inverno e a queda de verão se anulam dentro da
+      janela, e sobra a tendência. Janela menor que o ciclo deixa a sazonalidade aparecer.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DECOMPOSIÇÃO ============================ -->
+<section id="decomposicao" data-toc="Decomposição: tendência + sazonal + resíduo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-violet-400 mr-2"></i>Decomposição: série = tendência + sazonal + resíduo</h2>
+  <div class="ah-card p-5 mb-4">
+    <div class="font-mono text-sm text-center">Yₜ = Tₜ + Sₜ + Rₜ &nbsp;&nbsp;(modelo aditivo)</div>
+    <p class="text-xs text-slate-400 text-center mt-2">Se a sazonalidade cresce com o nível da série, o modelo multiplicativo, Yₜ = Tₜ · Sₜ · Rₜ, é mais adequado.</p>
+  </div>
+  <p class="text-xs text-slate-400 leading-relaxed">
+    A decomposição clássica usa uma média móvel de 12 meses para estimar a tendência, calcula a sazonalidade como a média de
+    cada mês depois de tirar a tendência e considera o que sobra como resíduo. No exemplo, o índice sazonal vai de −13,7 em
+    dezembro a +16,2 em julho: a diferença entre o pico de julho e o mínimo de dezembro é de cerca de 30 mil unidades, no mesmo ano.
+  </p>
+</section>
+
+<!-- ============================ AUTOCORRELAÇÃO ============================ -->
+<section id="acf" data-toc="Autocorrelação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-violet-400 mr-2"></i>Autocorrelação: a série se parece com ela mesma?</h2>
+  <p class="ah-lead text-sm mb-5">
+    A autocorrelação de defasagem k mede a correlação entre Yₜ e Yₜ₋ₖ. Em séries com tendência, valores vizinhos se parecem
+    (correlação alta para k pequeno). Em séries sazonais, o mesmo mês do ano anterior também se parece. <strong class="text-white">Troque a
+    defasagem e veja a nuvem de pontos mudar.</strong>
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:280px"><canvas id="acfCanvas" style="height:280px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3" id="acf-botoes"></div>
+    </div>
+    <div class="ah-card p-4 space-y-3">
+      <div><div class="text-xs uppercase tracking-wide text-slate-400">Defasagem</div><div id="acf-lag" class="text-2xl font-bold text-white font-mono">1</div></div>
+      <div><div class="text-xs uppercase tracking-wide text-slate-400">Autocorrelação r</div><div id="acf-r" class="text-2xl font-bold text-violet-300 font-mono">—</div></div>
+      <p class="text-[11px] text-slate-500">Cada ponto liga o valor de um mês ao valor de k meses antes. O r é a ACF do statsmodels, calculada com a média da série inteira, por isso não é a correlação de Pearson entre os pares.</p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Autocorrelação quebra a independência.</strong> Com r alto entre vizinhos, o “tamanho efetivo” da amostra é menor
+      do que n, e os erros padrão de testes comuns ficam subestimados. Séries temporais pedem modelos que tratem essa dependência.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PREVISÃO ============================ -->
+<section id="previsao" data-toc="Previsão: Holt-Winters" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-violet-400 mr-2"></i>Previsão: suavização exponencial de Holt-Winters</h2>
+  <div class="ah-prose">
+    <p>
+      A suavização exponencial dá mais peso às observações recentes e sem memória infinita: cada previsão é uma média
+      ponderada de tudo que já aconteceu, com pesos que caem geometricamente no passado. Holt-Winters acrescenta duas
+      componentes: <strong>nível</strong>, <strong>tendência</strong> e <strong>sazonalidade</strong>, cada uma atualizada a cada
+      mês com seu próprio parâmetro de suavização.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <div class="font-mono text-xs text-center leading-loose">
+      nível: Lₜ = α(Yₜ − Sₜ₋₁₂) + (1 − α)(Lₜ₋₁ + Tₜ₋₁) &nbsp;·&nbsp; tendência: Tₜ = β(Lₜ − Lₜ₋₁) + (1 − β)Tₜ₋₁<br>
+      sazonal: Sₜ = γ(Yₜ − Lₜ) + (1 − γ)Sₜ₋₁₂ &nbsp;·&nbsp; previsão: Ŷₜ₊ₕ = Lₜ + h·Tₜ + Sₜ₊ₕ₋₁₂
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Sempre valide com dados que o modelo não viu.</strong> Treine com os primeiros 42 meses e preveja os últimos 6.
+      No programa, o erro quadrático médio foi de 2,69 mil unidades, para uma série que vai de 25 a 80.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-violet-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">George Udny Yule · 1927</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs modelar uma série como função linear dos seus próprios valores passados (modelo autorregressivo), aplicado a manchas solares.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Frederick R. Macaulay · 1931</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Estudou médias móveis e decomposição de séries econômicas em tendência, ciclo, sazonalidade e irregularidade.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Charles C. Holt · 1957 e Peter R. Winters · 1960</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Holt estendeu a suavização exponencial para incluir tendência; Winters acrescentou a sazonalidade, formando o método Holt-Winters.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">George E. P. Box e Gwilym M. Jenkins · 1970</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Em <em>Time Series Analysis: Forecasting and Control</em>, consolidaram a metodologia de identificação, ajuste e validação de modelos ARIMA.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-violet-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Plotar e suavizar</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Olhar a série no tempo antes de tudo e usar médias móveis para ver a tendência.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Decompor e medir a dependência</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Separar tendência, sazonalidade e resíduo, e ler a autocorrelação para descobrir o ciclo.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Modelos ARIMA e validação temporal</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Modelar a dependência com termos autorregressivos e de médias móveis, e validar sempre com janelas que respeitam a ordem do tempo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-violet-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-violet-300">disciplinas/analise-dados/exemplos-python/13-series-temporais.py</code>.
+    Usa <strong>statsmodels</strong> para decomposição, autocorrelação e Holt-Winters.
+  </p>
+
+  <p class="text-xs font-bold text-violet-300 mb-2">1 · Decomposição aditiva</p>
+<pre class="ah-code"><code>dec = <span class="fn">seasonal_decompose</span>(vendas, model=<span class="str">"additive"</span>, period=<span class="num">12</span>)
+<span class="cm"># dec.trend, dec.seasonal e dec.resid</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa (trecho)</p>
+<pre class="ah-code"><code>sazonal   = 29.83
+resíduo   desvio padrão = 1.66
+    jul: +16.18
+    dez: -13.65</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Autocorrelação por defasagem</p>
+<pre class="ah-code"><code>ac = <span class="fn">acf</span>(vendas - vendas.<span class="fn">mean</span>(), nlags=<span class="num">13</span>)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>defasagem  1: +0.836
+defasagem  6: -0.308
+defasagem 12: +0.532</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">3 · Holt-Winters e validação com dados não vistos</p>
+<pre class="ah-code"><code>treino, real = vendas[:<span class="num">42</span>], vendas[<span class="num">42</span>:]
+hw = <span class="fn">ExponentialSmoothing</span>(treino, trend=<span class="str">"add"</span>, seasonal=<span class="str">"add"</span>, seasonal_periods=<span class="num">12</span>).<span class="fn">fit</span>()
+previsao = hw.<span class="fn">forecast</span>(<span class="num">6</span>)</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>2024-07: real =  76.40   previsto =  81.42
+2024-12: real =  51.50   previsto =  54.42
+erro médio quadrático (RMSE) = 2.69</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Repare na autocorrelação de 12 meses (+0,53):</strong> ela confirma a sazonalidade anual que a decomposição
+      encontrou. Três métodos diferentes, o mesmo ciclo: é isso que faz a análise de séries ser confiável.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-violet-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Embaralhar as linhas</h3>
+      <p class="text-xs text-slate-400">Dividir uma série aleatoriamente em treino e teste vaza o futuro para o treino. Separe por data.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Média móvel que vaza o futuro</h3>
+      <p class="text-xs text-slate-400">Usar uma média centrada para prever. Ela usa valores do futuro; para previsão, use média dos passados.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Ignorar a sazonalidade</h3>
+      <p class="text-xs text-slate-400">Comparar dezembro com março e concluir que as vendas caíram. Compare o mesmo mês de anos diferentes.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Previsão sem intervalo</h3>
+      <p class="text-xs text-slate-400">Um número sozinho esconde a incerteza. Quanto mais longe no horizonte, mais largo deve ser o intervalo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-violet-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Uma série mensal tem autocorrelação de +0,5 na defasagem 12 e autocorrelação alta nas defasagens pequenas. O que isso sugere?</p>
+    <button class="ah-quiz-opt">Que a série é aleatória e sem padrão</button>
+    <button class="ah-quiz-opt">Que há tendência, mas nenhum ciclo anual</button>
+    <button class="ah-quiz-opt">Que há dependência entre meses vizinhos e um padrão que se repete a cada ano</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Autocorrelação alta em lags pequenos indica dependência entre meses próximos (tendência ou inércia), e o pico em 12
+      indica sazonalidade anual. Uma série aleatória teria autocorrelações perto de zero em todas as defasagens.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="0">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Qual é a forma correta de avaliar um modelo de previsão de séries temporais?</p>
+    <button class="ah-quiz-opt">Treinar com os dados mais antigos e testar com os mais recentes, sem embaralhar</button>
+    <button class="ah-quiz-opt">Embaralhar as observações e usar validação cruzada comum</button>
+    <button class="ah-quiz-opt">Medir o ajuste apenas nos dados de treino</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      A previsão é sempre sobre o futuro. Treinar com o passado e testar com o futuro simula o uso real e evita vazamento de
+      informação. Embaralhar mistura o futuro com o passado e dá uma avaliação otimista demais.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Série ilustrativa (semente fixa) ===================== */
+function semente(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const rnd = semente(1313);
+function gauss() { const u = Math.max(rnd(), 1e-9), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const SERIE = [];
+for (let t = 0; t < 48; t++) {
+  SERIE.push(40 + 0.6 * t + 15 * Math.sin(2 * Math.PI * (t - 2) / 12) + gauss() * 2.5);
+}
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const fmt = (v, d = 2) => v.toFixed(d).replace('.', ',');
+
+/* ===================== Média móvel ===================== */
+const tsCv = AH.canvas('tsCanvas', desenhaTS);
+function mediaMovel(k) {
+  /* média dos últimos k pontos (janela à esquerda) para cada ponto; até o início, média do que existe */
+  return SERIE.map((_, i) => {
+    const ini = Math.max(0, i - k + 1), fatia = SERIE.slice(ini, i + 1);
+    return fatia.reduce((a, b) => a + b, 0) / fatia.length;
+  });
+}
+function desenhaTS(ctx, w, h) {
+  const k = +document.getElementById('ts-k').value;
+  const x0 = 44, x1 = w - 16, yB = h - 28, yT = 16;
+  const vmin = 20, vmax = 90;
+  const X = i => x0 + i / 47 * (x1 - x0), Y = v => yB - (v - vmin) / (vmax - vmin) * (yB - yT);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  [30, 50, 70, 90].forEach(v => {
+    ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x1, Y(v)); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif'; ctx.fillText(String(v), 8, Y(v) + 4);
+  });
+  ctx.beginPath();
+  SERIE.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)));
+  ctx.strokeStyle = 'rgba(148,163,184,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+  SERIE.forEach((v, i) => { ctx.beginPath(); ctx.arc(X(i), Y(v), 2.2, 0, Math.PI * 2); ctx.fillStyle = 'rgba(148,163,184,.8)'; ctx.fill(); });
+  const mm = mediaMovel(k);
+  ctx.beginPath();
+  mm.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)));
+  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#a78bfa'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('média móvel de ' + k + ' mês(es)', x1 - 170, yT + 12);
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('pontos = vendas mensais (mil)', x0 + 6, yT + 12);
+  document.getElementById('ts-k-v').textContent = k;
+}
+document.getElementById('ts-k').addEventListener('input', () => tsCv.fit());
+
+/* ===================== Autocorrelação: dispersão Yₜ × Yₜ₋ₖ ===================== */
+const LAGS = [1, 2, 6, 12];
+let lag = 1;
+const acfCv = AH.canvas('acfCanvas', desenhaACF);
+/* ACF no mesmo critério do statsmodels: usa a média e a variância da série inteira */
+function acfLag(k) {
+  const n = SERIE.length, m = SERIE.reduce((s, v) => s + v, 0) / n;
+  const var0 = SERIE.reduce((s, v) => s + (v - m) ** 2, 0);
+  let num = 0;
+  for (let t = k; t < n; t++) num += (SERIE[t] - m) * (SERIE[t - k] - m);
+  return num / var0;
+}
+function desenhaACF(ctx, w, h) {
+  const x0 = 40, x1 = w - 16, yB = h - 28, yT = 16;
+  const atual = SERIE.slice(lag), antes = SERIE.slice(0, SERIE.length - lag);
+  const vmin = 20, vmax = 90;
+  const X = v => x0 + (v - vmin) / (vmax - vmin) * (x1 - x0), Y = v => yB - (v - vmin) / (vmax - vmin) * (yB - yT);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, yB); ctx.lineTo(x1, yB); ctx.moveTo(x0, yB); ctx.lineTo(x0, yT); ctx.stroke();
+  atual.forEach((v, i) => {
+    ctx.beginPath(); ctx.arc(X(antes[i]), Y(v), 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(167,139,250,.8)'; ctx.fill();
+  });
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('Yₜ₋' + lag + ' (meses antes)', x1 - 130, h - 8);
+  ctx.save(); ctx.translate(12, h / 2 + 30); ctx.rotate(-Math.PI / 2); ctx.fillText('Yₜ', 0, 0); ctx.restore();
+  const r = acfLag(lag);
+  document.getElementById('acf-lag').textContent = lag;
+  document.getElementById('acf-r').textContent = fmt(r, 3);
+}
+const botoes = document.getElementById('acf-botoes');
+botoes.innerHTML = LAGS.map(k => `<button class="ah-btn text-xs" data-lag="${k}">defasagem ${k}</button>`).join('');
+botoes.addEventListener('click', e => {
+  const b = e.target.closest('button[data-lag]'); if (!b) return;
+  lag = +b.dataset.lag;
+  botoes.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  acfCv.fit();
+});
+
+tsCv.fit(); acfCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>
