@@ -260,6 +260,76 @@ erro médio quadrático (RMSE) = 2.69</code></pre>
 </section>
 
 <!-- ============================ FIXAÇÃO ============================ -->
+<section id="aprofundar" data-toc="Aprofundando: estacionariedade e decomposição passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundando: estacionariedade e decomposição passo a passo</h2>
+
+  <h3 class="ah-h3 mt-2 mb-3">1. Média móvel, passo a passo</h3>
+  <div class="ah-prose">
+    <p>
+      Com a série 10, 12, 14, 13 e janela de 3 meses (média dos últimos 3 valores, incluindo o atual):
+    </p>
+  </div>
+  <div class="overflow-x-auto mb-4">
+    <table class="ah-table text-sm">
+      <thead><tr><th>Mês</th><th>Valor</th><th>Janela</th><th>Média móvel</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>10</td><td>(incompleta)</td><td>—</td></tr>
+        <tr><td>2</td><td>12</td><td>(incompleta)</td><td>—</td></tr>
+        <tr><td>3</td><td>14</td><td>10, 12, 14</td><td>12,0</td></tr>
+        <tr><td>4</td><td>13</td><td>12, 14, 13</td><td>13,0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Janelas pares (como 12 meses) precisam de uma média centrada: a média de 12 meses fica entre dois meses, e por isso
+      faz-se uma média de duas médias de 12. Esse detalhe é o que o <code>seasonal_decompose</code> faz por dentro.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">2. A decomposição clássica, em cinco passos</h3>
+  <div class="ah-prose">
+    <ol>
+      <li><strong>Tendência:</strong> média móvel centrada de 12 meses, que apaga a sazonalidade anual.</li>
+      <li><strong>Série sem tendência:</strong> Yₜ − Tₜ (modelo aditivo) ou Yₜ / Tₜ (multiplicativo).</li>
+      <li><strong>Sazonalidade bruta:</strong> média dos valores de cada mês do ano (todos os janeiros, todos os fevereiros etc.).</li>
+      <li><strong>Normalização:</strong> ajuste os índices para que somem zero (aditivo) ou para que a média seja 1 (multiplicativo).</li>
+      <li><strong>Resíduo:</strong> Rₜ = Yₜ − Tₜ − Sₜ. Se a decomposição capturou o padrão, o resíduo parece ruído, sem sazonalidade nem tendência.</li>
+    </ol>
+  </div>
+  <div class="ah-callout ah-callout-info mb-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div><strong>Teste rápido:</strong> plote o resíduo. Se ele ainda tiver uma onda anual ou uma subida, o modelo deixou algo de fora.
+    Se a autocorrelação do resíduo ficar perto de zero em todas as defasagens, ele se parece com ruído branco.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">3. Estacionariedade: o pressuposto escondido</h3>
+  <div class="ah-prose">
+    <p>
+      Muitos modelos (ARIMA, por exemplo) supõem que a série é <strong>estacionária</strong>: média, variância e
+      autocorrelação não mudam com o tempo. Uma série com tendência não é estacionária, porque a média sobe. A forma mais
+      simples de tornar uma série estacionária é a <strong>diferenciação</strong>: calcular ΔYₜ = Yₜ − Yₜ₋₁, que transforma a tendência
+      linear em um valor constante. Para uma sazonalidade anual, diferencia-se em 12 meses.
+    </p>
+    <p>
+      Testes como o Dickey-Fuller aumentado (ADF) verificam formalmente essa suposição. Uma série que parece “andar para
+      cima e para baixo” sem voltar à média costuma ser não estacionária, e a previsão de longo prazo fica pouco confiável.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">4. Previsão honesta</h3>
+  <div class="ah-prose">
+    <p>
+      Previsões de séries temporais perdem precisão rapidamente com o horizonte. Uma previsão para o próximo mês costuma ser
+      muito melhor do que uma para daqui a dois anos. Por isso reporte sempre um intervalo que se alarga com o horizonte, e
+      compare seu modelo com uma referência ingênua, como “o próximo mês será igual ao último” ou “será igual ao mesmo mês do
+      ano passado”. Se o seu modelo não supera essas referências, ele não está agregando valor.
+    </p>
+  </div>
+
+</section>
+
 <section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-violet-400 mr-2"></i>Teste seu entendimento</h2>
 
