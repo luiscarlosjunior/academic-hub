@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo de desempenho: intensidade aritmética e roofline · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Saber se um kernel é limitado por memória ou por computação, calcular a intensidade aritmética e prever o teto de desempenho, com um roofline medido na sua máquina.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/06-modelo-roofline">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-area text-amber-400 mr-2"></i>Tópico 6 · Modelo de desempenho e roofline</h2>
+  <div class="ah-prose">
+    <p>
+      Quando um programa está lento, a pergunta útil não é "como deixo mais rápido?", e sim "<strong>o que o limita</strong>?". Há duas respostas possíveis: a
+      máquina não consegue fazer mais contas por segundo (limite de computação), ou não consegue trazer dados da memória com rapidez suficiente (limite de memória).
+      Otimizar a parte errada não adianta nada.
+    </p>
+    <p>
+      O modelo <strong>roofline</strong> (Williams, Waterman e Patterson, 2009) responde a essa pergunta com um gráfico e uma conta simples. É uma das ferramentas mais
+      usadas em HPC para decidir por onde começar.
+    </p>
+  </div>
+</section>
+
+<section id="ai" data-toc="Intensidade aritmética" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-sky-400 mr-2"></i>Intensidade aritmética</h2>
+  <div class="ah-prose">
+    <p>A <strong>intensidade aritmética</strong> (AI, do inglês <em>arithmetic intensity</em>) de um kernel é:</p>
+    <p class="text-center font-mono text-sky-300 my-4">AI = operações de ponto flutuante / bytes trafegados com a memória</p>
+    <p>
+      Um kernel que soma dois vetores faz 1 operação por elemento e move 24 bytes (duas leituras e uma escrita de doubles): AI ≈ 0,04. Um kernel com muitas operações por
+      elemento, como a multiplicação de matrizes em blocos, pode chegar a dezenas. Quanto maior a AI, mais o kernel reaproveita os dados que já estão perto do processador.
+    </p>
+  </div>
+</section>
+
+<section id="teto" data-toc="O teto roofline" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-mountain text-emerald-400 mr-2"></i>O teto: memória ou computação</h2>
+  <div class="ah-prose">
+    <p>O desempenho máximo possível de um kernel com AI conhecida é:</p>
+    <p class="text-center font-mono text-sky-300 my-4">desempenho ≤ min( pico de computação , AI × largura de banda da memória )</p>
+    <p>
+      Em gráfico log-log, isso desenha um telhado: uma rampa inclinada (limitada pela memória, cuja inclinação é a banda) que encontra um platô horizontal (limitado
+      pela computação). O ponto onde os dois se encontram é a <strong>AI de inflexão</strong> (<em>ridge point</em>) = pico / banda. Kernels à esquerda do ponto são
+      limitados por memória; os da direita, por computação.
+    </p>
+  </div>
+  <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+    <div class="space-y-4">
+      <label class="block text-sm text-slate-300">Intensidade aritmética do kernel: <span id="rfAI" class="font-mono text-white">1.00</span> flop/byte
+        <input id="rfAIin" type="range" min="-4" max="6" step="0.05" value="0" class="w-full mt-2">
+      </label>
+      <label class="block text-sm text-slate-300">Pico de computação: <span id="rfPico" class="font-mono text-white">5.44</span> GFLOP/s
+        <input id="rfPicoIn" type="range" min="1" max="200" step="0.1" value="5.44" class="w-full mt-2">
+      </label>
+      <label class="block text-sm text-slate-300">Largura de banda: <span id="rfBw" class="font-mono text-white">5.26</span> GB/s
+        <input id="rfBwIn" type="range" min="1" max="500" step="0.1" value="5.26" class="w-full mt-2">
+      </label>
+      <div class="ah-card p-4 space-y-1 text-sm">
+        <div>Ponto de inflexão: <strong id="rfRidge" class="text-white">—</strong> flop/byte</div>
+        <div>Teto neste kernel: <strong id="rfTeto" class="text-white">—</strong> GFLOP/s</div>
+        <div>Regime: <strong id="rfReg" class="text-white">—</strong></div>
+      </div>
+    </div>
+    <div>
+      <svg id="rfSvg" viewBox="0 0 400 260" class="w-full" role="img" aria-label="Gráfico roofline"></svg>
+      <p class="text-xs text-slate-500 mt-2">Valores iniciais: a medição do exemplo <code>06-roofline.c</code> nesta máquina. Ajuste os controles para outra máquina ou outro cenário.</p>
+    </div>
+  </div>
+</section>
+
+<section id="medindo" data-toc="Medindo na sua máquina" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-microscope text-violet-400 mr-2"></i>Medindo banda e computação</h2>
+  <div class="ah-prose">
+    <p>
+      Medir a largura de banda é simples: use um kernel de <em>triad</em> (<code>a[i] = b[i] + s · c[i]</code>), com vetores maiores que o cache. Medir o pico de computação é
+      mais delicado: um laço com uma única cadeia de dependências mede a <strong>latência</strong> da operação, não a vazão. É preciso expor paralelismo de instrução com
+      várias cadeias independentes, como no exemplo.
+    </p>
+  </div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/06-roofline.c">06-roofline.c</a></p>
+<pre class="ah-code"><code>/* uma cadeia: mede latência (1,28 GFLOP/s no exemplo, antes da correção) */
+x = x * y + 0.5;
+
+/* oito cadeias independentes: mede a vazão (5,44 GFLOP/s) */
+x0 = x0 * y + 0.5; x1 = x1 * y + 0.5; /* ... até x7 */</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real (executado neste ambiente, Apple clang -O2)</p>
+<pre class="ah-code"><code>triad: 0.0383 s, 5.26 GB/s, AI = 0.083 flop/byte
+denso: 1.5801 s, 5.44 GFLOP/s, AI = 64.00 flop/byte
+
+teto estimado de computacao = 5.44 GFLOP/s, banda = 5.26 GB/s
+ponto de inflexao (ridge) = 1.03 flop/byte</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Os números são de um único núcleo, e o pico real de um processador é bem maior: vetorização (SIMD), FMA e vários núcleos multiplicam o teto teórico. O exemplo
+      estima o teto com o que o código consegue atingir, o que é uma aproximação honesta para comparar versões de um mesmo kernel. Para o pico teórico, consulte a especificação
+      do processador.
+    </p>
+  </div>
+</section>
+
+<section id="uso" data-toc="Como usar o roofline" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-emerald-400 mr-2"></i>Como usar o roofline na prática</h2>
+  <div class="ah-prose">
+    <ol>
+      <li><strong>Calcule a AI</strong> do kernel contando as operações e os bytes que realmente vão à memória (não os bytes do código-fonte).</li>
+      <li><strong>Meça o desempenho atual</strong> em GFLOP/s e compare com o teto da linha vertical da AI.</li>
+      <li><strong>Se está abaixo da rampa</strong>, o kernel é limitado por memória: reduza o tráfego (layout, blocking, reuso no cache, tipos menores).</li>
+      <li><strong>Se está abaixo do platô</strong>, é limitado por computação: vetorize, use FMA e paralelize.</li>
+      <li><strong>Se está perto do teto</strong>, a próxima melhora vem de mudar o algoritmo, não de otimizar o código.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um kernel tem AI = 0,25 flop/byte em uma máquina com ponto de inflexão em 4 flop/byte. Qual é o regime?</p>
+      <button class="ah-quiz-opt">Limitado por memória: está à esquerda do ponto de inflexão</button>
+      <button class="ah-quiz-opt">Limitado por computação, porque a AI é baixa e a máquina tem muitos núcleos</button>
+      <button class="ah-quiz-opt">Não dá para saber sem medir o tempo</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Abaixo do ponto de inflexão, o teto é AI × banda, e a banda é o fator que limita.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que uma única cadeia dependente é uma má medida do pico de computação?</p>
+      <button class="ah-quiz-opt">Porque o compilador sempre a remove</button>
+      <button class="ah-quiz-opt">Porque ela mede só memória, não computação</button>
+      <button class="ah-quiz-opt">Porque ela mede a latência da operação, e não a vazão que o núcleo consegue sustentar com paralelismo de instrução</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada operação espera a anterior; com várias cadeias independentes o núcleo executa várias ao mesmo tempo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>WILLIAMS, S.; WATERMAN, A.; PATTERSON, D. Roofline: an insightful visual performance model for multicore architectures. <em>Communications of the ACM</em>, v. 52, n. 4, p. 65–76, 2009.</li>
+    <li>McCALPIN, J. D. Memory bandwidth and machine balance in current high performance computers. <em>IEEE TCCA Newsletter</em>, 1995 (origem do benchmark STREAM).</li>
+    <li>HENNESSY, J. L.; PATTERSON, D. A. <em>Computer Architecture: A Quantitative Approach</em>. 6. ed. Morgan Kaufmann, 2017. Cap. 4 (paralelismo de dados).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+(function () {
+  var ai = document.getElementById('rfAIin'), pi = document.getElementById('rfPicoIn'), bi = document.getElementById('rfBwIn');
+  if (!ai || !pi || !bi) return;
+  var svg = document.getElementById('rfSvg');
+  var xmin = -4, xmax = 6, ymin = -1, ymax = 3; /* log2 */
+  var W = 400, H = 260, pad = 36;
+  function X(l) { return pad + (l - xmin) / (xmax - xmin) * (W - pad - 10); }
+  function Y(l) { return H - pad - (l - ymin) / (ymax - ymin) * (H - pad - 10); }
+  function desenha() {
+    var lai = +ai.value, pico = +pi.value, bw = +bi.value;
+    var AI = Math.pow(2, lai), ridge = pico / bw, teto = Math.min(AI * bw, pico);
+    document.getElementById('rfAI').textContent = AI.toFixed(2);
+    document.getElementById('rfPico').textContent = pico.toFixed(2);
+    document.getElementById('rfBw').textContent = bw.toFixed(2);
+    document.getElementById('rfRidge').textContent = ridge.toFixed(2);
+    document.getElementById('rfTeto').textContent = teto.toFixed(2);
+    document.getElementById('rfReg').textContent = AI < ridge ? 'memória' : 'computação';
+    /* telhado: rampa até o ridge e platô depois */
+    var lr = Math.log2(ridge), lp = Math.log2(pico);
+    var pts = [];
+    for (var l = xmin; l <= xmax + 0.001; l += 0.1) {
+      var lv = Math.min(l + Math.log2(bw), lp);
+      pts.push(X(l).toFixed(1) + ',' + Y(lv).toFixed(1));
+    }
+    svg.innerHTML =
+      '<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - 10) + '" y2="' + (H - pad) + '" stroke="#475569"/>' +
+      '<line x1="' + pad + '" y1="10" x2="' + pad + '" y2="' + (H - pad) + '" stroke="#475569"/>' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#38bdf8" stroke-width="2.5"/>' +
+      '<line x1="' + X(lai).toFixed(1) + '" y1="' + Y(ymin) + '" x2="' + X(lai).toFixed(1) + '" y2="' + Y(ymax) + '" stroke="#f59e0b" stroke-dasharray="4 4"/>' +
+      '<circle cx="' + X(lai).toFixed(1) + '" cy="' + Y(Math.log2(teto)).toFixed(1) + '" r="5" fill="#f59e0b"/>' +
+      '<text x="' + (pad + 4) + '" y="16" fill="#94a3b8" font-size="11">GFLOP/s (log₂)</text>' +
+      '<text x="' + (W - 120) + '" y="' + (H - 8) + '" fill="#94a3b8" font-size="11">flop/byte (log₂)</text>';
+  }
+  ai.addEventListener('input', desenha);
+  pi.addEventListener('input', desenha);
+  bi.addEventListener('input', desenha);
+  desenha();
+})();
+</script>
+</body>
+</html>

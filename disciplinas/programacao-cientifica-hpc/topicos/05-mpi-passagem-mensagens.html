@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passagem de mensagens com MPI: comunicação e decomposição de domínio · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Memória distribuída, comunicadores, troca de halos entre processos, coletivas como Allreduce e escalabilidade forte e fraca, com uma simulação de calor em MPI.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/05-mpi-passagem-mensagens">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-amber-400 mr-2"></i>Tópico 5 · Passagem de mensagens com MPI</h2>
+  <div class="ah-prose">
+    <p>
+      Quando o problema não cabe em uma máquina, ou quando há muitas máquinas disponíveis, cada processo tem <strong>sua própria memória</strong>. Não há variável
+      compartilhada: os processos se falam por mensagens. O padrão de fato para isso em ciência é o <strong>MPI</strong> (<em>Message Passing Interface</em>), usado em
+      praticamente todos os clusters científicos do mundo.
+    </p>
+    <p>
+      MPI não é uma linguagem nem uma biblioteca de otimização automática: é um contrato de comunicação. O desempenho depende de como você divide os dados e de quantas
+      mensagens troca. Este tópico mostra essas duas decisões em uma simulação de calor.
+    </p>
+  </div>
+</section>
+
+<section id="comunicadores" data-toc="Processos e comunicadores" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users text-sky-400 mr-2"></i>Processos, ranks e comunicadores</h2>
+  <div class="ah-prose">
+    <p>
+      Um programa MPI é iniciado com <code>mpirun -np P</code>, que cria <code>P</code> processos. Cada um recebe um número, o <em>rank</em>, dentro de um
+      <em>comunicador</em> (o padrão é <code>MPI_COMM_WORLD</code>). Com <code>MPI_Comm_rank</code> e <code>MPI_Comm_size</code> cada processo decide que parte do problema
+      lhe cabe.
+    </p>
+  </div>
+<pre class="ah-code"><code>MPI_Init(&amp;argc, &amp;argv);
+int rank, size;
+MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);
+MPI_Comm_size(MPI_COMM_WORLD, &amp;size);
+/* cada processo trabalha só na sua fatia do domínio */
+MPI_Finalize();</code></pre>
+</section>
+
+<section id="ponto-a-ponto" data-toc="Comunicação ponto a ponto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>Comunicação ponto a ponto e o risco do bloqueio</h2>
+  <div class="ah-prose">
+    <p>
+      <code>MPI_Send</code> e <code>MPI_Recv</code> trocam dados entre dois processos. Se todos os processos chamam <code>MPI_Send</code> antes de qualquer
+      <code>MPI_Recv</code>, e a mensagem é grande demais para ser armazenada pelo sistema, todos ficam esperando e o programa trava: um <strong>deadlock</strong>.
+      <code>MPI_Sendrecv</code> resolve o caso comum de troca entre vizinhos, enviando e recebendo ao mesmo tempo.
+    </p>
+    <p>
+      Em uma malha dividida, cada processo precisa das bordas dos vizinhos para calcular a própria borda. Essas células extras são chamadas de <strong>halo</strong> (ou
+      células fantasmas). A cada passo de tempo, troca-se o halo e depois calcula-se o interior.
+    </p>
+  </div>
+<pre class="ah-code"><code>/* envia minha borda esquerda ao vizinho da esquerda e recebe a borda direita dele */
+MPI_Sendrecv(&amp;u[1], 1, MPI_DOUBLE, esq, 0,
+             &amp;u[n + 1], 1, MPI_DOUBLE, dir, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);</code></pre>
+</section>
+
+<section id="coletivas" data-toc="Operações coletivas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-violet-400 mr-2"></i>Operações coletivas</h2>
+  <div class="ah-prose">
+    <p>
+      Quando todos os processos precisam participar de uma operação, use uma coletiva em vez de vários envios manuais. <code>MPI_Allreduce</code> combina um valor de
+      todos os processos (soma, máximo, mínimo) e entrega o resultado a todos. Coletivas são otimizadas pela biblioteca, com árvores e algoritmos de anel, e costumam ser
+      mais rápidas e mais legíveis que um laço de envios.
+    </p>
+    <ul>
+      <li><code>MPI_Bcast</code>: um processo envia um dado a todos.</li>
+      <li><code>MPI_Reduce</code> / <code>MPI_Allreduce</code>: combinam valores (o segundo entrega o resultado a todos).</li>
+      <li><code>MPI_Gather</code> / <code>MPI_Scatter</code>: juntam ou distribuem blocos de um vetor.</li>
+      <li><code>MPI_Barrier</code>: sincroniza. Use com moderação, pois força a espera do mais lento.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: calor em MPI" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-temperature-half text-rose-400 mr-2"></i>Exemplo: difusão de calor com decomposição de domínio</h2>
+  <div class="ah-prose">
+    <p>
+      Um domínio de um milhão de células é dividido entre os processos. Cada um recebe um pedaço contíguo, com as células que sobram distribuídas entre os primeiros
+      ranks. A cada passo: troca de halos, cálculo local e, no fim, um <code>MPI_Allreduce</code> para somar a grandeza total.
+    </p>
+  </div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/05-mpi-calor.c">05-mpi-calor.c</a></p>
+<pre class="ah-code"><code>for (int t = 0; t &lt; PASSOS; t++) {
+    /* 1. troca de halos (comunicação) */
+    MPI_Sendrecv(/* ...borda esquerda... */);
+    MPI_Sendrecv(/* ...borda direita... */);
+    /* 2. passo local (computação) */
+    for (int i = 1; i &lt;= n; i++)
+        v[i] = u[i] + ALFA * (u[i - 1] - 2.0 * u[i] + u[i + 1]);
+    double *tmp = u; u = v; v = tmp;
+}
+/* 3. redução global */
+MPI_Allreduce(&amp;local, &amp;total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Pense no custo de cada passo como a soma de duas partes: a computação, que cai com o número de processos (cada um tem menos células), e a comunicação, que
+      não cai, porque cada processo sempre troca duas bordas, não importa quantas células ele tenha. Por isso o programa escala bem quando o domínio é grande e mal quando
+      é pequeno demais para o número de processos.
+    </p>
+  </div>
+  <div class="ah-prose mt-4">
+    <p class="text-xs font-bold text-amber-300">Atenção: este exemplo <strong>não foi executado com MPI real</strong> neste material, porque o ambiente de preparação não tem <code>mpicc</code>.
+    Ele foi verificado com um cabeçalho de substituição de um único processo: isso confirma a sintaxe e a lógica do caso serial (a massa total permanece em 1,0, como esperado
+    para um pico de calor distante das bordas). Para testar com vários processos, instale Open MPI ou MPICH e rode <code>mpirun -np 4 ./05-mpi-calor</code>.</p>
+  </div>
+</section>
+
+<section id="escalabilidade" data-toc="Escalabilidade forte e fraca" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-emerald-400 mr-2"></i>Escalabilidade forte e fraca</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Forte</strong>: o problema tem tamanho fixo e você aumenta os processos. O objetivo é reduzir o tempo. A eficiência cai, porque a comunicação não diminui.</li>
+      <li><strong>Fraca</strong>: cada processo mantém a mesma carga e o problema cresce com o número de processos. O objetivo é resolver problemas maiores no mesmo tempo, como na lei de Gustafson (tópico 1).</li>
+    </ul>
+    <p>Reporte sempre as duas, com o número de processos no eixo horizontal e a eficiência, e não só o tempo.</p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em uma malha dividida entre processos, por que cada processo mantém células extras (halo)?</p>
+      <button class="ah-quiz-opt">Para aumentar a precisão de ponto flutuante</button>
+      <button class="ah-quiz-opt">Para ter os valores das bordas dos vizinhos, necessários para calcular a própria borda</button>
+      <button class="ah-quiz-opt">Porque MPI exige um tamanho de vetor múltiplo de 8</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A borda de um processo depende de células que moram em outro processo; o halo guarda cópias delas, atualizadas a cada passo.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Ao aumentar o número de processos mantendo o mesmo problema, o que tende a acontecer com a eficiência?</p>
+      <button class="ah-quiz-opt">Sobe sempre, porque há mais processadores</button>
+      <button class="ah-quiz-opt">Fica igual, porque o trabalho é dividido sem custo</button>
+      <button class="ah-quiz-opt">Cai, porque cada processo fica com menos computação enquanto a comunicação de halos continua a mesma</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Essa é a escalabilidade forte limitada pela comunicação.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>GROPP, W.; LUSK, E.; SKJELLUM, A. <em>Using MPI: Portable Parallel Programming with the Message-Passing Interface</em>. 3. ed. MIT Press, 2014.</li>
+    <li>MPI FORUM. <em>MPI: A Message-Passing Interface Standard</em>, versão 4.0. Disponível em mpi-forum.org/docs.</li>
+    <li>GRAMA, A. et al. <em>Introduction to Parallel Computing</em>. 2. ed. Addison-Wesley, 2003. Cap. 6 (decomposição e comunicação).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

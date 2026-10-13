@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memória compartilhada com OpenMP: threads, condições de corrida e escalonamento · Programação Científica de Alto Desempenho · AcademicHub</title>
+<meta name="description" content="Modelo fork-join, redução sem corrida de dados, a diferença entre atomic e leitura-escrita, false sharing e escalonamento estático e dinâmico, com exemplo em C.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="hpc/04-openmp-memoria-compartilhada">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-people-group text-amber-400 mr-2"></i>Tópico 4 · Memória compartilhada com OpenMP</h2>
+  <div class="ah-prose">
+    <p>
+      Em um servidor com dezenas de núcleos, todos enxergam a mesma memória. A forma mais direta de paralelizar um laço nesse cenário é com <strong>OpenMP</strong>:
+      você escreve o código serial e acrescenta diretivas (<code>#pragma omp</code>) que dizem ao compilador como dividir o trabalho entre threads. O programa continua
+      o mesmo; o que muda é quem executa cada parte.
+    </p>
+    <p>
+      O ganho é fácil de obter e fácil de perder. Quase todo o trabalho deste tópico está em evitar as três armadilhas clássicas: condição de corrida, false sharing e
+      desbalanceamento de carga.
+    </p>
+  </div>
+</section>
+
+<section id="fork-join" data-toc="Modelo fork-join" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-sky-400 mr-2"></i>Modelo fork-join</h2>
+  <div class="ah-prose">
+    <p>
+      O programa começa com uma thread. Ao entrar em uma região <code>parallel</code>, ela se divide em um time de threads (<em>fork</em>). Ao sair da região, as threads
+      esperam umas pelas outras e apenas a thread principal continua (<em>join</em>). Cada thread roda o mesmo código, mas pode descobrir quem é com
+      <code>omp_get_thread_num()</code>.
+    </p>
+  </div>
+<pre class="ah-code"><code>#include &lt;omp.h&gt;
+#pragma omp parallel num_threads(4)
+{
+    int id = omp_get_thread_num();   /* 0, 1, 2 ou 3 */
+    printf("olá da thread %d\n", id);
+}   /* join: só a thread principal segue daqui */</code></pre>
+  <p class="text-sm text-slate-300 mt-3">Compile com <code>-fopenmp</code>. Sem essa opção, as diretivas são ignoradas e o programa roda serial, o que é útil para testar a lógica antes.</p>
+</section>
+
+<section id="reducao" data-toc="Redução sem corrida" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-compress text-emerald-400 mr-2"></i>Redução: somar sem corromper</h2>
+  <div class="ah-prose">
+    <p>
+      Somar um vetor em paralelo é o exemplo típico de <strong>condição de corrida</strong>: várias threads leem e escrevem a mesma variável <code>soma</code> ao mesmo tempo, e
+      algumas atualizações se perdem. A cláusula <code>reduction(+:soma)</code> resolve isso: cada thread recebe uma cópia privada de <code>soma</code>, zerada, e
+      ao final o OpenMP combina as cópias.
+    </p>
+  </div>
+<pre class="ah-code"><code>double soma = 0.0;
+#pragma omp parallel for reduction(+:soma) schedule(static)
+for (long i = 0; i &lt; N; i++)
+    soma += x[i];</code></pre>
+  <div class="ah-prose mt-4">
+    <p>
+      Sem a cláusula, o resultado muda de execução para execução. Veja no exemplo: incrementar um contador compartilhado sem proteção produz um número menor que o
+      esperado, e a versão com <code>#pragma omp atomic</code> produz o correto. <code>atomic</code> é mais simples, mas serializa as atualizações, então é
+      mais lenta. Para somas, prefira <code>reduction</code>.
+    </p>
+  </div>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/04-openmp.c">04-openmp.c</a></p>
+</section>
+
+<section id="false-sharing" data-toc="False sharing" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-rose-400 mr-2"></i>False sharing: o custo invisível</h2>
+  <div class="ah-prose">
+    <p>
+      Cada thread escreve no próprio contador, então por que haveria disputa? Porque a coerência de cache trabalha com <strong>linhas</strong> de 64 bytes. Se oito contadores de
+      8 bytes estão juntos em um vetor, uma única linha de cache contém todos. Cada escrita de uma thread invalida a cópia que as outras têm, e a linha vai e volta entre
+      núcleos. O programa fica lento sem que nenhum dado seja compartilhado de fato.
+    </p>
+    <p>
+      A correção é separar os dados por linha de cache, por exemplo com um preenchimento até 64 bytes (como no exemplo). Essa é a mesma ideia de layout do tópico 3, agora
+      aplicada entre núcleos.
+    </p>
+  </div>
+<pre class="ah-code"><code>typedef struct {
+    long valor;
+    char preenchimento[64 - sizeof(long)];   /* um contador por linha de cache */
+} ContadorAlinhado;</code></pre>
+</section>
+
+<section id="escalonamento" data-toc="Escalonamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-violet-400 mr-2"></i>Escalonamento: quem faz qual iteração</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>static</strong>: as iterações são divididas em blocos iguais, de antemão. Ótimo quando todas custam o mesmo, com custo de agendamento nulo.</li>
+      <li><strong>dynamic, c</strong>: blocos de <code>c</code> iterações são entregues às threads que ficam livres. Boa escolha quando o custo varia muito.</li>
+      <li><strong>guided</strong>: começa com blocos grandes e diminui. Um meio-termo entre os dois.</li>
+    </ul>
+    <p>
+      Regra prática: comece com <code>static</code>. Mude para <code>dynamic</code> apenas se o perfilamento mostrar que as threads terminam em tempos muito diferentes.
+    </p>
+  </div>
+</section>
+
+<section id="validacao" data-toc="Limites e verificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flag-checkered text-emerald-400 mr-2"></i>O que este exemplo não mostrou (e por quê)</h2>
+  <div class="ah-prose">
+    <p>
+      O código de <code>04-openmp.c</code> <strong>não foi executado com OpenMP real</strong> neste material: o compilador disponível no ambiente de preparação (Apple clang)
+      não traz a biblioteca. O arquivo foi verificado com cabeçalhos de substituição que executam em uma única thread, o que confirma sintaxe e lógica serial, mas não os ganhos
+      de desempenho nem a ausência de corridas em paralelo. Para ver os números, compile com <code>gcc -O2 -fopenmp</code> em um Linux ou com <code>clang</code> e
+      <code>libomp</code> instalada, e meça.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a soma paralela de um vetor deve usar <code>reduction(+:soma)</code> em vez de um <code>soma += x[i]</code> simples dentro de <code>parallel for</code>?</p>
+      <button class="ah-quiz-opt">Porque a soma simples é mais lenta com um único thread</button>
+      <button class="ah-quiz-opt">Porque o OpenMP exige a cláusula para compilar</button>
+      <button class="ah-quiz-opt">Porque sem ela, as atualizações concorrentes da mesma variável podem se perder</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem redução, a leitura e a escrita de <code>soma</code> por threads diferentes se misturam e o resultado varia.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Dois contadores de threads diferentes ficam na mesma linha de cache. O que acontece e como se corrige?</p>
+      <button class="ah-quiz-opt">A linha vai e volta entre núcleos (false sharing); separe os contadores por linha de cache</button>
+      <button class="ah-quiz-opt">Não há custo, porque os dados são diferentes</button>
+      <button class="ah-quiz-opt">O resultado fica errado; use <code>static</code> para corrigir</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A coerência de cache trabalha por linha, então escritas independentes ainda disputam a mesma linha.</p>
+    </div>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-slate-400 mr-2"></i>Referências</h2>
+  <ul class="text-sm text-slate-300 space-y-2">
+    <li>CHAPMAN, B.; JOST, G.; VAN DER PAS, R. <em>Using OpenMP: Portable Shared Memory Parallel Programming</em>. MIT Press, 2007.</li>
+    <li>OpenMP ARCHITECTURE REVIEW BOARD. <em>OpenMP Application Programming Interface</em>, versão 5.2. Disponível em openmp.org/specifications.</li>
+    <li>PACHECO, P. <em>An Introduction to Parallel Programming</em>. Morgan Kaufmann, 2011. Cap. 5 (memória compartilhada).</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
