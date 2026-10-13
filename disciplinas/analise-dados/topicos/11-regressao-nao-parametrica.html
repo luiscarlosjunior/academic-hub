@@ -238,6 +238,67 @@ kNN (k = 7):                4.028</code></pre>
 </section>
 
 <!-- ============================ FIXAÇÃO ============================ -->
+<section id="aprofundar" data-toc="Aprofundando: como o LOWESS e o kNN decidem" class="ah-card p-6 sm:p-8 ah-reveal">
+
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-magnifying-glass-plus text-amber-400 mr-2"></i>Aprofundando: como o LOWESS e o kNN decidem</h2>
+
+  <h3 class="ah-h3 mt-2 mb-3">1. A ideia do LOWESS em quatro passos</h3>
+  <div class="ah-prose">
+    <ol>
+      <li><strong>Escolha um ponto x₀</strong> onde quer a previsão (por exemplo, 25 °C).</li>
+      <li><strong>Dê peso a cada observação</strong> conforme a distância até x₀. Pontos próximos pesam mais; os distantes pesam quase zero. A função mais usada é a tricúbica: w = (1 − |d/h|³)³ para |d| &lt; h, e 0 fora da janela.</li>
+      <li><strong>Ajuste uma reta ponderada</strong> só com esses pesos (mínimos quadrados ponderados).</li>
+      <li><strong>Leia o valor da reta em x₀</strong> como a previsão. Repita para todos os x e ligue os pontos: a curva aparece.</li>
+    </ol>
+    <p>
+      A janela h é definida pela fração de pontos (o parâmetro <code>frac</code>). Com frac = 0,3 e 150 pontos, cada reta local
+      usa cerca de 45 pontos vizinhos. Esse é o único parâmetro importante do método.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">2. O compromisso viés-variância</h3>
+  <div class="overflow-x-auto mb-4">
+    <table class="ah-table text-sm">
+      <thead><tr><th>Janela pequena (ex.: frac = 0,1)</th><th>Janela grande (ex.: frac = 0,6)</th></tr></thead>
+      <tbody>
+        <tr><td>Segue cada oscilação: pouco viés, muita variância</td><td>Suaviza demais: muito viés, pouca variância</td></tr>
+        <tr><td>Pode decorar o ruído, como o kNN com k = 1</td><td>Pode apagar a curva em U e parecer uma reta</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>
+      O erro de previsão de um modelo pode ser decomposto em viés² + variância + ruído irredutível. Janelas pequenas
+      reduzem o viés e aumentam a variância; janelas grandes fazem o oposto. O melhor valor fica no meio, e a única forma
+      honesta de achá-lo é com validação (tópico 14), e não olhando qual curva parece mais bonita.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">3. kNN: a previsão é uma votação local</h3>
+  <div class="ah-prose">
+    <p>
+      Para prever em x₀, o kNN encontra os k pontos com x mais próximo de x₀ e tira a média de y. Com k = 3 e valores
+      próximos de x₀ de 10 °C, se os três vizinhos consumiram 8, 9 e 10 kWh, a previsão é 9. Três cuidados são essenciais:
+    </p>
+    <ul>
+      <li><strong>Escala:</strong> se uma variável varia de 0 a 1.000 e outra de 0 a 10, a distância é quase só a primeira. Padronize antes.</li>
+      <li><strong>Empates e densidade:</strong> em regiões com poucos dados, os “k vizinhos” ficam longe e a previsão perde precisão.</li>
+      <li><strong>Custo:</strong> o kNN não tem modelo guardado; cada previsão percorre os dados de treino. Em bases enormes, isso é lento.</li>
+    </ul>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">4. Quando ainda vale a pena o paramétrico</h3>
+  <div class="ah-prose">
+    <p>
+      Métodos não paramétricos precisam de mais dados para estimar a forma sozinhos. Com poucas observações, uma reta bem
+      justificada pela teoria costuma prever melhor do que uma curva que se ajusta ao acaso. Se você conhece o mecanismo
+      (por exemplo, um crescimento que segue uma lei conhecida), incorpore-o no modelo paramétrico. Use o não paramétrico para
+      descobrir a forma, e depois confirme com um modelo simples, se ele for suficiente.
+    </p>
+  </div>
+
+</section>
+
 <section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-amber-400 mr-2"></i>Teste seu entendimento</h2>
 
