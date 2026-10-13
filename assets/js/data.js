@@ -605,7 +605,11 @@ const AH_DATA = {
         { id: '02-estatistica-descritiva', titulo: 'Estatística descritiva: centro, dispersão e posição', icone: 'fa-scale-balanced',
           resumo: 'Média, mediana, variância, desvio padrão, quartis e boxplot, com a regra de Tukey para outliers e um exemplo de salários em Python.',
           trilha: 'fundamentos',
-          tags: ['Média', 'Desvio padrão', 'Boxplot'], nivel: 'Introdutório', minutos: 24 }
+          tags: ['Média', 'Desvio padrão', 'Boxplot'], nivel: 'Introdutório', minutos: 24 },
+        { id: '03-distribuicoes-visualizacao', titulo: 'Distribuições e visualização: normal, binomial e o Teorema Central do Limite', icone: 'fa-bell',
+          resumo: 'A curva normal, a binomial e a exponencial, como ler histogramas e por que a média de muitas amostras tende a ser normal, com animação.',
+          trilha: 'fundamentos',
+          tags: ['Normal', 'Binomial', 'TCL'], nivel: 'Fundamental', minutos: 26 }
       ]
     }
   ]

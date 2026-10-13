@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribuições e Visualização · AcademicHub</title>
+<meta name="description" content="Normal, binomial e exponencial, histogramas e o Teorema Central do Limite: por que a média de muitas amostras tende a ser normal, com animações e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/03-distribuicoes-visualizacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="A receita do acaso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-rose-400 mr-2"></i>A receita do acaso</h2>
+  <div class="ah-prose">
+    <p>
+      Uma distribuição de probabilidade é a <strong>receita de como os valores se espalham</strong>. Ela diz quais valores são
+      comuns, quais são raros e quão improvável é passar de um limite. Saber qual receita se aplica ao seu problema é
+      mais importante do que decorar fórmulas.
+    </p>
+    <p>
+      Três receitas cobrem a maior parte do dia a dia: a <strong>normal</strong> (medidas que se acumulam, como altura e erro
+      de medição), a <strong>binomial</strong> (quantos “sim” em n tentativas, como compras em visitas) e a
+      <strong>exponencial</strong> (tempo até o próximo evento, como a chegada do próximo cliente).
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-sky-500">
+      <div class="text-xs font-bold text-sky-300 mb-1">Normal</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Altura de adultos, peso de pacotes de café, erro de uma balança calibrada.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-emerald-500">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Binomial</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Em 20 visitas a uma loja, quantas vezes o cliente comprou? Cada visita é “compra ou não”.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Exponencial</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Tempo até a próxima chamada num call center, ou até a próxima falha de um equipamento.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ EXPLORADOR ============================ -->
+<section id="explorador" data-toc="Explorar as distribuições" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-area text-rose-400 mr-2"></i>Explorar as três distribuições</h2>
+  <p class="ah-lead text-sm mb-5">
+    Escolha a distribuição e mexa nos parâmetros. Em <span class="text-sky-300 font-semibold">normal</span>, a área
+    sombreada é a probabilidade de ficar a até 1 desvio da média. Em <span class="text-emerald-300 font-semibold">binomial</span>,
+    cada barra é a probabilidade de exatamente k sucessos. Em <span class="text-amber-300 font-semibold">exponencial</span>,
+    a área sombreada é a chance de esperar mais que o tempo marcado.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="flex flex-wrap gap-2 mb-3" id="dist-tabs"></div>
+      <div class="ah-stage" style="height:280px"><canvas id="distCanvas" style="height:280px"></canvas></div>
+    </div>
+    <div class="ah-card p-4 space-y-4">
+      <div id="dist-controles" class="space-y-4"></div>
+      <div class="ah-card p-3 bg-slate-950/60">
+        <div class="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Resultado</div>
+        <div id="dist-saida" class="font-mono text-sm text-white leading-relaxed"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Repare na diferença entre densidade e probabilidade.</strong> Na normal e na exponencial, a altura da curva
+      <em>não</em> é probabilidade; só a <em>área</em> sob a curva é. Na binomial, cada barra é uma probabilidade de verdade.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NORMAL ============================ -->
+<section id="normal" data-toc="A curva normal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bell text-rose-400 mr-2"></i>A curva normal: a forma do acúmulo</h2>
+  <div class="ah-prose">
+    <p>
+      A normal é simétrica em torno da média μ e tem dois parâmetros: μ (onde fica o centro) e σ (quão larga ela é).
+      A regra <strong>68–95–99,7</strong> é a leitura mais útil: cerca de 68% dos valores ficam a até 1σ da média, 95% a
+      até 2σ e 99,7% a até 3σ. Por isso, um valor a 4σ é tão raro que costuma indicar erro ou fenômeno diferente.
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <div class="font-mono text-sm text-center">
+      f(x) = (1 / (σ√(2π))) · e<sup>−(x − μ)² / (2σ²)</sup>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+    <div class="ah-card p-4 border-l-4 border-l-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Escore z</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Padroniza qualquer normal para μ = 0 e σ = 1: z = (x − μ)/σ. Permite comparar grandezas diferentes, como a nota de matemática (média 60) e a de português (média 70).</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-sky-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Por que tanta normal?</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Não é mágica da natureza. É consequência do Teorema Central do Limite (seção 6): quando muitas causas pequenas e independentes se somam, o resultado tende à normal.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ BINOMIAL ============================ -->
+<section id="binomial" data-toc="Binomial: contar sucessos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-dice-three text-rose-400 mr-2"></i>Binomial: contar sucessos</h2>
+  <div class="ah-prose">
+    <p>
+      A binomial vale quando você tem <strong>n tentativas independentes</strong>, cada uma com dois resultados (sucesso ou
+      fracasso) e <strong>probabilidade p constante</strong>. A probabilidade de exatamente k sucessos é:
+    </p>
+  </div>
+  <div class="ah-card p-5 mt-3">
+    <div class="font-mono text-sm text-center">P(X = k) = C(n, k) · pᵏ · (1 − p)ⁿ⁻ᵏ &nbsp;&nbsp; com E[X] = n·p e Var[X] = n·p·(1 − p)</div>
+  </div>
+  <p class="text-xs text-slate-400 mt-4 leading-relaxed">
+    Exemplo: uma campanha envia 50 mensagens e cada uma tem 4% de chance de gerar uma venda. O número de vendas é binomial
+    com n = 50 e p = 0,04. O esperado é 2 vendas, mas 0 ou 5 também são plausíveis. Use o explorador acima com esses valores.
+  </p>
+</section>
+
+<!-- ============================ HISTOGRAMA ============================ -->
+<section id="histograma" data-toc="Histograma: a forma dos dados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-rose-400 mr-2"></i>Histograma: a forma dos dados reais</h2>
+  <p class="ah-lead text-sm mb-5">
+    O histograma divide os valores em faixas (<em>bins</em>) e mostra quantos caem em cada uma. Ele revela o que o
+    resumo numérico esconde: simetria, caudas, picos e dados que se juntam em dois grupos (bimodalidade). O número de
+    faixas muda a aparência, então teste alguns antes de concluir.
+  </p>
+  <div class="ah-callout ah-callout-warn">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Cuidado com o número de faixas.</strong> Poucas faixas escondem detalhes, muitas criam ruído. Não existe um número
+      único certo: a regra de Sturges (1 + log₂ n) e a de Freedman-Diaconis são pontos de partida, não verdades.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TCL ============================ -->
+<section id="tcl" data-toc="Teorema Central do Limite" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-rose-400 mr-2"></i>Teorema Central do Limite: a média vira normal</h2>
+  <p class="ah-lead text-sm mb-5">
+    Pegue uma população <strong class="text-white">muito assimétrica</strong>, como tempos de espera exponenciais. Sorteie
+    grupos de tamanho n e calcule a <em>média de cada grupo</em>. Quando n cresce, o histograma das médias fica simétrico,
+    em forma de sino, e a dispersão cai com a raiz de n. <strong class="text-white">Veja a transformação.</strong>
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:300px"><canvas id="tclCanvas" style="height:300px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3" id="tcl-botoes"></div>
+    </div>
+    <div class="space-y-3">
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Tamanho de cada grupo (n)</div>
+        <div id="tcl-n" class="text-2xl font-bold text-white font-mono">1</div></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Desvio das médias</div>
+        <div id="tcl-dp" class="text-lg font-bold text-amber-300 font-mono">—</div>
+        <p class="text-[11px] text-slate-500 mt-1">Teórico: 4 / √n</p></div>
+      <div class="ah-card p-4"><div class="text-xs uppercase tracking-wide text-slate-400 mb-1">Assimetria das médias</div>
+        <div id="tcl-skew" class="text-lg font-bold text-emerald-300 font-mono">—</div>
+        <p class="text-[11px] text-slate-500 mt-1">Teórico: 2 / √n</p></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <h3 class="ah-h3 text-sm mb-2">O enunciado</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Se X₁, …, Xₙ são independentes com média μ e variância σ², então a média amostral x̄ se aproxima de uma normal
+        com média μ e desvio σ/√n, quando n é grande. Vale mesmo que X não seja normal.
+      </p>
+      <code class="text-[11px] text-slate-500">x̄ ≈ N(μ, σ²/n)</code>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <h3 class="ah-h3 text-sm mb-2">Quem demonstrou</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Abraham de Moivre (1733) tratou o caso binomial; Pierre-Simon Laplace (1810) ampliou o resultado. A versão geral com
+        condições precisas foi provada com rigor por Aleksandr Lyapunov (1901), e é por isso que o teorema é “central”: ele
+        explica por que a normal aparece em tanto lugar.
+      </p>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Por que isso importa para análise de dados?</strong> Porque permite calcular erros e intervalos de confiança
+      sem conhecer a distribuição original. Quase todo teste de hipótese do tópico 05 depende dele.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-rose-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Ler um histograma</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Identificar simetria, cauda e número de picos antes de escolher qualquer teste.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Calcular probabilidades</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Usar z-scores e a função de distribuição para dizer quão provável é um valor. Escolher entre normal, binomial e exponencial.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Confiar na aproximação</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Saber quando o TCL vale: n suficientemente grande, independência e variância finita. Caudas pesadas (como renda) pedem cuidado.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-rose-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-rose-300">disciplinas/analise-dados/exemplos-python/03-distribuicoes-visualizacao.py</code>.
+    Usa <strong>scipy.stats</strong> para as probabilidades teóricas e <strong>numpy</strong> para as simulações.
+  </p>
+
+  <p class="text-xs font-bold text-sky-300 mb-2">1 · Probabilidades da normal</p>
+<pre class="ah-code"><code><span class="fn">print</span>(stats.norm.cdf(<span class="num">1</span>) - stats.norm.cdf(<span class="num">-1</span>))   <span class="cm"># P(dentro de 1 desvio)</span>
+<span class="fn">print</span>(stats.norm.cdf(<span class="num">3</span>, mu, sigma))                   <span class="cm"># P(atender em menos de 3 min)</span>
+z = (<span class="num">5.5</span> - mu) / sigma                                 <span class="cm"># escore z</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>P(dentro de 1 desvio(s)) = 0.6827
+P(dentro de 2 desvio(s)) = 0.9545
+P(dentro de 3 desvio(s)) = 0.9973
+P(atender em menos de 3 min) = 0.1587
+Escore z de 5,5 min = (5,5 - 4) / 1 = 1.50</code></pre>
+
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">2 · Binomial: 20 visitas, p = 0,3</p>
+<pre class="ah-code"><code><span class="fn">print</span>(stats.binom.pmf(<span class="num">6</span>, n, p))   <span class="cm"># exatamente 6 compras</span>
+<span class="fn">print</span>(stats.binom.cdf(<span class="num">3</span>, n, p))   <span class="cm"># no máximo 3 compras</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>esperado (n·p) = 6.0   variância (n·p·(1-p)) = 4.20
+P(exatamente 6 compras)  = 0.1916
+P(no máximo 3 compras)   = 0.1071</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">3 · Teorema Central do Limite com população exponencial</p>
+<pre class="ah-code"><code><span class="kw">for</span> n_grupo <span class="kw">in</span> (<span class="num">2</span>, <span class="num">5</span>, <span class="num">30</span>):
+    medias = rng.exponential(media_pop, size=(<span class="num">10_000</span>, n_grupo)).mean(axis=<span class="num">1</span>)
+    <span class="fn">print</span>(medias.std(ddof=<span class="num">1</span>), stats.skew(medias))   <span class="cm"># desvio e assimetria das médias</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>População: assimetria = +1.962  (cauda longa)
+  n= 2: média das médias = 3.957   desvio = 2.805  (teórico 2.828)   assimetria = +1.403
+  n= 5: média das médias = 4.003   desvio = 1.798  (teórico 1.789)   assimetria = +0.918
+  n=30: média das médias = 3.997   desvio = 0.717  (teórico 0.730)   assimetria = +0.357</code></pre>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Leia a última coluna:</strong> a assimetria cai de 1,96 (população) para 0,36 com n = 30. Ainda não é zero,
+      mas já está bem mais próxima do sino. O desvio teórico σ/√n bate com o simulado, que é a prova do teorema na prática.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ AUTORES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-rose-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Abraham de Moivre · 1733</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Primeira aproximação da binomial por uma curva em forma de sino, o embrião da distribuição normal.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Carl Friedrich Gauss · 1809</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Usou a curva normal para modelar erros de observação em astronomia, o que deu o nome “distribuição gaussiana”.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Siméon Poisson · 1837</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Estudou o limite de contagens raras e deu origem à distribuição de Poisson, irmã da binomial para eventos raros.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Pierre-Simon Laplace · 1810</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Demonstrou que a soma de muitos erros independentes se aproxima de uma normal, o primeiro passo do Teorema Central do Limite.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-rose-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Assumir normal sem olhar</h3>
+      <p class="text-xs text-slate-400">Aplicar testes que exigem normalidade a renda ou tempo de resposta sem plotar o histograma.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Confundir densidade e probabilidade</h3>
+      <p class="text-xs text-slate-400">Na normal, f(x) pode passar de 1. Só a área entre dois limites é probabilidade.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Binomial sem independência</h3>
+      <p class="text-xs text-slate-400">Contar sucessos quando as tentativas se influenciam (mesmo cliente, mesmo lote). Aí a binomial subestima a variabilidade.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">TCL com amostra pequena e cauda pesada</h3>
+      <p class="text-xs text-slate-400">Achar que n = 5 basta para qualquer população. Com cauda muito pesada, a média converge devagar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-rose-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Uma normal tem média 50 e desvio 5. Aproximadamente qual a probabilidade de um valor cair entre 40 e 60?</p>
+    <button class="ah-quiz-opt">68%</button>
+    <button class="ah-quiz-opt">95%</button>
+    <button class="ah-quiz-opt">99,7%</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      40 e 60 estão a 10 da média, ou seja, a 2 desvios (2 × 5). Pela regra 68–95–99,7, cerca de 95% dos valores caem nessa faixa.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Uma população tem desvio padrão 12. Qual é o desvio padrão das médias de amostras de tamanho 36?</p>
+    <button class="ah-quiz-opt">12</button>
+    <button class="ah-quiz-opt">6</button>
+    <button class="ah-quiz-opt">2</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      O desvio das médias é σ/√n = 12/√36 = 12/6 = 2. Quanto maior a amostra, mais as médias se concentram em torno de μ.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Funções de probabilidade ===================== */
+/* Erro da função de Gauss (aproximação de Abramowitz & Stegun) para a normal padrão */
+function erf(x) {
+  const s = Math.sign(x), t = 1 / (1 + 0.3275911 * Math.abs(x));
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return s * y;
+}
+const Phi = z => 0.5 * (1 + erf(z / Math.SQRT2));           /* cdf da normal padrão */
+const lnFat = n => { let s = 0; for (let i = 2; i <= n; i++) s += Math.log(i); return s; };
+const binomPmf = (k, n, p) => Math.exp(lnFat(n) - lnFat(k) - lnFat(n - k) + k * Math.log(p) + (n - k) * Math.log(1 - p));
+const fmt = (v, d = 4) => v.toFixed(d).replace('.', ',');
+
+/* ===================== Explorador ===================== */
+const DISTS = {
+  normal:      { nome: 'Normal', cor: '#38bdf8',
+                 params: [['μ (centro)', 'mu', -3, 3, 0, 0.1], ['σ (largura)', 'sigma', 0.4, 2.5, 1, 0.1]] },
+  binomial:    { nome: 'Binomial', cor: '#10b981',
+                 params: [['n (tentativas)', 'n', 5, 40, 20, 1], ['p (prob. de sucesso)', 'p', 0.05, 0.95, 0.3, 0.05]] },
+  exponencial: { nome: 'Exponencial', cor: '#f59e0b',
+                 params: [['λ (taxa)', 'lambda', 0.2, 3, 1, 0.1]] }
+};
+let distAtual = 'normal';
+const valores = { mu: 0, sigma: 1, n: 20, p: 0.3, lambda: 1 };
+
+const tabs = document.getElementById('dist-tabs');
+tabs.innerHTML = Object.keys(DISTS).map(k =>
+  `<button class="ah-btn text-xs" data-d="${k}">${DISTS[k].nome}</button>`).join('');
+tabs.addEventListener('click', e => {
+  const b = e.target.closest('button[data-d]'); if (!b) return;
+  distAtual = b.dataset.d; montaControles(); desenhaDist();
+});
+
+function montaControles() {
+  const cont = document.getElementById('dist-controles');
+  cont.innerHTML = DISTS[distAtual].params.map(([rot, key, min, max, _v, step]) => `
+    <label class="block text-xs text-slate-400">${rot}: <span class="font-mono text-white" id="v-${key}">${fmt(valores[key], step < 1 ? 2 : 0)}</span>
+      <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${valores[key]}" class="w-full accent-rose-500">
+    </label>`).join('');
+  [...cont.querySelectorAll('input[type=range]')].forEach(inp => inp.addEventListener('input', () => {
+    valores[inp.dataset.k] = +inp.value;
+    document.getElementById('v-' + inp.dataset.k).textContent = fmt(+inp.value, inp.step < 1 ? 2 : 0);
+    desenhaDist();
+  }));
+  document.querySelectorAll('#dist-tabs button').forEach(b => b.classList.toggle('active', b.dataset.d === distAtual));
+}
+
+const distCv = AH.canvas('distCanvas', desenhaDist);
+function desenhaDist(ctx, w, h) {
+  if (!ctx) { ctx = distCv.ctx; w = distCv.w; h = distCv.h; }
+  const x0 = 40, x1 = w - 16, y0 = h - 30, y1 = 16;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.stroke();
+  const cor = DISTS[distAtual].cor;
+  let saida = '';
+
+  if (distAtual === 'normal') {
+    const mu = valores.mu, s = valores.sigma;
+    const xmin = mu - 4 * s, xmax = mu + 4 * s;
+    const X = x => x0 + (x - xmin) / (xmax - xmin) * (x1 - x0);
+    const f = x => Math.exp(-((x - mu) ** 2) / (2 * s * s)) / (s * Math.sqrt(2 * Math.PI));
+    const fmax = f(mu), Y = v => y0 - v / (fmax * 1.1) * (y0 - y1);
+    /* área entre μ−σ e μ+σ */
+    ctx.fillStyle = 'rgba(56,189,248,.28)';
+    ctx.beginPath(); ctx.moveTo(X(mu - s), y0);
+    for (let x = mu - s; x <= mu + s + 1e-9; x += (2 * s) / 60) ctx.lineTo(X(x), Y(f(x)));
+    ctx.lineTo(X(mu + s), y0); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    for (let x = xmin; x <= xmax; x += (xmax - xmin) / 300) {
+      x === xmin ? ctx.moveTo(X(x), Y(f(x))) : ctx.lineTo(X(x), Y(f(x)));
+    }
+    ctx.strokeStyle = cor; ctx.lineWidth = 2.5; ctx.stroke();
+    const p1 = Phi(1) - Phi(-1);
+    saida = `P(μ−σ ≤ X ≤ μ+σ) = ${fmt(Phi((mu + s - mu) / s) - Phi((mu - s - mu) / s))}<br>
+            regra 68–95–99,7: ~68% dentro de 1σ (teórico ${fmt(p1)})<br>
+            escore z do ponto μ+2σ = 2,00`;
+  }
+
+  if (distAtual === 'binomial') {
+    const n = valores.n, p = valores.p;
+    const bw = (x1 - x0) / (n + 1);
+    let maior = 0, probs = [];
+    for (let k = 0; k <= n; k++) { const q = binomPmf(k, n, p); probs.push(q); maior = Math.max(maior, q); }
+    probs.forEach((q, k) => {
+      const bh = q / maior * (y0 - y1);
+      ctx.fillStyle = k === Math.round(n * p) ? '#fbbf24' : 'rgba(16,185,129,.7)';
+      ctx.fillRect(x0 + k * bw + 1, y0 - bh, Math.max(bw - 2, 1), bh);
+    });
+    ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('k (sucessos)', x1 - 80, h - 8);
+    ctx.fillText('0', x0, h - 8); ctx.fillText(String(n), x1 - 10, h - 8);
+    const mais = probs.indexOf(maior);
+    saida = `E[X] = n·p = ${(n * p).toFixed(2).replace('.', ',')} · Var = ${(n * p * (1 - p)).toFixed(2).replace('.', ',')}<br>
+            barra mais alta: k = ${mais} (P = ${fmt(maior)})<br>
+            P(X = ${Math.round(n * p)}) = ${fmt(probs[Math.round(n * p)])}`;
+  }
+
+  if (distAtual === 'exponencial') {
+    const lam = valores.lambda, xmax = 5 / lam;
+    const X = x => x0 + x / xmax * (x1 - x0);
+    const f = x => lam * Math.exp(-lam * x);
+    const Y = v => y0 - v / lam * (y0 - y1) * 0.95;
+    const t = 1 / lam;                                    /* tempo marcado = média */
+    ctx.fillStyle = 'rgba(245,158,11,.28)';
+    ctx.beginPath(); ctx.moveTo(X(t), y0);
+    for (let x = t; x <= xmax; x += xmax / 200) ctx.lineTo(X(x), Y(f(x)));
+    ctx.lineTo(X(xmax), y0); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    for (let x = 0; x <= xmax; x += xmax / 300) {
+      x === 0 ? ctx.moveTo(X(x), Y(f(x))) : ctx.lineTo(X(x), Y(f(x)));
+    }
+    ctx.strokeStyle = cor; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = '#fff';
+    ctx.beginPath(); ctx.moveTo(X(t), y0); ctx.lineTo(X(t), y1); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('média = 1/λ', X(t) + 4, y1 + 10);
+    saida = `média = 1/λ = ${fmt(t, 2)} · desvio = 1/λ = ${fmt(t, 2)}<br>
+            P(X > 1/λ) = e⁻¹ = ${fmt(Math.exp(-1))} (área sombreada)`;
+  }
+  document.getElementById('dist-saida').innerHTML = saida;
+}
+
+/* ===================== TCL: média de grupos exponenciais ===================== */
+const tclCv = AH.canvas('tclCanvas', desenhaTCL);
+const MU_POP = 4, SD_POP = 4;
+const NS = [1, 2, 5, 30];
+let nTCL = 1, medias = [];
+
+function expo(mu) { return -mu * Math.log(1 - Math.random()); }
+function simulaMedias(n) {
+  const out = [];
+  for (let i = 0; i < 4000; i++) {
+    let s = 0;
+    for (let j = 0; j < n; j++) s += expo(MU_POP);
+    out.push(s / n);
+  }
+  return out;
+}
+function setN(n) {
+  nTCL = n;
+  medias = simulaMedias(n);
+  /* desvio amostral e assimetria (g1) calculados em torno da média das próprias médias */
+  const N = medias.length;
+  const m = medias.reduce((a, x) => a + x, 0) / N;
+  const dp = Math.sqrt(medias.reduce((a, x) => a + (x - m) ** 2, 0) / (N - 1));
+  const m3 = medias.reduce((a, x) => a + (x - m) ** 3, 0) / N;
+  const m2 = medias.reduce((a, x) => a + (x - m) ** 2, 0) / N;
+  const skew = m3 / Math.pow(m2, 1.5);
+  document.getElementById('tcl-n').textContent = n;
+  document.getElementById('tcl-dp').textContent = dp.toFixed(3).replace('.', ',');
+  document.getElementById('tcl-skew').textContent = skew.toFixed(2).replace('.', ',');
+  document.querySelectorAll('#tcl-botoes button[data-n]').forEach(b => b.classList.toggle('active', +b.dataset.n === n));
+  tclCv.fit();
+}
+document.getElementById('tcl-botoes').innerHTML = NS.map(n =>
+  `<button class="ah-btn text-xs" data-n="${n}">n = ${n}</button>`).join('') +
+  `<button id="tcl-play" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-play"></i> Animar</button>`;
+document.getElementById('tcl-botoes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'tcl-play') { animaTCL(); return; }
+  setN(+b.dataset.n);
+});
+
+let animTCL = null, idxTCL = 0;
+function animaTCL() {
+  if (animTCL) { animTCL.stop(); animTCL = null; return; }
+  let t = 0;
+  animTCL = AH.loop(tclCv.el, dt => {
+    t += dt;
+    if (t > 1.6) { t = 0; idxTCL = (idxTCL + 1) % NS.length; setN(NS[idxTCL]); }
+  });
+  animTCL.start();
+}
+
+function desenhaTCL(ctx, w, h) {
+  const x0 = 40, x1 = w - 16, y0 = h - 30, y1 = 16;
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke();
+  const xmin = 0, xmax = 12;
+  const X = x => x0 + (x - xmin) / (xmax - xmin) * (x1 - x0);
+  const bins = 40, bw = (xmax - xmin) / bins;
+  const cont = new Array(bins).fill(0);
+  /* valores fora da faixa [0, 12) ficam de fora do histograma (cauda truncada na exibição) */
+  medias.forEach(v => { const b = Math.floor((v - xmin) / bw); if (b >= 0 && b < bins) cont[b]++; });
+  const maior = Math.max(...cont, 1);
+  const escala = (y0 - y1) / maior;
+  ctx.fillStyle = 'rgba(56,189,248,.55)';
+  cont.forEach((c, b) => {
+    const bh = c * escala;
+    ctx.fillRect(X(xmin + b * bw) + 1, y0 - bh, (x1 - x0) / bins - 2, bh);
+  });
+  /* curva normal teórica com desvio σ/√n, ajustada à mesma área */
+  const sd = SD_POP / Math.sqrt(nTCL);
+  const area = medias.length * bw;
+  ctx.beginPath();
+  for (let x = xmin; x <= xmax; x += 0.05) {
+    const dens = Math.exp(-((x - MU_POP) ** 2) / (2 * sd * sd)) / (sd * Math.sqrt(2 * Math.PI));
+    const y = y0 - dens * area * escala;
+    x === xmin ? ctx.moveTo(X(x), y) : ctx.lineTo(X(x), y);
+  }
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('média do grupo (min)', x1 - 140, h - 8);
+  ctx.fillText('linha: normal teórica N(4, 4²/n)', x0 + 6, y1 + 12);
+}
+
+/* ===================== Início ===================== */
+montaControles();
+desenhaDist();
+setN(1);
+AH.initReveal();
+</script>
+</body>
+</html>
