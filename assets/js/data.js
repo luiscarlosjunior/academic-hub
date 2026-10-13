@@ -66,7 +66,16 @@ const AH_DATA = {
           tags: ['PLN', 'N-gramas', 'Probabilidade'], nivel: 'Avançado', minutos: 22 },
         { id: '16-logica-fuzzy', titulo: 'Lógica Fuzzy', icone: 'fa-sliders',
           resumo: 'Pertinência gradual, fuzzificação, regras linguísticas, inferência Mamdani e defuzzificação.',
-          tags: ['Fuzzy', 'Controle', 'Incerteza'], nivel: 'Intermediário', minutos: 20 }
+          tags: ['Fuzzy', 'Controle', 'Incerteza'], nivel: 'Intermediário', minutos: 20 },
+        { id: '17-metaheuristicas-fundamentos', titulo: 'Metaheurísticas: Fundamentos', icone: 'fa-layer-group',
+          resumo: 'O que é uma metaheurística, intensificação × diversificação, trajetória × população, taxonomia e No Free Lunch.',
+          tags: ['Metaheurísticas', 'Conceitos', 'Artigos'], nivel: 'Avançado', minutos: 30 },
+        { id: '18-metaheuristicas-trajetoria', titulo: 'Metaheurísticas de Trajetória', icone: 'fa-route',
+          resumo: 'Recozimento simulado, busca tabu, GRASP, busca local iterada e busca em vizinhança variável, com animações.',
+          tags: ['Simulated Annealing', 'Tabu', 'GRASP', 'VNS'], nivel: 'Avançado', minutos: 32 },
+        { id: '19-metaheuristicas-populacao', titulo: 'Metaheurísticas Populacionais', icone: 'fa-people-group',
+          resumo: 'Algoritmos genéticos, PSO, ACO, evolução diferencial, busca harmônica e cuckoo search, com referências originais.',
+          tags: ['Populacional', 'DE', 'Harmony', 'Cuckoo'], nivel: 'Avançado', minutos: 34 }
       ]
     },
     {

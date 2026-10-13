@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metaheurísticas de trajetória · AcademicHub</title>
+<meta name="description" content="Recozimento simulado, busca tabu, GRASP, busca local iterada e busca em vizinhança variável: definições, algoritmos e animações.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/18-metaheuristicas-trajetoria">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta aula</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ INTRODUÇÃO ============================ -->
+<section id="introducao" data-toc="Métodos de trajetória" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-indigo-400 mr-2"></i>Métodos de trajetória</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um método de trajetória mantém <strong>uma solução corrente</strong> e a move de vizinho em vizinho. Ele não guarda uma população:
+    sua memória é a própria solução atual, às vezes acrescida de uma lista de movimentos recentes. A diferença entre os algoritmos
+    desta aula está em <strong>como escapam dos ótimos locais</strong>.
+  </p>
+
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Algoritmo</th><th>Ideia para escapar do ótimo local</th><th>Memória</th></tr></thead>
+      <tbody>
+        <tr><td>Recozimento simulado</td><td>aceitar piora com probabilidade que diminui com a “temperatura”</td><td>só a solução atual</td></tr>
+        <tr><td>Busca tabu</td><td>proibir movimentos recentes, mesmo que sejam bons</td><td>lista tabu de curto prazo</td></tr>
+        <tr><td>GRASP</td><td>recomeçar muitas vezes com construções aleatórias gulosas</td><td>a melhor solução global</td></tr>
+        <tr><td>ILS</td><td>perturbar a solução local e refazer a busca local</td><td>a melhor solução</td></tr>
+        <tr><td>VNS</td><td>trocar a vizinhança quando a busca estagna</td><td>a melhor solução e o nível da vizinhança</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ RECOZIMENTO SIMULADO ============================ -->
+<section id="recozimento" data-toc="Recozimento simulado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-temperature-half text-indigo-400 mr-2"></i>Recozimento simulado (Simulated Annealing)</h2>
+  <p class="ah-lead text-sm mb-5">
+    Inspirado no recozimento de metais: um material aquecido e resfriado lentamente atinge uma estrutura de baixa energia. No
+    algoritmo, a “energia” é o custo da solução e a “temperatura” controla quanta piora é tolerada.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-6">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Origem na literatura</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Metropolis et al. (1953) propuseram um critério para simular a evolução de sistemas físicos: um movimento que piora a energia
+      em Δ é aceito com probabilidade exp(−Δ/T), onde T é a temperatura. Kirkpatrick, Gelatt e Vecchi (1983) usaram esse critério
+      em otimização combinatória, diminuindo T gradualmente. <em>(Paráfrase.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Kirkpatrick, S.; Gelatt, C. D.; Vecchi, M. P. (1983). <em>Optimization by simulated annealing</em>. Science, 220(4598), 671–680. · Metropolis, N. et al. (1953). <em>Equation of state calculations by fast computing machines</em>. The Journal of Chemical Physics, 21(6), 1087–1092.</p>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Regra de aceitação e resfriamento</h3>
+  <div class="ah-card p-5 font-mono text-sm text-center mb-4">
+    aceita se Δ ≤ 0 · senão, aceita com probabilidade P = exp(−Δ / T)
+  </div>
+  <div class="ah-prose">
+    <p>
+      Quando T é alto, quase tudo é aceito e a busca passeia pela paisagem. Quando T é baixo, só melhoras passam, e a busca vira
+      subida de encosta. O <strong>esquema de resfriamento</strong> define a transição, por exemplo T ← α·T com α perto de 0,95 a 0,999.
+      Resfriar rápido demais prende a busca num vale; resfriar devagar demais custa avaliações.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Animação 4 · Aceitar piora com probabilidade</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    Cada ponto azul é um movimento aceito; cada ponto cinza, um movimento rejeitado. Com temperatura alta, a busca atravessa os vales.
+    Conforme a temperatura cai, ela congela num vale. Compare com a aula anterior: um passo de subida de encosta só aceita azul.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:260px"><canvas id="sa-cv" style="height:260px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="sa-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Executar</button>
+        <button id="sa-reinicia" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+      </div>
+    </div>
+    <div class="ah-card p-4 space-y-3 text-xs text-slate-300">
+      <label class="block text-slate-400">Temperatura inicial T₀: <span id="sa-t0-v" class="font-mono text-indigo-300">0,30</span>
+        <input id="sa-t0" type="range" min="5" max="60" value="30" class="w-full accent-indigo-500"></label>
+      <div>Temperatura atual: <span id="sa-T" class="font-mono text-amber-300">—</span></div>
+      <div>Taxa de aceitação (últimas 50): <span id="sa-acc" class="font-mono text-sky-300">—</span></div>
+      <div>Melhor custo: <span id="sa-best" class="font-mono text-emerald-300">—</span></div>
+      <div class="text-[11px] text-slate-500">Resfriamento: T ← 0,995 · T a cada iteração.</div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Pseudocódigo</h3>
+  <pre class="ah-code text-[11px]">s ← solução inicial; T ← T₀; melhor ← s
+enquanto T &gt; T_min:
+    s' ← vizinho aleatório de s
+    Δ ← f(s') − f(s)
+    se Δ ≤ 0 ou aleatório &lt; exp(−Δ/T):  s ← s'
+    se f(s) &lt; f(melhor): melhor ← s
+    T ← α · T
+devolva melhor</pre>
+
+  <h3 class="ah-h3 mt-8 mb-3">Aplicações e parâmetros</h3>
+  <div class="ah-prose">
+    <p>
+      Recozimento simulado foi usado em disposição de circuitos integrados (VLSI), em roteamento e em problemas de sequenciamento.
+      Seus parâmetros críticos são T₀, a taxa de resfriamento α, o número de iterações por temperatura e a definição de vizinhança.
+      Uma regra prática é escolher T₀ de modo que cerca de 50% dos movimentos piores sejam aceitos no início.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ BUSCA TABU ============================ -->
+<section id="tabu" data-toc="Busca tabu" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ban text-indigo-400 mr-2"></i>Busca tabu (Tabu Search)</h2>
+  <p class="ah-lead text-sm mb-5">
+    Em vez de aceitar piora ao acaso, a busca tabu usa <strong>memória</strong>: movimentos recentes ficam proibidos (tabu) por um
+    certo número de iterações. Assim, a busca é forçada a seguir adiante, mesmo quando o melhor vizinho é pior que a solução atual.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-6">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Origem na literatura</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Glover (1986) apresentou a busca tabu como uma forma de usar memória explícita para guiar a busca além de ótimos locais, ligando-a
+      à inteligência artificial. O livro de Glover e Laguna (1997) consolida o método, com memória de curto prazo, de longo prazo e
+      critérios de intensificação e diversificação. <em>(Paráfrase.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Glover, F. (1986). <em>Future paths for integer programming and links to artificial intelligence</em>. Computers &amp; Operations Research, 13(5), 533–549. · Glover, F.; Laguna, M. (1997). <em>Tabu Search</em>. Kluwer.</p>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Os componentes-chave</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div class="ah-card p-5"><h4 class="ah-h3 text-sm mb-2">Lista tabu</h4><p class="text-xs text-slate-400 leading-relaxed">Guarda os movimentos (ou soluções) recentes. Não podem ser repetidos durante o <em>tempo tabu</em>.</p></div>
+    <div class="ah-card p-5"><h4 class="ah-h3 text-sm mb-2">Critério de aspiração</h4><p class="text-xs text-slate-400 leading-relaxed">Um movimento tabu pode ser permitido se produzir uma solução melhor que a melhor já encontrada.</p></div>
+    <div class="ah-card p-5"><h4 class="ah-h3 text-sm mb-2">Escolha do melhor vizinho</h4><p class="text-xs text-slate-400 leading-relaxed">Entre os vizinhos não tabu, move-se para o de melhor custo, mesmo que seja pior que o atual.</p></div>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Animação 5 · Por que a memória importa</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    A paisagem é discreta: cada ponto é uma solução, e só é possível andar uma casa para a esquerda ou para a direita. Sem lista tabu,
+    a busca tende a oscilar entre dois pontos de um vale, pois o melhor vizinho é sempre o que acabou de deixar. Ative a lista tabu e
+    veja a busca atravessar a encosta.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:240px"><canvas id="tabu-cv" style="height:240px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="tb-passo" class="ah-btn ah-btn-primary"><i class="fa-solid fa-forward-step"></i> Passo</button>
+        <button id="tb-auto" class="ah-btn"><i class="fa-solid fa-play"></i> Automático</button>
+        <button id="tb-reinicia" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+      </div>
+    </div>
+    <div class="ah-card p-4 space-y-3 text-xs text-slate-300">
+      <label class="flex items-center gap-2"><input id="tb-usa" type="checkbox" checked class="accent-indigo-500"> usar lista tabu</label>
+      <label class="block text-slate-400">Tempo tabu (iterações): <span id="tb-t-v" class="font-mono text-indigo-300">4</span>
+        <input id="tb-t" type="range" min="1" max="10" value="4" class="w-full accent-indigo-500"></label>
+      <div>Solução atual: <span id="tb-cur" class="font-mono text-sky-300">—</span></div>
+      <div>Melhor encontrada: <span id="tb-best" class="font-mono text-emerald-300">—</span></div>
+      <div>Lista tabu:</div>
+      <div id="tb-lista" class="flex flex-wrap gap-1 min-h-[24px]"></div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Pseudocódigo</h3>
+  <pre class="ah-code text-[11px]">s ← solução inicial; melhor ← s; tabu ← lista vazia
+enquanto o critério de parada não for atingido:
+    candidatos ← vizinhos de s que não estão em tabu
+                 (ou que melhorem melhor, pelo critério de aspiração)
+    s ← o melhor candidato, mesmo que seja pior que s
+    registre o movimento em tabu por “tempo tabu” iterações
+    se f(s) &lt; f(melhor): melhor ← s
+devolva melhor</pre>
+
+  <h3 class="ah-h3 mt-8 mb-3">Aplicações e variantes</h3>
+  <div class="ah-prose">
+    <p>
+      A busca tabu é forte em problemas de roteamento de veículos, alocação de recursos e programação de horários, onde o vizinho é
+      bem definido. Variantes incluem tempo tabu dinâmico (que muda com a iteração), memória de longo prazo para diversificar e
+      reinício a partir de soluções de elite. O maior desafio é ajustar o tempo tabu: curto demais e a busca volta; longo demais e
+      ela bloqueia boas soluções.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ GRASP ============================ -->
+<section id="grasp" data-toc="GRASP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-dice text-indigo-400 mr-2"></i>GRASP (Greedy Randomized Adaptive Search Procedure)</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada iteração tem duas fases: uma <strong>construção gulosa randomizada</strong>, que monta uma solução inicial de boa qualidade mas
+    variada, e uma <strong>busca local</strong> que a melhora. Repetir isso muitas vezes oferece diversificação controlada.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-6">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Origem na literatura</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Feo e Resende (1995) propuseram o procedimento GRASP combinando uma construção gulosa randomizada com busca local em múltiplas
+      iterações independentes, e analisaram o efeito de um parâmetro que controla o grau de aleatoriedade. <em>(Paráfrase.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Feo, T. A.; Resende, M. G. C. (1995). <em>Greedy randomized adaptive search procedures</em>. Journal of Global Optimization, 6(2), 109–133.</p>
+  </div>
+
+  <h3 class="ah-h3 mb-3">A lista de candidatos restrita (RCL)</h3>
+  <div class="ah-prose">
+    <p>
+      Na construção, a cada passo se calculam os custos de todos os candidatos. Seja c<sub>min</sub> o menor e c<sub>max</sub> o maior.
+      A <strong>lista restrita de candidatos</strong> (RCL) contém os candidatos com custo até c<sub>min</sub> + α·(c<sub>max</sub> − c<sub>min</sub>).
+      O parâmetro α ∈ [0, 1] controla a ganância: com α = 0 a construção é puramente gulosa; com α = 1, é aleatória. Um candidato é
+      sorteado da RCL e a construção segue.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Animação 6 · A RCL e o parâmetro α</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    As barras são os custos de 12 candidatos em um passo de construção. As barras em destaque formam a RCL. Clique em “Construir” várias vezes
+    e veja o histograma de escolhas (embaixo) se espalhar conforme você aumenta α.
+  </p>
+  <div class="ah-stage" style="height:280px"><canvas id="grasp-cv" style="height:280px"></canvas></div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3 items-center">
+    <div class="ah-card p-4 md:col-span-2">
+      <label class="text-xs text-slate-400 block mb-1">α (ganância ↔ aleatoriedade): <span id="gr-a-v" class="font-mono text-indigo-300">0,30</span></label>
+      <input id="gr-a" type="range" min="0" max="100" value="30" class="w-full accent-indigo-500">
+    </div>
+    <div class="flex gap-2">
+      <button id="gr-constroi" class="ah-btn ah-btn-primary flex-1"><i class="fa-solid fa-shuffle"></i> Construir</button>
+      <button id="gr-limpa" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-eraser"></i></button>
+    </div>
+  </div>
+  <div class="text-xs text-slate-400 mt-2">Escolhas registradas: <span id="gr-n" class="font-mono text-slate-200">0</span> · RCL com <span id="gr-rcl" class="font-mono text-slate-200">—</span> candidatos</div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Pseudocódigo</h3>
+  <pre class="ah-code text-[11px]">enquanto o critério de parada não for atingido:
+    s ← CONSTRUÇÃO_GULOSA_RANDOMIZADA(α)
+    s ← BUSCA_LOCAL(s)
+    se f(s) &lt; f(melhor): melhor ← s
+devolva melhor</pre>
+
+  <div class="ah-prose mt-4">
+    <p>
+      GRASP é popular pela simplicidade e pela facilidade de paralelizar, já que cada iteração é independente. Seu ponto fraco é não
+      aprender com as iterações anteriores, o que motivou extensões com memória de elite (GRASP com caminho de religação).
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ILS ============================ -->
+<section id="ils" data-toc="Busca local iterada (ILS)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-indigo-400 mr-2"></i>Busca local iterada (ILS)</h2>
+  <p class="ah-lead text-sm mb-5">
+    A ideia é simples: alterna <strong>busca local</strong> (descer até um ótimo local) e <strong>perturbação</strong> (um salto aleatório
+    controlado), e decide com um <strong>critério de aceitação</strong> se a nova solução substitui a atual. A perturbação deve ser forte
+    o bastante para sair do vale, mas fraca o bastante para não apagar a informação da solução.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-6">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Origem na literatura</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Lourenço, Martin e Stützle (2003) apresentam a busca local iterada como um arcabouço que combina busca local, perturbação e critério
+      de aceitação, e discutem como escolher cada componente. <em>(Paráfrase.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Lourenço, H. R.; Martin, O. C.; Stützle, T. (2003). <em>Iterated local search</em>. In: Glover, F.; Kochenberger, G. (eds.), Handbook of Metaheuristics. Kluwer.</p>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Animação 7 · Busca local, perturbação e aceitação</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    O ciclo tem três fases: <em>busca local</em> (desce até um mínimo), <em>aceitação</em> (compara com o melhor até agora) e
+    <em>perturbação</em> (salta a partir do melhor). Avance passo a passo e note a fase atual.
+  </p>
+  <div class="ah-stage" style="height:240px"><canvas id="ils-cv" style="height:240px"></canvas></div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3 items-stretch">
+    <div class="md:col-span-2 flex flex-wrap gap-2 items-center">
+      <button id="ils-passo" class="ah-btn ah-btn-primary"><i class="fa-solid fa-forward-step"></i> Passo</button>
+      <button id="ils-auto" class="ah-btn"><i class="fa-solid fa-play"></i> Automático</button>
+      <button id="ils-reinicia" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+    </div>
+    <div class="ah-card p-3 text-xs text-slate-300 space-y-1">
+      <div>Fase: <span id="ils-fase" class="font-semibold text-amber-300">—</span></div>
+      <div>Melhor: <span id="ils-best" class="font-mono text-emerald-300">—</span> · Ciclos: <span id="ils-ciclos" class="font-mono">0</span></div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Pseudocódigo</h3>
+  <pre class="ah-code text-[11px]">s ← BUSCA_LOCAL(s₀); melhor ← s
+repetir:
+    s' ← PERTURBAÇÃO(s)
+    s' ← BUSCA_LOCAL(s')
+    s ← CRITÉRIO_DE_ACEITAÇÃO(s, s', melhor)   # ex.: aceita só melhoras
+    atualiza melhor
+devolva melhor</pre>
+
+  <div class="ah-prose mt-4">
+    <p>
+      Os três componentes são projetados juntos. Uma perturbação aleatória uniforme em todo o espaço equivale a um reinício, e
+      perde o progresso. Já um critério de aceitação que aceita tudo se transforma em passeio aleatório. Um critério intermediário,
+      como o de recozimento simulado, costuma equilibrar as duas coisas.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ VNS ============================ -->
+<section id="vns" data-toc="Busca em vizinhança variável (VNS)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-expand text-indigo-400 mr-2"></i>Busca em vizinhança variável (VNS)</h2>
+  <p class="ah-lead text-sm mb-5">
+    VNS parte de uma observação: um ótimo local em uma vizinhança pode não ser ótimo em outra. Então o algoritmo usa uma sequência de
+    vizinhanças <strong>N₁ ⊂ N₂ ⊂ … ⊂ N_kmax</strong>, cada vez maiores, e aumenta o tamanho da vizinhança quando a busca estagna.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-6">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Origem na literatura</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Mladenović e Hansen (1997) propuseram a busca em vizinhança variável, baseada na troca sistemática de estruturas de vizinhança.
+      Hansen e Mladenović (2001) reúnem os princípios e as aplicações, incluindo variantes determinísticas e de decomposição.
+      <em>(Paráfrase.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Mladenović, N.; Hansen, P. (1997). <em>Variable neighborhood search</em>. Computers &amp; Operations Research, 24(11), 1097–1100. · Hansen, P.; Mladenović, N. (2001). <em>Variable neighborhood search: principles and applications</em>. European Journal of Operational Research, 130(3), 449–467.</p>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Animação 8 · Aumentar a vizinhança quando estagna</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    Cada “sacudida” é um salto aleatório dentro da vizinhança N<sub>k</sub> (distância até k). Se a busca local a partir do salto melhora a
+    solução, o nível k volta a 1. Se não, k aumenta e saltos maiores são tentados.
+  </p>
+  <div class="ah-stage" style="height:240px"><canvas id="vns-cv" style="height:240px"></canvas></div>
+  <div class="flex flex-wrap items-center gap-2 mt-3">
+    <button id="vns-passo" class="ah-btn ah-btn-primary"><i class="fa-solid fa-forward-step"></i> Passo</button>
+    <button id="vns-auto" class="ah-btn"><i class="fa-solid fa-play"></i> Automático</button>
+    <button id="vns-reinicia" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+    <span class="text-xs text-slate-400 ml-auto">Nível da vizinhança k = <span id="vns-k" class="font-mono text-amber-300">1</span> · melhor <span id="vns-best" class="font-mono text-emerald-300">—</span></span>
+  </div>
+  <div id="vns-log" class="ah-callout ah-callout-info text-xs mt-3">Clique em “Passo”.</div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Pseudocódigo</h3>
+  <pre class="ah-code text-[11px]">s ← solução inicial; k ← 1
+enquanto o critério de parada não for atingido:
+    s' ← SACUDIDA(s, N_k)            # salto aleatório em N_k
+    s'' ← BUSCA_LOCAL(s')
+    se f(s'') &lt; f(s): s ← s''; k ← 1      # melhorou: volta à vizinhança menor
+    senão: k ← k + 1                 # estagnou: vizinhança maior
+    se k &gt; k_max: k ← 1
+devolva s</pre>
+
+  <div class="ah-prose mt-4">
+    <p>
+      VNS é valorizado por ter poucos parâmetros e por ser fácil de adaptar, desde que o problema tenha vizinhanças naturais de
+      tamanhos diferentes. É usado em roteamento, localização de instalações e projeto de redes.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ COMPARAÇÃO ============================ -->
+<section id="comparacao" data-toc="Comparando os métodos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-indigo-400 mr-2"></i>Comparando os métodos de trajetória</h2>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Método</th><th>Aceita piora?</th><th>Parâmetros principais</th><th>Ponto forte</th><th>Ponto fraco</th></tr></thead>
+      <tbody>
+        <tr><td>Recozimento simulado</td><td>sim, com probabilidade</td><td>T₀, α, critério de parada</td><td>simples e geral</td><td>cronograma sensível</td></tr>
+        <tr><td>Busca tabu</td><td>sim, o melhor vizinho não tabu</td><td>tempo tabu, aspiração</td><td>memória explícita</td><td>muito dependente do vizinho</td></tr>
+        <tr><td>GRASP</td><td>não na construção; reinícios</td><td>α, nº de iterações</td><td>paralelizável</td><td>não aprende entre iterações</td></tr>
+        <tr><td>ILS</td><td>conforme o critério de aceitação</td><td>perturbação, aceitação</td><td>forte em muitos problemas</td><td>componentes precisam ser calibrados</td></tr>
+        <tr><td>VNS</td><td>sim, ao trocar de vizinhança</td><td>sequência de vizinhanças, k_max</td><td>poucos parâmetros</td><td>requer vizinhanças bem definidas</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Conclusão didática:</strong> todos esses métodos são variações sobre um mesmo esqueleto, a busca local, com um mecanismo
+      para sair de ótimos locais. O que muda é <em>onde</em> esse mecanismo atua: no critério de aceitação (recozimento, ILS), na memória
+      (tabu), na construção (GRASP) ou na vizinhança (VNS).
+    </div>
+  </div>
+</section>
+
+<!-- ============================ REFERÊNCIAS ============================ -->
+<section id="referencias" data-toc="Referências desta aula" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-indigo-400 mr-2"></i>Referências desta aula</h2>
+  <ol class="text-xs text-slate-300 space-y-2 leading-relaxed list-decimal pl-5">
+    <li>Metropolis, N. et al. (1953). Equation of state calculations by fast computing machines. <em>The Journal of Chemical Physics</em>, 21(6), 1087–1092.</li>
+    <li>Kirkpatrick, S.; Gelatt, C. D.; Vecchi, M. P. (1983). Optimization by simulated annealing. <em>Science</em>, 220(4598), 671–680.</li>
+    <li>Glover, F. (1986). Future paths for integer programming and links to artificial intelligence. <em>Computers &amp; Operations Research</em>, 13(5), 533–549.</li>
+    <li>Feo, T. A.; Resende, M. G. C. (1995). Greedy randomized adaptive search procedures. <em>Journal of Global Optimization</em>, 6(2), 109–133.</li>
+    <li>Mladenović, N.; Hansen, P. (1997). Variable neighborhood search. <em>Computers &amp; Operations Research</em>, 24(11), 1097–1100.</li>
+    <li>Glover, F.; Laguna, M. (1997). <em>Tabu Search</em>. Kluwer Academic Publishers.</li>
+    <li>Hansen, P.; Mladenović, N. (2001). Variable neighborhood search: principles and applications. <em>European Journal of Operational Research</em>, 130(3), 449–467.</li>
+    <li>Lourenço, H. R.; Martin, O. C.; Stützle, T. (2003). Iterated local search. In: Glover, F.; Kochenberger, G. (eds.), <em>Handbook of Metaheuristics</em>. Kluwer.</li>
+  </ol>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Exercícios de fixação" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Exercícios de fixação</h2>
+  <p class="text-xs text-slate-400 mb-6">Três questões sobre os métodos de trajetória.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. No recozimento simulado, o que acontece com a probabilidade de aceitar um movimento que piora a solução à medida que a temperatura cai?</p>
+      <button class="ah-quiz-opt">Aumenta, pois a busca fica mais exploratória</button>
+      <button class="ah-quiz-opt">Diminui, aproximando a busca de uma subida de encosta</button>
+      <button class="ah-quiz-opt">Permanece constante, pois depende só de Δ</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A probabilidade é exp(−Δ/T). Com T alto, exp(−Δ/T) fica perto de 1 e quase tudo é aceito. Com T baixo, fica perto de 0 e só
+        melhoras passam. Veja a animação 4.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Na busca tabu, por que o critério de aspiração existe?</p>
+      <button class="ah-quiz-opt">Para permitir um movimento tabu quando ele leva a uma solução melhor que a melhor já encontrada</button>
+      <button class="ah-quiz-opt">Para remover a lista tabu quando a busca está presa</button>
+      <button class="ah-quiz-opt">Para evitar que a busca se mova para pior solução</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Proibir tudo o que é tabu pode bloquear uma boa solução. A aspiração é a exceção que preserva a chance de encontrá-la.
+        Compare com a animação 5 com e sem lista tabu.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Em GRASP, o que acontece quando α = 0 na construção gulosa randomizada?</p>
+      <button class="ah-quiz-opt">A construção sorteia qualquer candidato, com igual probabilidade</button>
+      <button class="ah-quiz-opt">A busca local é desligada</button>
+      <button class="ah-quiz-opt">A construção se torna puramente gulosa, pois a RCL só contém o melhor candidato</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Com α = 0, o limite da RCL é c<sub>min</sub>, então só o candidato de menor custo entra. Com α = 1, a RCL contém todos os
+        candidatos. Veja a animação 6 variando α.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+const fmt = (v, d = 3) => v.toFixed(d).replace('.', ',');
+const el = id => document.getElementById(id);
+
+// paisagem contínua usada no recozimento: vários vales, mínimo global conhecido
+const custo1 = x => 0.5 + 0.3 * Math.sin(10 * x) + 0.25 * Math.cos(3 * x);
+let FMIN = Infinity, FMAX = -Infinity;
+for (let i = 0; i <= 400; i++) { const f = custo1(i / 400); FMIN = Math.min(FMIN, f); FMAX = Math.max(FMAX, f); }
+
+// paisagem discreta (61 posições) usada em tabu, ILS e VNS
+const N = 61;
+const fd = Array.from({ length: N }, (_, i) => custo1(i / (N - 1)));
+const GLOBAL = fd.indexOf(Math.min(...fd));
+
+function desenhaDiscreta(ctx, w, h, marcas) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+  const fmin = Math.min(...fd), fmax = Math.max(...fd);
+  const X = i => 30 + (i / (N - 1)) * (w - 60);
+  const Y = f => h - 30 - ((f - fmin) / (fmax - fmin)) * (h - 60);
+  ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5; ctx.beginPath();
+  fd.forEach((f, i) => { i ? ctx.lineTo(X(i), Y(f)) : ctx.moveTo(X(i), Y(f)); });
+  ctx.stroke();
+  ctx.fillStyle = '#fbbf24'; ctx.font = '16px sans-serif';
+  ctx.fillText('★', X(GLOBAL) - 6, Y(fd[GLOBAL]) - 8);
+  (marcas || []).forEach(m => {
+    ctx.fillStyle = m.cor;
+    ctx.beginPath(); ctx.arc(X(m.i), Y(fd[m.i]), m.r || 6, 0, 6.29); ctx.fill();
+    if (m.rotulo) { ctx.fillStyle = 'rgba(226,232,240,.85)'; ctx.font = '11px Inter, sans-serif'; ctx.fillText(m.rotulo, X(m.i) - 10, Y(fd[m.i]) + 18); }
+  });
+  ctx.fillStyle = 'rgba(148,163,184,.7)'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('posição da solução (valores discretos)', w / 2 - 110, h - 8);
+}
+
+/* ===================== Animação 4: recozimento simulado ===================== */
+(function animacao4() {
+  let x, T, T0, trilha, aceitos, best, timer = null, passos = 0;
+  const cv = AH.canvas('sa-cv', desenha);
+  const X = (v, w) => 30 + v * (w - 50);
+  const Y = (f, h) => h - 30 - ((f - FMIN) / (FMAX - FMIN)) * (h - 60);
+
+  function desenha(ctx, w, h) {
+    if (!trilha) return;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5; ctx.beginPath();
+    for (let i = 0; i <= 400; i++) { const v = i / 400, px = X(v, w), py = Y(custo1(v), h); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke();
+    trilha.forEach(t => {
+      ctx.fillStyle = t.ok ? 'rgba(56,189,248,.8)' : 'rgba(148,163,184,.35)';
+      ctx.beginPath(); ctx.arc(X(t.x, w), Y(custo1(t.x), h), t.ok ? 4 : 2.5, 0, 6.29); ctx.fill();
+    });
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(X(x, w), Y(custo1(x), h), 6, 0, 6.29); ctx.fill();
+  }
+
+  function reinicia() {
+    T0 = +el('sa-t0').value / 100;
+    x = Math.random(); T = T0; trilha = []; aceitos = []; best = custo1(x); passos = 0;
+    atualiza();
+  }
+
+  function passo() {
+    const y = AH.clamp(x + gaussA() * 0.05, 0, 1);
+    const delta = custo1(y) - custo1(x);
+    const aceita = delta <= 0 || Math.random() < Math.exp(-delta / T);
+    if (aceita) x = y;
+    trilha.push({ x: y, ok: aceita }); if (trilha.length > 300) trilha.shift();
+    aceitos.push(aceita ? 1 : 0); if (aceitos.length > 50) aceitos.shift();
+    best = Math.min(best, custo1(x));
+    T = Math.max(T * 0.995, 1e-4);
+    passos++;
+    atualiza();
+  }
+
+  function atualiza() {
+    el('sa-T').textContent = fmt(T, 4);
+    el('sa-acc').textContent = aceitos.length ? Math.round(100 * aceitos.reduce((a, b) => a + b, 0) / aceitos.length) + '%' : '—';
+    el('sa-best').textContent = fmt(best, 4);
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+  const gaussA = () => Math.sqrt(-2 * Math.log(Math.random() + 1e-12)) * Math.cos(2 * Math.PI * Math.random());
+
+  el('sa-t0').addEventListener('input', () => {
+    el('sa-t0-v').textContent = fmt(+el('sa-t0').value / 100, 2);
+  });
+  el('sa-reinicia').addEventListener('click', () => { clearInterval(timer); timer = null; el('sa-play').innerHTML = '<i class="fa-solid fa-play"></i> Executar'; reinicia(); });
+  el('sa-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Executar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(() => { for (let i = 0; i < 3; i++) passo(); }, 40);
+  });
+  reinicia();
+})();
+
+/* ===================== Animação 5: busca tabu ===================== */
+(function animacao5() {
+  let cur, best, lista, timer = null;
+  const cv = AH.canvas('tabu-cv', desenha);
+
+  function desenha(ctx, w, h) {
+    if (cur === undefined) return;
+    const marcas = [{ i: cur, cor: '#38bdf8', r: 7, rotulo: 'atual' }];
+    if (best !== undefined && best !== cur) marcas.push({ i: best, cor: '#34d399', r: 5, rotulo: 'melhor' });
+    lista.forEach(i => marcas.push({ i, cor: 'rgba(245,158,11,.7)', r: 4 }));
+    desenhaDiscreta(ctx, w, h, marcas);
+  }
+
+  function vizinhos(i) { return [i - 1, i + 1].filter(v => v >= 0 && v < N); }
+
+  function passo() {
+    const usa = el('tb-usa').checked;
+    const tempo = +el('tb-t').value;
+    let cands = vizinhos(cur).filter(v => {
+      if (!usa) return true;
+      const tabu = lista.includes(v);
+      return !tabu || fd[v] < fd[best];         // critério de aspiração
+    });
+    if (cands.length === 0) cands = vizinhos(cur);   // todos tabu: escolhe o menos ruim
+    const prox = cands.reduce((a, b) => (fd[b] < fd[a] ? b : a));   // melhor vizinho, mesmo que piore
+    if (usa) { lista.push(cur); while (lista.length > tempo) lista.shift(); }
+    cur = prox;
+    if (fd[cur] < fd[best]) best = cur;
+    atualiza();
+  }
+
+  function atualiza() {
+    el('tb-cur').textContent = cur + ' (f = ' + fmt(fd[cur], 3) + ')';
+    el('tb-best').textContent = best + ' (f = ' + fmt(fd[best], 3) + ')';
+    el('tb-lista').innerHTML = lista.length
+      ? lista.map(i => `<span class="ah-badge ah-badge-slate">${i}</span>`).join('')
+      : '<span class="text-slate-500">vazia</span>';
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  function reinicia() {
+    cur = 30; best = cur; lista = [];      // mínimo local intermediário (f ≈ 0,23)
+    atualiza();
+  }
+
+  el('tb-t').addEventListener('input', () => { el('tb-t-v').textContent = el('tb-t').value; });
+  el('tb-usa').addEventListener('change', reinicia);
+  el('tb-passo').addEventListener('click', passo);
+  el('tb-reinicia').addEventListener('click', () => { clearInterval(timer); timer = null; el('tb-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático'; reinicia(); });
+  el('tb-auto').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(passo, 350);
+  });
+  reinicia();
+})();
+
+/* ===================== Animação 6: GRASP e a RCL ===================== */
+(function animacao6() {
+  const K = 12;
+  // custos fixos de 12 candidatos num passo de construção
+  const custos = [7.2, 3.1, 9.4, 4.0, 6.5, 2.2, 8.8, 5.1, 3.6, 9.9, 4.7, 6.1];
+  const cmin = Math.min(...custos), cmax = Math.max(...custos);
+  let contagem = new Array(K).fill(0), total = 0, destaque = -1;
+  const cv = AH.canvas('grasp-cv', desenha);
+  const alfa = () => +el('gr-a').value / 100;
+
+  function rcl() {
+    const lim = cmin + alfa() * (cmax - cmin);
+    return custos.map((c, i) => (c <= lim + 1e-9 ? i : -1)).filter(i => i >= 0);
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const R = rcl(), base = h * 0.58, top = 30, maxc = cmax;
+    const bw = (w - 40) / K;
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(148,163,184,.8)';
+    ctx.fillText('custo de cada candidato (barras) · RCL em destaque (ciano)', 20, 18);
+    custos.forEach((c, i) => {
+      const bh = (c / maxc) * (base - top);
+      const x = 20 + i * bw + 6;
+      ctx.fillStyle = R.includes(i) ? '#22d3ee' : '#334155';
+      if (i === destaque) ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(x, base - bh, bw - 12, bh);
+      ctx.fillStyle = 'rgba(226,232,240,.8)';
+      ctx.fillText(c.toFixed(1).replace('.', ','), x, base - bh - 4);
+    });
+    // histograma de escolhas
+    const hb = h - 20, mx = Math.max(1, ...contagem);
+    ctx.fillStyle = 'rgba(148,163,184,.8)';
+    ctx.fillText('histograma das escolhas feitas', 20, base + 18);
+    contagem.forEach((n, i) => {
+      const bh = (n / mx) * (hb - base - 34);
+      ctx.fillStyle = '#a855f7';
+      ctx.fillRect(20 + i * bw + 6, hb - bh, bw - 12, bh);
+    });
+  }
+
+  function construir() {
+    const R = rcl();
+    const esc = R[Math.floor(Math.random() * R.length)];
+    contagem[esc]++; total++; destaque = esc;
+    el('gr-n').textContent = total;
+    el('gr-rcl').textContent = R.length + ' de ' + K;
+    cv.draw(cv.ctx, cv.w, cv.h);
+    setTimeout(() => { destaque = -1; cv.draw(cv.ctx, cv.w, cv.h); }, 350);
+  }
+
+  el('gr-a').addEventListener('input', () => {
+    el('gr-a-v').textContent = fmt(alfa(), 2);
+    el('gr-rcl').textContent = rcl().length + ' de ' + K;
+    cv.draw(cv.ctx, cv.w, cv.h);
+  });
+  el('gr-constroi').addEventListener('click', construir);
+  el('gr-limpa').addEventListener('click', () => {
+    contagem = new Array(K).fill(0); total = 0; el('gr-n').textContent = 0;
+    cv.draw(cv.ctx, cv.w, cv.h);
+  });
+  el('gr-rcl').textContent = rcl().length + ' de ' + K;
+})();
+
+/* ===================== Animação 7: ILS ===================== */
+(function animacao7() {
+  let cur, best, fase, ciclos, timer = null;
+  const cv = AH.canvas('ils-cv', desenha);
+  const FASES = ['busca local', 'aceitação', 'perturbação'];
+  const nomes = { LS: 'busca local (descendo)', ACC: 'aceitação (compara com o melhor)', PERT: 'perturbação (salto aleatório)' };
+
+  function desenha(ctx, w, h) {
+    if (cur === undefined) return;
+    const marcas = [{ i: cur, cor: '#38bdf8', r: 7, rotulo: 'atual' }];
+    if (best !== cur) marcas.push({ i: best, cor: '#34d399', r: 5, rotulo: 'melhor' });
+    desenhaDiscreta(ctx, w, h, marcas);
+  }
+
+  function passo() {
+    if (fase === 'LS') {
+      const v = [cur - 1, cur + 1].filter(i => i >= 0 && i < N);
+      const melhor = v.reduce((a, b) => (fd[b] < fd[a] ? b : a));
+      if (fd[melhor] < fd[cur]) { cur = melhor; }
+      else { fase = 'ACC'; }
+    } else if (fase === 'ACC') {
+      if (fd[cur] < fd[best]) best = cur; else cur = best;   // critério: só aceita melhoras
+      fase = 'PERT'; ciclos++;
+    } else {
+      cur = AH.clamp(best + Math.round(AH.rand(-10, 10)), 0, N - 1);
+      fase = 'LS';
+    }
+    atualiza();
+  }
+
+  function atualiza() {
+    el('ils-fase').textContent = nomes[fase];
+    el('ils-best').textContent = best + ' (f = ' + fmt(fd[best], 3) + ')';
+    el('ils-ciclos').textContent = ciclos;
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  function reinicia() {
+    cur = Math.floor(Math.random() * N); best = cur; fase = 'LS'; ciclos = 0;
+    // primeiro desce até um mínimo local
+    atualiza();
+  }
+
+  el('ils-passo').addEventListener('click', passo);
+  el('ils-reinicia').addEventListener('click', () => { clearInterval(timer); timer = null; el('ils-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático'; reinicia(); });
+  el('ils-auto').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(passo, 260);
+  });
+  reinicia();
+})();
+
+/* ===================== Animação 8: VNS ===================== */
+(function animacao8() {
+  let cur, best, k, passosTotal, timer = null, log = '';
+  const cv = AH.canvas('vns-cv', desenha);
+  const KMAX = 3;
+
+  function desenha(ctx, w, h) {
+    if (cur === undefined) return;
+    const marcas = [{ i: cur, cor: '#38bdf8', r: 7, rotulo: 'atual' }];
+    if (best !== cur) marcas.push({ i: best, cor: '#34d399', r: 5, rotulo: 'melhor' });
+    desenhaDiscreta(ctx, w, h, marcas);
+  }
+
+  function buscaLocal(i) {
+    let x = i;
+    for (;;) {
+      const v = [x - 1, x + 1].filter(q => q >= 0 && q < N);
+      const m = v.reduce((a, b) => (fd[b] < fd[a] ? b : a));
+      if (fd[m] < fd[x]) x = m; else return x;
+    }
+  }
+
+  function passo() {
+    const salto = Math.round(AH.rand(-k * 4, k * 4));   // sacudida em N_k
+    const alvo = AH.clamp(cur + salto, 0, N - 1);
+    const novo = buscaLocal(alvo);
+    if (fd[novo] < fd[cur]) {
+      log = `Sacudida de ${salto > 0 ? '+' : ''}${salto} + busca local levou a uma solução melhor. Volta para k = 1.`;
+      cur = novo; k = 1;
+    } else {
+      log = `Sacudida de ${salto > 0 ? '+' : ''}${salto} + busca local não melhorou. Aumenta a vizinhança: k = ${Math.min(k + 1, KMAX)}.`;
+      k = k + 1 > KMAX ? 1 : k + 1;
+    }
+    if (fd[cur] < fd[best]) best = cur;
+    passosTotal++;
+    atualiza();
+  }
+
+  function atualiza() {
+    el('vns-k').textContent = k;
+    el('vns-best').textContent = fmt(fd[best], 3);
+    el('vns-log').textContent = log || 'Clique em “Passo”.';
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  function reinicia() {
+    cur = Math.floor(Math.random() * N); cur = buscaLocal(cur);
+    best = cur; k = 1; passosTotal = 0; log = 'Solução inicial após busca local. Clique em “Passo”.';
+    atualiza();
+  }
+
+  el('vns-passo').addEventListener('click', passo);
+  el('vns-reinicia').addEventListener('click', () => { clearInterval(timer); timer = null; el('vns-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático'; reinicia(); });
+  el('vns-auto').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(passo, 350);
+  });
+  reinicia();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metaheurísticas: fundamentos · AcademicHub</title>
+<meta name="description" content="Conceitos centrais das metaheurísticas: intensificação e diversificação, paisagem de busca, métodos de trajetória e populacionais, taxonomia e No Free Lunch.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/17-metaheuristicas-fundamentos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta aula</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ OBJETIVOS ============================ -->
+<section id="objetivos" data-toc="Objetivos da aula" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-indigo-400 mr-2"></i>Objetivos de aprendizagem</h2>
+  <p class="ah-lead text-sm mb-5">
+    Esta aula apresenta o campo das <strong>metaheurísticas</strong>: a família de estratégias gerais para resolver problemas
+    de otimização difíceis. Ao final, você deve ser capaz de:
+  </p>
+  <ul class="text-sm text-slate-300 space-y-2 leading-relaxed">
+    <li>• Definir metaheurística e distingui-la de uma heurística específica.</li>
+    <li>• Explicar o compromisso entre <strong>intensificação</strong> e <strong>diversificação</strong> e por que ele existe.</li>
+    <li>• Classificar um algoritmo como de <strong>trajetória</strong> ou <strong>populacional</strong>.</li>
+    <li>• Reconhecer os principais algoritmos de cada família (detalhados nas aulas 18 e 19).</li>
+    <li>• Discutir o <strong>teorema No Free Lunch</strong> e as críticas à proliferação de metáforas.</li>
+  </ul>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-book-open"></i>
+    <div>
+      <strong>Pré-requisitos:</strong> noções de busca em espaço de estados (<a href="03-busca-cega.html" class="underline">aula 3</a>) e de
+      heurística (<a href="04-busca-heuristica.html" class="underline">aula 4</a>). Para os algoritmos populacionais, ajuda ter visto
+      <a href="11-algoritmos-geneticos-automatos-celulares.html" class="underline">algoritmos genéticos</a>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÃO ============================ -->
+<section id="definicao" data-toc="O que é uma metaheurística" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-indigo-400 mr-2"></i>O que é uma metaheurística</h2>
+  <p class="ah-lead text-sm mb-5">
+    Uma <strong>heurística</strong> é um procedimento que encontra uma solução boa, sem garantia de otimalidade, usando conhecimento
+    específico do problema. Uma <strong>metaheurística</strong> é uma estratégia de nível superior, que dirige e combina heurísticas
+    subordinadas sem depender dos detalhes de um problema particular.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-6">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Definição na literatura</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Blum e Roli (2003) descrevem metaheurísticas como processos iterativos de geração que guiam uma heurística subordinada,
+      combinando de forma inteligente diferentes conceitos para explorar o espaço de busca, e usando estratégias de aprendizado para
+      estruturar a informação coletada, de modo a encontrar soluções eficientes. <em>(Paráfrase; ver a referência completa abaixo.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Blum, C.; Roli, A. (2003). <em>Metaheuristics in combinatorial optimization: overview and conceptual comparison</em>. ACM Computing Surveys, 35(3), 268–308.</p>
+  </div>
+
+  <h3 class="ah-h3 mb-3">A hierarquia dos métodos de busca</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#64748b">
+      <span class="ah-badge ah-badge-slate mb-2">Problema</span>
+      <p class="text-xs text-slate-400 leading-relaxed">O que queremos resolver: por exemplo, o caixeiro-viajante com 50 cidades. Define a função objetivo e as restrições.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#38bdf8">
+      <span class="ah-badge mb-2">Heurística</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Regra específica para o problema, como “sempre vá para a cidade mais próxima”. Rápida, mas limitada a uma forma de solução.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#6366f1">
+      <span class="ah-badge mb-2">Metaheurística</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Estratégia geral: decide quando explorar, quando aceitar um movimento pior, como guardar a memória da busca. Serve para muitos problemas.</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Um pouco de história</h3>
+  <div class="ah-prose">
+    <p>
+      O termo é atribuído a Glover (1986), que o empregou ao propor a busca tabu. Antes disso, já existiam métodos com a mesma ideia
+      sob outros nomes: o recozimento simulado, de Kirkpatrick, Gelatt e Vecchi (1983), inspirado em Metropolis et al. (1953); e os
+      algoritmos genéticos, de Holland (1975). Nas décadas seguintes, a área cresceu com enorme número de variações, o que motivou
+      revisões e críticas que você verá mais adiante nesta aula.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ INTENSIFICAÇÃO × DIVERSIFICAÇÃO ============================ -->
+<section id="exploracao" data-toc="Intensificação e diversificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-indigo-400 mr-2"></i>Intensificação × diversificação</h2>
+  <p class="ah-lead text-sm mb-5">
+    O conceito mais importante da área. Uma busca precisa <strong>aprofundar</strong> regiões promissoras (<em>intensificação</em>) e,
+    ao mesmo tempo, <strong>visitar regiões novas</strong> (<em>diversificação</em>). Como os recursos são finitos, cada algoritmo
+    faz um compromisso entre os dois.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-1"></i> Intensificação</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Explorar bem a vizinhança de boas soluções. Converge rápido, mas pode ficar presa a um <strong>ótimo local</strong>.</p>
+    </div>
+    <div class="ah-card p-5">
+      <h4 class="ah-h3 text-sm mb-2"><i class="fa-solid fa-compass text-amber-400 mr-1"></i> Diversificação</h4>
+      <p class="text-xs text-slate-400 leading-relaxed">Visitar regiões distantes do espaço. Evita armadilhas, mas, em excesso, a busca se torna aleatória e lenta para refinar.</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Animação 1 · Ótimos locais na paisagem de busca</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    Uma <strong>paisagem</strong> é o gráfico do custo em função da solução. Um algoritmo de subida de encosta (<em>hill climbing</em>)
+    só aceita movimentos que melhoram. Clique em “Passo” e observe onde ele para. Depois, “Novo ponto de partida” e compare.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:240px"><canvas id="paisagem1d" style="height:240px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="h1-passo" class="ah-btn ah-btn-primary"><i class="fa-solid fa-forward-step"></i> Passo</button>
+        <button id="h1-auto" class="ah-btn"><i class="fa-solid fa-play"></i> Automático</button>
+        <button id="h1-novo" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-shuffle"></i> Novo ponto de partida</button>
+      </div>
+    </div>
+    <div class="ah-card p-4 space-y-3">
+      <div class="text-xs text-slate-400">Custo atual</div>
+      <div id="h1-custo" class="font-mono text-2xl text-amber-300">—</div>
+      <div class="text-xs text-slate-400">Estado</div>
+      <div id="h1-estado" class="text-xs text-slate-300 leading-relaxed">Clique em “Passo”.</div>
+      <div class="text-[11px] text-slate-500">★ marca o ótimo global, obtido pela varredura do espaço.</div>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação 2 · O efeito do tamanho do passo e dos reinícios</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    Um agente faz pequenas perturbações aleatórias e aceita só o que melhora. Com passos pequenos, ele <strong>intensifica</strong>
+    e desce até o fundo do vale mais próximo. Com reinícios aleatórios, ele <strong>diversifica</strong> e descobre outros vales.
+    A marca de cada pico aparece quando o agente chega perto do seu fundo. Ajuste os controles e veja o trade-off.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:320px"><canvas id="land2d" style="height:320px"></canvas></div>
+      <div class="flex flex-wrap items-center gap-3 mt-3">
+        <button id="d-play" class="ah-btn ah-btn-primary"><i class="fa-solid fa-play"></i> Executar</button>
+        <button id="d-limpa" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-eraser"></i> Limpar</button>
+      </div>
+    </div>
+    <div class="space-y-4">
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-400 block mb-1">Tamanho do passo: <span id="d-passo-v" class="font-mono text-indigo-300">0,05</span></label>
+        <input id="d-passo" type="range" min="1" max="30" value="5" class="w-full accent-indigo-500">
+      </div>
+      <div class="ah-card p-4">
+        <label class="text-xs text-slate-400 block mb-1">Probabilidade de reinício: <span id="d-reinicio-v" class="font-mono text-amber-300">2%</span></label>
+        <input id="d-reinicio" type="range" min="0" max="20" value="2" class="w-full accent-amber-500">
+      </div>
+      <div class="ah-card p-4 text-xs text-slate-300 space-y-2">
+        <div>Melhor custo encontrado: <span id="d-melhor" class="font-mono text-emerald-300">—</span></div>
+        <div>Picos descobertos: <span id="d-picos" class="font-mono text-sky-300">0 / 4</span></div>
+        <div class="text-[11px] text-slate-500">Um pico é “descoberto” quando o agente chega a menos de 0,05 do seu fundo.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ah-callout ah-callout-tip mt-6">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Leitura da animação:</strong> com passo pequeno e poucos reinícios, o agente encontra <em>um</em> pico bem refinado.
+      Com passo grande e muitos reinícios, descobre vários picos, mas refina mal cada um. Nenhuma configuração é sempre melhor:
+      o ideal depende da paisagem, que normalmente é desconhecida. Essa é a motivação de toda a área.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TRAJETÓRIA × POPULAÇÃO ============================ -->
+<section id="trajetoria-populacao" data-toc="Trajetória × população" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-people-group text-indigo-400 mr-2"></i>Métodos de trajetória × métodos populacionais</h2>
+  <p class="ah-lead text-sm mb-5">
+    A primeira grande divisão da área pergunta: o algoritmo mantém <strong>uma</strong> solução atual que caminha pelo espaço
+    (trajetória), ou mantém <strong>um conjunto</strong> de soluções que evolui em conjunto (população)?
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#38bdf8">
+      <span class="ah-badge mb-2">Trajetória</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma solução corrente por vez. Explora a vizinhança e, eventualmente, aceita piorar para escapar. Exemplos: recozimento simulado, busca tabu, GRASP, ILS, VNS.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4" style="border-top-color:#a855f7">
+      <span class="ah-badge ah-badge-slate mb-2">Populacional</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Um conjunto de soluções. A diversidade é mantida pela população, e a informação é trocada entre indivíduos. Exemplos: algoritmos genéticos, PSO, ACO, evolução diferencial.</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mb-3">Animação 3 · Um agente contra um enxame</h3>
+  <p class="text-sm text-slate-400 mb-3">
+    À esquerda, um único agente faz subida de encosta. À direita, vinte agentes fazem o mesmo, mas uma pequena parte deles é atraída
+    para a melhor solução já encontrada pelo grupo. Observe quantos picos cada um descobre no mesmo número de passos.
+  </p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <div>
+      <div class="text-xs text-slate-400 mb-1">Trajetória (1 agente)</div>
+      <div class="ah-stage" style="height:260px"><canvas id="pop-solo" style="height:260px"></canvas></div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-400 mb-1">Populacional (20 agentes)</div>
+      <div class="ah-stage" style="height:260px"><canvas id="pop-enxame" style="height:260px"></canvas></div>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-3 mt-3">
+    <button id="p-passo" class="ah-btn ah-btn-primary"><i class="fa-solid fa-forward-step"></i> 10 passos</button>
+    <button id="p-auto" class="ah-btn"><i class="fa-solid fa-play"></i> Automático</button>
+    <button id="p-novo" class="ah-btn ah-btn-ghost"><i class="fa-solid fa-shuffle"></i> Reiniciar</button>
+    <span class="text-xs text-slate-400 ml-auto">Passos: <span id="p-passos" class="font-mono text-slate-200">0</span></span>
+  </div>
+  <div class="grid grid-cols-2 gap-3 mt-4 text-center text-xs">
+    <div class="ah-card p-3"><div class="text-slate-400">Trajetória: melhor / picos</div><div id="p-solo-res" class="font-mono text-sky-300 mt-1">—</div></div>
+    <div class="ah-card p-3"><div class="text-slate-400">Populacional: melhor / picos</div><div id="p-enx-res" class="font-mono text-purple-300 mt-1">—</div></div>
+  </div>
+
+  <div class="ah-prose mt-6">
+    <p>
+      A escolha entre as duas famílias é, em grande parte, uma escolha de <strong>custo de memória e de avaliação</strong>.
+      Trajetórias são simples e baratas em memória, e cada iteração avalia pouco. Populações custam mais, mas trocam informação
+      entre os indivíduos e mantêm diversidade natural, o que ajuda em paisagens com muitos picos.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ TAXONOMIA ============================ -->
+<section id="taxonomia" data-toc="Taxonomia dos métodos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-indigo-400 mr-2"></i>Como classificar um algoritmo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Revisões como Blum e Roli (2003) propõem eixos de classificação. Eles não são exclusivos, e um mesmo algoritmo pode ocupar
+    posições diferentes conforme a versão. Use-os como lentes para comparar.
+  </p>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Eixo</th><th>Uma ponta</th><th>Outra ponta</th><th>Exemplos</th></tr></thead>
+      <tbody>
+        <tr><td>Inspiração</td><td>Natural (biológica, física, social)</td><td>Matemática ou conceitual</td><td>AG e PSO (natural); busca tabu (conceitual)</td></tr>
+        <tr><td>Número de soluções</td><td>Trajetória (uma)</td><td>População (várias)</td><td>Recozimento × AG</td></tr>
+        <tr><td>Memória</td><td>Sem memória (só o estado atual)</td><td>Com memória de longo ou curto prazo</td><td>Recozimento × busca tabu</td></tr>
+        <tr><td>Vizinhança</td><td>Uma vizinhança fixa</td><td>Várias vizinhanças, trocadas ao longo da busca</td><td>Busca local × VNS</td></tr>
+        <tr><td>Aleatoriedade</td><td>Determinística</td><td>Estocástica</td><td>Quase todas são estocásticas</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Dica para a prova:</strong> “é uma metaheurística?” não tem resposta binária. Pergunte: ela define uma estratégia geral
+      de busca, que pode ser aplicada a vários problemas, e que controla explicitamente intensificação e diversificação? Se sim, é.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NO FREE LUNCH ============================ -->
+<section id="no-free-lunch" data-toc="No Free Lunch e crítica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-utensils text-indigo-400 mr-2"></i>Não existe almoço grátis</h2>
+  <p class="ah-lead text-sm mb-5">
+    A pergunta natural é: qual metaheurística é a melhor? A resposta teórica é que nenhuma é melhor em todos os casos.
+  </p>
+
+  <div class="ah-card p-5 border-l-4 border-indigo-500 mb-5">
+    <div class="text-[11px] uppercase tracking-wide text-indigo-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Resultado central</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Wolpert e Macready (1997) mostram que, quando se considera a média sobre todas as funções possíveis de um espaço finito,
+      o desempenho de qualquer dois algoritmos de otimização é idêntico. Em outras palavras, um ganho em uma classe de problemas
+      é pago com perda em outra. <em>(Paráfrase do resultado.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Wolpert, D. H.; Macready, W. G. (1997). <em>No free lunch theorems for optimization</em>. IEEE Transactions on Evolutionary Computation, 1(1), 67–82.</p>
+  </div>
+
+  <div class="ah-prose">
+    <p>
+      A consequência prática é que o desempenho de uma metaheurística depende da <strong>estrutura do problema</strong>. Um método que
+      funciona bem com funções suaves pode falhar com funções ruidosas. Por isso, a boa prática é comparar algoritmos em instâncias
+      representativas do problema real, com o mesmo orçamento de avaliações, e não em benchmarks escolhidos a dedo.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">A crítica das metáforas</h3>
+  <div class="ah-card p-5 border-l-4 border-amber-500 mb-4">
+    <div class="text-[11px] uppercase tracking-wide text-amber-300 font-bold mb-2"><i class="fa-solid fa-file-lines mr-1"></i> Argumento de Sörensen</div>
+    <p class="text-sm text-slate-300 leading-relaxed">
+      Sörensen (2015) argumenta que boa parte da literatura apresenta algoritmos “novos” que são variações pouco distintas dos
+      métodos já conhecidos, embalados em metáforas de fenômenos naturais, como cardumes, morcegos ou fogos de artifício.
+      Ele pede que a área avalie contribuições pelo que elas trazem de novo em desempenho e em compreensão, e não pela criatividade
+      da metáfora. <em>(Paráfrase do argumento.)</em>
+    </p>
+    <p class="text-[11px] text-slate-500 mt-2">Sörensen, K. (2015). <em>Metaheuristics—the metaphor exposed</em>. International Transactions in Operational Research, 22(1), 3–18.</p>
+  </div>
+  <div class="ah-callout ah-callout-warn">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div>
+      <strong>Para discutir em aula:</strong> uma metáfora atraente ajuda a ensinar e a divulgar um método, mas não substitui uma
+      análise do que o algoritmo faz. Ao estudar cada método nas aulas 18 e 19, pergunte qual é o mecanismo de intensificação e de
+      diversificação, independentemente do nome.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FAMÍLIAS ============================ -->
+<section id="familias" data-toc="Mapa das famílias e algoritmos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-map text-indigo-400 mr-2"></i>Quais algoritmos fazem parte</h2>
+  <p class="ah-lead text-sm mb-5">
+    O mapa abaixo reúne os algoritmos mais citados e indica onde cada um é estudado nesta disciplina. Os de trajetória estão na
+    aula 18; os populacionais, na aula 19. Alguns já têm página própria com animações mais detalhadas.
+  </p>
+  <div class="ah-card overflow-x-auto">
+    <table class="ah-table">
+      <thead><tr><th>Família</th><th>Algoritmos</th><th>Onde estudar</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="5">Trajetória (aula 18)</td><td>Recozimento simulado (Simulated Annealing)</td><td><a href="18-metaheuristicas-trajetoria.html" class="underline">aula 18</a></td></tr>
+        <tr><td>Busca tabu (Tabu Search)</td><td><a href="18-metaheuristicas-trajetoria.html" class="underline">aula 18</a></td></tr>
+        <tr><td>GRASP</td><td><a href="18-metaheuristicas-trajetoria.html" class="underline">aula 18</a></td></tr>
+        <tr><td>Busca local iterada (ILS)</td><td><a href="18-metaheuristicas-trajetoria.html" class="underline">aula 18</a></td></tr>
+        <tr><td>Busca em vizinhança variável (VNS)</td><td><a href="18-metaheuristicas-trajetoria.html" class="underline">aula 18</a></td></tr>
+        <tr><td rowspan="6">Populacional (aula 19)</td><td>Algoritmos genéticos (Genetic Algorithms)</td><td><a href="11-algoritmos-geneticos-automatos-celulares.html" class="underline">aula 11</a> e <a href="19-metaheuristicas-populacao.html" class="underline">aula 19</a></td></tr>
+        <tr><td>Otimização por enxame de partículas (PSO)</td><td><a href="12-otimizacao-enxame-particulas.html" class="underline">aula 12</a> e <a href="19-metaheuristicas-populacao.html" class="underline">aula 19</a></td></tr>
+        <tr><td>Otimização por colônia de formigas (ACO)</td><td><a href="13-otimizacao-colonia-formigas.html" class="underline">aula 13</a> e <a href="19-metaheuristicas-populacao.html" class="underline">aula 19</a></td></tr>
+        <tr><td>Evolução diferencial (Differential Evolution)</td><td><a href="19-metaheuristicas-populacao.html" class="underline">aula 19</a></td></tr>
+        <tr><td>Busca harmônica (Harmony Search)</td><td><a href="19-metaheuristicas-populacao.html" class="underline">aula 19</a></td></tr>
+        <tr><td>Busca do cuco (Cuckoo Search)</td><td><a href="19-metaheuristicas-populacao.html" class="underline">aula 19</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ REFERÊNCIAS ============================ -->
+<section id="referencias" data-toc="Referências desta aula" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-indigo-400 mr-2"></i>Referências desta aula</h2>
+  <p class="ah-lead text-sm mb-4">As referências das aulas 18 e 19 estão na aula 19, em lista única.</p>
+  <ol class="text-xs text-slate-300 space-y-2 leading-relaxed list-decimal pl-5">
+    <li>Blum, C.; Roli, A. (2003). Metaheuristics in combinatorial optimization: overview and conceptual comparison. <em>ACM Computing Surveys</em>, 35(3), 268–308.</li>
+    <li>Glover, F. (1986). Future paths for integer programming and links to artificial intelligence. <em>Computers &amp; Operations Research</em>, 13(5), 533–549.</li>
+    <li>Glover, F.; Kochenberger, G. (eds.) (2003). <em>Handbook of Metaheuristics</em>. Kluwer Academic Publishers.</li>
+    <li>Kirkpatrick, S.; Gelatt, C. D.; Vecchi, M. P. (1983). Optimization by simulated annealing. <em>Science</em>, 220(4598), 671–680.</li>
+    <li>Metropolis, N. et al. (1953). Equation of state calculations by fast computing machines. <em>The Journal of Chemical Physics</em>, 21(6), 1087–1092.</li>
+    <li>Sörensen, K. (2015). Metaheuristics—the metaphor exposed. <em>International Transactions in Operational Research</em>, 22(1), 3–18.</li>
+    <li>Wolpert, D. H.; Macready, W. G. (1997). No free lunch theorems for optimization. <em>IEEE Transactions on Evolutionary Computation</em>, 1(1), 67–82.</li>
+  </ol>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Exercícios de fixação" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Exercícios de fixação</h2>
+  <p class="text-xs text-slate-400 mb-6">Três questões sobre os conceitos desta aula.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Um agente que só aceita movimentos que melhoram o custo termina num ótimo local. Qual conceito está em jogo?</p>
+      <button class="ah-quiz-opt">Diversificação excessiva</button>
+      <button class="ah-quiz-opt">Intensificação sem mecanismo de escape</button>
+      <button class="ah-quiz-opt">Teorema No Free Lunch</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A busca refina bem a região em que está, mas não visita outras. Sem diversificação (reinícios, aceitar piora ocasional),
+        não há como sair de um vale. Veja a animação 1 com o passo pequeno.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Qual afirmação sobre métodos de trajetória e populacionais é a mais adequada?</p>
+      <button class="ah-quiz-opt">Métodos populacionais nunca são estocásticos</button>
+      <button class="ah-quiz-opt">Métodos de trajetória mantêm sempre uma população de soluções</button>
+      <button class="ah-quiz-opt">Métodos populacionais trocam informação entre várias soluções, o que ajuda a manter diversidade</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A distinção está no número de soluções mantidas. Trajetórias têm uma solução corrente; populações têm várias, que interagem.
+        A animação 3 mostra a diferença na descoberta de picos.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. Segundo o teorema No Free Lunch, como se compara o desempenho médio de dois algoritmos sobre todas as funções possíveis?</p>
+      <button class="ah-quiz-opt">É idêntico</button>
+      <button class="ah-quiz-opt">O algoritmo com mais parâmetros é sempre melhor</button>
+      <button class="ah-quiz-opt">Depende apenas do número de avaliações</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Esse é o resultado de Wolpert e Macready (1997). Por isso, escolher uma metaheurística exige conhecer a classe de problemas
+        e comparar métodos em instâncias representativas.
+      </p>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Paisagem, custo e utilitários ===================== */
+const gauss = () => Math.sqrt(-2 * Math.log(Math.random() + 1e-12)) * Math.cos(2 * Math.PI * Math.random());
+const fmt = (v, d = 3) => v.toFixed(d).replace('.', ',');
+
+// paisagem 1D (minimização em x ∈ [0,1]) com vários ótimos locais
+const custo1 = x => 0.5 + 0.3 * Math.sin(10 * x) + 0.25 * Math.cos(3 * x);
+let G1 = { x: 0, f: Infinity };
+for (let i = 0; i <= 2000; i++) { const x = i / 2000, f = custo1(x); if (f < G1.f) G1 = { x, f }; }
+let FMIN = Infinity, FMAX = -Infinity;
+for (let i = 0; i <= 400; i++) { const f = custo1(i / 400); FMIN = Math.min(FMIN, f); FMAX = Math.max(FMAX, f); }
+
+// paisagem 2D: vales (picos negativos de gaussianas); o mais fundo é o ótimo global
+const PICOS = [
+  { x: 0.25, y: 0.30, a: 1.0, s: 0.12 },
+  { x: 0.70, y: 0.25, a: 0.8, s: 0.10 },
+  { x: 0.50, y: 0.70, a: 1.2, s: 0.15 },
+  { x: 0.80, y: 0.80, a: 0.6, s: 0.08 }
+];
+const custo2 = (x, y) => {
+  let v = 0;
+  for (const p of PICOS) v -= p.a * Math.exp(-((x - p.x) ** 2 + (y - p.y) ** 2) / (2 * p.s * p.s));
+  return v;
+};
+const C2MIN = -1.2, C2MAX = 0;
+
+// mapa de calor em cache, para não recalcular a cada quadro
+const heatCache = new Map();
+function desenhaFundo2D(ctx, w, h) {
+  const key = w + 'x' + h;
+  if (!heatCache.has(key)) {
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    const oc = off.getContext('2d');
+    const N = 90, cw = w / N, ch = h / N;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      const v = custo2((i + 0.5) / N, (j + 0.5) / N);
+      const t = (v - C2MIN) / (C2MAX - C2MIN);           // 0 = vale fundo, 1 = alto
+      oc.fillStyle = `rgba(${Math.round(30 + 200 * (1 - t) ** 2)},${Math.round(20 + 90 * (1 - t))},${Math.round(60 + 140 * t)},1)`;
+      oc.fillRect(j * cw, h - (i + 1) * ch, cw + 1, ch + 1);
+    }
+    heatCache.set(key, off);
+  }
+  ctx.drawImage(heatCache.get(key), 0, 0);
+}
+const px2 = (x, w) => 10 + x * (w - 20);
+const py2 = (y, h) => h - 10 - y * (h - 20);
+
+/* ===================== Animação 1: ótimos locais (1D) ===================== */
+(function animacao1() {
+  let x = 0.12, trilha = [], timer = null, parado = false;
+  const cv = AH.canvas('paisagem1d', desenha);
+  const X = (v, w) => 30 + v * (w - 50);
+  const Y = (f, h) => h - 30 - ((f - FMIN) / (FMAX - FMIN)) * (h - 60);
+
+  function vizinhoMelhor() {
+    const d = 0.004;
+    const cand = [x - d, x + d].filter(v => v >= 0 && v <= 1);
+    let best = null;
+    cand.forEach(v => { if (custo1(v) < custo1(x) && (best === null || custo1(v) < custo1(best))) best = v; });
+    return best;
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5; ctx.beginPath();
+    for (let i = 0; i <= 400; i++) {
+      const v = i / 400, px = X(v, w), py = Y(custo1(v), h);
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+    // ótimo global
+    ctx.fillStyle = '#fbbf24'; ctx.font = '16px sans-serif';
+    ctx.fillText('★', X(G1.x, w) - 6, Y(G1.f, h) - 8);
+    // trilha
+    trilha.forEach((v, i) => {
+      ctx.fillStyle = `rgba(56,189,248,${(i + 1) / trilha.length * 0.6})`;
+      ctx.beginPath(); ctx.arc(X(v, w), Y(custo1(v), h), 3, 0, 6.29); ctx.fill();
+    });
+    // agente
+    ctx.fillStyle = '#38bdf8'; ctx.beginPath();
+    ctx.arc(X(x, w), Y(custo1(x), h), 7, 0, 6.29); ctx.fill();
+    ctx.fillStyle = 'rgba(148,163,184,.7)'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('x (solução)', w / 2 - 36, h - 8);
+    ctx.fillText('custo f(x)', 8, 14);
+  }
+
+  function atualiza(estado) {
+    document.getElementById('h1-custo').textContent = fmt(custo1(x));
+    document.getElementById('h1-estado').textContent = estado;
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+
+  function passo() {
+    const melhor = vizinhoMelhor();
+    if (melhor === null) {
+      parado = true; clearInterval(timer); timer = null;
+      document.getElementById('h1-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático';
+      atualiza(custo1(x) - G1.f < 0.01
+        ? 'Chegou ao ótimo global (★).'
+        : 'Ótimo local: nenhum vizinho é melhor. A busca parou aqui, mesmo sem ser o melhor de todos.');
+      return;
+    }
+    trilha.push(x); if (trilha.length > 60) trilha.shift();
+    x = melhor;
+    atualiza('Movendo para uma solução de menor custo…');
+  }
+
+  function novo() {
+    x = Math.random(); trilha = []; parado = false;
+    clearInterval(timer); timer = null;
+    document.getElementById('h1-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático';
+    atualiza('Novo ponto de partida. Clique em “Passo”.');
+  }
+
+  document.getElementById('h1-passo').addEventListener('click', () => { if (!parado) passo(); });
+  document.getElementById('h1-novo').addEventListener('click', novo);
+  document.getElementById('h1-auto').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(() => { if (parado) { clearInterval(timer); timer = null; return; } passo(); }, 120);
+  });
+  atualiza('Clique em “Passo”.');
+})();
+
+/* ===================== Animação 2: passo e reinícios (2D) ===================== */
+(function animacao2() {
+  let p = { x: 0.1, y: 0.1 }, trilha = [], melhor = Infinity, descobertos = new Set(), timer = null;
+  const cv = AH.canvas('land2d', desenha);
+  const el = id => document.getElementById(id);
+
+  function desenha(ctx, w, h) {
+    desenhaFundo2D(ctx, w, h);
+    trilha.forEach((q, i) => {
+      ctx.fillStyle = `rgba(255,255,255,${(i + 1) / trilha.length * 0.7})`;
+      ctx.beginPath(); ctx.arc(px2(q.x, w), py2(q.y, h), 2.2, 0, 6.29); ctx.fill();
+    });
+    PICOS.forEach((pk, i) => {
+      ctx.strokeStyle = descobertos.has(i) ? '#34d399' : 'rgba(248,250,252,.35)';
+      ctx.lineWidth = 2; ctx.beginPath();
+      ctx.arc(px2(pk.x, w), py2(pk.y, h), 8, 0, 6.29); ctx.stroke();
+    });
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath();
+    ctx.arc(px2(p.x, w), py2(p.y, h), 5, 0, 6.29); ctx.fill();
+  }
+
+  function passo() {
+    const s = +el('d-passo').value / 100;
+    const pr = +el('d-reinicio').value / 100;
+    let q;
+    if (Math.random() < pr) {
+      p = { x: Math.random(), y: Math.random() };                 // diversificação: reinício
+      q = p;
+    } else {
+      q = { x: AH.clamp(p.x + gauss() * s, 0, 1), y: AH.clamp(p.y + gauss() * s, 0, 1) };
+      if (custo2(q.x, q.y) < custo2(p.x, p.y)) p = q;             // intensificação: só aceita melhoras
+    }
+    trilha.push({ x: p.x, y: p.y }); if (trilha.length > 500) trilha.shift();
+    melhor = Math.min(melhor, custo2(p.x, p.y));
+    PICOS.forEach((pk, i) => { if (Math.hypot(p.x - pk.x, p.y - pk.y) < 0.05) descobertos.add(i); });
+  }
+
+  function atualizaTextos() {
+    el('d-melhor').textContent = fmt(melhor, 3);
+    el('d-picos').textContent = descobertos.size + ' / ' + PICOS.length;
+    el('d-passo-v').textContent = fmt(+el('d-passo').value / 100, 2);
+    el('d-reinicio-v').textContent = el('d-reinicio').value + '%';
+  }
+
+  function loop() {
+    for (let i = 0; i < 6; i++) passo();
+    cv.draw(cv.ctx, cv.w, cv.h); atualizaTextos();
+  }
+
+  el('d-play').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Executar'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(loop, 60);
+  });
+  el('d-limpa').addEventListener('click', () => {
+    trilha = []; descobertos = new Set(); melhor = Infinity; p = { x: 0.1, y: 0.1 };
+    cv.draw(cv.ctx, cv.w, cv.h); atualizaTextos();
+  });
+  el('d-passo').addEventListener('input', atualizaTextos);
+  el('d-reinicio').addEventListener('input', atualizaTextos);
+  atualizaTextos();
+})();
+
+/* ===================== Animação 3: trajetória × população ===================== */
+(function animacao3() {
+  const el = id => document.getElementById(id);
+  let agentesSolo = [], agentesEnx = [], passos = 0, timer = null;
+  const cvS = AH.canvas('pop-solo', (c, w, h) => desenhaPop(c, w, h, agentesSolo));
+  const cvE = AH.canvas('pop-enxame', (c, w, h) => desenhaPop(c, w, h, agentesEnx));
+
+  function novo() {
+    agentesSolo = [{ x: Math.random(), y: Math.random(), f: 0 }];
+    agentesEnx = Array.from({ length: 20 }, () => ({ x: Math.random(), y: Math.random(), f: 0 }));
+    agentesSolo.forEach(a => a.f = custo2(a.x, a.y));
+    agentesEnx.forEach(a => a.f = custo2(a.x, a.y));
+    passos = 0; bestSolo = null; bestEnx = null;
+    atualizaTudo();
+  }
+
+  function passoAgentes(grupo, enxame) {
+    const best = enxame ? agentesEnx.reduce((b, a) => (b === null || a.f < b.f ? a : b), null) : null;
+    grupo.forEach(a => {
+      let q;
+      if (enxame && Math.random() < 0.05 && best) {
+        q = { x: AH.clamp(best.x + gauss() * 0.02, 0, 1), y: AH.clamp(best.y + gauss() * 0.02, 0, 1) };
+      } else {
+        q = { x: AH.clamp(a.x + gauss() * 0.03, 0, 1), y: AH.clamp(a.y + gauss() * 0.03, 0, 1) };
+      }
+      const fq = custo2(q.x, q.y);
+      if (fq < a.f) { a.x = q.x; a.y = q.y; a.f = fq; }
+    });
+  }
+
+  function resumo(grupo, enxame) {
+    const b = grupo.reduce((m, a) => (m === null || a.f < m.f ? a : m), null);
+    const picos = new Set();
+    grupo.forEach(a => PICOS.forEach((pk, i) => { if (Math.hypot(a.x - pk.x, a.y - pk.y) < 0.05) picos.add(i); }));
+    return { melhor: b.f, picos: picos.size };
+  }
+
+  function desenhaPop(ctx, w, h, grupo) {
+    desenhaFundo2D(ctx, w, h);
+    PICOS.forEach(pk => {
+      ctx.strokeStyle = 'rgba(248,250,252,.3)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(px2(pk.x, w), py2(pk.y, h), 8, 0, 6.29); ctx.stroke();
+    });
+    grupo.forEach(a => {
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath(); ctx.arc(px2(a.x, w), py2(a.y, h), 4, 0, 6.29); ctx.fill();
+    });
+  }
+
+  function atualizaTudo() {
+    cvS.draw(cvS.ctx, cvS.w, cvS.h);
+    cvE.draw(cvE.ctx, cvE.w, cvE.h);
+    el('p-passos').textContent = passos;
+    if (agentesSolo.length) {
+      const r = resumo(agentesSolo);
+      el('p-solo-res').textContent = fmt(r.melhor, 3) + ' / ' + r.picos + ' de 4';
+    }
+    if (agentesEnx.length) {
+      const r = resumo(agentesEnx);
+      el('p-enx-res').textContent = fmt(r.melhor, 3) + ' / ' + r.picos + ' de 4';
+    }
+  }
+
+  function dez() {
+    for (let i = 0; i < 10; i++) { passoAgentes(agentesSolo, false); passoAgentes(agentesEnx, true); passos++; }
+    atualizaTudo();
+  }
+
+  el('p-passo').addEventListener('click', dez);
+  el('p-novo').addEventListener('click', () => { clearInterval(timer); timer = null; el('p-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático'; novo(); });
+  el('p-auto').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+    this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(dez, 150);
+  });
+  novo();
+})();
+
+AH.initReveal();
+</script>
+</body>
+</html>
