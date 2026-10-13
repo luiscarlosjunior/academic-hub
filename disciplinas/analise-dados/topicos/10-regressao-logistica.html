@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regressão Logística · AcademicHub</title>
+<meta name="description" content="Regressão logística para desfechos sim/não: logit, chances, odds ratio, a curva em S e a matriz de confusão, com animação e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/10-regressao-logistica">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Quando a resposta é sim ou não" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Quando a resposta é sim ou não</h2>
+  <div class="ah-prose">
+    <p>
+      A regressão linear prevê um número. Muitas perguntas do dia a dia são binárias: o cliente vai cancelar ou não? O
+      e-mail é spam ou não? O paciente tem a doença ou não? Nesses casos, o que se quer é a <strong>probabilidade</strong>
+      de “sim”, e ela precisa ficar entre 0 e 1.
+    </p>
+    <p>
+      Se você usasse uma reta, ela sairia do intervalo [0, 1] para clientes extremos. A regressão logística resolve isso
+      aplicando uma <strong>curva em S</strong> sobre a reta: a combinação linear vira o logit, e o logit vira probabilidade.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Uma operadora de telefonia estima quem tem probabilidade alta de cancelar nos próximos 30 dias, para agir antes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um banco decide conceder ou não um crédito a partir da renda, do histórico de pagamento e do tempo de conta.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-amber-500">
+      <div class="text-xs font-bold text-amber-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um filtro de spam calcula a probabilidade de uma mensagem ser spam, com base nas palavras que ela contém.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHANCES E LOGIT ============================ -->
+<section id="chances" data-toc="Probabilidade, chances e logit" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-amber-400 mr-2"></i>Probabilidade, chances e logit</h2>
+  <p class="ah-lead text-sm mb-5">
+    A logística trabalha com três formas da mesma informação. <strong class="text-white">Probabilidade</strong> p (0 a 1),
+    <strong class="text-white">chances</strong> p / (1 − p) (0 a infinito) e o <strong class="text-white">logit</strong>
+    log(p / (1 − p)) (−infinito a infinito). É o logit que varia linearmente com as explicativas. <strong class="text-white">Mova a
+    probabilidade e veja as três escalas.</strong>
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 space-y-3">
+      <label class="block text-xs text-slate-400">Probabilidade p: <span id="ch-p-v" class="font-mono text-white">0,50</span>
+        <input id="ch-p" type="range" min="0.01" max="0.99" step="0.01" value="0.5" class="w-full accent-amber-500"></label>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="ah-card p-3 text-center"><div class="text-[10px] uppercase text-slate-400">probabilidade</div><div id="ch-prob" class="font-mono text-lg text-sky-300">0,50</div></div>
+        <div class="ah-card p-3 text-center"><div class="text-[10px] uppercase text-slate-400">chances</div><div id="ch-odds" class="font-mono text-lg text-amber-300">1,00</div></div>
+        <div class="ah-card p-3 text-center"><div class="text-[10px] uppercase text-slate-400">logit</div><div id="ch-logit" class="font-mono text-lg text-emerald-300">0,00</div></div>
+      </div>
+    </div>
+    <div class="ah-card p-4 text-xs text-slate-400 leading-relaxed">
+      Chances de 3 para 1 significam que, para cada 3 vezes em que acontece, há 1 em que não acontece: p = 0,75.
+      Por isso chances de 1 correspondem a p = 0,5, e o logit 0 é o ponto de indiferença.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CURVA EM S ============================ -->
+<section id="curva" data-toc="A curva em S" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wave-square text-amber-400 mr-2"></i>Animação: a curva em S do cancelamento</h2>
+  <div class="font-mono text-sm text-center mb-4 text-slate-300">
+    P(cancelar) = 1 / (1 + e<sup>−(0,944 − 0,082·meses + 0,702·chamados)</sup>)
+  </div>
+  <p class="ah-lead text-sm mb-5">
+    Quanto mais meses de contrato, mais a curva desce: o cliente antigo tende a ficar. Cada chamado a mais sobe a curva
+    inteira, porque quem liga muito tende a sair. Ajuste o número de chamados e o corte de decisão.
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:300px"><canvas id="logCanvas" style="height:300px"></canvas></div>
+    </div>
+    <div class="space-y-4">
+      <label class="block text-xs text-slate-400">Número de chamados: <span id="lg-ch-v" class="font-mono text-white">0</span>
+        <input id="lg-ch" type="range" min="0" max="6" step="1" value="0" class="w-full accent-amber-500"></label>
+      <label class="block text-xs text-slate-400">Corte de decisão: <span id="lg-cut-v" class="font-mono text-white">0,50</span>
+        <input id="lg-cut" type="range" min="0.1" max="0.9" step="0.05" value="0.5" class="w-full accent-amber-500"></label>
+      <div class="ah-card p-4 space-y-2 text-xs">
+        <div class="flex justify-between"><span class="text-slate-400">Cliente com 3 meses</span><span id="lg-p3" class="font-mono text-rose-300">—</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Cliente com 30 meses</span><span id="lg-p30" class="font-mono text-emerald-300">—</span></div>
+        <p class="text-slate-500 pt-2">Marcar “vai cancelar” quando P ≥ corte. Corte baixo pega mais cancelamentos e erra mais alarmes falsos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ODDS RATIO ============================ -->
+<section id="odds" data-toc="Odds ratio: o efeito em chances" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-amber-400 mr-2"></i>Odds ratio: o efeito em chances</h2>
+  <div class="ah-prose">
+    <p>
+      O coeficiente b está na escala do logit, o que é difícil de ler. Ao exponenciar, <strong>exp(b)</strong> vira um
+      <em>odds ratio</em>: o fator pelo qual as chances são multiplicadas quando x aumenta uma unidade. Um OR de 2 significa
+      “o dobro das chances”; um OR de 0,92 significa “8% menos chances”.
+    </p>
+    <p>
+      Atenção: odds ratio não é a mesma coisa que probabilidade. Dobrar as chances não dobra a probabilidade quando p já é alta.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ DEFINIÇÕES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-amber-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">Pierre-François Verhulst · 1838</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Descreveu a curva logística em S como modelo de crescimento populacional com limite de capacidade, a origem da forma da curva.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Joseph Berkson · 1944</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs o uso do logit como alternativa à curva normal (probit) para modelar probabilidades e cunhou o termo “logit”.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">David R. Cox · 1958</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Sistematizou a regressão logística para dados binários e popularizou o modelo como ferramenta estatística geral.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Daniel McFadden · 1974</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Desenvolveu a análise logit condicional para escolhas e propôs o pseudo R², que mede o ajuste em modelos não lineares.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Probabilidade, não reta</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Entender que a saída é uma probabilidade entre 0 e 1 e que o corte de decisão é uma escolha de negócio.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Odds ratio e matriz de confusão</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Interpretar exp(b) em termos de chances e avaliar o modelo com acurácia, precisão e recall.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Calibração e curva ROC</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Checar se p = 0,7 de fato acontece em 70% dos casos e comparar modelos em todos os cortes pela curva ROC e pela AUC.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-amber-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-amber-300">disciplinas/analise-dados/exemplos-python/10-regressao-logistica.py</code>.
+    Usa <strong>sm.Logit</strong> do statsmodels, que estima por máxima verossimilhança.
+  </p>
+
+  <p class="text-xs font-bold text-amber-300 mb-2">1 · Ajuste e odds ratio</p>
+<pre class="ah-code"><code>modelo = sm.<span class="fn">Logit</span>(cancelou, X).<span class="fn">fit</span>(disp=<span class="kw">False</span>)
+<span class="fn">print</span>(np.<span class="fn">exp</span>(modelo.params[<span class="num">1</span>]))   <span class="cm"># odds ratio por mês de contrato</span>
+<span class="fn">print</span>(np.<span class="fn">exp</span>(modelo.params[<span class="num">2</span>]))   <span class="cm"># odds ratio por chamado</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>meses       b =  -0.082   EP = 0.012   p = 0.0000
+chamados    b =   0.702   EP = 0.112   p = 0.0000
+por mês de contrato: 0.921   (cada mês reduz as chances em 7.9%)
+por chamado:         2.017   (cada chamado aumenta as chances em 101.7%)</code></pre>
+
+  <p class="text-xs font-bold text-sky-300 mt-6 mb-2">2 · Probabilidade para dois perfis</p>
+<pre class="ah-code"><code>probs = modelo.<span class="fn">predict</span>(perfis)   <span class="cm"># já devolve probabilidades entre 0 e 1</span></code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>3 meses, 4 chamados:  0.971
+30 meses, 0 chamados: 0.180</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">3 · Matriz de confusão no corte 0,5</p>
+<pre class="ah-code"><code>previsto = (p_hat &gt;= <span class="num">0.5</span>).<span class="fn">astype</span>(<span class="kw">int</span>)
+vp = np.<span class="fn">sum</span>((previsto == <span class="num">1</span>) &amp; (cancelou == <span class="num">1</span>))</code></pre>
+  <p class="text-xs font-bold text-emerald-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>verdadeiros positivos = 188   falsos negativos =  47
+falsos positivos      =  70   verdadeiros negativos =  95
+acurácia  = 0.708
+recall    = 0.800   (dos que cancelaram, quantos o modelo pegou)
+precisão  = 0.729   (dos que o modelo marcou, quantos cancelaram)</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Leia o resultado com cuidado:</strong> o modelo pega 80% dos cancelamentos (recall), mas quase 3 em cada 10
+      alertas são falsos (precisão de 73%). Qual métrica importa mais depende do custo de cada erro: um desconto para quem não
+      ia sair custa diferente de perder um cliente.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-amber-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Usar regressão linear para sim/não</h3>
+      <p class="text-xs text-slate-400">As previsões saem de [0, 1] e os erros não são normais. Use a logística.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Interpretar odds como probabilidade</h3>
+      <p class="text-xs text-slate-400">“OR = 2” não é “o dobro de probabilidade”. Quando p é pequena, os dois se parecem; quando p é grande, não.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Avaliar só pela acurácia</h3>
+      <p class="text-xs text-slate-400">Se só 2% dos clientes cancelam, um modelo que nunca prevê cancelamento tem 98% de acurácia e é inútil.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Separação perfeita</h3>
+      <p class="text-xs text-slate-400">Se uma variável separa os grupos sem sobreposição, o máximo de verossimilhança não existe e os coeficientes explodem.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-amber-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Um odds ratio de 2,0 para “chamados” significa:</p>
+    <button class="ah-quiz-opt">Cada chamado adicional soma 2 pontos à probabilidade</button>
+    <button class="ah-quiz-opt">Cada chamado adicional dobra as chances de cancelar</button>
+    <button class="ah-quiz-opt">Quem tem chamados tem o dobro da probabilidade de cancelar, sempre</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      O odds ratio é multiplicativo sobre as chances, com x mantendo as outras variáveis fixas. Não é a probabilidade, e o
+      efeito sobre a probabilidade depende do ponto de partida.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Um modelo tem acurácia de 97%, mas só 2% dos clientes cancelam e ele nunca prevê cancelamento. O que isso mostra?</p>
+    <button class="ah-quiz-opt">Que o modelo é excelente</button>
+    <button class="ah-quiz-opt">Que a acurácia deve ser descartada em qualquer caso</button>
+    <button class="ah-quiz-opt">Que a acurácia engana com classes desbalanceadas e o recall é o que importa aqui</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Um modelo que chuta sempre “não” já acerta 98% dos casos. Com classes desbalanceadas, é preciso olhar o recall e a
+      precisão, pois a acurácia sozinha não mede a capacidade de achar quem cancela.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+const B0 = 0.944, B_MES = -0.082, B_CH = 0.702;   /* coeficientes do script Python */
+const sig = z => 1 / (1 + Math.exp(-z));
+const logit = p => Math.log(p / (1 - p));
+const fmt = (v, d = 2) => v.toFixed(d).replace('.', ',');
+
+/* ===================== Chances e logit ===================== */
+function atualizaChances() {
+  const p = +document.getElementById('ch-p').value;
+  document.getElementById('ch-p-v').textContent = fmt(p);
+  document.getElementById('ch-prob').textContent = fmt(p);
+  document.getElementById('ch-odds').textContent = fmt(p / (1 - p));
+  document.getElementById('ch-logit').textContent = fmt(logit(p));
+}
+document.getElementById('ch-p').addEventListener('input', atualizaChances);
+
+/* ===================== Curva em S ===================== */
+const logCv = AH.canvas('logCanvas', desenhaLog);
+function desenhaLog(ctx, w, h) {
+  const ch = +document.getElementById('lg-ch').value, cut = +document.getElementById('lg-cut').value;
+  const x0 = 44, x1 = w - 18, yB = h - 30, yT = 18;
+  const X = m => x0 + (m - 1) / 35 * (x1 - x0), Y = p => yB - p * (yB - yT);
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(p => {
+    ctx.beginPath(); ctx.moveTo(x0, Y(p)); ctx.lineTo(x1, Y(p)); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(fmt(p), 8, Y(p) + 4);
+  });
+  ctx.fillStyle = '#64748b';
+  [1, 12, 24, 36].forEach(m => ctx.fillText(m + 'm', X(m) - 8, h - 10));
+  /* linha de corte */
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = 'rgba(245,158,11,.7)';
+  ctx.beginPath(); ctx.moveTo(x0, Y(cut)); ctx.lineTo(x1, Y(cut)); ctx.stroke(); ctx.setLineDash([]);
+  /* curvas: 3 meses e 30 meses não aparecem; a curva é P(cancelar) em função dos meses */
+  ctx.beginPath();
+  for (let m = 1; m <= 36; m += 0.25) {
+    const p = sig(B0 + B_MES * m + B_CH * ch);
+    m === 1 ? ctx.moveTo(X(m), Y(p)) : ctx.lineTo(X(m), Y(p));
+  }
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.stroke();
+  /* pontos de referência */
+  [[3, '#f43f5e'], [30, '#10b981']].forEach(([m, cor]) => {
+    const p = sig(B0 + B_MES * m + B_CH * ch);
+    ctx.beginPath(); ctx.arc(X(m), Y(p), 5, 0, Math.PI * 2); ctx.fillStyle = cor; ctx.fill();
+  });
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('P(cancelar) · linha tracejada = corte de decisão', x0 + 6, yT + 12);
+
+  document.getElementById('lg-ch-v').textContent = ch;
+  document.getElementById('lg-cut-v').textContent = fmt(cut);
+  document.getElementById('lg-p3').textContent = fmt(sig(B0 + B_MES * 3 + B_CH * ch), 3);
+  document.getElementById('lg-p30').textContent = fmt(sig(B0 + B_MES * 30 + B_CH * ch), 3);
+}
+['lg-ch', 'lg-cut'].forEach(id => document.getElementById(id).addEventListener('input', () => logCv.fit()));
+
+atualizaChances();
+logCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>

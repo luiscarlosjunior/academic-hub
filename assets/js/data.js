@@ -633,7 +633,11 @@ const AH_DATA = {
         { id: '09-regressao-linear-multipla', titulo: 'Regressão linear múltipla: controle, dummies e multicolinearidade', icone: 'fa-sliders',
           resumo: 'Várias explicativas ao mesmo tempo, o efeito de cada uma mantendo as outras fixas, variáveis categóricas por dummy, VIF e R² ajustado.',
           trilha: 'regressao',
-          tags: ['Múltipla', 'VIF', 'Dummy'], nivel: 'Intermediário', minutos: 28 }
+          tags: ['Múltipla', 'VIF', 'Dummy'], nivel: 'Intermediário', minutos: 28 },
+        { id: '10-regressao-logistica', titulo: 'Regressão logística: probabilidade, chances e odds ratio', icone: 'fa-wave-square',
+          resumo: 'Para desfechos sim/não: a curva em S, o logit, o odds ratio, o corte de decisão e a matriz de confusão, com um exemplo de cancelamento de assinatura.',
+          trilha: 'regressao',
+          tags: ['Logit', 'Odds ratio', 'Classificação'], nivel: 'Avançado', minutos: 30 }
       ]
     }
   ]
