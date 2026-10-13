@@ -71,30 +71,63 @@
     const el = document.getElementById('ah-header');
     if (!el) return;
 
-    const links = (global.AH_DATA ? global.AH_DATA.disciplinas : []).map(d =>
-      `<a href="${root}disciplinas/${d.slug}/index.html"
-          class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition text-sm whitespace-nowrap">
-         <i class="fa-solid ${d.icone} text-indigo-400 mr-1.5"></i>${d.curto}
-       </a>`).join('');
+    /* Disciplina atual (página de disciplina ou de tópico), para mostrar onde o aluno está */
+    const discs = global.AH_DATA ? global.AH_DATA.disciplinas : [];
+    const chave = document.body.getAttribute('data-disciplina') || (document.body.getAttribute('data-topic') || '').split('/')[0];
+    const atual = discs.find(d => d.id === chave || d.slug === chave) || null;
+
+    const itens = discs.map(d => {
+      const p = AH.progressoDisciplina(d);
+      const ativo = atual && atual.id === d.id;
+      return `<a href="${root}disciplinas/${d.slug}/index.html" class="ah-menu-item${ativo ? ' is-active' : ''}"${ativo ? ' aria-current="page"' : ''}>
+          <span class="ah-menu-ico"><i class="fa-solid ${d.icone}"></i></span>
+          <span class="flex-1 min-w-0">
+            <span class="block text-sm text-white">${d.nome}</span>
+            <span class="block text-[11px] text-slate-400">${d.topicos.length} tópicos · ${p.done} concluído${p.done === 1 ? '' : 's'}</span>
+          </span>
+        </a>`;
+    }).join('');
+
+    /* Pular o cabeçalho com o teclado: o foco vai direto ao conteúdo */
+    const main = document.querySelector('main');
+    if (main && !main.id) main.id = 'conteudo';
 
     el.innerHTML = `
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        <a href="${root}index.html" class="flex items-center gap-3 group shrink-0">
+      <a href="#conteudo" class="ah-skip">Pular para o conteúdo</a>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+        <a href="${root}index.html" class="flex items-center gap-3 group shrink-0" aria-label="AcademicHub, página inicial">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition">
             <i class="fa-solid fa-graduation-cap text-white"></i>
           </div>
           <div class="leading-tight">
-            <h1 class="font-bold text-base text-white">Academic<span class="text-indigo-400">Hub</span></h1>
-            <p class="text-[11px] text-slate-400 hidden sm:block">Material interativo das disciplinas</p>
+            <span class="font-bold text-base text-white block">Academic<span class="text-indigo-400">Hub</span></span>
+            <span class="text-[11px] text-slate-400 hidden sm:block">Material interativo das disciplinas</span>
           </div>
         </a>
-        <nav class="flex items-center gap-1 overflow-x-auto">
-          ${links}
-          <a href="${root}index.html#disciplinas" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition text-sm hidden md:inline-flex">
-            <i class="fa-solid fa-table-cells-large mr-1.5"></i>Todas
-          </a>
+        <nav class="flex items-center gap-1" aria-label="Navegação principal">
+          <a href="${root}index.html" class="ah-nav-link"><i class="fa-solid fa-house"></i><span class="hidden sm:inline">Início</span></a>
+          <details class="ah-menu" data-menu>
+            <summary class="ah-nav-link cursor-pointer list-none" aria-haspopup="true">
+              <i class="fa-solid ${atual ? atual.icone : 'fa-table-cells-large'} text-indigo-400"></i>
+              <span class="max-w-[9rem] sm:max-w-none truncate">${atual ? atual.curto : 'Disciplinas'}</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+            </summary>
+            <div class="ah-menu-panel" role="region" aria-label="Lista de disciplinas">
+              <p class="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wider text-slate-500 font-bold">Disciplinas (${discs.length})</p>
+              ${itens}
+              <a href="${root}index.html#disciplinas" class="ah-menu-all"><i class="fa-solid fa-table-cells-large"></i> Ver todas na página inicial</a>
+            </div>
+          </details>
         </nav>
       </div>`;
+
+    /* Fecha o menu ao clicar fora ou apertar Esc (controle do usuário e saída fácil) */
+    document.addEventListener('click', e => {
+      el.querySelectorAll('details[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') el.querySelectorAll('details[open]').forEach(d => { d.removeAttribute('open'); d.querySelector('summary').focus(); });
+    });
   };
 
   /* ------------------------------------------------------------------ */
@@ -251,6 +284,20 @@
       const exp = quiz.querySelector('.ah-quiz-exp');
       if (exp) exp.style.display = 'none';
 
+      /* Controle do usuário: depois de responder, é possível tentar de novo */
+      const tentar = document.createElement('button');
+      tentar.type = 'button';
+      tentar.className = 'ah-btn ah-btn-ghost text-xs mt-3';
+      tentar.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Tentar de novo';
+      tentar.hidden = true;
+      quiz.appendChild(tentar);
+      tentar.addEventListener('click', () => {
+        delete quiz.dataset.answered;
+        opts.forEach(o => o.classList.remove('locked', 'correct', 'wrong'));
+        if (exp) exp.style.display = 'none';
+        tentar.hidden = true;
+      });
+
       opts.forEach((opt, idx) => {
         opt.addEventListener('click', () => {
           if (quiz.dataset.answered) return;
@@ -264,6 +311,7 @@
             exp.style.display = '';
             exp.classList.add('ah-reveal', 'visible');
           }
+          tentar.hidden = false;
         });
       });
     });
@@ -430,6 +478,46 @@
   };
 
   /* ------------------------------------------------------------------ */
+  /* Guia de uso da página (ajuda e documentação sempre à mão)           */
+  /* ------------------------------------------------------------------ */
+  AH.mountGuia = function () {
+    const primeira = document.querySelector('main section[data-toc]');
+    if (!primeira || document.getElementById('ah-guia')) return;
+    const guia = document.createElement('details');
+    guia.id = 'ah-guia';
+    guia.className = 'ah-guia ah-no-print';
+    guia.innerHTML = `
+      <summary><i class="fa-solid fa-circle-question text-indigo-400"></i> Como estudar esta página
+        <span class="text-slate-500 text-xs font-normal">(3 passos, toque para ver)</span></summary>
+      <ol>
+        <li><strong>Leia a ideia</strong> e o exemplo do dia a dia antes da definição: o caso concreto vem primeiro.</li>
+        <li><strong>Mexa na animação.</strong> Os botões e controles mostram o efeito de cada parâmetro. Use “zerar” ou “reiniciar” para voltar ao início.</li>
+        <li><strong>Feche com o quiz</strong> e confira o Python: a saída real mostra o resultado de verdade, não só a fórmula.</li>
+      </ol>
+      <p class="text-xs text-slate-500">Dica: a tecla <kbd>Tab</kbd> percorre os controles e <kbd>Esc</kbd> fecha os menus.</p>`;
+    primeira.parentNode.insertBefore(guia, primeira);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Voltar ao topo: sempre visível depois de rolar a página              */
+  /* ------------------------------------------------------------------ */
+  AH.mountTopo = function () {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ah-topo ah-no-print';
+    b.setAttribute('aria-label', 'Voltar ao topo da página');
+    b.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+    document.body.appendChild(b);
+    const mostra = () => b.classList.toggle('is-visible', window.scrollY > 600);
+    window.addEventListener('scroll', mostra, { passive: true });
+    b.addEventListener('click', () => {
+      const sem = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: sem ? 'auto' : 'smooth' });
+    });
+    mostra();
+  };
+
+  /* ------------------------------------------------------------------ */
   /* Boot automático                                                     */
   /* ------------------------------------------------------------------ */
   AH.boot = function () {
@@ -439,9 +527,11 @@
     AH.initReveal();
     AH.mountFooter();
     const page = document.body.getAttribute('data-topic');
+    AH.mountTopo();
     if (page) {
       const parts = page.split('/');
       AH.mountTopic(parts[0], parts[1]);
+      AH.mountGuia();
       AH.initReveal();
       AH.initMermaid();
     }
