@@ -170,6 +170,22 @@
 }</code></pre>
 </section>
 
+<section id="quick-pratica" data-toc="Quicksort na prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>Por que o quicksort é tão usado na prática</h2>
+  <div class="ah-prose">
+    <p>
+      O quicksort tem pior caso O(n²), mas quase nunca o atinge na prática. Três fatores explicam por que ele é um dos algoritmos mais
+      usados do mundo: ele ordena <strong>in place</strong> (espaço extra O(log n) só na pilha de recursão), tem um laço interno muito
+      simples e <strong>usa bem o cache</strong>, porque varre blocos contíguos de memória.
+    </p>
+    <p>
+      O pior caso depende do pivô. Se o pivô sempre cair no extremo, a recursão fica profunda e o custo vira O(n²). Por isso as
+      implementações reais escolhem o pivô com cuidado:</p>
+    </div>
+  <ul class="ah-prose space-y-2"><li><strong>Pivô aleatório</strong>: torna o pior caso improvável para qualquer entrada, inclusive as adversárias.</li><li><strong>Mediana de três</strong>: compara o primeiro, o do meio e o último, e usa a mediana. Acerta muito bem vetores quase ordenados, que são comuns no dia a dia.</li><li><strong>Corte para inserção</strong>: subvetores com menos de cerca de 10 elementos são ordenados por inserção, que tem constante muito baixa. O exemplo híbrido da seção de exemplos avançados faz isso.</li><li><strong>Introsort</strong>: começa com quicksort e muda para heapsort se a profundidade passar de 2 log n. Garante O(n log n) no pior caso e é o padrão da biblioteca C++ (MUSSER, 1997).</li></ul>
+<div class="ah-prose mt-4"><p>Resumo: o quicksort vence na prática por ser in place e cache-friendly, enquanto o merge sort vence em garantia de tempo e em estabilidade. A escolha depende do que você mais precisa.</p></div>
+
+</section>
 <section id="mergesort" data-toc="Operação 5: merge sort" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-merge text-amber-400 mr-2"></i>Algoritmo 5 · Merge sort</h2>
   <div class="ah-prose">
@@ -207,6 +223,39 @@ static int merge_sort(int a[], size_t n) {
 }</code></pre>
 </section>
 
+<section id="merge-detalhe" data-toc="Merge sort em detalhe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-merge text-amber-400 mr-2"></i>Merge sort em detalhe: a intercalação passo a passo</h2>
+  <div class="ah-prose">
+    <p>
+      O merge sort é o exemplo mais limpo de <strong>divisão e conquista</strong>, o padrão em que um problema é partido em
+      subproblemas independentes, resolvidos e depois combinados. Aqui o trabalho pesado não está em dividir (isso é trivial, basta
+      calcular o meio), mas em <strong>combinar</strong>: a intercalação de duas metades já ordenadas.
+    </p>
+    <p>
+      A intercalação é linear porque nunca volta atrás. Os ponteiros <code>i</code> (metade esquerda) e <code>j</code> (metade direita)
+      começam no início de cada metade. Em cada passo, comparam-se <code>a[i]</code> e <code>a[j]</code>; o menor é copiado para a
+      área auxiliar e o seu ponteiro avança. Como cada elemento é copiado uma vez por nível, a intercalação custa O(n) de trabalho.
+    </p>
+    <p>
+      Por que a área <code>aux</code>? Porque, ao escrever o resultado, sobrescreveríamos valores de <code>a</code> que ainda não
+      foram lidos. Essa é uma troca consciente: o merge sort gasta O(n) de memória extra para garantir O(n log n) no pior caso.
+    </p>
+    <p>
+      A <strong>estabilidade</strong> vem de um detalhe: em empate (<code>a[i] == a[j]</code>), tiramos primeiro da metade da esquerda.
+      Assim, elementos iguais mantêm a ordem em que apareceram originalmente, o que importa quando ordenamos por mais de uma chave.
+    </p>
+  </div>
+  <p class="ah-lead text-sm mb-4 mt-6">A animação segue o algoritmo da linguagem C da seção anterior. O retângulo azul claro é o trecho que está sendo intercalado; as caixas de baixo são a área auxiliar <code>aux</code>. O contador conta as comparações.</p>
+  <div class="ah-stage" style="height:340px"><canvas id="cvMerge" style="height:340px"></canvas></div>
+  <div id="ctlMerge" class="mt-4"></div>
+  <div id="capMerge" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <h3 class="ah-h3 mt-8 mb-2">Por que O(n log n)? A árvore de recursão</h3>
+  <div class="ah-prose"><p>Desenhe as chamadas como uma árvore. O vetor de tamanho n se divide em dois de tamanho n/2, depois em quatro de n/4, e assim por diante, até tamanho 1. Há log₂ n níveis. Em cada nível, os subvetores somam n elementos, e a intercalação de cada um é proporcional ao seu tamanho. Logo, cada nível custa O(n) e o total é O(n · log n). É a aplicação direta do Teorema Mestre à recorrência T(n) = 2T(n/2) + n (CORMEN et al., 2022, cap. 4).</p></div>
+  <div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Nível</th><th>Quantidade de subvetores</th><th>Tamanho de cada um</th><th>Trabalho no nível</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>n</td><td>O(n)</td></tr><tr><td>1</td><td>2</td><td>n/2</td><td>O(n)</td></tr><tr><td>2</td><td>4</td><td>n/4</td><td>O(n)</td></tr><tr><td>…</td><td>…</td><td>…</td><td>…</td></tr><tr><td>log₂ n</td><td>n</td><td>1</td><td>O(n)</td></tr><tr><td><strong>Total</strong></td><td></td><td></td><td><strong>O(n log n)</strong></td></tr></tbody></table></div>
+  <h3 class="ah-h3 mt-8 mb-2">Onde o merge sort aparece de verdade</h3>
+  <ul class="ah-prose space-y-2"><li><strong>Python</strong> usa o <em>timsort</em>, um merge sort adaptativo que detecta trechos já ordenados. A função <code>sorted()</code> é timsort.</li><li><strong>Java</strong> usa timsort para ordenar objetos em <code>Collections.sort()</code> e <code>Arrays.sort()</code> de objetos, porque ele é estável.</li><li><strong>Listas encadeadas</strong>: não há acesso por índice, mas a intercalação só precisa avançar ponteiros. Aqui o merge sort é ideal e não precisa de área auxiliar grande.</li><li><strong>Bancos de dados</strong>: o <em>sort-merge join</em> ordena duas tabelas pela chave de junção e as intercala, e a ordenação externa usa o mesmo princípio quando a tabela não cabe na memória.</li></ul>
+
+</section>
 <section id="contagem" data-toc="Operação 6: contagem" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-hashtag text-amber-400 mr-2"></i>Algoritmo 6 · Ordenação por contagem</h2>
   <div class="ah-prose">
@@ -452,6 +501,176 @@ maior lacuna entre vizinhos: 7
 maior número concatenado: 9534330
 letras ordenadas: aerrsttuu</code></pre>
 </section>
+<section id="limite-inferior" data-toc="Limite inferior: por que n log n" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-amber-400 mr-2"></i>Por que nenhuma ordenação por comparação é mais rápida que n log n</h2>
+  <div class="ah-prose">
+    <p>
+      Todo algoritmo que ordena apenas por <strong>comparações</strong> pode ser representado como uma <strong>árvore de decisão</strong>:
+      cada nó interno é uma comparação entre dois elementos, cada folha é uma permutação possível da saída. Um vetor de n elementos
+      tem n! permutações, e todas precisam aparecer como folhas, porque qualquer uma delas pode ser a resposta correta.
+    </p>
+    <p>
+      Uma árvore binária de altura h tem no máximo 2<sup>h</sup> folhas. Logo, 2<sup>h</sup> ≥ n!, e portanto h ≥ log₂(n!). Pela
+      aproximação de Stirling, log₂(n!) ≈ n log₂ n − 1,44 n, que é Θ(n log n). Esse é o <strong>limite inferior</strong> para qualquer
+      ordenação baseada em comparações: nenhum algoritmo desse tipo consegue fazer menos de n log n comparações no pior caso (KNUTH, 1998, v. 3, seção 5.3.1).
+    </p>
+    <p>
+      Exemplo pequeno: com n = 3, há 3! = 6 permutações. Como 2² = 4 < 6 ≤ 2³ = 8, são necessárias pelo menos 3 comparações. A
+      inserção faz exatamente 3 no pior caso, então é ótima para esse tamanho.
+    </p>
+    <p>
+      <strong>Como escapar do limite?</strong> Não comparando. A ordenação por contagem e a radix sort (ordenar dígito a dígito) usam
+      o conteúdo dos valores e chegam a O(n + k) ou O(d·(n + b)). Essa é a razão de a contagem aparecer no início da seção.
+    </p>
+  </div>
+
+</section>
+<section id="estabilidade" data-toc="Estabilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Estabilidade: quando a ordem anterior importa</h2>
+  <div class="ah-prose">
+    <p>
+      Um algoritmo é <strong>estável</strong> se elementos com a mesma chave continuam na ordem relativa em que estavam antes. Parece
+      um detalhe, mas é o que permite ordenar por várias colunas em sequência, como fazem as planilhas quando você clica em um cabeçalho.
+    </p>
+    <p>
+      <strong>Exemplo:</strong> uma lista de funcionários ordenada por nome. Queremos agrupá-la por departamento, mantendo os nomes em ordem
+      alfabética dentro de cada departamento. Basta ordenar por departamento usando um algoritmo estável, aplicado à lista já ordenada por
+      nome. A estabilidade garante que, dentro de cada departamento, os nomes continuem em ordem. Com um algoritmo instável (como a seleção),
+      essa garantia se perde.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Algoritmo</th><th>Estável?</th><th>Por quê</th></tr></thead><tbody><tr><td>Inserção</td><td>sim</td><td>só desloca elementos estritamente maiores</td></tr><tr><td>Bolha</td><td>sim</td><td>só troca vizinhos estritamente fora de ordem</td></tr><tr><td>Merge sort</td><td>sim</td><td>em empate, toma primeiro o da esquerda</td></tr><tr><td>Seleção</td><td>não</td><td>a troca com o menor pode passar por cima de um igual</td></tr><tr><td>Quicksort</td><td>não</td><td>as partições trocam elementos iguais de posição</td></tr><tr><td>Contagem</td><td>sim</td><td>reescreve os valores na ordem de chegada da contagem</td></tr></tbody></table></div>
+</section>
+<section id="avancado" data-toc="Exemplos avançados em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplos avançados de ordenação em C</h2>
+  <div class="ah-prose"><p>Quatro problemas reais que usam ordenação, cada um com uma técnica diferente. O arquivo <code>04-avancado.c</code> compila com os mesmos avisos como erro e contém todas as funções.</p></div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Intercalar logs de vários servidores</h3>
+    <div class="ah-prose text-sm"><p>Cada servidor grava seus logs em ordem de horário. Para analisar o incidente como um todo, intercalamos os k fluxos. Intercalar dois a dois, repetidamente, custa O(n · k) no total; uma fila de prioridade (heap) reduziria para O(n log k), e é o que sistemas de log fazem de verdade.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-avancado.c · ex-a</code></p>
+    <pre class="ah-code"><code>static size_t intercalar2(const int a[], size_t n, const int b[], size_t m, int out[]) {
+        size_t i = 0, j = 0, k = 0;
+        while (i &lt; n &amp;&amp; j &lt; m) out[k++] = a[i] &lt;= b[j] ? a[i++] : b[j++];
+        while (i &lt; n) out[k++] = a[i++];
+        while (j &lt; m) out[k++] = b[j++];
+        return k;
+    }
+    
+    /* Logs de k servidores, cada um já ordenado por horário. Intercala todos, dois a dois */
+    static size_t intercalar_k(const int *listas[], const size_t tam[], size_t k, int out[]) {
+        size_t total = 0;
+        int *atual = malloc(sizeof(int) * 64), *prox = malloc(sizeof(int) * 64);
+        if (!atual || !prox) exit(1);
+        for (size_t i = 0; i &lt; tam[0]; i++) atual[i] = listas[0][i];
+        total = tam[0];
+        for (size_t l = 1; l &lt; k; l++) {
+            total = intercalar2(atual, total, listas[l], tam[l], prox);
+            int *t = atual; atual = prox; prox = t;
+        }
+        memcpy(out, atual, total * sizeof *out);
+        free(atual);
+        free(prox);
+        return total;
+    }</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Ordenação externa simulada</h3>
+    <div class="ah-prose text-sm"><p>Quando os dados não cabem na memória (um arquivo de 100 GB, por exemplo), o sistema lê blocos que cabem, ordena cada um e grava uma "corrida" ordenada no disco. Depois intercala as corridas. É assim que bancos de dados ordenam tabelas grandes (como o PostgreSQL faz em seus sorts). Aqui simulamos o processo em memória, com blocos de 8 itens.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-avancado.c · ex-b</code></p>
+    <pre class="ah-code"><code>static int cmp_int(const void *x, const void *y) {
+        int a = *(const int *)x, b = *(const int *)y;
+        return (a &gt; b) - (a &lt; b);
+    }
+    
+    static size_t ordenacao_externa(const int dados[], size_t n, size_t bloco, int out[]) {
+        size_t blocos = (n + bloco - 1) / bloco;
+        size_t pos[32] = {0}, fim[32];
+        for (size_t b = 0; b &lt; blocos; b++) {
+            size_t ini = b * bloco, cnt = (ini + bloco &lt;= n) ? bloco : n - ini;
+            memcpy(&amp;out[ini], &amp;dados[ini], cnt * sizeof *out);   /* "lê o bloco do disco" */
+            qsort(&amp;out[ini], cnt, sizeof *out, cmp_int);          /* ordena na memória */
+            fim[b] = ini + cnt;
+            pos[b] = ini;
+        }
+        int *res = malloc(n * sizeof *res);
+        if (!res) exit(1);
+        for (size_t k = 0; k &lt; n; k++) {                          /* intercalação de k blocos */
+            size_t melhor = (size_t)-1;
+            for (size_t b = 0; b &lt; blocos; b++)
+                if (pos[b] &lt; fim[b] &amp;&amp; (melhor == (size_t)-1 || out[pos[b]] &lt; out[pos[melhor]]))
+                    melhor = b;
+            res[k] = out[pos[melhor]++];
+        }
+        memcpy(out, res, n * sizeof *out);
+        free(res);
+        return blocos;
+    }</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Remover duplicados de um cadastro</h3>
+    <div class="ah-prose text-sm"><p>Depois de ordenar, valores repetidos ficam vizinhos, então basta comparar cada um com o anterior. É a base de desduplicação de contatos, e-mails ou produtos. Custo O(n log n), dominado pela ordenação.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-avancado.c · ex-c</code></p>
+    <pre class="ah-code"><code>static size_t remover_duplicados(int a[], size_t n, size_t *repetidos) {
+        qsort(a, n, sizeof *a, cmp_int);
+        size_t w = 0;
+        *repetidos = 0;
+        for (size_t r = 0; r &lt; n; r++) {
+            if (w &gt; 0 &amp;&amp; a[w - 1] == a[r]) { (*repetidos)++; continue; }
+            a[w++] = a[r];
+        }
+        return w;
+    }</code></pre>
+  </div>
+  <div class="ah-card p-5 mt-4">
+    <h3 class="ah-h3 mb-2">Quicksort híbrido de produção</h3>
+    <div class="ah-prose text-sm"><p>Mediana de três como pivô, partição sobre o menor lado (para limitar a profundidade da pilha) e insertion sort nos subvetores pequenos. Essas três escolhas juntas são o que torna quicksorts reais tão rápidos quanto o teórico sugere.</p></div>
+    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>04-avancado.c · ex-d</code></p>
+    <pre class="ah-code"><code>static void insercao(int a[], long lo, long hi) {
+        for (long i = lo + 1; i &lt;= hi; i++) {
+            int chave = a[i];
+            long j = i - 1;
+            while (j &gt;= lo &amp;&amp; a[j] &gt; chave) { a[j + 1] = a[j]; j--; }
+            a[j + 1] = chave;
+        }
+    }
+    
+    static void trocar(int *x, int *y) { int t = *x; *x = *y; *y = t; }
+    
+    static void quick_hibrido(int a[], long lo, long hi) {
+        while (hi - lo &gt;= 8) {                       /* subvetor grande: particiona */
+            long mid = lo + (hi - lo) / 2;
+            if (a[mid] &lt; a[lo]) trocar(&amp;a[mid], &amp;a[lo]);
+            if (a[hi] &lt; a[lo]) trocar(&amp;a[hi], &amp;a[lo]);
+            if (a[hi] &lt; a[mid]) trocar(&amp;a[hi], &amp;a[mid]);
+            trocar(&amp;a[mid], &amp;a[hi - 1]);             /* mediana de três vai para hi-1 */
+            int pivo = a[hi - 1];
+            long i = lo, j = hi - 1;
+            for (;;) {
+                while (a[++i] &lt; pivo) { }
+                while (a[--j] &gt; pivo) { }
+                if (i &gt;= j) break;
+                trocar(&amp;a[i], &amp;a[j]);
+            }
+            trocar(&amp;a[i], &amp;a[hi - 1]);
+            if (i - lo &lt; hi - i) { quick_hibrido(a, lo, i - 1); lo = i + 1; }
+            else { quick_hibrido(a, i + 1, hi); hi = i - 1; }
+        }
+        insercao(a, lo, hi);                         /* subvetor pequeno: insertion é mais rápida */
+    }</code></pre>
+  </div>
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
+  <pre class="ah-code"><code>logs intercalados:         99 100 101 105 110 120 121 130 200
+ordenação externa: 4 blocos de até 8 itens
+resultado externo:         1 9 10 14 27 29 29 36 44 45 49 52 56 58 59 61 ...
+cadastros únicos: 4 (repetidos removidos: 4)
+lista limpa:               7 13 42 99
+quicksort híbrido com 40 valores aleatórios ordenado: sim
+menores:                   0 16 21 23 71 87 139 149 149 161 183 207 267 271 277 324 ...</code></pre>
+</section>
+<section id="dia-a-dia-ordenacao" data-toc="Ordenação no dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-earth-americas text-amber-400 mr-2"></i>Onde a ordenação aparece no dia a dia</h2>
+<ul class="ah-prose space-y-2"><li><strong>Lojas e buscadores</strong>: ordenar resultados por preço, avaliação ou relevância. Para mostrar só os 10 primeiros, não é preciso ordenar tudo: usa-se seleção parcial (quickselect ou heap).</li><li><strong>Extratos e agendas</strong>: transações por data, compromissos por horário. A ordenação estável mantém a ordem de chegada entre eventos simultâneos.</li><li><strong>Bancos de dados</strong>: toda cláusula <code>ORDER BY</code> é uma ordenação. Quando a tabela não cabe na memória, o banco usa ordenação externa; joins de tabelas grandes usam o <em>sort-merge join</em>.</li><li><strong>Big data</strong>: no MapReduce (Hadoop), a fase de <em>shuffle</em> ordena as chaves intermediárias antes de entregá-las aos redutores. A intercalação de logs do exemplo A é o mesmo raciocínio em pequena escala.</li><li><strong>Bibliotecas que você já usa</strong>: <code>sorted()</code> em Python é timsort; <code>Collections.sort()</code> em Java, para objetos, também. A <code>qsort()</code> da C padrão não garante estabilidade, e isso é um detalhe que costuma surpreender.</li><li><strong>Deduplicação</strong>: limpar listas de contatos, detectar compras repetidas ou arquivos idênticos (comparando conteúdos ordenados ou hashes), como no exemplo C.</li><li><strong>Interfaces</strong>: clicar no cabeçalho de uma tabela para ordenar por uma coluna depende de ordenação estável, para que a última ordenação não desfaça a anterior.</li></ul>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">
@@ -539,6 +758,10 @@ letras ordenadas: aerrsttuu</code></pre>
     ]
   });
 
+  ED.criaAnimacao({
+    canvas: 'cvMerge', ctl: 'ctlMerge', cap: 'capMerge',
+    desenha: ED.desenhaMergeSort, gera: ED.geraMergeSort, velocidade: 1500
+  });
 })();
 </script>
 </body>

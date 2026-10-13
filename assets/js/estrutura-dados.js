@@ -1256,6 +1256,102 @@
     rotulo(ctx, 'soma da janela = ' + q.soma + ' · melhor = ' + q.melhor, 16, 14, CORES.azulBorda);
   }
 
+  /* ---------- Ordenação: merge sort passo a passo ---------- */
+  const MERGE_BASE = [38, 27, 43, 3, 9, 82, 10];
+
+  function geraMergeSort() {
+    const a = MERGE_BASE.slice(), n = a.length, aux = Array(n).fill(null), Q = [];
+    let cmp = 0;
+    const fr = (t, ext) => Q.push(Object.assign({
+      a: a.slice(), aux: aux.slice(), lo: -1, hi: -1, mid: -1, i: -1, j: -1, k: -1, cmp, t
+    }, ext || {}));
+
+    fr(`<strong>Merge sort</strong>: divide o vetor ao meio, ordena cada metade (recursivamente) e depois <em>intercala</em> as duas metades já ordenadas. Vetor inicial: [${a.join(', ')}].`);
+
+    const intercalar = (lo, mid, hi) => {
+      let i = lo, j = mid, k = lo;
+      fr(`Intercalar [${lo}..${mid - 1}] com [${mid}..${hi - 1}]. Como as duas metades estão ordenadas, o menor entre a[i] e a[j] é sempre o próximo da saída. A saída vai para <code>aux</code>.`, { lo, hi, mid, i, j, k });
+      while (i < mid && j < hi) {
+        cmp++;
+        const ai = a[i], aj = a[j], daEsq = ai <= aj;
+        aux[k] = daEsq ? ai : aj;
+        if (daEsq) i++; else j++;
+        k++;
+        fr(`Compara a[${i - (daEsq ? 1 : 0)}]=${ai} com a[${j - (daEsq ? 0 : 1)}]=${aj}: ${daEsq ? 'o da esquerda é menor ou igual e vai' : 'o da direita é menor e vai'} para aux[${k - 1}].`, { lo, hi, mid, i, j, k });
+      }
+      while (i < mid) {
+        aux[k] = a[i]; i++; k++;
+        fr(`A metade da esquerda sobrou: copia ${aux[k - 1]} para aux[${k - 1}].`, { lo, hi, mid, i, j, k });
+      }
+      while (j < hi) {
+        aux[k] = a[j]; j++; k++;
+        fr(`A metade da direita sobrou: copia ${aux[k - 1]} para aux[${k - 1}].`, { lo, hi, mid, i, j, k });
+      }
+      for (let p = lo; p < hi; p++) a[p] = aux[p];
+      fr(`Copia aux[${lo}..${hi - 1}] de volta para a. Este trecho agora está ordenado: [${a.slice(lo, hi).join(', ')}].`, { lo, hi, mid, i: -1, j: -1, k: -1 });
+    };
+
+    const ordenar = (lo, hi) => {
+      if (hi - lo < 2) {
+        fr(`O subvetor [${lo}..${hi - 1}] tem um elemento: já está ordenado. A recursão volta.`, { lo, hi });
+        return;
+      }
+      const mid = lo + Math.floor((hi - lo) / 2);
+      fr(`Dividir [${lo}..${hi - 1}] em [${lo}..${mid - 1}] e [${mid}..${hi - 1}]. Ordenamos a esquerda, depois a direita.`, { lo, hi, mid });
+      ordenar(lo, mid);
+      ordenar(mid, hi);
+      intercalar(lo, mid, hi);
+    };
+
+    ordenar(0, n);
+    fr(`Vetor ordenado: [${a.join(', ')}]. Com ${cmp} comparações. Cada nível da recursão faz O(n) de trabalho e há log₂ n níveis: total O(n log n), em qualquer caso.`);
+    return Q;
+  }
+
+  function desenhaMergeSort(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const n = q.a.length, cw = Math.min(64, (w - 40) / n), x0 = (w - cw * n) / 2;
+    const topo = 46, base = h * 0.6, esc = (base - topo - 8) / 90;
+    if (q.lo >= 0) {
+      ctx.fillStyle = 'rgba(56,189,248,.10)';
+      ctx.fillRect(x0 + q.lo * cw, topo - 16, (q.hi - q.lo) * cw, base - topo + 30);
+    }
+    q.a.forEach((v, k) => {
+      const bh = v * esc, x = x0 + k * cw + 6, bw = cw - 12;
+      let fill = 'rgba(148,163,184,.22)', borda = 'rgba(148,163,184,.5)';
+      if (k === q.i) { fill = 'rgba(245,158,11,.45)'; borda = CORES.hlBorda; }
+      if (k === q.j) { fill = 'rgba(56,189,248,.40)'; borda = CORES.azulBorda; }
+      AH.roundRect(ctx, x, base - bh, bw, bh, 4);
+      ctx.fillStyle = fill; ctx.fill();
+      ctx.strokeStyle = borda; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = CORES.txt;
+      ctx.font = '600 12px "Fira Code", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(String(v), x + bw / 2, base - bh - 4);
+      ctx.fillStyle = CORES.mudo; ctx.textBaseline = 'top';
+      ctx.font = '11px "Fira Code", monospace';
+      ctx.fillText(String(k), x + bw / 2, base + 6);
+    });
+    if (q.mid > 0) {
+      const xm = x0 + q.mid * cw;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = CORES.azulBorda; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(xm, topo - 16); ctx.lineTo(xm, base + 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (q.i >= 0 && q.i < n) rotulo(ctx, 'i', x0 + q.i * cw + cw / 2, topo - 26, CORES.hlBorda, 'center');
+    if (q.j >= 0 && q.j < n) rotulo(ctx, 'j', x0 + q.j * cw + cw / 2, topo - 26, CORES.azulBorda, 'center');
+    rotulo(ctx, 'vetor a (comparações: ' + q.cmp + ')', 16, 14, CORES.azulBorda);
+    const ya = base + 46;
+    rotulo(ctx, 'aux', x0 - 4, ya + 14, CORES.mudo, 'right');
+    q.aux.forEach((v, k) => {
+      const filled = v !== null;
+      const s = q.k === k ? ESTILO.hl : (filled ? ESTILO.ok : ESTILO.apag);
+      caixa(ctx, x0 + k * cw + 6, ya, cw - 12, 30, s, filled ? String(v) : '');
+    });
+  }
+
+
   global.ED = {
     criaAnimacao,
     limpa,
@@ -1317,6 +1413,8 @@
     geraDoisPonteiros,
     desenhaPonteiros,
     geraJanela,
-    desenhaJanela
+    desenhaJanela,
+    geraMergeSort,
+    desenhaMergeSort
   };
 })(window);
