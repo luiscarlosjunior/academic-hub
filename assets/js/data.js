@@ -621,7 +621,11 @@ const AH_DATA = {
         { id: '06-testes-parametricos', titulo: 'Testes paramétricos: t de Student, pareado e ANOVA', icone: 'fa-flask',
           resumo: 'Sinal sobre ruído, t de Welch para grupos independentes, t pareado para as mesmas pessoas, ANOVA para três ou mais grupos e os pressupostos a checar.',
           trilha: 'testes',
-          tags: ['t de Student', 'ANOVA', 'Pressupostos'], nivel: 'Intermediário', minutos: 30 }
+          tags: ['t de Student', 'ANOVA', 'Pressupostos'], nivel: 'Intermediário', minutos: 30 },
+        { id: '07-testes-nao-parametricos', titulo: 'Testes não paramétricos: Mann-Whitney, Wilcoxon, Kruskal-Wallis e qui-quadrado', icone: 'fa-ranking-star',
+          resumo: 'Quando a normalidade não vale: comparar postos em vez de valores, o teste de postos para pareados e três grupos, e o qui-quadrado para categorias.',
+          trilha: 'testes',
+          tags: ['Mann-Whitney', 'Kruskal-Wallis', 'Qui-quadrado'], nivel: 'Intermediário', minutos: 28 }
       ]
     }
   ]

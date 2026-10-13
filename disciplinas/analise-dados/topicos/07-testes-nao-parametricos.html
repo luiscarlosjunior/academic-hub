@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testes Não Paramétricos · AcademicHub</title>
+<meta name="description" content="Mann-Whitney, Wilcoxon, Kruskal-Wallis e qui-quadrado: quando os dados não são normais ou são ordinais, comparar postos e contagens, com animação da conversão em postos e código Python com saída real.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ad/07-testes-nao-parametricos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Quando a média não basta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-lightbulb text-emerald-400 mr-2"></i>Quando a média não basta</h2>
+  <div class="ah-prose">
+    <p>
+      Imagine que a fila de um caixa tenha, na maioria das vezes, 3 minutos de atendimento e, de tempos em tempos, um
+      cliente com 40 minutos (uma devolução complicada). A média é puxada pelo cliente de 40 minutos e não representa o
+      caso típico. Ou pense numa pergunta de satisfação: “ruim, regular, bom, ótimo” não tem média significativa.
+    </p>
+    <p>
+      Os <strong>testes não paramétricos</strong> resolvem isso sem supor uma distribuição. Em vez de usar os valores, eles
+      usam a <strong>ordem</strong> (postos) ou <strong>contagens</strong>. Perdem um pouco de poder quando a normalidade vale,
+      mas ganham robustez quando ela não vale.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+    <div class="ah-card p-4 border-t-4 border-t-emerald-500">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Tempo de atendimento de dois caixas, com alguns casos muito longos. A mediana e a ordem são mais honestas que a média.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-emerald-500">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Satisfação de 1 a 5 antes e depois de um ajuste no cardápio, com os mesmos clientes.</p>
+    </div>
+    <div class="ah-card p-4 border-t-4 border-t-emerald-500">
+      <div class="text-xs font-bold text-emerald-300 mb-1">Dia a dia</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Preferência por produto (X, Y ou Z) em dois bairros. A variável é uma categoria, não um número.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ POSTOS ============================ -->
+<section id="postos" data-toc="A ideia dos postos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ranking-star text-emerald-400 mr-2"></i>A ideia dos postos</h2>
+  <p class="ah-lead text-sm mb-5">
+    Ordene todos os valores das duas amostras juntas e substitua cada um pelo seu <strong class="text-white">posto</strong>
+    (1º, 2º, 3º…). O outlier de 40 min vira simplesmente “o último”. <strong class="text-white">Clique para converter</strong>
+    e veja os valores deslizarem para a posição de ordem. Depois, veja o U do Mann-Whitney ser calculado a partir dos postos.
+  </p>
+
+  <div class="ah-stage" style="height:240px"><canvas id="postosCanvas" style="height:240px"></canvas></div>
+  <div class="flex flex-wrap items-center gap-2 mt-3">
+    <button id="post-btn" class="ah-btn ah-btn-primary text-xs"><i class="fa-solid fa-arrow-down-1-9"></i> Converter em postos</button>
+    <div class="ml-auto text-xs text-slate-400 font-mono" id="post-u"></div>
+  </div>
+
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Por que isso funciona?</strong> Com postos, um valor extremo não ganha peso extra: ele só vale “um lugar à
+      frente”. A distribuição dos postos não depende da forma original, e por isso o teste vale sem suposição de normalidade.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUAL TESTE ============================ -->
+<section id="qual" data-toc="Qual teste usar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>Qual teste usar: tabela de decisão</h2>
+  <div class="overflow-x-auto">
+    <table class="ah-table text-xs">
+      <thead><tr><th>Situação</th><th>Paramétrico</th><th>Não paramétrico</th></tr></thead>
+      <tbody>
+        <tr><td>2 grupos independentes</td><td>t de Welch</td><td><strong class="text-emerald-300">Mann-Whitney U</strong></td></tr>
+        <tr><td>2 medidas pareadas</td><td>t pareado</td><td><strong class="text-emerald-300">Wilcoxon (postos sinalizados)</strong></td></tr>
+        <tr><td>3+ grupos independentes</td><td>ANOVA</td><td><strong class="text-emerald-300">Kruskal-Wallis</strong></td></tr>
+        <tr><td>Duas variáveis categóricas</td><td>—</td><td><strong class="text-emerald-300">Qui-quadrado de independência</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs text-slate-400 mt-4 leading-relaxed">
+    Regra de bolso: se a variável é ordinal (satisfação, escala de dor) ou a distribuição é claramente assimétrica com n
+    pequeno, prefira o não paramétrico. Se é contínua, simétrica e com n razoável, o paramétrico é mais poderoso.
+  </p>
+</section>
+
+<!-- ============================ QUI-QUADRADO ============================ -->
+<section id="qui" data-toc="Qui-quadrado: contagens" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-emerald-400 mr-2"></i>Qui-quadrado: quando as variáveis são categorias</h2>
+  <p class="ah-lead text-sm mb-5">
+    O teste compara as <strong class="text-white">frequências observadas</strong> com as <strong class="text-white">esperadas
+    sob independência</strong> (o que ocorreria se bairro e preferência não tivessem relação). Quanto mais as barras
+    divergem, maior o χ². <strong class="text-white">Alterne a exibição</strong> e compare.
+  </p>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage" style="height:240px"><canvas id="qCanvas" style="height:240px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="q-obs" class="ah-btn text-xs active"><i class="fa-solid fa-chart-column"></i> Observado</button>
+        <button id="q-esp" class="ah-btn text-xs"><i class="fa-solid fa-scale-balanced"></i> Esperado sob independência</button>
+      </div>
+    </div>
+    <div class="ah-card p-4 space-y-3">
+      <div><div class="text-xs uppercase tracking-wide text-slate-400">χ²</div><div id="q-chi" class="text-2xl font-bold text-emerald-300 font-mono">—</div></div>
+      <div><div class="text-xs uppercase tracking-wide text-slate-400">V de Cramér</div><div id="q-v" class="text-xl font-bold text-amber-300 font-mono">—</div></div>
+      <p class="text-[11px] text-slate-500">χ² = Σ (observado − esperado)² / esperado</p>
+    </div>
+  </div>
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Atenção às contagens pequenas.</strong> A aproximação do qui-quadrado não vale bem quando alguma frequência
+      esperada é menor que 5. Nesses casos, use o teste exato de Fisher.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ AUTORES ============================ -->
+<section id="autores" data-toc="Quem definiu o quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-graduate text-emerald-400 mr-2"></i>Quem definiu o quê</h2>
+  <p class="text-xs text-slate-500 mb-4">As definições abaixo são paráfrases, não citações literais.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-emerald mb-2">Frank Wilcoxon · 1945</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Propôs o teste dos postos sinalizados para dados pareados, sem supor normalidade das diferenças.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-sky mb-2">Henry B. Mann e Donald R. Whitney · 1947</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Formalizaram o teste U para duas amostras independentes, baseado em quantas vezes um valor de um grupo supera o de outro.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-amber mb-2">William H. Kruskal e W. Allen Wallis · 1952</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Estenderam a ideia dos postos para três ou mais grupos: o H de Kruskal-Wallis, equivalente não paramétrico da ANOVA.</p>
+    </div>
+    <div class="ah-card p-5">
+      <span class="ah-badge ah-badge-rose mb-2">Karl Pearson · 1900</span>
+      <p class="text-xs text-slate-400 leading-relaxed">Introduziu o teste qui-quadrado para comparar frequências observadas com as esperadas por uma hipótese.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NÍVEIS ============================ -->
+<section id="niveis" data-toc="Do simples ao avançado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Do simples ao avançado</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="ah-card p-5 border-t-4 border-t-emerald-500">
+      <span class="ah-badge ah-badge-emerald mb-2">Nível 1 · Essencial</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Mediana e postos</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Entender que o teste compara a posição dos valores, não a média, e reportar medianas.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-amber-500">
+      <span class="ah-badge ah-badge-amber mb-2">Nível 2 · Intermediário</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Escolher o teste certo</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Mapear a situação (independente, pareado, 3+ grupos, categórica) para o teste correspondente.</p>
+    </div>
+    <div class="ah-card p-5 border-t-4 border-t-rose-500">
+      <span class="ah-badge ah-badge-rose mb-2">Nível 3 · Avançado</span>
+      <h3 class="text-sm font-semibold text-white mb-2">Tamanho do efeito e pós-teste</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">Medir a força da associação (V de Cramér, r de Mann-Whitney) e aplicar comparações par a par com correção para múltiplos testes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PYTHON ============================ -->
+<section id="python" data-toc="Na prática com Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-emerald-400 mr-2"></i>Na prática com Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Programa completo: <code class="text-emerald-300">disciplinas/analise-dados/exemplos-python/07-testes-nao-parametricos.py</code>.
+    Usa <strong>scipy.stats</strong> para todos os testes deste tópico.
+  </p>
+
+  <p class="text-xs font-bold text-emerald-300 mb-2">1 · Mann-Whitney com cauda longa</p>
+<pre class="ah-code"><code>U, p_u = stats.<span class="fn">mannwhitneyu</span>(caixa_1, caixa_2, alternative=<span class="str">"two-sided"</span>)
+<span class="cm"># comparar com a mediana, que não é puxada pela cauda</span>
+<span class="fn">print</span>(np.<span class="fn">median</span>(caixa_1), np.<span class="fn">median</span>(caixa_2))</code></pre>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>mediana caixa 1 = 3.70   mediana caixa 2 = 6.35
+U = 485.0   p-valor = 0.0025</code></pre>
+
+  <p class="text-xs font-bold text-amber-300 mt-6 mb-2">2 · Wilcoxon para os mesmos clientes</p>
+<pre class="ah-code"><code>W, p_w = stats.<span class="fn">wilcoxon</span>(satisf_depois, satisf_antes)</code></pre>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>mediana antes = 2.0   mediana depois = 3.0
+W = 0.0   p-valor = 0.0001</code></pre>
+
+  <p class="text-xs font-bold text-rose-300 mt-6 mb-2">3 · Kruskal-Wallis em três cidades</p>
+<pre class="ah-code"><code>H, p_kw = stats.<span class="fn">kruskal</span>(cidade_a, cidade_b, cidade_c)</code></pre>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>medianas: A = 3, B = 4, C = 2
+H = 13.955   p-valor = 0.000933</code></pre>
+
+  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">4 · Qui-quadrado de bairro × produto</p>
+<pre class="ah-code"><code>chi2, p_chi, gl, esperado = stats.<span class="fn">chi2_contingency</span>(tabela)
+v_cramer = np.<span class="fn">sqrt</span>(chi2 / (n_total * (<span class="fn">min</span>(tabela.shape) - <span class="num">1</span>)))</code></pre>
+  <p class="text-xs font-bold text-sky-300 mt-5 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>chi² = 24.106   gl = 4   p-valor = 0.000076
+V de Cramér = 0.231  (força da associação, entre 0 e 1)</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-code"></i>
+    <div>
+      <strong>Note os graus de liberdade:</strong> gl = 4 vem de (linhas − 1) × (colunas − 1) = 2 × 2. O V de Cramér de 0,23
+      mostra associação <em>moderada</em>: significativa, mas longe de perfeita. Significância e força são coisas diferentes.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros que aparecem em todo trabalho</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Mann-Whitney “compara medianas”</h3>
+      <p class="text-xs text-slate-400">Estritamente, ele testa se um grupo tende a ter valores maiores que o outro. Medianas diferentes são uma consequência típica, não a definição.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Qui-quadrado com contagens pequenas</h3>
+      <p class="text-xs text-slate-400">Frequências esperadas abaixo de 5 invalidam a aproximação. Junte categorias com sentido ou use Fisher.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Qui-quadrado para dados pareados</h3>
+      <p class="text-xs text-slate-400">Antes e depois do mesmo cliente não são independentes. Para isso existe o teste de McNemar.</p>
+    </div>
+    <div class="ah-card p-4 border-l-4 border-l-rose-500">
+      <h3 class="text-sm font-semibold text-white mb-1">Usar média de escala ordinal</h3>
+      <p class="text-xs text-slate-400">Calcular a média de 1 a 5 e aplicar t. Para ordinais, o teste de postos é o caminho natural.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FIXAÇÃO ============================ -->
+<section id="fixacao" data-toc="Fixação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
+
+  <div class="ah-quiz ah-card p-5 mb-4" data-answer="1">
+    <p class="font-medium text-slate-200 mb-3 text-sm">1. Você quer comparar a satisfação (escala de 1 a 5) de três unidades. Qual teste é o mais adequado?</p>
+    <button class="ah-quiz-opt">ANOVA, pois são três grupos</button>
+    <button class="ah-quiz-opt">Kruskal-Wallis, pois a escala é ordinal e são três grupos independentes</button>
+    <button class="ah-quiz-opt">Qui-quadrado, pois a escala tem categorias</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      Três grupos independentes pedem ANOVA ou Kruskal-Wallis. Como a escala é ordinal (a distância entre 1 e 2 pode não ser
+      igual à de 4 e 5), a versão por postos é a escolha mais defensável.
+    </p>
+  </div>
+
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="font-medium text-slate-200 mb-3 text-sm">2. Um outlier de 40 minutos entra num conjunto de tempos típicos de 3 minutos. Como ele afeta o teste de Mann-Whitney?</p>
+    <button class="ah-quiz-opt">Muito, pois o valor entra direto na soma</button>
+    <button class="ah-quiz-opt">Ele é descartado automaticamente pelo teste</button>
+    <button class="ah-quiz-opt">Ele recebe apenas o posto de maior valor, sem peso extra</button>
+    <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+      No teste de postos o valor extremo ocupa só o último lugar. Ele não ganha peso proporcional à sua grandeza, por isso o
+      resultado fica estável diante de outliers.
+    </p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script>
+/* ===================== Conversão em postos (animada) ===================== */
+/* Duas amostras; valores assimétricos e sem empates, para o posto ser único */
+const GRUPO1 = [1.4, 2.6, 3.2, 9.8, 1.9, 4.5];
+const GRUPO2 = [5.1, 2.2, 22.0, 7.7, 3.3, 15.4];
+const TODOS = [...GRUPO1.map(v => ({ v, g: 1 })), ...GRUPO2.map(v => ({ v, g: 2 }))];
+/* posto de cada valor (1 = menor) */
+const ordenados = [...TODOS].sort((a, b) => a.v - b.v);
+ordenados.forEach((o, i) => { o.posto = i + 1; });
+TODOS.forEach((o, i) => { o.posto = ordenados.find(x => x.v === o.v).posto; });
+
+let postoProg = 0;            /* 0 = valor bruto, 1 = posto */
+let postoAlvo = 0;
+const postCv = AH.canvas('postosCanvas', desenhaPostos);
+const postLoop = AH.loop(postCv.el, dt => {
+  const d = postoAlvo - postoProg;
+  if (Math.abs(d) < 0.005) { postoProg = postoAlvo; postLoop.stop(); }
+  else postoProg += d * Math.min(1, dt * 3);
+  postCv.fit();
+});
+
+function desenhaPostos(ctx, w, h) {
+  const x0 = 30, x1 = w - 30, yC = h / 2;
+  const vmax = 25;
+  const Xv = v => x0 + v / vmax * (x1 - x0);       /* escala dos valores */
+  const Xp = p => x0 + (p - 0.5) / TODOS.length * (x1 - x0); /* escala dos postos */
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, yC + 60); ctx.lineTo(x1, yC + 60); ctx.stroke();
+  TODOS.forEach((o, i) => {
+    const x = Xv(o.v) + (Xp(o.posto) - Xv(o.v)) * postoProg;
+    const y = yC - 20 + (o.g === 1 ? -22 : 22);   /* grupo 1 acima, grupo 2 abaixo */
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = o.g === 1 ? 'rgba(56,189,248,.85)' : 'rgba(245,158,11,.85)';
+    ctx.fill();
+    if (postoProg > 0.85) {
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText(String(o.posto), x - 4, y + 3);
+    }
+  });
+  ctx.fillStyle = '#38bdf8'; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('grupo 1', x0, yC - 58);
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText('grupo 2', x0, yC + 26);
+  ctx.fillStyle = '#64748b';
+  ctx.fillText(postoProg < 0.5 ? 'valores brutos (min)' : 'postos (1 = menor valor)', x1 - 170, h - 8);
+  atualizaU();
+}
+
+function atualizaU() {
+  const r1 = TODOS.filter(o => o.g === 1).reduce((s, o) => s + o.posto, 0);
+  const n1 = GRUPO1.length, n2 = GRUPO2.length;
+  const U1 = r1 - n1 * (n1 + 1) / 2;
+  const U2 = n1 * n2 - U1;
+  document.getElementById('post-u').textContent =
+    `soma dos postos do grupo 1 = ${r1} · U₁ = ${U1} · U₂ = ${U2}`;
+}
+document.getElementById('post-btn').addEventListener('click', () => {
+  postoAlvo = postoAlvo === 1 ? 0 : 1;
+  document.getElementById('post-btn').innerHTML = postoAlvo === 1
+    ? '<i class="fa-solid fa-arrow-up-1-9"></i> Voltar aos valores'
+    : '<i class="fa-solid fa-arrow-down-1-9"></i> Converter em postos';
+  postLoop.start();
+});
+
+/* ===================== Qui-quadrado: observado × esperado ===================== */
+const OBS = [[38, 22, 15], [25, 30, 20], [12, 28, 35]];
+const LINHAS = OBS.map(r => r.reduce((a, b) => a + b, 0));
+const COLS = [0, 1, 2].map(j => OBS.reduce((a, r) => a + r[j], 0));
+const TOTAL = LINHAS.reduce((a, b) => a + b, 0);
+const ESP = OBS.map((r, i) => r.map((_, j) => LINHAS[i] * COLS[j] / TOTAL));
+const CHI = OBS.reduce((s, r, i) => s + r.reduce((a, o, j) => a + (o - ESP[i][j]) ** 2 / ESP[i][j], 0), 0);
+const VCR = Math.sqrt(CHI / (TOTAL * (Math.min(3, 3) - 1)));
+let qModo = 'obs';
+const qCv = AH.canvas('qCanvas', desenhaQ);
+function desenhaQ(ctx, w, h) {
+  const x0 = 46, x1 = w - 16, yBase = h - 36, yTop = 18;
+  const max = Math.max(...OBS.flat(), ...ESP.flat()) * 1.1;
+  const Y = v => yBase - v / max * (yBase - yTop);
+  ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(x0, yBase); ctx.lineTo(x1, yBase); ctx.stroke();
+  const grupoW = (x1 - x0) / 3;
+  const bairros = ['bairro 1', 'bairro 2', 'bairro 3'];
+  const cores = ['#38bdf8', '#f59e0b', '#10b981'];
+  OBS.forEach((linha, i) => {
+    linha.forEach((o, j) => {
+      const gx = x0 + i * grupoW + 14 + j * ((grupoW - 28) / 3);
+      const bw = (grupoW - 28) / 3 - 8;
+      const valor = qModo === 'obs' ? o : ESP[i][j];
+      const bh = yBase - Y(valor);
+      ctx.fillStyle = cores[j] + (qModo === 'obs' ? 'dd' : '66');
+      ctx.fillRect(gx, yBase - bh, bw, bh);
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText(valor.toFixed(qModo === 'obs' ? 0 : 1).replace('.', ','), gx + 2, yBase - bh - 4);
+    });
+    ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(bairros[i], x0 + i * grupoW + grupoW / 2 - 20, yBase + 16);
+  });
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText((qModo === 'obs' ? 'observado' : 'esperado sob independência') + ' · cor = produto X, Y, Z', x0, yTop - 4);
+  document.getElementById('q-chi').textContent = CHI.toFixed(2).replace('.', ',');
+  document.getElementById('q-v').textContent = VCR.toFixed(3).replace('.', ',');
+}
+function setQ(modo) {
+  qModo = modo;
+  document.getElementById('q-obs').classList.toggle('active', modo === 'obs');
+  document.getElementById('q-esp').classList.toggle('active', modo === 'esp');
+  qCv.fit();
+}
+document.getElementById('q-obs').addEventListener('click', () => setQ('obs'));
+document.getElementById('q-esp').addEventListener('click', () => setQ('esp'));
+
+atualizaU();
+postCv.fit(); qCv.fit();
+AH.initReveal();
+</script>
+</body>
+</html>
