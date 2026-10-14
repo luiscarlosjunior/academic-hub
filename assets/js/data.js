@@ -788,7 +788,27 @@ const AH_DATA = {
         { id: '12-do-manuscrito-a-publicacao', titulo: 'Do manuscrito à publicação: revista, revisão por pares e Lattes', icone: 'fa-paper-plane',
           resumo: 'Como escolher a revista, o que é revisão por pares, como responder a pareceristas, o papel das cartas e da autoria, e como o artigo entra no currículo pelo Lattes.',
           trilha: 'escrita',
-          tags: ['Revisão por pares', 'Submissão', 'Lattes'], nivel: 'Avançado', minutos: 55 }
+          tags: ['Revisão por pares', 'Submissão', 'Lattes'], nivel: 'Avançado', minutos: 55 },
+        { id: '13-pesquisa-qualitativa', titulo: 'Pesquisa qualitativa: entrevistas, observação e análise temática', icone: 'fa-comments',
+          resumo: 'Quando a pesquisa qualitativa é a escolha certa, como conduzir entrevistas e observações, a análise temática de Braun e Clarke e os critérios de rigor qualitativo.',
+          trilha: 'dados',
+          tags: ['Qualitativa', 'Entrevista', 'Análise temática'], nivel: 'Intermediário', minutos: 55 },
+        { id: '14-delineamentos-experimentais', titulo: 'Delineamentos experimentais e quase-experimentais', icone: 'fa-vial',
+          resumo: 'Grupo de controle, randomização, delineamento pré e pós-teste, diferença em diferenças, e as limitações dos quase-experimentos para inferir causa.',
+          trilha: 'planejamento',
+          tags: ['Experimento', 'Randomização', 'Causalidade'], nivel: 'Avançado', minutos: 60 },
+        { id: '15-ciencia-aberta-reprodutibilidade', titulo: 'Ciência aberta, reprodutibilidade e gestão de dados', icone: 'fa-lock-open',
+          resumo: 'A crise de reprodutibilidade, acesso aberto, dados FAIR, pré-registro, organização de projetos e gestores de referências.',
+          trilha: 'fundamentos',
+          tags: ['Reprodutibilidade', 'Acesso aberto', 'FAIR'], nivel: 'Intermediário', minutos: 45 },
+        { id: '16-tcc-cronograma-orientacao', titulo: 'Do TCC à defesa: cronograma, orientação e estrutura do trabalho', icone: 'fa-calendar-check',
+          resumo: 'Planejar um trabalho de conclusão de curso com cronograma realista, trabalhar com o orientador, organizar a estrutura conforme a NBR 14724 e preparar a defesa.',
+          trilha: 'escrita',
+          tags: ['TCC', 'Cronograma', 'Orientação'], nivel: 'Introdutório', minutos: 45 },
+        { id: '17-apresentacao-oral-poster', titulo: 'Apresentação oral e pôster científico', icone: 'fa-chalkboard-user',
+          resumo: 'Como comunicar pesquisa em congressos e seminários: estrutura de uma apresentação oral, slides que ajudam, pôster científico e o tempo de cada parte.',
+          trilha: 'escrita',
+          tags: ['Apresentação', 'Pôster', 'Comunicação'], nivel: 'Intermediário', minutos: 45 }
       ]
     }
   ]

@@ -244,12 +244,31 @@ Do que limita a velocidade de um programa à programação de GPUs com CUDA. A t
 | 13 | Multi-GPU e MPI+CUDA: escalando em cluster | Um processo por GPU, halos pelo host e CUDA-aware MPI |
 | 14 | Perfilamento e reprodutibilidade: nsys, ncu e um projeto integrador | Roteiro de otimização e projeto final |
 
-### 📝 Metodologia Científica — 12 tópicos em quatro trilhas
+### 📝 Metodologia Científica — 17 tópicos em quatro trilhas
 
-Do que torna um conhecimento científico à publicação do artigo: método, ética, planejamento da pesquisa, análise de dados, normas ABNT e escrita acadêmica. Cada tópico traz teoria, exemplos, práticas, referências a autores e um quiz. A página da disciplina lista os livros de referência.
+Do que torna um conhecimento científico à publicação e à apresentação do trabalho: método, ética, planejamento, análise de dados, normas ABNT e escrita acadêmica. Cada tópico traz teoria, exemplos, práticas, referências a autores e um quiz. A página da disciplina lista os livros de referência.
 
 | # | Tópico | Trilha |
 |---|--------|--------|
+| 01 | O que é ciência: conhecimento, método e critérios de validade | Fundamentos |
+| 02 | Tipos de pesquisa: abordagem, objetivo e procedimento | Fundamentos |
+| 03 | Ética e integridade científica: plágio, consentimento e boas práticas | Fundamentos |
+| 04 | Tema, problema, objetivos e justificativa | Planejamento |
+| 05 | Hipóteses, variáveis e validade | Planejamento |
+| 06 | Revisão de literatura e busca bibliográfica | Planejamento |
+| 07 | Métodos: população, amostragem e instrumentos de coleta | Planejamento |
+| 08 | Análise de dados: quantitativa, qualitativa e cuidados com a estatística | Dados e normas |
+| 09 | Citações e referências segundo a ABNT | Dados e normas |
+| 10 | Estrutura do artigo científico: IMRaD e o resumo | Escrita e publicação |
+| 11 | Escrita acadêmica: clareza, coesão, voz e revisão | Escrita e publicação |
+| 12 | Do manuscrito à publicação: revista, revisão por pares e Lattes | Escrita e publicação |
+| 13 | Pesquisa qualitativa: entrevistas, observação e análise temática | Dados e normas |
+| 14 | Delineamentos experimentais e quase-experimentais | Planejamento |
+| 15 | Ciência aberta, reprodutibilidade e gestão de dados | Fundamentos |
+| 16 | Do TCC à defesa: cronograma, orientação e estrutura do trabalho | Escrita e publicação |
+| 17 | Apresentação oral e pôster científico | Escrita e publicação |
+
+---|--------|--------|
 | 01 | O que é ciência: conhecimento, método e critérios de validade | Fundamentos |
 | 02 | Tipos de pesquisa: abordagem, objetivo e procedimento | Fundamentos |
 | 03 | Ética e integridade científica: plágio, consentimento e boas práticas | Fundamentos |
@@ -305,7 +324,7 @@ academic-hub/
 │       └── exemplos-cuda/           # programas em CUDA dos tópicos 7 a 13 (compilar com nvcc)
 │   └── metodologia-cientifica/
 │       ├── index.html
-│       └── topicos/                 # uma página completa por tópico (12 páginas)
+│       └── topicos/                 # uma página completa por tópico (17 páginas)
 │   └── analise-dados/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (14 páginas)
