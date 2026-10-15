@@ -285,6 +285,34 @@ Do que torna um conhecimento científico à publicação e à apresentação do 
 
 ---
 
+### 🧮 Teoria da Computação e Complexidade — 20 tópicos em quatro trilhas
+
+Do que pode ser computado ao que custa computar: linguagens e autômatos, gramáticas, máquinas de Turing, indecidibilidade, classes P, NP e além, até o estado de P versus NP. Cada tópico traz teoria, exemplos, código, uma animação passo a passo, práticas, referências a autores e um quiz. A página da disciplina lista os livros de referência.
+
+| # | Tópico | Trilha |
+|---|--------|--------|
+| 01 | Alfabetos, cadeias e linguagens | Fundamentos |
+| 02 | Algoritmos, problemas e a tese de Church-Turing | Fundamentos |
+| 03 | Autômatos finitos determinísticos | Autômatos e gramáticas |
+| 04 | Autômatos finitos não determinísticos e a construção por subconjuntos | Autômatos e gramáticas |
+| 05 | Expressões regulares e o teorema de Kleene | Autômatos e gramáticas |
+| 06 | Lema do bombeamento e minimização de AFD | Autômatos e gramáticas |
+| 07 | Gramáticas livres de contexto e árvores de derivação | Autômatos e gramáticas |
+| 08 | Autômatos com pilha e a equivalência com GLC | Autômatos e gramáticas |
+| 09 | Forma normal de Chomsky, bombeamento para GLC e o algoritmo CYK | Autômatos e gramáticas |
+| 10 | Máquinas de Turing | Máquinas de Turing e limites |
+| 11 | Variantes de máquinas de Turing e a máquina universal | Máquinas de Turing e limites |
+| 12 | Hierarquia de Chomsky e os modelos correspondentes | Máquinas de Turing e limites |
+| 13 | Indecidibilidade e o problema da parada | Máquinas de Turing e limites |
+| 14 | Reduções, o teorema de Rice e o problema de Post | Máquinas de Turing e limites |
+| 15 | Funções recursivas, cálculo lambda e equivalência de modelos | Fundamentos |
+| 16 | Medindo recursos: tempo, espaço e notação assintótica | Complexidade |
+| 17 | As classes P e NP e os verificadores | Complexidade |
+| 18 | NP-completude: Cook-Levin e as reduções de Karp | Complexidade |
+| 19 | PSPACE, EXPTIME e o teorema de Savitch | Complexidade |
+| 20 | Aleatoriedade, aproximação e o estado de P versus NP | Complexidade |
+
+
 ## Estrutura do projeto
 
 ```
@@ -325,6 +353,9 @@ academic-hub/
 │   └── metodologia-cientifica/
 │       ├── index.html
 │       └── topicos/                 # uma página completa por tópico (17 páginas)
+│   └── teoria-computacao/
+│       ├── index.html
+│       └── topicos/                 # uma página completa por tópico (20 páginas)
 │   └── analise-dados/
 │       ├── index.html
 │       ├── topicos/                 # uma página completa por tópico (14 páginas)

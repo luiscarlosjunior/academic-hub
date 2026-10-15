@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autômatos finitos não determinísticos e subconjuntos · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="AFN com transições epsilon, a simulação por conjuntos de estados, a construção por subconjuntos que prova a equivalência com AFD e o custo exponencial da conversão.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/04-automatos-finitos-nao-deterministicos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-violet-400 mr-2"></i>Tópico 4 · Autômatos finitos não determinísticos</h2>
+  <div class="ah-prose">
+    <p>No autômato determinístico, cada situação tem exatamente uma continuação. Um <strong>autômato finito não determinístico</strong> (AFN) relaxa essa regra: a partir de um estado, para um mesmo símbolo, pode haver várias transições, e algumas pode não haver nenhuma. Uma cadeia é aceita se <em>existe ao menos um caminho</em> que termina em um estado de aceitação.</p>
+    <p>Parece que o AFN é mais poderoso, mas o resultado central deste tópico é o contrário: AFN e AFD reconhecem exatamente as mesmas linguagens. O não determinismo é uma conveniência para projetar, não um aumento de poder.</p>
+  </div>
+</section>
+
+<section id="definicao" data-toc="Definição e transições epsilon" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-root-variable text-sky-400 mr-2"></i>Definição e transições ε</h2>
+  <div class="ah-prose">
+    <p>Um AFN é uma quíntupla (Q, Σ, δ, q<sub>0</sub>, F), como no AFD, exceto que δ: Q × (Σ ∪ {ε}) → 2<sup>Q</sup>. Isto é, δ devolve um <em>conjunto</em> de estados possíveis, e o símbolo ε permite transições sem consumir letra.</p>
+    <p>A transição epsilon é útil para compor autômatos: podemos "emendar" duas máquinas sem gastar símbolos. Para tratá-la na simulação, usamos o <strong>fecho-ε</strong>: o conjunto de estados alcançáveis a partir de um estado apenas por transições ε.</p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: penúltimo símbolo 1" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-emerald-400 mr-2"></i>Exemplo: o penúltimo símbolo é 1</h2>
+  <div class="ah-prose">
+    <p>Considere L = {w ∈ {0,1}* | o penúltimo símbolo de w é 1}. Um AFN pequeno resolve isso com três estados: q<sub>0</sub> fica "esperando" e pode sempre continuar; ao ler um 1, o autômato <em>aposta</em> que aquele 1 é o penúltimo, indo para q<sub>1</sub>; a próxima letra, qualquer que seja, leva a q<sub>2</sub>, de aceitação.</p>
+    <ul>
+      <li>δ(q<sub>0</sub>, 0) = {q<sub>0</sub>} e δ(q<sub>0</sub>, 1) = {q<sub>0</sub>, q<sub>1</sub>}</li>
+      <li>δ(q<sub>1</sub>, 0) = δ(q<sub>1</sub>, 1) = {q<sub>2</sub>}</li>
+      <li>F = {q<sub>2</sub>}</li>
+    </ul>
+    <p>Um AFD equivalente precisa de quatro estados, porque ele tem de lembrar as duas últimas letras. Esse é um sinal do que vem na conversão.</p>
+  </div>
+</section>
+
+<section id="subconjuntos" data-toc="Construção por subconjuntos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-amber-400 mr-2"></i>A construção por subconjuntos</h2>
+  <div class="ah-prose">
+    <p>Dado um AFN N, construímos um AFD D cujos estados são <strong>conjuntos de estados de N</strong>. Se D está no conjunto S e lê a, ele vai para o conjunto de todos os destinos de N a partir de S com a, fechados por ε. Um estado de D é de aceitação se o conjunto contém algum estado de aceitação de N.</p>
+    <p>Como a potência de Q tem 2<sup>|Q|</sup> elementos, o AFD resultante tem no máximo esse número de estados. O exemplo acima chega a 4 estados e não a 2<sup>3</sup> = 8, porque muitos subconjuntos nunca são alcançados. Em geral, a conversão pode ser exponencial, e esse custo aparece de novo na complexidade.</p>
+    <p class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><span>A construção mostra algo mais profundo: a simulação de um AFN pode ser feita <em>acompanhando todos os caminhos ao mesmo tempo</em>. Essa é exatamente a ideia que o player abaixo mostra.</span></p>
+  </div>
+</section>
+
+<section id="simulacao" data-toc="Simulação em código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-amber-400 mr-2"></i>Simulação em código</h2>
+  <div class="ah-prose">
+    <p>Simular um AFN significa manter o <em>conjunto</em> de estados atuais. A cada letra, calculamos o novo conjunto. Ao final, aceitamos se o conjunto contiver um estado de aceitação.</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>delta = {
+    ("q0", "0"): {"q0"},        ("q0", "1"): {"q0", "q1"},
+    ("q1", "0"): {"q2"},        ("q1", "1"): {"q2"},
+}
+F = {"q2"}
+
+def aceita(w):
+    atuais = {"q0"}
+    for c in w:
+        novos = set()
+        for q in atuais:
+            novos |= delta.get((q, c), set())
+        atuais = novos
+    return bool(atuais & F)
+
+print(aceita("1011"))   # True
+print(aceita("1101"))   # False: penúltimo é 0</code></pre>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: o conjunto de estados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: simulando 1011 no AFN</h2>
+  <p class="text-sm text-slate-400 mb-2">Em vez de um estado, vemos um conjunto de estados vivos. Cada letra atualiza o conjunto. A cadeia é aceita porque q<sub>2</sub> aparece no fim.</p>
+  <div id="tc-p4"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Projete um AFN com no máximo 4 estados para a linguagem de cadeias sobre {0,1} que contêm 101 como subcadeia.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Aplique a construção por subconjuntos ao AFN do exemplo e desenhe apenas os estados alcançáveis.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Mostre que, para todo AFN com n estados, existe um AFD com no máximo 2<sup>n</sup> estados que reconhece a mesma linguagem.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">RABIN, Michael O.; SCOTT, Dana. Finite Automata and Their Decision Problems. <em>IBM Journal of Research and Development</em>, 1959.</li>
+    <li class="text-slate-300 leading-relaxed">HOPCROFT, John E.; MOTWANI, Rajeev; ULLMAN, Jeffrey D. <em>Introduction to Automata Theory, Languages, and Computation</em>. 3. ed. Boston: Addison-Wesley, 2006. Seção 2.3.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="1">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma cadeia é aceita por um AFN quando:</p>
+    <button class="ah-quiz-opt">Todos os caminhos possíveis terminam em estados de aceitação</button>
+    <button class="ah-quiz-opt">Existe ao menos um caminho que termina em um estado de aceitação</button>
+    <button class="ah-quiz-opt">O caminho determinístico termina em estado de aceitação</button>
+    <button class="ah-quiz-opt">A cadeia tem tamanho par</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Basta um caminho de aceitação para aceitar a cadeia. Essa é a semântica do não determinismo.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Se um AFN tem n estados, qual é o limite superior para o número de estados do AFD equivalente?</p>
+    <button class="ah-quiz-opt">n</button>
+    <button class="ah-quiz-opt">n²</button>
+    <button class="ah-quiz-opt">2<sup>n</sup></button>
+    <button class="ah-quiz-opt">n!</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Os estados do AFD são subconjuntos dos estados do AFN, e há 2<sup>n</sup> subconjuntos.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+function conjunto(vivos) {
+  return '<div class="tc-states">' +
+    ['q0','q1','q2'].map(function (q) {
+      return '<span class="tc-state' + (q === 'q2' ? ' final' : '') + (vivos.indexOf(q) >= 0 ? ' on' : '') + '">' + q + '</span>';
+    }).join('') + '</div>';
+}
+function fita(lido) {
+  var c = ['1','0','1','1'];
+  return '<div class="tc-tape">' + c.map(function (x, k) {
+    return '<span class="tc-cell' + (k === lido ? ' head' : (k < lido ? ' gravado' : '')) + '">' + x + '</span>';
+  }).join('') + '</div>';
+}
+TC.player(document.getElementById('tc-p4'), [
+  { t: 'início: conjunto {q0}', h: conjunto(['q0']) + fita(-1) },
+  { t: 'lê 1: q0 vai para {q0, q1} (aposta que este 1 é o penúltimo)', h: conjunto(['q0','q1']) + fita(0) },
+  { t: 'lê 0: q0 fica em q0; q1 vai para q2 → {q0, q2}', h: conjunto(['q0','q2']) + fita(1) },
+  { t: 'lê 1: q0 vai para {q0, q1}; q2 não tem transição → {q0, q1}', h: conjunto(['q0','q1']) + fita(2) },
+  { t: 'lê 1: q0 → {q0, q1}; q1 → q2 → {q0, q1, q2}', h: conjunto(['q0','q1','q2']) + fita(3) },
+  { t: 'fim: q2 está no conjunto, então aceita', h: '<p class="tc-ok">1011 ∈ L: o penúltimo símbolo é 1.</p>' + conjunto(['q0','q1','q2']) + fita(3) }
+]);
+</script>
+</body>
+</html>

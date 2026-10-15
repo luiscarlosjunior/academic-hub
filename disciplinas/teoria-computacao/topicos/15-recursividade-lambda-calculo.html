@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funções recursivas, cálculo lambda e equivalência de modelos · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="Funções recursivas primitivas e parciais, o cálculo lambda de Church e a equivalência entre os modelos que sustenta a tese de Church-Turing, com exemplos e animação de redução.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/15-recursividade-lambda-calculo">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lambda text-violet-400 mr-2"></i>Tópico 15 · Recursividade, cálculo lambda e equivalência</h2>
+  <div class="ah-prose">
+    <p>A tese de Church-Turing se apoia em um fato: modelos muito diferentes descrevem a mesma classe de funções. Turing usou máquinas. Church usou o <strong>cálculo lambda</strong>, um sistema de funções e aplicações sem nenhum conceito de máquina. Kleene e Gödel usaram <strong>funções recursivas</strong>, construídas por composição e recursão. Este tópico apresenta esses modelos e por que eles coincidem.</p>
+    <p>A importância histórica é grande: o cálculo lambda deu origem às linguagens funcionais, como Lisp, ML e Haskell, e é a base teórica de tipos em linguagens modernas.</p>
+  </div>
+</section>
+
+<section id="recursivas" data-toc="Funções recursivas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-merge text-sky-400 mr-2"></i>Funções recursivas</h2>
+  <div class="ah-prose">
+    <p>Começamos com funções básicas: a constante zero, a sucessor S(n) = n + 1 e as projeções. A partir delas, construímos novas funções por dois operadores:</p>
+    <ul>
+      <li><strong>Composição</strong>: f(x) = g(h(x)).</li>
+      <li><strong>Recursão primitiva</strong>: f(x, 0) = g(x) e f(x, n+1) = h(x, n, f(x, n)).</li>
+    </ul>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>soma(x, 0)   = x
+soma(x, n+1) = S(soma(x, n))
+
+produto(x, 0)   = 0
+produto(x, n+1) = soma(produto(x, n), x)</code></pre>
+    <p>Funções primitivas recursivas são sempre totais, mas nem toda função computável é primitiva recursiva. A função de Ackermann é total e computável, e cresce mais que qualquer primitiva recursiva. Para obter todas as computáveis, acrescentamos a <strong>minimização</strong> (μ-operador): μn[f(x, n) = 0] é o menor n tal que f(x, n) = 0, que pode não existir, deixando a função parcial.</p>
+  </div>
+</section>
+
+<section id="lambda" data-toc="Cálculo lambda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lambda text-amber-400 mr-2"></i>O cálculo lambda</h2>
+  <div class="ah-prose">
+    <p>O cálculo lambda tem apenas três construções. Termos são formados por:</p>
+    <ul>
+      <li><strong>variáveis</strong>: x, y, z…</li>
+      <li><strong>abstração</strong>: λx. M, a função que recebe x e devolve M;</li>
+      <li><strong>aplicação</strong>: (M N), aplicar M a N.</li>
+    </ul>
+    <p>A única regra de cálculo é a <strong>β-redução</strong>: (λx. M) N se reduz a M com x substituído por N. Por exemplo, (λx. x + 1) 4 reduz a 4 + 1.</p>
+    <p>Números naturais podem ser codificados por <em>numerais de Church</em>: n é λf. λx. f<sup>n</sup>(x). A soma e o produto também são codificados por termos lambda. Assim, o cálculo lambda contém as funções aritméticas.</p>
+  </div>
+</section>
+
+<section id="equivalencia" data-toc="Equivalência dos modelos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Por que os modelos coincidem</h2>
+  <div class="ah-prose">
+    <p>A equivalência é mostrada por simulações nos dois sentidos:</p>
+    <ul>
+      <li><strong>Máquinas de Turing simulam funções recursivas</strong>: cada função recursiva tem uma MT que computa seu valor, pela construção sobre a composição, a recursão e a minimização.</li>
+      <li><strong>Funções recursivas simulam máquinas de Turing</strong>: a configuração de uma MT pode ser codificada como um número, e a função de passo de computação é recursiva primitiva. A minimização então encontra o instante de parada.</li>
+    </ul>
+    <p>O cálculo lambda entra na mesma classe: traduções entre termos lambda e MTs, ou entre termos e funções recursivas, são construtivas.</p>
+    <p class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><span>A coincidência dos três modelos não foi planejada. Church, Turing e Kleene chegaram a formalizações diferentes sem saber uns dos outros, e as mesmas funções apareceram. Isso é o principal argumento para a tese.</span></p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: reduzindo uma expressão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: β-redução passo a passo</h2>
+  <p class="text-sm text-slate-400 mb-2">Uma expressão lambda que calcula 2 + 1 é reduzida até a forma normal. Cada passo substitui uma aplicação.</p>
+  <div id="tc-p15"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Escreva as funções predecessor e subtração truncada como funções recursivas primitivas.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Reduza, passo a passo, o termo (λx. λy. x) a b e explique o resultado.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Explique por que a minimização é necessária para obter todas as funções computáveis, e não só as primitivas recursivas.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">CHURCH, Alonzo. An Unsolvable Problem of Elementary Number Theory. <em>American Journal of Mathematics</em>, 1936.</li>
+    <li class="text-slate-300 leading-relaxed">KLEENE, Stephen C. General Recursive Functions of Natural Numbers. <em>Mathematische Annalen</em>, 1936.</li>
+    <li class="text-slate-300 leading-relaxed">BARENDREGT, Henk P. <em>The Lambda Calculus: Its Syntax and Semantics</em>. Revised ed. Amsterdam: North-Holland, 1984.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a única regra de cálculo do cálculo lambda?</p>
+    <button class="ah-quiz-opt">Adição de números</button>
+    <button class="ah-quiz-opt">Recursão de cauda</button>
+    <button class="ah-quiz-opt">β-redução: (λx. M) N se reduz a M[x := N]</button>
+    <button class="ah-quiz-opt">Composição de máquinas de Turing</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A β-redução é o mecanismo de computação do cálculo lambda: a aplicação de uma abstração substitui a variável pelo argumento.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="0">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a minimização é necessária?</p>
+    <button class="ah-quiz-opt">Porque as primitivas recursivas são sempre totais, e a minimização permite funções parciais e computáveis que não são primitivas</button>
+    <button class="ah-quiz-opt">Porque sem ela não há soma</button>
+    <button class="ah-quiz-opt">Porque ela torna as funções determinísticas</button>
+    <button class="ah-quiz-opt">Porque ela elimina a recursão</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A minimização acrescenta a busca pelo menor n, que pode não existir. Isso gera exatamente a classe das funções parciais computáveis.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+function termo(t) {
+  return '<div class="font-mono text-sm text-violet-200">' + t + '</div>';
+}
+TC.player(document.getElementById('tc-p15'), [
+  { t: 'termo inicial: aplicação de (λm. λn. λf. λx. m (n f) x) a 2 e 1', h: termo('(λm.λn.λf.λx. m f (n f x)) 2 1') + '<p class="tc-note">Soma de numerais de Church: m e n representam 2 e 1.</p>' },
+  { t: 'β-redução na abstração externa: m := 2, n := 1', h: termo('λf.λx. 2 f (1 f x)') },
+  { t: 'β-redução: 1 f x = f x (numeral 1 aplica f uma vez)', h: termo('λf.λx. 2 f (f x)') },
+  { t: 'forma normal: 2 f y = f (f y), com y = (f x)', h: termo('λf.λx. f (f (f x))') + '<p class="tc-ok">Resultado: o numeral 3, ou seja, 2 + 1.</p>' }
+]);
+</script>
+</body>
+</html>

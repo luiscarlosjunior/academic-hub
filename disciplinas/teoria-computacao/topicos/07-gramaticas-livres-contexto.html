@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gramáticas livres de contexto e árvores de derivação · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="Gramáticas livres de contexto: variáveis, terminais, regras de produção, derivações, árvores de derivação, ambiguidade e o uso em linguagens de programação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/07-gramaticas-livres-contexto">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-violet-400 mr-2"></i>Tópico 7 · Gramáticas livres de contexto</h2>
+  <div class="ah-prose">
+    <p>Linguagens regulares não conseguem casar parênteses balanceados, que são o coração da sintaxe de qualquer linguagem de programação. Para isso, precisamos de um modelo mais forte: as <strong>gramáticas livres de contexto</strong> (GLC). A ideia é uma regra de reescrita que substitui uma variável por uma sequência de símbolos, independentemente do contexto em volta.</p>
+    <p>Foi Noam Chomsky, em 1956, quem organizou esses modelos em uma hierarquia. A notação BNF (Backus-Naur Form), usada para descrever a sintaxe do ALGOL 60 e de muitas linguagens depois, é uma forma de escrever GLC.</p>
+  </div>
+</section>
+
+<section id="definicao" data-toc="Definição formal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-root-variable text-sky-400 mr-2"></i>Definição formal</h2>
+  <div class="ah-prose">
+    <p>Uma GLC é uma quádrupla G = (V, Σ, R, S), em que V é um conjunto finito de <strong>variáveis</strong>, Σ é o alfabeto de <strong>terminais</strong> (disjunto de V), R é um conjunto finito de <strong>regras de produção</strong> da forma A → α, com A ∈ V e α ∈ (V ∪ Σ)*, e S ∈ V é o símbolo inicial.</p>
+    <p>Uma <strong>derivação</strong> aplica regras a partir de S, substituindo uma variável por um lado direito. Escrevemos αAβ ⇒ αγβ quando A → γ é uma regra. A linguagem de G é o conjunto das cadeias de terminais derivadas de S.</p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: expressões aritméticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-emerald-400 mr-2"></i>Exemplo: expressões aritméticas</h2>
+  <div class="ah-prose">
+    <p>A gramática abaixo gera expressões com +, *, parênteses e o terminal a. As variáveis E, T e F separam os níveis de precedência: a multiplicação fica "mais embaixo" na árvore, por isso é avaliada antes.</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>E → E + T | T
+T → T * F | F
+F → ( E ) | a</code></pre>
+    <p>Derivação mais à esquerda de a + a * a:</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>E ⇒ E + T
+  ⇒ T + T
+  ⇒ F + T
+  ⇒ a + T
+  ⇒ a + T * F
+  ⇒ a + F * F
+  ⇒ a + a * F
+  ⇒ a + a * a</code></pre>
+    <p>A árvore de derivação correspondente tem a + no topo e o produto a * a em um subtree, o que reflete a precedência.</p>
+  </div>
+</section>
+
+<section id="arvore" data-toc="Árvores de derivação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-amber-400 mr-2"></i>Árvores de derivação</h2>
+  <div class="ah-prose">
+    <p>Uma árvore de derivação mostra, de forma independente da ordem em que as regras foram aplicadas, <em>quais regras</em> produziram <em>qual parte</em> da cadeia. A raiz é S, as folhas formam a cadeia gerada, e cada nó interno é uma variável com seus filhos vindos de um lado direito de regra.</p>
+    <p>A árvore é a estrutura que um compilador constrói no passo de análise sintática. A semântica do programa é calculada percorrendo essa árvore.</p>
+  </div>
+</section>
+
+<section id="ambiguidade" data-toc="Ambiguidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-exclamation text-rose-400 mr-2"></i>Ambiguidade</h2>
+  <div class="ah-prose">
+    <p>Uma GLC é <strong>ambígua</strong> se alguma cadeia tem duas árvores de derivação distintas. A gramática S → S + S | a gera a + a + a de duas formas: (a + a) + a ou a + (a + a). Para uma calculadora, isso é um problema, porque o resultado pode depender da ordem.</p>
+    <p>A gramática de expressões acima evita o problema reorganizando os níveis. Nem toda linguagem livre de contexto admite uma gramática não ambígua, e as que não admitem são chamadas <em>inerentemente ambíguas</em>.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: derivando a + a * a" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: a árvore crescendo</h2>
+  <p class="text-sm text-slate-400 mb-2">Cada passo aplica uma regra à variável mais à esquerda. Observe como a árvore cresce e como a multiplicação aparece abaixo da soma.</p>
+  <div id="tc-p7"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Escreva uma GLC para {0<sup>n</sup>1<sup>n</sup> | n ≥ 0} e mostre a árvore de derivação de 0011.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Escreva uma GLC para parênteses balanceados, como (()) e ()().</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Mostre que S → S + S | a é ambígua exibindo as duas árvores de a + a + a.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">CHOMSKY, Noam. Three Models for the Description of Language. <em>IRE Transactions on Information Theory</em>, 1956.</li>
+    <li class="text-slate-300 leading-relaxed">HOPCROFT, John E.; MOTWANI, Rajeev; ULLMAN, Jeffrey D. <em>Introduction to Automata Theory, Languages, and Computation</em>. 3. ed. Boston: Addison-Wesley, 2006. Capítulo 5.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma gramática é ambígua quando:</p>
+    <button class="ah-quiz-opt">Tem variáveis demais</button>
+    <button class="ah-quiz-opt">Não gera nenhuma cadeia</button>
+    <button class="ah-quiz-opt">Uma mesma cadeia tem duas árvores de derivação distintas</button>
+    <button class="ah-quiz-opt">Usa a forma BNF</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A ambiguidade é uma propriedade da gramática com relação a uma cadeia: existe ao menos uma cadeia com mais de uma árvore.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="0">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a gramática de expressões usa três variáveis (E, T, F)?</p>
+    <button class="ah-quiz-opt">Para codificar os níveis de precedência de + e *</button>
+    <button class="ah-quiz-opt">Porque GLC exige três variáveis no mínimo</button>
+    <button class="ah-quiz-opt">Para permitir a ambiguidade e aumentar a linguagem</button>
+    <button class="ah-quiz-opt">Para tornar a gramática regular</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada variável representa um nível de precedência, e a estrutura da gramática força a multiplicação a ficar abaixo da soma na árvore.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+function arvore(nos) {
+  return '<div class="tc-flow">' + nos.map(function (n) {
+    return '<span class="tc-token">' + n + '</span>';
+  }).join('<span class="tc-note">→</span>') + '</div>';
+}
+TC.player(document.getElementById('tc-p7'), [
+  { t: 'raiz: E', h: arvore(['E']) },
+  { t: 'E → E + T: a soma fica no topo', h: arvore(['E', 'E + T']) },
+  { t: 'E → T e T → F: o primeiro operando é a', h: arvore(['E + T', 'a + T']) },
+  { t: 'T → T * F: a multiplicação desce um nível', h: arvore(['a + T * F']) },
+  { t: 'F → a no operando da direita', h: arvore(['a + a * F']) },
+  { t: 'resultado: a + a * a, com * abaixo de +', h: '<p class="tc-ok">a + (a * a): a multiplicação é avaliada antes da soma, como esperado.</p>' }
+]);
+</script>
+</body>
+</html>

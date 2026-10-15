@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expressões regulares e o teorema de Kleene · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="Expressões regulares: união, concatenação e estrela; o teorema de Kleene que liga expressões regulares, AFD e AFN; e a tradução de uma expressão em autômato, com animação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/05-expressoes-regulares-kleene">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-asterisk text-violet-400 mr-2"></i>Tópico 5 · Expressões regulares e o teorema de Kleene</h2>
+  <div class="ah-prose">
+    <p>Expressões regulares são a forma <strong>declarativa</strong> de descrever linguagens regulares. Enquanto um AFD diz <em>como</em> reconhecer uma cadeia, uma expressão regular diz <em>qual é o padrão</em>. É a notação de buscas em editores, do <code>grep</code> e de validadores de entrada.</p>
+    <p>O <strong>teorema de Kleene</strong> afirma que expressões regulares, AFDs e AFNs descrevem exatamente a mesma classe de linguagens. Essa equivalência é o que permite trocar de notação conforme a conveniência.</p>
+  </div>
+</section>
+
+<section id="sintaxe" data-toc="Sintaxe e semântica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-spell-check text-sky-400 mr-2"></i>Sintaxe e semântica</h2>
+  <div class="ah-prose">
+    <p>Uma expressão regular sobre Σ é definida recursivamente:</p>
+    <ul>
+      <li>∅ é uma expressão que denota a linguagem vazia; ε denota {ε}; cada símbolo a ∈ Σ denota {a}.</li>
+      <li><strong>união</strong>: (R + S) denota L(R) ∪ L(S);</li>
+      <li><strong>concatenação</strong>: (RS) denota L(R)L(S);</li>
+      <li><strong>estrela</strong>: R* denota L(R)*, ou seja, zero ou mais repetições.</li>
+    </ul>
+    <p>Convenções: a estrela tem precedência sobre a concatenação, e a concatenação sobre a união. Assim, <code>ab*+c</code> significa (a(b*)) + c.</p>
+  </div>
+</section>
+
+<section id="exemplos" data-toc="Exemplos de padrões" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-emerald-400 mr-2"></i>Exemplos de padrões</h2>
+  <div class="ah-prose">
+    <table class="w-full text-sm text-left">
+      <thead><tr class="text-slate-300 border-b border-slate-700"><th class="py-2 pr-4">Expressão</th><th class="py-2 pr-4">Linguagem</th><th class="py-2">Exemplos de cadeias</th></tr></thead>
+      <tbody class="text-slate-400 align-top">
+        <tr class="border-b border-slate-800"><td class="py-2 pr-4 text-slate-300">(0 + 1)*</td><td class="py-2 pr-4">Todas as cadeias binárias</td><td class="py-2">ε, 0, 10110</td></tr>
+        <tr class="border-b border-slate-800"><td class="py-2 pr-4 text-slate-300">(0 + 1)*11</td><td class="py-2 pr-4">Terminam em 11</td><td class="py-2">11, 0111 (não: 0110)</td></tr>
+        <tr class="border-b border-slate-800"><td class="py-2 pr-4 text-slate-300">a*b*</td><td class="py-2 pr-4">Blocos de a seguidos de b</td><td class="py-2">ε, aab, bbb (não: aba)</td></tr>
+        <tr><td class="py-2 pr-4 text-slate-300">(01)*</td><td class="py-2 pr-4">Repetições do bloco 01</td><td class="py-2">ε, 01, 0101 (não: 010)</td></tr>
+      </tbody>
+    </table>
+    <p>Repare que as expressões são "ambíguas" em um sentido útil: uma mesma cadeia pode casar de várias maneiras, mas o que importa para a linguagem é só se existe alguma casagem.</p>
+  </div>
+</section>
+
+<section id="kleene" data-toc="Teorema de Kleene" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-rotate text-amber-400 mr-2"></i>O teorema de Kleene</h2>
+  <div class="ah-prose">
+    <p>O teorema tem duas direções, e ambas são construtivas:</p>
+    <ol>
+      <li><strong>Expressão → autômato</strong>: para cada expressão R existe um AFN com ε-transições que reconhece L(R). A construção de Thompson faz isso com um pequeno "bloco" para cada operador, emendados por ε-transições.</li>
+      <li><strong>Autômato → expressão</strong>: para cada AFD existe uma expressão que descreve sua linguagem. O método de eliminação de estados remove os estados um a um e combina os rótulos das arestas com união, concatenação e estrela.</li>
+    </ol>
+    <p>A primeira direção é a que aparece no dia a dia: é ela que um compilador usa para transformar um padrão de token em um reconhecedor eficiente.</p>
+  </div>
+</section>
+
+<section id="thompson" data-toc="Animação: construção de Thompson" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: de a*b a um autômato</h2>
+  <p class="text-sm text-slate-400 mb-2">A expressão a*b é montada a partir de blocos pequenos: um bloco para a, um para a*, um para b e, por fim, a concatenação. Acompanhe a montagem passo a passo.</p>
+  <div id="tc-p5"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Escreva uma expressão regular para as cadeias sobre {0,1} com número de 1s múltiplo de 3.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Teste, em Python, sua expressão com o módulo <code>re</code> sobre dez cadeias de exemplo. Compare com a sua intuição antes de rodar.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Converta a expressão (a + b)*ab em AFN com a construção de Thompson, contando os estados.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">KLEENE, Stephen C. Representation of Events in Nerve Nets and Finite Automata. In: <em>Automata Studies</em>. Princeton: Princeton University Press, 1956.</li>
+    <li class="text-slate-300 leading-relaxed">KOZEN, Dexter C. <em>Automata and Computability</em>. New York: Springer, 1997. Lição 7.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="0">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">A expressão ab*+c, com as convenções usuais, denota:</p>
+    <button class="ah-quiz-opt">{a, ab, abb, …} ∪ {c}</button>
+    <button class="ah-quiz-opt">{ab, abb, …} ∪ {c}, sem o a inicial</button>
+    <button class="ah-quiz-opt">{ab*c}</button>
+    <button class="ah-quiz-opt">{a, b, c}*</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A estrela se aplica só a b, então ab* = {a, ab, abb, …}; a união com c completa a linguagem. A segunda opção descarta o a inicial, que a expressão de fato contém.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que o teorema de Kleene estabelece?</p>
+    <button class="ah-quiz-opt">Que expressões regulares são mais poderosas que autômatos</button>
+    <button class="ah-quiz-opt">Que AFDs são mais poderosos que AFNs</button>
+    <button class="ah-quiz-opt">Que expressões regulares, AFDs e AFNs descrevem exatamente as mesmas linguagens</button>
+    <button class="ah-quiz-opt">Que toda linguagem é regular</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. As três formas são equivalentes, e as conversões entre elas são construtivas.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+TC.player(document.getElementById('tc-p5'), [
+  { t: 'bloco para a: um arco com rótulo a', h: '<div class="tc-flow"><span class="tc-state start on">i</span><span class="tc-token">a</span><span class="tc-state">f</span></div>' },
+  { t: 'bloco para a*: laço ε e o bloco de a', h: '<div class="tc-flow"><span class="tc-state start">i</span><span class="tc-token">ε</span><span class="tc-state on">a</span><span class="tc-token">a</span><span class="tc-state">f</span></div><p class="tc-note">Um laço ε permite repetir o bloco de a zero ou mais vezes.</p>' },
+  { t: 'bloco para b, e a concatenação ε entre os blocos', h: '<div class="tc-flow"><span class="tc-state">a*</span><span class="tc-token">ε</span><span class="tc-state on">b</span><span class="tc-token">b</span><span class="tc-state">f</span></div>' },
+  { t: 'resultado: o AFN aceita a*b', h: '<p class="tc-ok">a*b: ε-transições conectam os blocos. Cadeias como b, ab e aaab são aceitas.</p><p class="tc-note">A construção gera um estado a mais por operador; o número de estados cresce linearmente com o tamanho da expressão.</p>' }
+]);
+</script>
+</body>
+</html>

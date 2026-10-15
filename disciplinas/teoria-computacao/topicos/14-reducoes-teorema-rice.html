@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reduções, o teorema de Rice e o problema de Post · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="Provar indecidibilidade por redução: a ideia de A ≤ B, o problema da vacuidade, o teorema de Rice sobre propriedades de programas e o problema da correspondência de Post, com animação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/14-reducoes-teorema-rice">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-turn-to-dots text-violet-400 mr-2"></i>Tópico 14 · Reduções, Rice e Post</h2>
+  <div class="ah-prose">
+    <p>No tópico anterior provamos a indecidibilidade do problema da aceitação por diagonalização. Refazer esse argumento para cada problema seria trabalhoso. A técnica padrão é a <strong>redução</strong>: se conseguimos transformar instâncias de um problema A em instâncias de um problema B, então qualquer decisor para B vira um decisor para A. Por contraposição, se A é indecidível, B também é.</p>
+    <p>Este tópico formaliza a ideia, aplica-a ao problema da vacuidade, mostra o teorema de Rice, que trata de quase todas as propriedades não triviais de programas, e apresenta o problema da correspondência de Post.</p>
+  </div>
+</section>
+
+<section id="reducao" data-toc="A ideia da redução" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-sky-400 mr-2"></i>A ideia da redução</h2>
+  <div class="ah-prose">
+    <p>Escrevemos A ≤<sub>m</sub> B se existe uma função computável f tal que w ∈ A se, e somente se, f(w) ∈ B. A função f é a <strong>redução</strong>, e ela precisa ser computável por uma MT que para.</p>
+    <p>A consequência é direta: se B é decidível com decisor D<sub>B</sub>, então A é decidível com o decisor "calcule f(w) e rode D<sub>B</sub>". Logo, se A é indecidível, B também é. A redução transfere a dificuldade.</p>
+    <p class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><span>O sentido da seta é essencial. Para provar que B é indecidível, reduzimos um problema <em>já sabido</em> como indecidível (como A<sub>TM</sub>) <em>para</em> B. Reduzir B para A não prova nada sobre B.</span></p>
+  </div>
+</section>
+
+<section id="vacuidade" data-toc="Exemplo: linguagem vazia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-box-open text-emerald-400 mr-2"></i>Exemplo: a linguagem de uma MT é vazia?</h2>
+  <div class="ah-prose">
+    <p>Seja E<sub>TM</sub> = {⟨M⟩ | L(M) = ∅}. Para mostrar que E<sub>TM</sub> é indecidível, reduzimos A<sub>TM</sub> ao <em>complemento</em> de E<sub>TM</sub>. Dada uma entrada ⟨M, w⟩, a função f constrói a máquina M<sub>w</sub>:</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>M_w(x):            # ignora a entrada x
+    rode M sobre w
+    se M aceita w: aceite
+    se M rejeita w: rejeite</code></pre>
+    <p>Se M aceita w, então L(M<sub>w</sub>) contém todas as cadeias, e não é vazia. Se M não aceita w, então L(M<sub>w</sub>) é vazia. Assim, ⟨M, w⟩ ∈ A<sub>TM</sub> se e somente se ⟨M<sub>w</sub>⟩ ∉ E<sub>TM</sub>. Como A<sub>TM</sub> é indecidível, seu complemento não é decidível, portanto E<sub>TM</sub> também não é.</p>
+  </div>
+</section>
+
+<section id="rice" data-toc="Teorema de Rice" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sliders text-amber-400 mr-2"></i>O teorema de Rice</h2>
+  <div class="ah-prose">
+    <p>Uma <strong>propriedade semântica</strong> de máquinas é uma propriedade de L(M), e não da forma como M está escrita. Ela é <strong>não trivial</strong> se algumas máquinas a têm e outras não.</p>
+    <p class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><span><strong>Teorema de Rice.</strong> Toda propriedade semântica não trivial de linguagens reconhecidas por MTs é indecidível.</span></p>
+    <p>A prova é uma redução a partir de A<sub>TM</sub>, parecida com a de E<sub>TM</sub>. Seja P a propriedade e suponha, sem perda de generalidade, que a linguagem vazia não tem P (caso contrário, troque P pelo complemento). Tome uma máquina M<sub>P</sub> que tem P. Dada ⟨M, w⟩, construa uma máquina que simula M sobre w e, se M aceita, devolve o comportamento de M<sub>P</sub> sobre a entrada; caso contrário, rejeita. Essa máquina tem P se e somente se M aceita w.</p>
+    <p>Exemplos: "L(M) é regular", "L(M) contém 0110", "M para sobre toda entrada" são todas indecidíveis pelo teorema. Já "M tem menos de 100 estados" é decidível, porque é uma propriedade sintática, não semântica.</p>
+  </div>
+</section>
+
+<section id="post" data-toc="Problema da correspondência de Post" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-dominoes text-rose-400 mr-2"></i>O problema da correspondência de Post</h2>
+  <div class="ah-prose">
+    <p>Emil Post propôs em 1946 um quebra-cabeça com <em>dominós</em>. Cada peça tem uma palavra em cima e outra embaixo. O desafio é escolher peças, com repetição permitida, de modo que a concatenação das palavras de cima seja igual à concatenação das de baixo.</p>
+    <p>Exemplo com duas peças: [a / ab] e [ba / a]. Usando a sequência 1, 2 temos em cima "a" + "ba" = "aba" e embaixo "ab" + "a" = "aba". Há uma solução, e portanto a instância é positiva.</p>
+    <p>A instância [a / aa] não tem solução: a palavra de cima tem metade do tamanho da de baixo, em qualquer sequência. Não é difícil construir instâncias em que a decisão exige simulação de máquinas, e é por isso que Post é uma fonte padrão de redução para outros problemas de linguagens.</p>
+    <p class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><span>O PCP é indecidível: qualquer MT pode ser reduzida a uma instância do problema. Essa redução é uma das mais usadas para provar indecidibilidade de problemas sobre gramáticas.</span></p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: o dominó 1, 2" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: encaixando os dominós</h2>
+  <p class="text-sm text-slate-400 mb-2">Acompanhe as duas palavras crescendo a cada peça colocada. A instância tem solução quando as duas ficam iguais.</p>
+  <div id="tc-p14"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Prove que {⟨M⟩ | M para sobre toda entrada} é indecidível, reduzindo A<sub>TM</sub> ou HALT a ele.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Use o teorema de Rice para dizer se "L(M) é uma linguagem livre de contexto" é decidível. Justifique.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Encontre uma solução para o PCP com as peças [ab / a] e [b / ab]. Se não houver, explique por quê.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">RICE, Henry G. Classes of Recursively Enumerable Sets and Their Decision Problems. <em>Transactions of the AMS</em>, 1953.</li>
+    <li class="text-slate-300 leading-relaxed">POST, Emil L. A Variant of a Recursively Unsolvable Problem. <em>Bulletin of the AMS</em>, 1946.</li>
+    <li class="text-slate-300 leading-relaxed">SIPSER, Michael. <em>Introduction to the Theory of Computation</em>. 3. ed. Boston: Cengage Learning, 2012. Seções 5.1 e 5.3.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="1">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Se A ≤ B e A é indecidível, o que se conclui sobre B?</p>
+    <button class="ah-quiz-opt">B é decidível</button>
+    <button class="ah-quiz-opt">B é indecidível</button>
+    <button class="ah-quiz-opt">Nada, porque a redução vai na direção oposta</button>
+    <button class="ah-quiz-opt">B é finita</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Se B fosse decidível, A também seria, pela composição da redução com o decisor de B. Como A não é, B não é.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="3">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual dessas propriedades é decidível pelo teorema de Rice?</p>
+    <button class="ah-quiz-opt">L(M) contém a cadeia 0110</button>
+    <button class="ah-quiz-opt">L(M) é regular</button>
+    <button class="ah-quiz-opt">M para sobre toda entrada</button>
+    <button class="ah-quiz-opt">M tem menos de 100 estados</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. As três primeiras são propriedades semânticas não triviais, logo indecidíveis. A quarta é sintática: basta contar os estados da descrição.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+function dominos(topo, base, pecas) {
+  return '<div class="tc-flow">' + pecas.map(function (p) {
+    return '<span class="tc-token">[' + p[0] + ' / ' + p[1] + ']</span>';
+  }).join('') + '</div>' +
+  '<div class="font-mono text-sm text-slate-200 mt-2">cima: <span class="text-violet-200">' + (topo || '—') + '</span></div>' +
+  '<div class="font-mono text-sm text-slate-200">baixo: <span class="text-emerald-200">' + (base || '—') + '</span></div>';
+}
+var pecas = [['a', 'ab'], ['ba', 'a']];
+TC.player(document.getElementById('tc-p14'), [
+  { t: 'sem peças colocadas', h: dominos('', '', []) },
+  { t: 'coloca [a / ab]: cima "a", baixo "ab"', h: dominos('a', 'ab', [pecas[0]]) },
+  { t: 'coloca [ba / a]: cima "a" + "ba" = "aba", baixo "ab" + "a" = "aba"', h: dominos('aba', 'aba', [pecas[0], pecas[1]]) },
+  { t: 'as duas palavras são iguais', h: '<p class="tc-ok">Solução: sequência 1, 2 — "aba" nos dois lados.</p>' + dominos('aba', 'aba', [pecas[0], pecas[1]]) }
+]);
+</script>
+</body>
+</html>

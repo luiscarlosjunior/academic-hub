@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forma normal de Chomsky, bombeamento para GLC e algoritmo CYK · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="Propriedades das gramáticas livres de contexto: forma normal de Chomsky, lema do bombeamento para GLC e o algoritmo CYK, que decide pertinência em tempo cúbico, com animação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/09-propriedades-glc-cyk">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-violet-400 mr-2"></i>Tópico 9 · Propriedades das GLC e o algoritmo CYK</h2>
+  <div class="ah-prose">
+    <p>Para trabalhar com gramáticas livres de contexto, convém ter uma forma padronizada. Este tópico mostra a <strong>forma normal de Chomsky</strong>, que restringe as regras a dois tipos. Com ela, temos um algoritmo genérico para uma pergunta fundamental: dada uma gramática G e uma cadeia w, w pertence a L(G)?</p>
+    <p>O algoritmo <strong>CYK</strong> (Cocke, Younger e Kasami) responde a essa pergunta em tempo O(n³), usando programação dinâmica. Ele é a prova de que o problema de pertinência para GLC é decidível e tratável.</p>
+  </div>
+</section>
+
+<section id="fnc" data-toc="Forma normal de Chomsky" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-sky-400 mr-2"></i>Forma normal de Chomsky</h2>
+  <div class="ah-prose">
+    <p>Uma GLC está na forma normal de Chomsky (FNC) se toda regra tem uma das formas:</p>
+    <ul>
+      <li>A → BC, com B e C variáveis;</li>
+      <li>A → a, com a terminal;</li>
+      <li>S → ε, apenas para o símbolo inicial, se ε pertence à linguagem.</li>
+    </ul>
+    <p>Qualquer GLC que não gera ε pode ser convertida para a FNC em quatro etapas: remover regras ε, remover regras unitárias (A → B), substituir terminais em regras longas por variáveis novas e quebrar regras longas em regras binárias. A árvore de derivação fica binária, o que facilita a análise.</p>
+  </div>
+</section>
+
+<section id="bombeamento" data-toc="Bombeamento para GLC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-spin text-amber-400 mr-2"></i>Lema do bombeamento para GLC</h2>
+  <div class="ah-prose">
+    <p>Assim como para linguagens regulares, existe um lema do bombeamento para GLC. Para uma cadeia longa o suficiente, a árvore de derivação em FNC tem um caminho longo, com uma variável repetida. Cortar e repetir a parte entre as duas ocorrências produz cadeias que continuam na linguagem.</p>
+    <p>Ele serve para mostrar que linguagens como {a<sup>n</sup>b<sup>n</sup>c<sup>n</sup> | n ≥ 0} não são livres de contexto: não há como manter três contagens iguais usando uma única pilha. A prova é análoga à do tópico 6, mas bombeia duas partes da cadeia em vez de uma.</p>
+  </div>
+</section>
+
+<section id="cyk" data-toc="Algoritmo CYK" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>O algoritmo CYK</h2>
+  <div class="ah-prose">
+    <p>Seja w = w<sub>1</sub>…w<sub>n</sub>. Definimos T[i, j] como o conjunto de variáveis que derivam a subcadeia w<sub>i</sub>…w<sub>j</sub>. Preenchemos a tabela pela diagonal:</p>
+    <ol>
+      <li><strong>Base</strong>: T[i, i] = {A | A → w<sub>i</sub> é regra}.</li>
+      <li><strong>Passo</strong>: T[i, j] é o conjunto de A tais que existe uma regra A → BC e um corte k, com i ≤ k &lt; j, em que B ∈ T[i, k] e C ∈ T[k+1, j].</li>
+      <li><strong>Resposta</strong>: w ∈ L(G) se, e somente se, S ∈ T[1, n].</li>
+    </ol>
+    <p>Como há O(n²) células, e cada uma testa O(n) cortes com um número constante de regras, o tempo total é O(n³) para uma gramática fixa.</p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo: CYK para ba" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-rose-400 mr-2"></i>Exemplo: CYK para ba</h2>
+  <div class="ah-prose">
+    <p>Considere a gramática em FNC abaixo:</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>S → AB | BC
+A → BA | a
+B → CC | b
+C → AB | a</code></pre>
+    <p>Para w = ba, a diagonal é T[1,1] = {B} (porque B → b) e T[2,2] = {A, C} (porque A → a e C → a). Na célula T[1,2], o único corte é k = 1, com B ∈ T[1,1] e os pares (B, A) e (B, C):</p>
+    <ul>
+      <li>A → BA gera (B, A), logo A ∈ T[1,2];</li>
+      <li>S → BC gera (B, C), logo S ∈ T[1,2].</li>
+    </ul>
+    <p>Como S ∈ T[1,2], a cadeia ba pertence à linguagem. Para w = bb, T[2,2] = {B} e nenhum par (B, B) aparece em regras, então T[1,2] é vazio e bb é rejeitada.</p>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: preenchendo a tabela" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: o CYK em ba</h2>
+  <p class="text-sm text-slate-400 mb-2">A tabela é preenchida passo a passo: primeiro a diagonal, depois a célula que junta as duas letras.</p>
+  <div id="tc-p9"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Converta S → aSb | ε para a forma normal de Chomsky e liste as regras resultantes.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Aplique o CYK à gramática do exemplo sobre a cadeia bab e desenhe a tabela completa.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Explique por que a tabela do CYK tem O(n²) células, e não O(n) como um AFD.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">SIPSER, Michael. <em>Introduction to the Theory of Computation</em>. 3. ed. Boston: Cengage Learning, 2012. Seções 2.1 e 2.3.</li>
+    <li class="text-slate-300 leading-relaxed">HOPCROFT, John E.; MOTWANI, Rajeev; ULLMAN, Jeffrey D. <em>Introduction to Automata Theory, Languages, and Computation</em>. 3. ed. Boston: Addison-Wesley, 2006. Seções 7.1 e 7.4.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="0">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em uma gramática na forma normal de Chomsky, qual regra NÃO é permitida?</p>
+    <button class="ah-quiz-opt">A → BCD</button>
+    <button class="ah-quiz-opt">A → BC</button>
+    <button class="ah-quiz-opt">A → a</button>
+    <button class="ah-quiz-opt">S → ε, quando ε pertence à linguagem</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A FNC só admite regras com exatamente duas variáveis ou com um terminal. A regra A → BCD é longa e precisa ser quebrada.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a complexidade do algoritmo CYK para uma gramática fixa e uma cadeia de tamanho n?</p>
+    <button class="ah-quiz-opt">O(n)</button>
+    <button class="ah-quiz-opt">O(n²)</button>
+    <button class="ah-quiz-opt">O(n³)</button>
+    <button class="ah-quiz-opt">O(2<sup>n</sup>)</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. São O(n²) células, cada uma com O(n) cortes. A complexidade é polinomial, o que torna o problema tratável.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+function tabelaCYK(celulas) {
+  // celulas: mapa "i,j" -> texto; a grade é 2x2 (cadeia "ba")
+  function cel(k) { return '<div class="ah-card p-3 min-w-[90px] text-center"><div class="text-[10px] text-slate-500">' + k.r + '</div><div class="font-mono text-sm text-violet-200">' + (celulas[k.key] || '·') + '</div></div>'; }
+  return '<div class="grid grid-cols-2 gap-2">' +
+    cel({ r: 'T[1,1] (b)', key: '1,1' }) + cel({ r: 'T[1,2]', key: '1,2' }) +
+    '<div></div>' + cel({ r: 'T[2,2] (a)', key: '2,2' }) +
+    '</div>';
+}
+TC.player(document.getElementById('tc-p9'), [
+  { t: 'entrada w = b a: tabela vazia', h: tabelaCYK({}) },
+  { t: 'base: T[1,1] = {B} (B → b)', h: tabelaCYK({ '1,1': 'B' }) },
+  { t: 'base: T[2,2] = {A, C} (A → a e C → a)', h: tabelaCYK({ '1,1': 'B', '2,2': 'A, C' }) },
+  { t: 'passo: corte k = 1, pares (B, A) e (B, C)', h: tabelaCYK({ '1,1': 'B', '2,2': 'A, C' }) + '<p class="tc-note">A → BA produz A; S → BC produz S.</p>' },
+  { t: 'resultado: T[1,2] = {A, S}', h: tabelaCYK({ '1,1': 'B', '2,2': 'A, C', '1,2': 'A, S' }) + '<p class="tc-ok">S ∈ T[1,2]: ba pertence à linguagem.</p>' }
+]);
+</script>
+</body>
+</html>

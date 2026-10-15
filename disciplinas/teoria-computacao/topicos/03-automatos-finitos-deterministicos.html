@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autômatos finitos determinísticos · Teoria da Computação · AcademicHub</title>
+<meta name="description" content="Autômatos finitos determinísticos: estados, transições, aceitação, projeto de AFDs para linguagens e simulação passo a passo, com exemplos e animação.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="stylesheet" href="../../../assets/css/teoria-computacao.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∞</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="tc/03-automatos-finitos-deterministicos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-nodes text-violet-400 mr-2"></i>Tópico 3 · Autômatos finitos determinísticos</h2>
+  <div class="ah-prose">
+    <p>Um <strong>autômato finito determinístico</strong> (AFD) é o modelo de computação mais simples que estudamos. Ele lê uma cadeia da esquerda para a direita, uma letra por vez, e tem <strong>memória limitada</strong> a um único estado. Ao final, aceita ou rejeita.</p>
+    <p>Apesar da simplicidade, os AFDs aparecem em todo lugar: analisadores léxicos de compiladores, validação de formatos, protocolos de comunicação e controladores de hardware. Eles são o ponto de partida natural para entender autômatos mais poderosos.</p>
+  </div>
+</section>
+
+<section id="definicao" data-toc="Definição formal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-root-variable text-sky-400 mr-2"></i>Definição formal</h2>
+  <div class="ah-prose">
+    <p>Um AFD é uma quíntupla M = (Q, Σ, δ, q<sub>0</sub>, F), em que:</p>
+    <ul>
+      <li><strong>Q</strong> é um conjunto finito de estados;</li>
+      <li><strong>Σ</strong> é o alfabeto de entrada;</li>
+      <li><strong>δ: Q × Σ → Q</strong> é a função de transição total (para cada estado e cada símbolo, existe exatamente um próximo estado);</li>
+      <li><strong>q<sub>0</sub> ∈ Q</strong> é o estado inicial;</li>
+      <li><strong>F ⊆ Q</strong> é o conjunto de estados de aceitação.</li>
+    </ul>
+    <p>Uma cadeia w = a<sub>1</sub>a<sub>2</sub>…a<sub>n</sub> é aceita se existe uma sequência de estados r<sub>0</sub>, r<sub>1</sub>, …, r<sub>n</sub> com r<sub>0</sub> = q<sub>0</sub>, r<sub>i</sub> = δ(r<sub>i-1</sub>, a<sub>i</sub>) e r<sub>n</sub> ∈ F. A linguagem de M, L(M), é o conjunto das cadeias aceitas.</p>
+  </div>
+</section>
+
+<section id="projeto" data-toc="Projetando um AFD" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exemplo: projetando um AFD</h2>
+  <div class="ah-prose">
+    <p>Queremos o AFD para L = {w ∈ {0,1}* | w termina com 01}. A ideia é pensar no que o autômato <em>precisa lembrar</em> sobre o que já leu:</p>
+    <ul>
+      <li><strong>q<sub>0</sub></strong>: "o último símbolo não é 0" (ou ainda não lemos nada útil). É inicial.</li>
+      <li><strong>q<sub>1</sub></strong>: "o último símbolo é 0". Ainda pode faltar um 1.</li>
+      <li><strong>q<sub>2</sub></strong>: "as duas últimas letras são 01". É o único estado de aceitação.</li>
+    </ul>
+    <p>As transições seguem da mesma lógica. De q<sub>1</sub>, um 0 mantém a informação "último é 0", e um 1 leva a q<sub>2</sub>. De q<sub>2</sub>, um 0 volta a q<sub>1</sub> e um 1 forma "11", que volta a q<sub>0</sub>.</p>
+    <table class="w-full text-sm text-left">
+      <thead><tr class="text-slate-300 border-b border-slate-700"><th class="py-2 pr-4">Estado</th><th class="py-2 pr-4">lendo 0</th><th class="py-2 pr-4">lendo 1</th><th class="py-2">Aceita?</th></tr></thead>
+      <tbody class="text-slate-400 align-top">
+        <tr class="border-b border-slate-800"><td class="py-2 pr-4 text-slate-300">q<sub>0</sub></td><td class="py-2 pr-4">q<sub>1</sub></td><td class="py-2 pr-4">q<sub>0</sub></td><td class="py-2">não</td></tr>
+        <tr class="border-b border-slate-800"><td class="py-2 pr-4 text-slate-300">q<sub>1</sub></td><td class="py-2 pr-4">q<sub>1</sub></td><td class="py-2 pr-4">q<sub>2</sub></td><td class="py-2">não</td></tr>
+        <tr><td class="py-2 pr-4 text-slate-300">q<sub>2</sub></td><td class="py-2 pr-4">q<sub>1</sub></td><td class="py-2 pr-4">q<sub>0</sub></td><td class="py-2">sim</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="simulacao" data-toc="Simulação em código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-python text-amber-400 mr-2"></i>Simulação em código</h2>
+  <div class="ah-prose">
+    <p>Um AFD se simula com uma tabela e um laço. O código abaixo implementa o autômato do exemplo; a parte que mais importa é que cada letra é lida exatamente uma vez.</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>delta = {
+    ("q0", "0"): "q1", ("q0", "1"): "q0",
+    ("q1", "0"): "q1", ("q1", "1"): "q2",
+    ("q2", "0"): "q1", ("q2", "1"): "q0",
+}
+F = {"q2"}
+
+def aceita(w):
+    estado = "q0"
+    for simbolo in w:
+        estado = delta[(estado, simbolo)]
+    return estado in F
+
+print(aceita("1101"))   # True
+print(aceita("0110"))   # False</code></pre>
+  </div>
+</section>
+
+<section id="animacao" data-toc="Animação: lendo 1101" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-violet-400 mr-2"></i>Animação: o AFD processando 1101</h2>
+  <p class="text-sm text-slate-400 mb-2">Avance passo a passo para ver o estado mudar a cada letra. No fim, o autômato está em q<sub>2</sub>, que é de aceitação.</p>
+  <div id="tc-p3"></div>
+</section>
+
+<section id="praticas" data-toc="Práticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Práticas</h2>
+  <ol class="space-y-3">
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Projete um AFD para {w ∈ {a,b}* | |w| é par}. Quantos estados são necessários?</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Projete um AFD para {w ∈ {0,1}* | w contém 000 como subcadeia}.</li>
+    <li class="ah-card p-4 text-sm text-slate-300 leading-relaxed">Simule o AFD do exemplo sobre a cadeia 0101 e liste a sequência de estados visitados.</li>
+  </ol>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">SIPSER, Michael. <em>Introduction to the Theory of Computation</em>. 3. ed. Boston: Cengage Learning, 2012. Seção 1.1.</li>
+    <li class="text-slate-300 leading-relaxed">MENEZES, Paulo Blauth. <em>Linguagens formais e autômatos</em>. 6. ed. Porto Alegre: Bookman, 2011.</li>
+  </ul>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="ah-quiz ah-card p-5" data-answer="2">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Em um AFD, a função de transição δ é:</p>
+    <button class="ah-quiz-opt">Parcial, porque pode não haver transição para alguns pares</button>
+    <button class="ah-quiz-opt">Não determinística, com vários destinos possíveis</button>
+    <button class="ah-quiz-opt">Total, com exatamente um próximo estado para cada estado e símbolo</button>
+    <button class="ah-quiz-opt">Definida sobre cadeias inteiras, não sobre símbolos</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A definição de AFD exige uma função total de Q × Σ em Q. Uma função parcial ou com várias saídas define outro modelo.</p>
+  </div>
+  <div class="ah-quiz ah-card p-5" data-answer="0">
+    <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a memória de um AFD durante o processamento?</p>
+    <button class="ah-quiz-opt">Apenas o estado atual, de tamanho fixo</button>
+    <button class="ah-quiz-opt">Uma pilha ilimitada</button>
+    <button class="ah-quiz-opt">A fita inteira da entrada, que pode ser reescrita</button>
+    <button class="ah-quiz-opt">Um contador de tamanho ilimitado</button>
+    <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Um AFD tem memória finita, representada pelo seu estado. Por isso ele não consegue contar sem limite, o que é explorado no tópico 6.</p>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/teoria-computacao.js"></script>
+<script>
+function estadosAFD(atual, fita, lido) {
+  return '<div class="tc-states">' +
+    ['q0','q1','q2'].map(function (q) {
+      return '<span class="tc-state' + (q === 'q2' ? ' final' : '') + (q === atual ? ' on' : '') + '">' + q + '</span>';
+    }).join('') + '</div>' +
+    '<div class="tc-tape">' + fita.map(function (c, k) {
+      return '<span class="tc-cell' + (k === lido ? ' head' : (k < lido ? ' gravado' : '')) + '">' + c + '</span>';
+    }).join('') + '</div>';
+}
+var entrada = ['1','1','0','1'];
+TC.player(document.getElementById('tc-p3'), [
+  { t: 'início: estado q0, nenhuma letra lida', h: estadosAFD('q0', entrada, -1) },
+  { t: 'lê 1: q0 --1--> q0', h: estadosAFD('q0', entrada, 0) },
+  { t: 'lê 1: q0 --1--> q0', h: estadosAFD('q0', entrada, 1) },
+  { t: 'lê 0: q0 --0--> q1', h: estadosAFD('q1', entrada, 2) },
+  { t: 'lê 1: q1 --1--> q2 (aceitação)', h: estadosAFD('q2', entrada, 3) },
+  { t: 'fim da cadeia em q2: aceita', h: '<p class="tc-ok">1101 ∈ L: termina com 01.</p>' + estadosAFD('q2', entrada, 3) }
+]);
+</script>
+</body>
+</html>
