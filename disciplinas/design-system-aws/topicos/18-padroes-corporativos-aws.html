@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padrões corporativos e problemas resolvidos com AWS · Design System em AWS · AcademicHub</title>
+<meta name="description" content="Catálogo de padrões corporativos de integração e de nuvem: migração incremental, publicação e assinatura, saga, disjuntor e cache, com os problemas que cada um resolve na AWS, exemplos de código e casos documentados.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="dsa/18-padroes-corporativos-aws">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-puzzle-piece text-orange-400 mr-2"></i>Tópico 18 · Padrões corporativos e problemas resolvidos com AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Um <strong>padrão</strong> é a descrição de uma solução recorrente para um problema recorrente, expressa de forma que possa ser reutilizada
+      em contextos diferentes. A noção foi formulada originalmente no campo da arquitetura urbana por Christopher Alexander (1977) e adotada
+      pela engenharia de software. Em sistemas corporativos, alguns problemas reaparecem em praticamente todos os projetos: integrar sistemas
+      que não se conhecem, migrar uma aplicação antiga sem interromper o serviço, manter a consistência de uma operação que atravessa vários
+      sistemas e impedir que a falha de um componente se propague para os demais. Este tópico apresenta um conjunto desses padrões e mostra
+      como os serviços da AWS os implementam.
+    </p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final desta página, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>definir padrão e distinguir o problema, a solução e o contexto de aplicação;</li>
+      <li>identificar, em um cenário, o problema corporativo que um padrão resolve;</li>
+      <li>mapear os padrões aos serviços correspondentes da AWS e justificar a escolha;</li>
+      <li>reconhecer as limitações e as armadilhas de cada padrão;</li>
+      <li>analisar casos documentados e extrair lições de projeto.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="compreensao" data-toc="Compreensão inicial: problema, padrão e solução" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-orange-400 mr-2"></i>Compreensão inicial · problema, padrão e solução</h2>
+  <div class="ah-prose">
+    <p>
+      Uma analogia útil é a de uma receita. Uma receita não é um ingrediente, nem um prato pronto: é um procedimento testado para obter um
+      resultado a partir de condições conhecidas. Do mesmo modo, um padrão descreve <em>quando</em> ele se aplica, <em>qual</em> problema
+      resolve, <em>como</em> a solução funciona e <em>quais</em> consequências ela traz. Essa estrutura de quatro partes é a que se encontra
+      nos catálogos clássicos e é a que este tópico segue.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Elemento</th><th>Pergunta que responde</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Contexto</td><td>Em que situação o padrão ocorre?</td><td>Duas aplicações precisam trocar informações, mas não podem depender uma da outra no mesmo instante</td></tr>
+        <tr><td>Problema</td><td>Qual é a força que exige uma solução?</td><td>Acoplamento temporal: se o receptor estiver fora do ar, o emissor também falha</td></tr>
+        <tr><td>Solução</td><td>Como o padrão resolve a força?</td><td>Um intermediário armazena as mensagens até que o receptor esteja disponível</td></tr>
+        <tr><td>Consequências</td><td>Que benefícios e custos surgem?</td><td>Desacoplamento e tolerância a falhas, ao custo de entrega assíncrona e mensagens possivelmente repetidas</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="teoria" data-toc="Teoria: origem e catálogo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Teoria · origem e catálogo de padrões</h2>
+  <div class="ah-prose">
+    <p>
+      O campo de padrões de software se consolidou com o livro de Gamma, Helm, Johnson e Vlissides (1994), que catalogou padrões de projeto
+      orientado a objetos. Para a integração de sistemas corporativos, Hohpe e Woolf (2003) organizaram um vocabulário de padrões de mensagens,
+      canais e roteamento que sustenta a maior parte das arquiteturas orientadas a eventos atuais. Para a nuvem, os padrões passaram a ser
+      documentados também pelos fornecedores, que os associam aos seus serviços.
+    </p>
+    <p>
+      Alguns padrões deste tópico têm origem em trabalhos específicos. A <strong>saga</strong> foi proposta por Garcia-Molina e Salem (1987),
+      como alternativa às transações longas em bancos de dados. O <strong>estrangulador</strong> (strangler fig) foi descrito por Fowler (2004)
+      a partir da analogia com a figueira que envolve gradualmente a árvore hospedeira. O <strong>disjuntor</strong> (circuit breaker) foi
+      difundido por Nygard (2007), no livro <em>Release It!</em>, a partir de práticas de resiliência em sistemas de produção.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-6">
+    <table class="ah-table">
+      <thead><tr><th>Padrão</th><th>Problema central</th><th>Serviço AWS típico</th><th>Origem</th></tr></thead>
+      <tbody>
+        <tr><td>Canal ponto a ponto</td><td>Desacoplar produtor e consumidor no tempo</td><td>Amazon SQS</td><td>Hohpe e Woolf (2003)</td></tr>
+        <tr><td>Publicação e assinatura</td><td>Entregar um evento a vários consumidores</td><td>Amazon SNS com SQS</td><td>Hohpe e Woolf (2003)</td></tr>
+        <tr><td>Roteamento de eventos</td><td>Encaminhar eventos conforme regras</td><td>Amazon EventBridge</td><td>Hohpe e Woolf (2003)</td></tr>
+        <tr><td>Saga</td><td>Consistência em operações de vários serviços</td><td>AWS Step Functions</td><td>Garcia-Molina e Salem (1987)</td></tr>
+        <tr><td>Estrangulador</td><td>Migração incremental de sistemas legados</td><td>CloudFront, ALB, API Gateway</td><td>Fowler (2004)</td></tr>
+        <tr><td>Disjuntor</td><td>Impedir a propagação de falhas</td><td>Timeouts e retentativas no SDK; Step Functions</td><td>Nygard (2007)</td></tr>
+        <tr><td>Cache-aside</td><td>Reduzir leituras repetidas ao armazenamento</td><td>Amazon ElastiCache</td><td>Padrão de cache consolidado</td></tr>
+        <tr><td>Compartimento</td><td>Limitar o alcance de uma falha</td><td>Contas separadas, concorrência reservada</td><td>Analogia com compartimentos de navios</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="problemas" data-toc="Problemas corporativos e soluções na AWS" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-list text-orange-400 mr-2"></i>Problemas corporativos e soluções na AWS</h2>
+  <div class="ah-prose">
+    <p>
+      A tabela a seguir parte do problema, e não da tecnologia. Esse é o sentido prático de um catálogo de padrões: o profissional identifica a
+      força presente no sistema e, a partir dela, escolhe a solução. Cada linha indica também a armadilha que costuma acompanhar a solução.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Problema corporativo</th><th>Padrão</th><th>Serviços AWS</th><th>Armadilha frequente</th></tr></thead>
+      <tbody>
+        <tr><td>Serviços que falham juntos porque se chamam de forma síncrona</td><td>Canal de mensagens</td><td>SQS, EventBridge</td><td>Mensagens repetidas, que exigem idempotência</td></tr>
+        <tr><td>Processo de negócio que atravessa vários sistemas</td><td>Saga</td><td>Step Functions</td><td>Compensações que não foram projetadas</td></tr>
+        <tr><td>Sistema legado que não pode parar para ser reescrito</td><td>Estrangulador</td><td>CloudFront, ALB, API Gateway</td><td>Dados duplicados durante a transição</td></tr>
+        <tr><td>Dependência lenta que derruba o restante do sistema</td><td>Disjuntor, timeout e retentativa com espera crescente</td><td>SDK da AWS, Step Functions</td><td>Retentativas excessivas que amplificam a carga</td></tr>
+        <tr><td>Leituras caras e repetidas ao banco de dados</td><td>Cache-aside</td><td>ElastiCache</td><td>Dado obsoleto quando não há invalidação</td></tr>
+        <tr><td>Um evento que interessa a vários times</td><td>Publicação e assinatura</td><td>SNS com SQS</td><td>Ordem não garantida em filas padrão</td></tr>
+        <tr><td>Mensagens que nunca são processadas com sucesso</td><td>Fila de mensagens mortas</td><td>SQS com DLQ</td><td>DLQ criada, mas sem monitoramento</td></tr>
+        <tr><td>Um cliente sobrecarrega o sistema e prejudica os demais</td><td>Compartimento</td><td>Concorrência reservada, contas separadas</td><td>Limites rígidos que geram rejeição excessiva</td></tr>
+        <tr><td>Muitos serviços expostos, com regras de acesso dispersas</td><td>Fachada</td><td>API Gateway</td><td>Latência adicional e dependência do gateway</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="operacao1" data-toc="Operação 1: migração incremental" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-seedling text-orange-400 mr-2"></i>Operação 1 · Migração incremental pelo estrangulador</h2>
+  <div class="ah-prose">
+    <p>
+      Reescrever um sistema legado de uma só vez é arriscado: o custo é alto, o prazo é incerto e o resultado só aparece no fim. O padrão
+      estrangulador propõe o contrário. Um roteador é colocado na frente do sistema antigo, e as funcionalidades são migradas uma a uma. Como o
+      roteador decide, para cada requisição, qual sistema a atende, a migração pode ser feita por fatias, com retorno imediato ao legado se
+      algo der errado. A animação mostra a transferência gradual do tráfego.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: do legado ao novo serviço</h3>
+  <p class="ah-lead text-sm mb-4">Os quadros mostram o tráfego deslocando-se gradualmente. Observe que o roteador não muda de posição em nenhum momento.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvEstrangulador" style="height:300px"></canvas></div>
+  <div id="ctlEstrangulador" class="mt-4"></div>
+  <div id="capEstrangulador" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript (CDK) · roteamento por caminho com CloudFront</p>
+<pre class="ah-code"><code>import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+
+const distribuicao = new cloudfront.Distribution(this, 'Portal', {
+  defaultBehavior: {
+    origin: new origins.HttpOrigin('legado.interno.exemplo.com.br'),
+  },
+  additionalBehaviors: {
+    // o caminho migrado é atendido pelo novo serviço; o restante continua no legado
+    '/catalogo/*': {
+      origin: new origins.HttpOrigin('catalogo.interno.exemplo.com.br'),
+    },
+  },
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação.</strong> A regra de comportamento por caminho é a forma mais simples de estrangulamento. Cada nova rota migrada
+      exige apenas uma entrada adicional, e a reversão consiste em removê-la. A armadilha principal é a duplicidade de dados: enquanto as duas
+      versões coexistem, é preciso decidir qual é a fonte da verdade para cada entidade, e registrar essa decisão.
+    </p>
+  </div>
+</section>
+
+<section id="operacao2" data-toc="Operação 2: publicação e assinatura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tower-broadcast text-orange-400 mr-2"></i>Operação 2 · Publicação e assinatura com filas</h2>
+  <div class="ah-prose">
+    <p>
+      Quando um evento de negócio, como a criação de um pedido, interessa a vários sistemas, o produtor não deve conhecer cada um deles. O
+      padrão de publicação e assinatura resolve esse problema: o produtor publica em um tópico, e cada assinante recebe uma cópia. A ligação
+      de cada assinante a uma fila permite que ele processe no próprio ritmo. A combinação de tópico e filas é conhecida como <em>fan-out</em>.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: fan-out e falha de um consumidor</h3>
+  <p class="ah-lead text-sm mb-4">No cenário com falha, a mensagem que não pode ser processada é desviada para a fila de mensagens mortas.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvFanout" style="height:300px"></canvas></div>
+  <div id="ctlFanout" class="mt-4"></div>
+  <div id="capFanout" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript (CDK) · tópico, filas e fila de mensagens mortas</p>
+<pre class="ah-code"><code>import * as cdk from 'aws-cdk-lib';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+
+const dlq = new sqs.Queue(this, 'DlqEmail', {
+  retentionPeriod: cdk.Duration.days(14),
+});
+
+const filaEmail = new sqs.Queue(this, 'FilaEmail', {
+  visibilityTimeout: cdk.Duration.seconds(60),
+  deadLetterQueue: { queue: dlq, maxReceiveCount: 3 },
+});
+
+const pedidosCriados = new sns.Topic(this, 'PedidosCriados');
+pedidosCriados.addSubscription(new subs.SqsSubscription(filaEmail));</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação.</strong> O parâmetro <code>maxReceiveCount</code> define quantas vezes uma mensagem pode ser recebida sem ser
+      confirmada antes de ir para a fila de mensagens mortas. O <code>visibilityTimeout</code> deve ser maior que o tempo de processamento
+      usual; caso contrário, a mesma mensagem é entregue a dois consumidores ao mesmo tempo. Ambos os parâmetros têm efeito direto sobre a
+      confiabilidade e devem ser justificados.
+    </p>
+  </div>
+</section>
+
+<section id="operacao3" data-toc="Operação 3: saga com compensação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-next text-orange-400 mr-2"></i>Operação 3 · Saga com compensação</h2>
+  <div class="ah-prose">
+    <p>
+      Um pedido envolve reservar estoque, cobrar o cliente, emitir a nota fiscal e enviar a confirmação. Em sistemas distribuídos, não existe
+      uma transação que abranja todos esses passos com garantia de atomicidade a custo razoável. A saga resolve o problema com uma sequência de
+      transações locais. Se um passo falha, executam-se <strong>compensações</strong>: ações que desfazem os passos anteriores, em ordem inversa.
+      Compensar não é o mesmo que reverter: a cobrança recusada nunca chegou a ser efetivada, mas a reserva de estoque precisa ser liberada
+      explicitamente.
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: pedido concluído e cobrança recusada</h3>
+  <p class="ah-lead text-sm mb-4">No cenário de falha, a compensação libera o estoque reservado, e o sistema retorna a um estado consistente.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvSaga" style="height:300px"></canvas></div>
+  <div id="ctlSaga" class="mt-4"></div>
+  <div id="capSaga" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em JSON (Amazon States Language) · saga com retentativa e compensação</p>
+<pre class="ah-code"><code>{
+  "Comment": "Saga do pedido com compensação",
+  "StartAt": "ReservarEstoque",
+  "States": {
+    "ReservarEstoque": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "reservar-estoque", "Payload.$": "$" },
+      "Next": "Cobrar",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.erro", "Next": "Falhou" }]
+    },
+    "Cobrar": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "cobrar", "Payload.$": "$" },
+      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
+      "Next": "EmitirNota",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.erro", "Next": "LiberarEstoque" }]
+    },
+    "EmitirNota": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "emitir-nota", "Payload.$": "$" },
+      "Next": "Sucesso"
+    },
+    "LiberarEstoque": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "liberar-estoque", "Payload.$": "$" },
+      "Next": "Falhou"
+    },
+    "Sucesso": { "Type": "Succeed" },
+    "Falhou": { "Type": "Fail", "Error": "PedidoNaoConcluido", "Cause": "Compensação executada" }
+  }
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação.</strong> A retentativa com espera crescente (<code>BackoffRate</code>) evita sobrecarregar um serviço que se
+      recupera. Essa retentativa só é segura se a cobrança for <em>idempotente</em>, isto é, se repetir o pedido não cobrar duas vezes; por isso,
+      a chamada de cobrança deve carregar uma chave de idempotência. Sem ela, a própria política de retentativa causa o dano que deveria evitar.
+    </p>
+  </div>
+</section>
+
+<section id="operacao4" data-toc="Operação 4: disjuntor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug-circle-xmark text-orange-400 mr-2"></i>Operação 4 · Disjuntor e isolamento de falhas</h2>
+  <div class="ah-prose">
+    <p>
+      Um serviço lento é, muitas vezes, mais perigoso do que um serviço fora do ar. As chamadas se acumulam, consomem conexões e threads, e a
+      falha se propaga aos chamadores. O disjuntor observa as chamadas a uma dependência e, ao detectar falhas repetidas, deixa de encaminhá-las
+      por um intervalo, respondendo com um <em>fallback</em>. Ele opera em três estados: <strong>fechado</strong> (chamadas passam),
+      <strong>aberto</strong> (chamadas são bloqueadas) e <strong>meio-aberto</strong> (algumas chamadas de teste são permitidas).
+    </p>
+  </div>
+  <h3 class="ah-h3 mt-8 mb-3">Animação: estados do disjuntor</h3>
+  <p class="ah-lead text-sm mb-4">Escolha o cenário. No serviço instável, o disjuntor abre e o fallback responde enquanto a dependência se recupera.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvDisjuntor" style="height:300px"></canvas></div>
+  <div id="ctlDisjuntor" class="mt-4"></div>
+  <div id="capDisjuntor" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <p class="text-xs font-bold text-orange-300 mt-6 mb-2">Em TypeScript · implementação didática do disjuntor</p>
+<pre class="ah-code"><code>type Estado = 'fechado' | 'aberto' | 'meio-aberto';
+
+export class DisjuntorSimples {
+  private estado: Estado = 'fechado';
+  private falhas = 0;
+  private abertoDesde = 0;
+
+  constructor(private limite = 3, private esperaMs = 30_000) {}
+
+  async executar&lt;T&gt;(chamada: () =&gt; Promise&lt;T&gt;, fallback: () =&gt; T): Promise&lt;T&gt; {
+    if (this.estado === 'aberto') {
+      if (Date.now() - this.abertoDesde &lt; this.esperaMs) return fallback();
+      this.estado = 'meio-aberto';
+    }
+    try {
+      const resultado = await chamada();
+      this.falhas = 0;
+      this.estado = 'fechado';
+      return resultado;
+    } catch {
+      this.falhas += 1;
+      if (this.estado === 'meio-aberto' || this.falhas &gt;= this.limite) {
+        this.estado = 'aberto';
+        this.abertoDesde = Date.now();
+      }
+      return fallback();
+    }
+  }
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação.</strong> A implementação é deliberadamente simples e não deve ser usada em produção sem testes de concorrência e
+      de tempo. Em ambientes reais, recorre-se a bibliotecas maduras ou a configurações de retentativa e de tempo limite do próprio cliente de
+      serviço. O conceito, porém, é o mesmo: a falha de uma dependência não pode consumir os recursos do chamador.
+    </p>
+  </div>
+</section>
+
+<section id="exemplos-extra" data-toc="Mais exemplos comentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-orange-400 mr-2"></i>Mais exemplos comentados</h2>
+  <div class="ah-prose">
+    <p>Os exemplos a seguir tratam de dois problemas recorrentes: a leitura repetida de dados caros e a escolha entre serviços de mensageria.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 1 · Cache-aside com ElastiCache</h3>
+  <div class="ah-prose">
+    <p>
+      No padrão cache-aside, a aplicação consulta primeiro o cache. Se o dado não estiver lá (<em>cache miss</em>), ela o busca no banco,
+      guarda-o no cache com um tempo de vida e o devolve. A escrita invalida a entrada correspondente. O código abaixo ilustra o ciclo
+      completo com o Redis do ElastiCache.
+    </p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Em TypeScript · <code>componente-cache.ts</code></p>
+<pre class="ah-code"><code>import Redis from 'ioredis';
+
+const redis = new Redis({ host: process.env.CACHE_HOST, port: 6379, tls: {} });
+
+export interface Componente { id: string; nome: string; versao: string; }
+
+export async function obterComponente(
+  id: string,
+  buscarNoBanco: (id: string) =&gt; Promise&lt;Componente&gt;,
+): Promise&lt;Componente&gt; {
+  const chave = 'componente:' + id;
+
+  const emCache = await redis.get(chave);
+  if (emCache) return JSON.parse(emCache) as Componente;
+
+  const dado = await buscarNoBanco(id);
+  await redis.set(chave, JSON.stringify(dado), 'EX', 300);
+  return dado;
+}
+
+export async function atualizarComponente(c: Componente, gravar: (c: Componente) =&gt; Promise&lt;void&gt;) {
+  await gravar(c);
+  await redis.del('componente:' + c.id);   // invalida a entrada antiga
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação.</strong> O tempo de vida de 300 segundos limita o período em que um dado obsoleto pode ser servido, caso a
+      invalidação falhe. A conexão com <code>tls</code> protege os dados em trânsito, o que é exigido em muitas políticas corporativas. O custo
+      do padrão é a possibilidade de leitura de dado desatualizado por algum tempo; em dados financeiros, essa tolerância pode ser nula, e o
+      padrão deve ser reavaliado.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo 2 · Escolhendo entre SQS, SNS e EventBridge</h3>
+  <div class="ah-prose">
+    <p>
+      Os três serviços transportam mensagens, mas resolvem problemas diferentes. A escolha depende do número de destinatários, do tipo de
+      roteamento necessário e da garantia de entrega. A tabela organiza o raciocínio.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Necessidade</th><th>Serviço mais adequado</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td>Um produtor, um consumidor, processamento desacoplado</td><td>SQS</td><td>Fila que armazena mensagens até o consumo; o consumidor controla o ritmo</td></tr>
+        <tr><td>Um evento que interessa a vários consumidores independentes</td><td>SNS com filas SQS</td><td>Cada assinante recebe uma cópia; a fila de cada um isola sua falha</td></tr>
+        <tr><td>Eventos classificados por conteúdo e roteados por regras</td><td>EventBridge</td><td>Padrões de evento, agendamentos e integração com fontes e destinos diversos</td></tr>
+        <tr><td>Processamento ordenado de mensagens por grupo</td><td>SQS FIFO</td><td>Preserva a ordem dentro de um grupo de mensagens, com menor vazão</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Interpretação.</strong> A escolha não é excludente: um tópico SNS pode alimentar filas SQS, e um barramento de eventos pode
+      encaminhar eventos para filas. O erro mais frequente é usar uma fila onde um barramento de eventos seria mais adequado, o que obriga a
+      reimplementar o roteamento dentro do produtor.
+    </p>
+  </div>
+</section>
+
+<section id="casos" data-toc="Casos reais documentados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-newspaper text-orange-400 mr-2"></i>Casos reais documentados</h2>
+  <div class="ah-prose">
+    <p>
+      Os casos a seguir são documentados publicamente. Quando um caso é ilustrativo, isso é indicado de forma explícita. A finalidade é mostrar
+      como os padrões aparecem na prática e quais lições decorrem deles.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Caso 1 · Disjuntor na biblioteca Hystrix (padrão: disjuntor)</h3>
+  <div class="ah-prose">
+    <p>
+      A Netflix desenvolveu e publicou, em 2012, a biblioteca Hystrix, que implementa o padrão de disjuntor, isolamento de chamadas e fallback
+      para dependências remotas. A biblioteca foi adotada amplamente e influenciou a forma como equipes de microsserviços tratam falhas de
+      dependências. Em 2018, a Netflix anunciou que o projeto entraria em modo de manutenção e recomendou alternativas mais recentes, como a
+      biblioteca Resilience4j.
+    </p>
+    <p>
+      <strong>Lições.</strong> O caso ilustra que o padrão é conceitual e pode ser implementado em bibliotecas que evoluem. Também mostra que
+      uma solução de resiliência precisa ser mantida: o disjuntor depende de parâmetros ajustados à carga real, e sua configuração deve ser
+      revisada à medida que o sistema cresce.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Caso 2 · Migração gradual de sistemas legados (padrão: estrangulador)</h3>
+  <div class="ah-prose">
+    <p>
+      O padrão estrangulador foi descrito por Martin Fowler (2004) e é recomendado em orientações de migração publicadas pela AWS. O processo
+      típico começa pela identificação de uma funcionalidade de baixo risco, a implementação do novo serviço, a comparação de resultados em
+      paralelo e a transferência do tráfego por etapas. Trata-se de um caso documentado de forma geral pela literatura e pela documentação de
+      arquitetura, e não de um único caso de empresa.
+    </p>
+    <p>
+      <strong>Lições.</strong> A migração gradual reduz o risco, mas aumenta a complexidade operacional durante a transição, pois dois sistemas
+      precisam ser mantidos. A medição da equivalência de resultados é a atividade que decide quando a transferência pode avançar.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Caso 3 · Pedido de varejo com fan-out (ilustrativo)</h3>
+  <div class="ah-prose">
+    <p>
+      <em>Caso ilustrativo, inspirado na documentação pública da AWS sobre fan-out de tópicos SNS para filas SQS.</em> Um varejista publica o
+      evento de pedido criado. Os assinantes são o estoque, o faturamento e o envio de e-mails. Durante uma promoção, o serviço de e-mail
+      passa a responder lentamente. Como cada assinante possui sua própria fila, o estoque e o faturamento continuam processando sem atraso. As
+      mensagens de e-mail se acumulam e são processadas quando o serviço se recupera.
+    </p>
+    <p>
+      <strong>Lições.</strong> O isolamento entre assinantes evita que uma falha local vire uma falha geral. A acumulação de mensagens, porém,
+      exige monitoramento do tamanho das filas, e o processamento tardio pode ser inaceitável para certos tipos de notificação. O padrão
+      resolve o acoplamento, mas transfere para o projeto a responsabilidade por prazos.
+    </p>
+  </div>
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-orange-400 mr-2"></i>Vantagens e limitações dos padrões</h2>
+  <div class="ah-prose">
+    <p>
+      A adoção de padrões corporativos traz benefícios reais, mas nenhum deles é gratuito. A análise a seguir considera o uso dos padrões como
+      um conjunto, e não de forma isolada.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+    <div class="ah-card p-5">
+      <p class="text-sm text-emerald-300 font-semibold mb-3"><i class="fa-solid fa-circle-check mr-2"></i>Vantagens</p>
+      <ul class="ah-prose text-sm space-y-2 list-disc pl-5">
+        <li><strong>Vocabulário comum:</strong> equipes discutem soluções com termos precisos, o que reduz ambiguidade em projetos grandes.</li>
+        <li><strong>Reuso de soluções testadas:</strong> o padrão reduz a necessidade de reinventar mecanismos de resiliência e de integração.</li>
+        <li><strong>Redução do risco de mudança:</strong> a migração incremental e o isolamento de falhas limitam o alcance de erros.</li>
+        <li><strong>Correspondência com serviços gerenciados:</strong> boa parte dos padrões já tem implementação operada pela AWS, o que reduz a administração.</li>
+      </ul>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-rose-300 font-semibold mb-3"><i class="fa-solid fa-circle-xmark mr-2"></i>Limitações</p>
+      <ul class="ah-prose text-sm space-y-2 list-disc pl-5">
+        <li><strong>Complexidade distribuída:</strong> a solução de um problema cria outros, como duplicidade de mensagens, consistência eventual e depuração de fluxos assíncronos.</li>
+        <li><strong>Aplicação indevida:</strong> usar um padrão sem que o problema exista adiciona complexidade sem benefício.</li>
+        <li><strong>Dependência de configuração:</strong> tempos limite, limiares e políticas de retentativa precisam de ajuste empírico, e configurações erradas causam falhas.</li>
+        <li><strong>Custo de transição:</strong> migrações incrementais mantêm dois sistemas por período prolongado.</li>
+        <li><strong>Lacunas de observabilidade:</strong> fluxos distribuídos exigem rastreamento e métricas (tópico 13) que nem sempre são implantados.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="ah-prose mt-5 text-sm">
+    <p>
+      <strong>Síntese.</strong> Um padrão responde a uma força específica e, ao resolvê-la, cria outra. A competência profissional não consiste em
+      conhecer todos os padrões, mas em reconhecer a força presente no sistema e avaliar se a solução proposta compensa o custo que ela
+      introduz.
+    </p>
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-pen-ruler text-orange-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um serviço de faturamento chama, de forma síncrona, um serviço fiscal que frequentemente excede o tempo limite. Qual padrão é mais adequado e por quê?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o disjuntor, combinado com tempo limite e retentativa com espera crescente. O disjuntor impede que as chamadas lentas se acumulem e derrubem o faturamento; o fallback permite registrar a emissão como pendente. Se a emissão puder ser assíncrona, o canal de mensagens é uma alternativa, pois desacopla os dois serviços no tempo.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Em um fan-out para e-mail, o cliente recebe duas mensagens idênticas. Qual é a causa provável e a correção?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-orange-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a entrega com garantia de pelo menos uma vez pode repetir uma mensagem, por exemplo quando o consumidor processa, mas não confirma a mensagem antes de um tempo limite. A correção é tornar o consumo idempotente: registrar o identificador do evento processado e ignorar repetições. Também é preciso revisar o tempo de visibilidade, que deve ser maior que o tempo de processamento.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="certificacao" data-toc="Ponte para a certificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-certificate text-orange-400 mr-2"></i>Ponte para a certificação AWS</h2>
+  <div class="ah-prose">
+    <p>
+      Os padrões deste tópico correspondem a temas recorrentes nas certificações da AWS. No SAA-C03, o desacoplamento com SQS, SNS e
+      EventBridge, e a escolha de mecanismos de resiliência, são cobrados nos domínios de arquiteturas resilientes e de alto desempenho. No
+      DVA-C03, Step Functions, Lambda e os destinos de falha aparecem em cenários de desenvolvimento e de tratamento de erros. Recomenda-se
+      conferir os guias vigentes, pois o escopo é revisado periodicamente.
+    </p>
+  </div>
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual padrão trata da consistência de uma operação que atravessa vários serviços, por meio de compensações?</p>
+      <button class="ah-quiz-opt">Disjuntor</button>
+      <button class="ah-quiz-opt">Saga</button>
+      <button class="ah-quiz-opt">Cache-aside</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A saga executa transações locais e, em caso de falha, aplica compensações que desfazem os passos anteriores.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Um evento deve ser entregue a vários consumidores independentes. Qual combinação de serviços da AWS é mais adequada?</p>
+      <button class="ah-quiz-opt">Uma única fila SQS compartilhada por todos os consumidores</button>
+      <button class="ah-quiz-opt">Um bucket S3 com leitura periódica</button>
+      <button class="ah-quiz-opt">Um tópico SNS com uma fila SQS por consumidor</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O tópico entrega uma cópia a cada assinante, e cada fila isola o processamento de um consumidor.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a finalidade principal do disjuntor?</p>
+      <button class="ah-quiz-opt">Impedir que a falha de uma dependência lenta consuma os recursos do chamador</button>
+      <button class="ah-quiz-opt">Criptografar as mensagens em trânsito</button>
+      <button class="ah-quiz-opt">Armazenar resultados de consultas por tempo indeterminado</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Ao bloquear chamadas a uma dependência que falha de forma repetida, o disjuntor preserva os recursos do sistema que chama.</p>
+    </div>
+  </div>
+</section>
+
+<section id="checklist" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>Síntese do tópico</h2>
+  <ul class="ah-prose">
+    <li>Padrão é uma solução recorrente para um problema recorrente, descrita por contexto, problema, solução e consequências.</li>
+    <li>O catálogo parte do problema: a escolha do serviço AWS decorre da força presente no sistema.</li>
+    <li>Migração incremental, saga, publicação e assinatura, disjuntor e cache são os padrões mais recorrentes em sistemas corporativos.</li>
+    <li>Toda solução de mensageria exige idempotência, e toda retentativa exige cuidado com operações não idempotentes.</li>
+    <li>Padrões resolvem forças e criam outras; a competência está em avaliar o custo que cada solução introduz.</li>
+  </ul>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>ALEXANDER, Christopher. <em>A Pattern Language: Towns, Buildings, Construction</em>. Oxford: Oxford University Press, 1977.</li>
+    <li>GAMMA, Erich; HELM, Richard; JOHNSON, Ralph; VLISSIDES, John. <em>Design Patterns: Elements of Reusable Object-Oriented Software</em>. Reading: Addison-Wesley, 1994.</li>
+    <li>GARCIA-MOLINA, Hector; SALEM, Kenneth. Sagas. In: <em>Proceedings of the 1987 ACM SIGMOD International Conference on Management of Data</em>. New York: ACM, 1987.</li>
+    <li>HOHPE, Gregor; WOOLF, Bobby. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003.</li>
+    <li>FOWLER, Martin. <em>StranglerFigApplication</em>. martinfowler.com, 2004.</li>
+    <li>NYGARD, Michael T. <em>Release It!: Design and Deploy Production-Ready Software</em>. Raleigh: Pragmatic Bookshelf, 2007.</li>
+    <li>AWS. <em>AWS Prescriptive Guidance</em>, seções sobre padrões de migração e de integração. docs.aws.amazon.com/prescriptive-guidance.</li>
+    <li>AWS. <em>Amazon SNS Developer Guide</em>, seção sobre fan-out para filas Amazon SQS. docs.aws.amazon.com/sns.</li>
+    <li>AWS. <em>AWS Step Functions Developer Guide</em>, seções sobre tratamento de erros e retentativas. docs.aws.amazon.com/step-functions.</li>
+  </ul>
+</section>
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('estrangulador');
+  DSA.monta('fanout');
+  DSA.monta('saga');
+  DSA.monta('disjuntor');
+})();
+</script>
+</body>
+</html>
