@@ -368,7 +368,10 @@ const AH_DATA = {
           tags: ['Projeto', 'Rubrica', 'Portfólio'], nivel: 'Certificação', minutos: 60 },
         { id: '17-well-architected', titulo: 'Well-Architected Framework: os seis pilares de forma simples', icone: 'fa-house-circle-check',
           resumo: 'Um guia de revisão de arquiteturas na AWS: os seis pilares explicados por analogia, o ciclo de revisão, os trade-offs e casos reais.',
-          tags: ['Well-Architected', 'Pilares', 'Trade-offs'], nivel: 'Introdutório', minutos: 45 }
+          tags: ['Well-Architected', 'Pilares', 'Trade-offs'], nivel: 'Introdutório', minutos: 45 },
+        { id: '18-padroes-corporativos-aws', titulo: 'Padrões corporativos e problemas resolvidos com AWS', icone: 'fa-puzzle-piece',
+          resumo: 'Catálogo de padrões de integração e de nuvem (migração incremental, saga, publicação e assinatura, disjuntor, cache) e os problemas reais que cada um resolve na AWS.',
+          tags: ['Padrões', 'Integração', 'Resiliência'], nivel: 'Avançado', minutos: 55 }
       ]
     },
     {
