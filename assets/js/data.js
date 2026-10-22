@@ -916,6 +916,25 @@ const AH_DATA = {
           trilha: 'complexidade',
           tags: ['BPP', 'Aproximação', 'P vs NP'], nivel: 'Avançado', minutos: 65 }
       ]
+    },
+    {
+      id: 'esia',
+      slug: 'ia-software',
+      nome: 'Engenharia de Software com IA',
+      curto: 'Eng. de Software com IA',
+      icone: 'fa-wand-magic-sparkles',
+      cor: 'indigo',
+      corHex: '#0e9f7e',
+      descricao:
+        'Como a engenharia de software e a IA generativa trabalham juntas: o que a pesquisa mostra, como LLMs e agentes geram código, o método para especificar, contextualizar, gerar e verificar, e como liderar a adoção no ciclo inteiro com governança e métricas.',
+      topicos: [
+        { id: '01-ia-no-ciclo-inteiro', titulo: 'Aula 1 · IA no ciclo inteiro: usar em tudo, com critério', icone: 'fa-arrows-spin',
+          resumo: 'Aula magna sobre adoção de IA em engenharia, DevOps e FinOps: evidências, a matemática do gargalo, 16 casos de empresas, cultura, governança, métricas e um plano de 90 dias.',
+          tags: ['Adoção', 'Evidências', 'Liderança'], nivel: 'Fundamental', minutos: 150 },
+        { id: '02-engenharia-software-ia-juntas', titulo: 'Aula 2 · Engenharia de software e IA trabalhando juntas', icone: 'fa-handshake',
+          resumo: 'Como funciona, como fazer e como aplicar: do "No Silver Bullet" aos agentes de código, o ciclo especificar-contextualizar-gerar-verificar, oráculos de teste, segurança e medição, com base em livros e artigos acadêmicos.',
+          tags: ['Método', 'Verificação', 'Pesquisa'], nivel: 'Intermediário', minutos: 150 }
+      ]
     }
   ]
 };
