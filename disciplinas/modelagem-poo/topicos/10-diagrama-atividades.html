@@ -327,10 +327,654 @@ flowchart TD
   <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> usar um losango (decisão) para unir o estorno e a devolução. Como ambos acontecem, o losango deixaria o aviso ser enviado duas vezes. Quem junta caminhos paralelos é a barra de join.</div></div>
 </section>
 <!-- APROF2:FIM -->
+<!-- MELODIA:INI -->
+<section id="melodia-mapa" data-toc="Melodia: mapa dos exemplos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-headphones text-emerald-400 mr-2"></i>Um streaming de música inteiro em diagramas de atividades</h2>
+  <div class="ah-prose">
+    <p>
+      Até aqui vimos os nós básicos com exemplos de loja e de assinatura. Agora vamos percorrer a <strong>Melodia</strong>,
+      a plataforma de streaming que acompanha o curso, de ponta a ponta: do play numa faixa ao pagamento de royalties.
+      Cada exemplo foi escolhido para exercitar <strong>um conceito novo</strong> do diagrama de atividades, sempre com um
+      processo que você já usou como ouvinte.
+    </p>
+    <p>
+      Leia cada exemplo em três tempos: primeiro a <em>história</em> em português, depois o <em>diagrama</em> e por último
+      a <em>tradução para código</em> ou o erro típico. Essa é a mesma ordem em que você vai modelar na prática: entender o
+      processo, desenhar e só então implementar.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-5">
+    <table class="ah-table">
+      <thead><tr><th>#</th><th>Processo da Melodia</th><th>Conceito que o exemplo exercita</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Dar play numa faixa</td><td>Decisões encadeadas, guardas completas, <em>merge</em></td></tr>
+        <tr><td>2</td><td>Tocar uma playlist até o fim</td><td>Laços (repetição) com decisão + merge</td></tr>
+        <tr><td>3</td><td>Baixar um álbum para ouvir offline</td><td>Fork/join, região de expansão, final de fluxo × final de atividade</td></tr>
+        <tr><td>4</td><td>Publicar um lançamento</td><td>Raias, fluxo de objetos e estados de objeto, evento de tempo</td></tr>
+        <tr><td>5</td><td>Contar um stream para royalties</td><td>Região interrompível e eventos externos</td></tr>
+        <tr><td>6</td><td>Gerar a playlist semanal personalizada</td><td>Job agendado, região de expansão, envio de sinal</td></tr>
+        <tr><td>7</td><td>Convidar alguém para o plano Família</td><td>Corrida entre eventos (o primeiro que chegar vence)</td></tr>
+        <tr><td>8</td><td>Fechar os royalties do mês</td><td>Processo de negócio longo, paralelismo e conferência</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 1 ---------- -->
+<section id="melodia-play" data-toc="Ex. 1: dar play numa faixa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo 1 — Dar play numa faixa</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A história.</strong> O ouvinte toca em uma música. Antes de o som sair, a Melodia precisa responder a três
+      perguntas: <em>a faixa está disponível no país do ouvinte?</em> (licenças musicais são por território),
+      <em>o ouvinte tem plano Premium ou Free?</em> (no Free, um anúncio toca a cada três faixas) e
+      <em>o áudio já está no cache do aparelho?</em> (se não estiver, vem da CDN).
+    </p>
+    <p>
+      Repare que cada pergunta vira um <strong>losango de decisão</strong>, e que os caminhos se reencontram em um
+      <strong>losango de merge</strong> antes do passo seguinte. Sem o merge, a ação “Iniciar reprodução” teria duas
+      entradas, e a UML diz que uma ação com várias entradas espera ficha em <em>todas</em> — ou seja, ela nunca rodaria.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    I((" ")) --> A["Selecionar faixa"]
+    A --> L{"Disponível<br/>no país?"}
+    L -- "[não]" --> X["Exibir 'indisponível na sua região'"]
+    L -- "[sim]" --> P{"Plano do ouvinte?"}
+    P -- "[Premium]" --> M1{" "}
+    P -- "[Free]" --> Q{"3ª faixa desde<br/>o último anúncio?"}
+    Q -- "[sim]" --> AD["Tocar anúncio de 15 s"]
+    Q -- "[não]" --> M1
+    AD --> M1
+    M1 --> C{"Áudio no cache?"}
+    C -- "[sim]" --> LC["Ler arquivo local"]
+    C -- "[não]" --> CDN["Baixar trecho inicial da CDN"]
+    LC --> M2{" "}
+    CDN --> M2
+    M2 --> T["Iniciar reprodução"]
+    T --> R["Registrar 'faixa iniciada'"]
+    X --> Z(((" ")))
+    R --> Z
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Três decisões e dois merges (losangos vazios). Cada decisão tem guardas mutuamente exclusivas e que cobrem todos os casos. O caminho de indisponibilidade termina no mesmo final de atividade.</p>
+
+  <div class="ah-prose mt-5">
+    <p><strong>Siga a ficha em três cenários.</strong> Faça o exercício mental de levar a ficha do início ao fim:</p>
+    <ul>
+      <li><strong>Ana, Premium, faixa já ouvida ontem:</strong> selecionar → disponível → Premium → merge → cache [sim] → ler local → merge → tocar. Nenhum anúncio, latência mínima.</li>
+      <li><strong>Bruno, Free, terceira faixa da sessão, faixa nova:</strong> selecionar → disponível → Free → [sim] anúncio → merge → cache [não] → CDN → merge → tocar.</li>
+      <li><strong>Carla, viajando, faixa sem licença no país:</strong> selecionar → [não] → mensagem → fim. Plano e cache nem chegam a ser consultados.</li>
+    </ul>
+    <p>
+      Esse “teste de mesa” é o melhor jeito de validar um diagrama de atividades: se algum cenário real não tiver caminho,
+      falta uma guarda; se tiver dois caminhos possíveis, as guardas se sobrepõem.
+    </p>
+  </div>
+
+<pre class="ah-code"><code><span class="cm">// Cada losango vira um if; cada merge é simplesmente o ponto onde os ifs terminam</span>
+<span class="kw">void</span> <span class="fn">darPlay</span>(<span class="ty">Ouvinte</span> ouvinte, <span class="ty">Faixa</span> faixa) {
+    <span class="kw">if</span> (!faixa.<span class="fn">licenciadaEm</span>(ouvinte.<span class="fn">pais</span>())) {
+        ui.<span class="fn">mostrar</span>(<span class="str">"Indisponível na sua região"</span>);
+        <span class="kw">return</span>;                                   <span class="cm">// final de atividade</span>
+    }
+    <span class="kw">if</span> (ouvinte.<span class="fn">plano</span>() == <span class="ty">Plano</span>.FREE &amp;&amp; sessao.<span class="fn">faixasDesdeAnuncio</span>() &gt;= <span class="num">3</span>) {
+        player.<span class="fn">tocar</span>(anuncios.<span class="fn">proximo</span>());
+    }                                             <span class="cm">// merge 1</span>
+    <span class="ty">Audio</span> audio = cache.<span class="fn">contem</span>(faixa)
+        ? cache.<span class="fn">ler</span>(faixa)
+        : cdn.<span class="fn">baixarInicio</span>(faixa);                  <span class="cm">// decisão + merge 2</span>
+    player.<span class="fn">tocar</span>(audio);
+    eventos.<span class="fn">registrar</span>(<span class="str">"faixa_iniciada"</span>, ouvinte, faixa);
+}</code></pre>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Guardas que se sobrepõem:</strong> se a decisão do anúncio tivesse <code>[Free]</code> e
+      <code>[faixas ≥ 3]</code> como saídas, um ouvinte Free na terceira faixa satisfaria as duas. Guardas devem ser
+      perguntas sobre <em>a mesma coisa</em>, com respostas que não se cruzam. Por isso separamos em duas decisões.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 2 ---------- -->
+<section id="melodia-playlist" data-toc="Ex. 2: laços na playlist" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-repeat text-emerald-400 mr-2"></i>Exemplo 2 — Tocar uma playlist: como desenhar repetição</h2>
+  <div class="ah-prose">
+    <p>
+      O diagrama de atividades não tem um símbolo de “enquanto”. A repetição aparece pela <strong>forma</strong> do
+      grafo: um <strong>merge</strong> antes do corpo do laço e uma <strong>decisão</strong> depois dele, com uma seta que
+      volta. É exatamente o que um compilador faz com um <code>while</code>.
+    </p>
+    <p>
+      <strong>A história.</strong> O ouvinte toca a playlist “Treino de sexta”. Se o modo aleatório estiver ligado, a
+      ordem é embaralhada uma única vez, no começo. Depois, a Melodia toca a faixa atual, avança para a próxima e
+      pergunta: ainda há faixas? Se não houver, e o modo <em>repetir playlist</em> estiver ligado, volta ao começo;
+      se estiver desligado, a reprodução para e a Melodia sugere uma rádio parecida.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    I((" ")) --> A["Abrir playlist"]
+    A --> S{"Aleatório<br/>ligado?"}
+    S -- "[sim]" --> E["Embaralhar ordem"]
+    S -- "[não]" --> M0{" "}
+    E --> M0
+    M0 --> P["Posicionar na 1ª faixa"]
+    P --> M1{" "}
+    M1 --> T["Tocar faixa atual"]
+    T --> AV["Avançar para a próxima"]
+    AV --> H{"Há próxima<br/>faixa?"}
+    H -- "[sim]" --> M1
+    H -- "[não]" --> RP{"Repetir<br/>playlist?"}
+    RP -- "[sim]" --> P
+    RP -- "[não]" --> SG["Sugerir rádio parecida"]
+    SG --> Z(((" ")))
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Dois laços aninhados: o interno (M1 → tocar → avançar → há próxima?) percorre as faixas; o externo (repetir playlist) volta ao início. Note que “Embaralhar” fica fora do laço: embaralhar a cada faixa seria outro comportamento.</p>
+
+<pre class="ah-code"><code><span class="ty">List</span>&lt;<span class="ty">Faixa</span>&gt; fila = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;(playlist.<span class="fn">faixas</span>());
+<span class="kw">if</span> (aleatorio) <span class="ty">Collections</span>.<span class="fn">shuffle</span>(fila);
+<span class="kw">do</span> {                                          <span class="cm">// laço externo: repetir playlist</span>
+    <span class="kw">for</span> (<span class="ty">Faixa</span> f : fila) {                    <span class="cm">// laço interno: M1 + decisão "há próxima?"</span>
+        player.<span class="fn">tocar</span>(f);
+    }
+} <span class="kw">while</span> (repetirPlaylist);
+<span class="fn">sugerirRadioParecida</span>(playlist);</code></pre>
+
+  <div class="ah-prose mt-5">
+    <p>
+      <strong>Onde a seta de volta entra importa.</strong> Se a seta de “[sim] há próxima” voltasse para “Abrir
+      playlist”, a cada faixa a Melodia reabriria a playlist e reembaralharia tudo: um bug que o diagrama deixa visível
+      antes de qualquer linha de código. Ao revisar um laço, pergunte sempre: <em>o que precisa ser feito uma vez e o que
+      precisa ser repetido?</em>
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      A UML também tem um <strong>nó de laço</strong> (<em>LoopNode</em>) com seções de setup, teste e corpo, mas ele
+      quase nunca é desenhado: o par merge + decisão é mais legível e é o que ferramentas e livros usam.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 3 ---------- -->
+<section id="melodia-offline" data-toc="Ex. 3: baixar álbum offline" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-download text-emerald-400 mr-2"></i>Exemplo 3 — Baixar um álbum para ouvir offline</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A história.</strong> Antes de uma viagem, o ouvinte Premium toca em “Baixar álbum”. A Melodia confere se
+      há espaço no aparelho e se o limite de 10 mil faixas baixadas não foi atingido. Então, <em>para cada faixa</em>
+      do álbum, baixa o áudio criptografado e a licença de reprodução (DRM). A capa e as letras são baixadas em paralelo
+      com as faixas. Quando tudo termina, o álbum aparece como “disponível offline”.
+    </p>
+    <p>
+      Três conceitos aparecem aqui:
+    </p>
+    <ul>
+      <li><strong>Fork/join</strong> — faixas, capa e letras não dependem umas das outras, então correm em paralelo; o
+        álbum só fica disponível quando os três ramos chegam ao join.</li>
+      <li><strong>Região de expansão</strong> — a caixa tracejada “para cada faixa” executa seu conteúdo uma vez por
+        elemento de uma coleção. A palavra-chave diz como: <code>«parallel»</code> (todas ao mesmo tempo),
+        <code>«iterative»</code> (uma de cada vez, em ordem) ou <code>«stream»</code> (os elementos chegam em fluxo).</li>
+      <li><strong>Final de fluxo × final de atividade</strong> — registrar o evento de analytics é um ramo “dispare e
+        esqueça”: ele termina num <em>final de fluxo</em> (círculo com X), que encerra só aquela ficha. Se usássemos um
+        final de atividade ali, a primeira ficha a chegar mataria o download inteiro.</li>
+    </ul>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    I((" ")) --> V["Verificar espaço e limite de downloads"]
+    V --> D{"Pode baixar?"}
+    D -- "[não]" --> AV["Avisar: liberar espaço"]
+    D -- "[sim]" --> F1@{ shape: fork }
+    F1 --> AN["Registrar evento 'download_iniciado'"]
+    AN --> FF@{ shape: cross-circ }
+    F1 --> CAPA["Baixar capa em alta resolução"]
+    F1 --> LET["Baixar letras sincronizadas"]
+    subgraph EXP["«parallel» para cada faixa do álbum"]
+        direction TB
+        BA["Baixar áudio criptografado"] --> LI["Obter licença DRM"]
+    end
+    F1 --> EXP
+    EXP --> J1@{ shape: fork }
+    CAPA --> J1
+    LET --> J1
+    J1 --> OK["Marcar álbum como disponível offline"]
+    OK --> Z(((" ")))
+    AV --> Z
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">A barra de cima é o fork; a de baixo, o join. A região tracejada é a região de expansão. O ramo de analytics termina num final de fluxo (círculo com X) e por isso não segura nem encerra o resto.</p>
+
+<pre class="ah-code"><code><span class="cm">// Região de expansão «parallel» ≈ stream paralelo sobre a coleção</span>
+<span class="ty">CompletableFuture</span>&lt;<span class="ty">Void</span>&gt; faixas = <span class="ty">CompletableFuture</span>.<span class="fn">runAsync</span>(() -&gt;
+    album.<span class="fn">faixas</span>().<span class="fn">parallelStream</span>().<span class="fn">forEach</span>(f -&gt; {
+        <span class="fn">baixarAudio</span>(f);
+        <span class="fn">obterLicencaDrm</span>(f);
+    }));
+<span class="ty">CompletableFuture</span>&lt;<span class="ty">Void</span>&gt; capa   = <span class="ty">CompletableFuture</span>.<span class="fn">runAsync</span>(() -&gt; <span class="fn">baixarCapa</span>(album));
+<span class="ty">CompletableFuture</span>&lt;<span class="ty">Void</span>&gt; letras = <span class="ty">CompletableFuture</span>.<span class="fn">runAsync</span>(() -&gt; <span class="fn">baixarLetras</span>(album));
+analytics.<span class="fn">enviarAsync</span>(<span class="str">"download_iniciado"</span>);    <span class="cm">// final de fluxo: ninguém espera por ele</span>
+
+<span class="ty">CompletableFuture</span>.<span class="fn">allOf</span>(faixas, capa, letras).<span class="fn">join</span>();   <span class="cm">// join</span>
+album.<span class="fn">marcarDisponivelOffline</span>();</code></pre>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>E se uma faixa falhar?</strong> O diagrama acima mostra o caminho feliz. Uma versão mais completa pode
+      colocar, dentro da região de expansão, uma decisão “download ok?” que, em caso de falha, tenta de novo até três
+      vezes (um laço como no Exemplo 2) e, se ainda falhar, marca só aquela faixa como “indisponível offline”.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 4 ---------- -->
+<section id="melodia-lancamento" data-toc="Ex. 4: publicar lançamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-compact-disc text-emerald-400 mr-2"></i>Exemplo 4 — Publicar um lançamento: raias e fluxo de objetos</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A história.</strong> Uma artista independente envia o single “Maré Alta” pela distribuidora. A Melodia
+      recebe o arquivo WAV e os metadados, valida o áudio (formato, volume, duração), confere se a música não infringe
+      direitos de terceiros por <em>fingerprint</em> acústico e coloca a faixa na fila da moderação. Se algo falhar,
+      a faixa volta para a distribuidora corrigir. Quando aprovada, ela fica agendada e só vai ao ar na
+      <strong>sexta-feira, 00:00</strong>, que é o dia padrão de lançamentos da indústria.
+    </p>
+    <p>
+      Este exemplo tem quatro responsáveis, então ganha <strong>raias</strong>. E tem algo novo: o mesmo objeto, a
+      <code>Faixa</code>, atravessa o processo mudando de estado. A UML representa isso com <strong>nós de objeto</strong>
+      (retângulos retos, sem cantos arredondados) e o estado entre colchetes: <code>Faixa [enviada]</code>,
+      <code>Faixa [validada]</code>, <code>Faixa [aprovada]</code>, <code>Faixa [publicada]</code>.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    subgraph DIST["Artista / Distribuidora"]
+        direction TB
+        I((" ")) --> UP["Enviar WAV e metadados"]
+        COR["Corrigir arquivo ou metadados"]
+    end
+    subgraph ING["Melodia: Ingestão"]
+        direction TB
+        O1["Faixa [enviada]"] --> VA["Validar áudio e metadados"]
+        VA --> FP["Comparar fingerprint acústico"]
+        FP --> D1{"Tudo ok?"}
+    end
+    subgraph MOD["Moderação"]
+        direction TB
+        O2["Faixa [validada]"] --> RV["Revisar capa e letra"]
+        RV --> D2{"Aprovada?"}
+    end
+    subgraph CAT["Melodia: Catálogo"]
+        direction TB
+        O3["Faixa [aprovada]"] --> TE["⏳ Sexta-feira, 00:00"]
+        TE --> PUB["Publicar no catálogo"]
+        PUB --> O4["Faixa [publicada]"]
+        O4 --> Z(((" ")))
+    end
+    UP --> O1
+    D1 -- "[sim]" --> O2
+    D1 -- "[não]" --> COR
+    D2 -- "[sim]" --> O3
+    D2 -- "[não]" --> COR
+    COR --> UP
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Cada caixa é uma raia. Os retângulos retos “Faixa [estado]” são nós de objeto: mostram o que flui entre as ações, não uma ação. A ampulheta marca um evento de tempo: a ficha fica parada ali até a sexta-feira chegar. O laço de correção atravessa raias.</p>
+
+  <div class="ah-prose mt-5">
+    <p><strong>O que o diagrama revela que um texto esconderia:</strong></p>
+    <ul>
+      <li><strong>Dois pontos de recusa voltam para a mesma raia.</strong> Se a distribuidora recebe muitas recusas, o
+        problema pode estar na validação, que é tardia. Uma melhoria óbvia é validar o formato já no envio.</li>
+      <li><strong>Os estados de <code>Faixa</code> saltam aos olhos.</strong> Eles são candidatos diretos a um
+        <code>enum EstadoFaixa { ENVIADA, VALIDADA, APROVADA, PUBLICADA, REJEITADA }</code> e a um
+        <a href="12-diagrama-maquina-estados.html" class="text-emerald-400 hover:underline">diagrama de máquina de estados</a>.</li>
+      <li><strong>O evento de tempo vira uma tarefa agendada</strong>, não um <code>Thread.sleep</code>: a faixa fica
+        gravada como “aprovada, lançar em 2026-11-06T00:00” e um job publica tudo o que venceu.</li>
+    </ul>
+  </div>
+  <div class="ah-callout ah-callout-info mt-5">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>Notação UML real × diagrama acima:</strong> o Mermaid não tem todos os símbolos da UML. No papel, o evento de
+      tempo é uma <em>ampulheta</em>, o nó de objeto é um retângulo de cantos retos e as raias são faixas paralelas
+      de mesma largura. Os conceitos são os mesmos.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 5 ---------- -->
+<section id="melodia-stream" data-toc="Ex. 5: região interrompível" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-emerald-400 mr-2"></i>Exemplo 5 — Quando um play vira “stream”: região interrompível</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A regra de negócio.</strong> Para fins de royalties, uma reprodução só conta como <em>stream</em> depois
+      de <strong>30 segundos</strong> de escuta. Antes disso, o ouvinte pode pular a faixa, outro aparelho da mesma conta
+      pode assumir a reprodução (o plano individual toca em um aparelho por vez) ou a conexão pode cair sem a faixa
+      estar no cache.
+    </p>
+    <p>
+      Esses três acontecimentos vêm <strong>de fora</strong> do fluxo e podem chegar a qualquer momento. A UML modela
+      isso com uma <strong>região interrompível</strong> (caixa tracejada) e <strong>ações de aceitar evento</strong>
+      dentro dela. Quando um evento chega, uma seta em forma de raio (⚡) sai da região e <em>todas</em> as fichas lá
+      dentro são descartadas: a contagem para, e o fluxo segue pelo caminho da interrupção.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    I((" ")) --> INI["Iniciar reprodução"]
+    subgraph R["Região interrompível"]
+        direction TB
+        T["Tocar e contar segundos"] --> D{"Chegou a 30 s?"}
+        D -- "[não]" --> T
+        E1["📥 Ouvinte pulou"]
+        E2["📥 Outro aparelho assumiu"]
+        E3["📥 Conexão perdida"]
+    end
+    INI --> R
+    D -- "[sim]" --> S["Registrar stream válido"]
+    S --> RO["Somar 1 stream ao artista e à gravadora"]
+    RO --> FIM(((" ")))
+    E1 -- "⚡" --> P["Registrar 'pulo' para recomendação"]
+    E2 -- "⚡" --> PA["Pausar e exibir 'Tocando em outro aparelho'"]
+    E3 -- "⚡" --> B["Exibir aviso de conexão"]
+    P --> FIM
+    PA --> FIM
+    B --> FIM
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">As três ações “📥” são ações de aceitar evento (na UML, um pentágono côncavo). Elas não têm seta de entrada: ficam habilitadas enquanto houver ficha na região. As setas ⚡ são arestas de interrupção.</p>
+
+  <div class="ah-prose mt-5">
+    <p>
+      <strong>Por que o pulo também importa?</strong> O ramo “Registrar pulo” mostra que interrupção não é sinônimo de
+      erro. Pular uma faixa nos primeiros segundos é um sinal valioso para o sistema de recomendação: o diagrama deixa
+      isso documentado, e o time de dados sabe que precisa desse evento.
+    </p>
+    <p>
+      <strong>Em código</strong>, regiões interrompíveis costumam virar cancelamento cooperativo: a tarefa que conta
+      segundos verifica um <code>CancellationToken</code>, ou o player escuta eventos e cancela um <code>Future</code>.
+    </p>
+  </div>
+<pre class="ah-code"><code><span class="ty">ScheduledFuture</span>&lt;?&gt; contagem = agendador.<span class="fn">schedule</span>(
+    () -&gt; royalties.<span class="fn">registrarStream</span>(ouvinte, faixa),   <span class="cm">// saída normal da região</span>
+    <span class="num">30</span>, <span class="ty">TimeUnit</span>.SECONDS);
+
+player.<span class="fn">aoPular</span>(()            -&gt; { contagem.<span class="fn">cancel</span>(<span class="kw">false</span>); recomendacao.<span class="fn">registrarPulo</span>(faixa); });
+conta.<span class="fn">aoOutroAparelho</span>(()     -&gt; { contagem.<span class="fn">cancel</span>(<span class="kw">false</span>); player.<span class="fn">pausar</span>(); });
+rede.<span class="fn">aoPerderConexao</span>(()      -&gt; { contagem.<span class="fn">cancel</span>(<span class="kw">false</span>); ui.<span class="fn">avisarConexao</span>(); });</code></pre>
+
+  <div class="ah-callout ah-callout-warn mt-5">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <strong>Erro comum:</strong> modelar “ouvinte pulou?” como um losango depois de “Tocar”. Isso significa que a
+      Melodia só <em>pergunta</em> se houve pulo quando a faixa termina, e o pulo real, que acontece no meio, seria
+      ignorado. Eventos assíncronos pedem aceitar evento, não decisão.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 6 ---------- -->
+<section id="melodia-semanal" data-toc="Ex. 6: playlist semanal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-emerald-400 mr-2"></i>Exemplo 6 — A playlist semanal personalizada: um job agendado</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A história.</strong> Toda segunda-feira às 03:00, a Melodia monta para cada ouvinte ativo a playlist
+      “Descobertas da Semana”, com 30 faixas que ele nunca ouviu. Para isso, lê o histórico dos últimos 28 dias,
+      encontra ouvintes com gosto parecido, filtra faixas já ouvidas e bloqueadas e, se o ouvinte aceitou notificações,
+      envia um aviso.
+    </p>
+    <p>
+      Aqui ninguém “clica” para começar: o processo começa por um <strong>evento de tempo</strong>. E como são milhões de
+      ouvintes, o trabalho por ouvinte fica dentro de uma <strong>região de expansão</strong>. A notificação é uma
+      <strong>ação de enviar sinal</strong> (na UML, um pentágono convexo, como uma seta): a Melodia emite o sinal e
+      segue em frente, sem esperar o celular do ouvinte responder.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    T["⏳ Toda segunda, 03:00"] --> A["Selecionar ouvintes ativos nos últimos 28 dias"]
+    subgraph EXP["«parallel» para cada ouvinte"]
+        direction TB
+        H["Ler histórico de 28 dias"] --> V["Encontrar ouvintes com gosto parecido"]
+        V --> C["Coletar faixas candidatas"]
+        C --> F["Remover faixas já ouvidas ou bloqueadas"]
+        F --> Q{"Sobraram 30<br/>ou mais?"}
+        Q -- "[não]" --> COMP["Completar com lançamentos do gênero favorito"]
+        Q -- "[sim]" --> M{" "}
+        COMP --> M
+        M --> S["Salvar playlist da semana"]
+        S --> N{"Aceitou<br/>notificações?"}
+        N -- "[sim]" --> SIG["📤 Enviar sinal: playlist pronta"]
+        N -- "[não]" --> M2{" "}
+        SIG --> M2
+    end
+    A --> EXP
+    EXP --> REL["Gerar relatório do job"]
+    REL --> Z(((" ")))
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">O processo nasce de um evento de tempo, sem nó inicial com clique. Tudo dentro da região tracejada acontece uma vez por ouvinte. O relatório só é gerado depois que a região termina para todos.</p>
+
+  <div class="ah-prose mt-5">
+    <p><strong>Perguntas que o diagrama provoca na reunião de projeto:</strong></p>
+    <ul>
+      <li><em>«parallel» ou «iterative»?</em> Paralelo é mais rápido, mas milhões de leituras simultâneas no histórico
+        podem derrubar o banco. Talvez o certo seja «stream», processando em lotes.</li>
+      <li><em>E se o job falhar no meio?</em> Como a região é por ouvinte, dá para reprocessar só quem falhou. Isso só
+        fica evidente porque o diagrama isolou o trabalho por elemento.</li>
+      <li><em>Quem recebe o sinal?</em> Outro processo (o serviço de notificações) tem um <em>aceitar evento</em>
+        “playlist pronta”. Sinais são como diagramas de atividades conversam entre si.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 7 ---------- -->
+<section id="melodia-familia" data-toc="Ex. 7: convite do plano Família" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-people-roof text-emerald-400 mr-2"></i>Exemplo 7 — Convite do plano Família: corrida entre eventos</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A história.</strong> O titular do plano Família (até seis contas) convida a irmã por e-mail. O convite vale
+      por <strong>7 dias</strong>. Três coisas podem acontecer, e a primeira que acontecer decide o destino do convite:
+      a irmã aceita, a irmã recusa, ou os 7 dias passam.
+    </p>
+    <p>
+      Esse padrão — <strong>esperar vários eventos e reagir ao primeiro</strong> — é muito comum (pagamento confirmado
+      × prazo do boleto, resposta do suporte × SLA). Ele é desenhado com uma região interrompível contendo os aceitadores
+      de evento, inclusive um de tempo. O evento que chegar primeiro interrompe a região e cancela os outros.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    I((" ")) --> L{"Família já tem<br/>6 contas?"}
+    L -- "[sim]" --> CH["Avisar: plano cheio"]
+    L -- "[não]" --> EN["Enviar convite com link"]
+    subgraph R["Região interrompível: aguardando resposta"]
+        direction LR
+        A1["📥 Convite aceito"]
+        A2["📥 Convite recusado"]
+        A3["⏳ 7 dias depois"]
+    end
+    EN --> R
+    A1 -- "⚡" --> V{"Mesmo endereço<br/>de residência?"}
+    V -- "[sim]" --> VIN["Vincular conta e migrar playlists"]
+    V -- "[não]" --> NEG["Recusar vínculo"]
+    A2 -- "⚡" --> LIB["Liberar a vaga"]
+    A3 -- "⚡" --> EXP["Expirar convite e avisar titular"]
+    VIN --> Z(((" ")))
+    NEG --> Z
+    LIB --> Z
+    EXP --> Z
+    CH --> Z
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Três eventos competem dentro da mesma região. O primeiro a ocorrer sai pela aresta de interrupção; os demais deixam de esperar. A decisão depois do aceite mostra que, mesmo após o evento, ainda há regra de negócio a checar.</p>
+
+  <div class="ah-callout ah-callout-tip mt-5">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>
+      <strong>Teste de mesa com corrida:</strong> a irmã clica em “aceitar” no dia 7, às 23:59:59, e o job de expiração
+      roda às 00:00:00. Quem vence? O diagrama diz “o primeiro evento”, mas o código precisa garantir isso de forma
+      atômica — por exemplo, atualizando o convite com <code>UPDATE ... WHERE estado = 'PENDENTE'</code>. O modelo
+      apontou um problema de concorrência antes que ele existisse.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Exemplo 8 ---------- -->
+<section id="melodia-royalties" data-toc="Ex. 8: fechamento de royalties" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-sack-dollar text-emerald-400 mr-2"></i>Exemplo 8 — Fechar os royalties do mês: um processo de negócio completo</h2>
+  <div class="ah-prose">
+    <p>
+      <strong>A história.</strong> No dia 1º de cada mês, a Melodia fecha o mês anterior. Ela soma a receita (assinaturas
+      e anúncios) e, em paralelo, consolida todos os streams válidos (os do Exemplo 5) e descarta os fraudulentos —
+      contas-robô que tocam a mesma faixa em loop. Com os dois números, calcula o valor de cada stream
+      (<em>pro rata</em>: receita ÷ total de streams) e distribui para cada detentor de direitos. O financeiro confere;
+      se a diferença para o mês anterior passar de 20%, o fechamento volta para auditoria antes de pagar.
+    </p>
+  </div>
+  <div class="ah-diagram">
+    <pre class="mermaid">
+flowchart TD
+    T["⏳ Dia 1º, 02:00"] --> F1@{ shape: fork }
+    subgraph SIS["Sistema de Royalties"]
+        direction TB
+        REC["Somar receita do mês"]
+        STR["Consolidar streams válidos"] --> FR["Descartar streams fraudulentos"]
+        CAL["Calcular valor por stream"] --> DIS["Distribuir por detentor de direitos"]
+    end
+    subgraph FIN["Financeiro"]
+        direction TB
+        CONF{"Variação acima<br/>de 20%?"}
+        AUD["Auditar fechamento"]
+        APR["Aprovar pagamentos"]
+    end
+    subgraph BAN["Banco"]
+        direction TB
+        PAG["Transferir valores"]
+    end
+    F1 --> REC
+    F1 --> STR
+    REC --> J1@{ shape: fork }
+    FR --> J1
+    J1 --> CAL
+    DIS --> CONF
+    CONF -- "[sim]" --> AUD
+    AUD --> CAL
+    CONF -- "[não]" --> APR
+    APR --> PAG
+    PAG --> Z(((" ")))
+    </pre>
+  </div>
+  <p class="ah-diagram-cap">Fork e join entre receita e streams, três raias e um laço de auditoria que volta ao cálculo. O join é essencial: calcular o valor por stream sem a receita completa geraria pagamentos errados.</p>
+
+  <div class="ah-prose mt-5">
+    <p>
+      <strong>Exemplo numérico.</strong> Em outubro, a receita destinada a royalties foi de R$ 4.200.000 e houve
+      600.000.000 de streams válidos. O valor por stream é R$ 4.200.000 ÷ 600.000.000 = <strong>R$ 0,007</strong>.
+      A banda que teve 1.500.000 streams recebe 1.500.000 × 0,007 = <strong>R$ 10.500</strong>, dividido entre gravadora,
+      compositores e intérpretes conforme o contrato. Se em setembro o valor tinha sido R$ 0,005, a variação foi de 40%
+      e o fechamento vai para auditoria.
+    </p>
+  </div>
+</section>
+
+<!-- ---------- Erros comuns ---------- -->
+<section id="melodia-erros" data-toc="Erros comuns, versão Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros comuns, com exemplos da Melodia</h2>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Modelagem errada</th><th>O que acontece</th><th>Correção</th></tr></thead>
+      <tbody>
+        <tr><td>Ação “Tocar anúncio” com duas setas de entrada, sem merge</td><td>A ação espera ficha nas duas entradas e nunca roda (só um caminho chega)</td><td>Um losango de merge antes da ação</td></tr>
+        <tr><td>Losango para juntar “baixar capa” e “baixar letras”</td><td>“Marcar disponível” roda duas vezes, e antes do fim do outro ramo</td><td>Barra de join</td></tr>
+        <tr><td>Final de atividade no fim do ramo de analytics</td><td>O primeiro a terminar encerra o download inteiro</td><td>Final de fluxo (círculo com X)</td></tr>
+        <tr><td>Decisão “ouvinte pulou?” depois de “Tocar faixa”</td><td>Só detecta o pulo quando a faixa termina</td><td>Aceitar evento numa região interrompível</td></tr>
+        <tr><td>Guardas <code>[Free]</code> e <code>[3ª faixa]</code> na mesma decisão</td><td>Ouvinte Free na 3ª faixa satisfaz as duas: ambíguo</td><td>Duas decisões em sequência, cada uma sobre uma pergunta</td></tr>
+        <tr><td>Ações com nomes de tela: “Tela de playlist”</td><td>O diagrama vira mapa de navegação, não processo</td><td>Verbo + objeto: “Abrir playlist”</td></tr>
+        <tr><td>“Embaralhar ordem” dentro do laço de faixas</td><td>A ordem muda a cada faixa e músicas podem repetir</td><td>Embaralhar antes do merge de entrada do laço</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---------- Tabela de tradução ---------- -->
+<section id="melodia-codigo" data-toc="Do diagrama ao código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-emerald-400 mr-2"></i>Do diagrama ao código: um dicionário</h2>
+  <div class="ah-prose">
+    <p>
+      Os exemplos acima mostram que cada elemento do diagrama tem uma tradução habitual em Java. Ela não é obrigatória,
+      mas ajuda a conferir se o modelo e a implementação dizem a mesma coisa.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Elemento</th><th>Tradução habitual</th><th>Exemplo da Melodia</th></tr></thead>
+      <tbody>
+        <tr><td>Decisão + merge</td><td><code>if/else</code>, <code>switch</code>, operador ternário</td><td>Free × Premium (Ex. 1)</td></tr>
+        <tr><td>Merge + decisão com seta de volta</td><td><code>while</code>, <code>for</code>, <code>do/while</code></td><td>Tocar a playlist (Ex. 2)</td></tr>
+        <tr><td>Fork / join</td><td><code>CompletableFuture.allOf(...).join()</code></td><td>Faixas, capa e letras (Ex. 3)</td></tr>
+        <tr><td>Região de expansão</td><td><code>forEach</code>, <code>parallelStream</code>, processamento em lotes</td><td>Para cada faixa / ouvinte (Ex. 3 e 6)</td></tr>
+        <tr><td>Final de fluxo</td><td>Tarefa assíncrona “dispare e esqueça”</td><td>Evento de analytics (Ex. 3)</td></tr>
+        <tr><td>Nó de objeto com estado</td><td>Atributo <code>enum</code> + transições</td><td><code>Faixa [aprovada]</code> (Ex. 4)</td></tr>
+        <tr><td>Evento de tempo</td><td>Job agendado (<code>@Scheduled</code>, cron)</td><td>Sexta 00:00, segunda 03:00 (Ex. 4 e 6)</td></tr>
+        <tr><td>Região interrompível</td><td>Cancelamento de <code>Future</code>, listeners de evento</td><td>Contagem de 30 s (Ex. 5)</td></tr>
+        <tr><td>Enviar sinal / aceitar evento</td><td>Publicar e consumir mensagem numa fila</td><td>“Playlist pronta” (Ex. 6)</td></tr>
+        <tr><td>Raia</td><td>Classe, serviço ou sistema externo</td><td>Ingestão, Moderação, Banco (Ex. 4 e 8)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ---------- Exercícios Melodia ---------- -->
+<section id="melodia-exercicios" data-toc="Exercícios: Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios com a Melodia</h2>
+  <p class="ah-lead text-sm mb-5">Tente desenhar antes de abrir o gabarito. Papel e caneta bastam.</p>
+  <div class="space-y-4">
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Modele “Seguir um artista”: se o ouvinte já segue, o botão vira “deixar de seguir”; se não segue, passa a seguir e, ao mesmo tempo, a Melodia atualiza o contador de seguidores e adiciona os lançamentos do artista ao feed.</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> início → “Clicar em seguir” → decisão <code>[já segue]</code> / <code>[não segue]</code>. Em <code>[já segue]</code>: “Deixar de seguir”. Em <code>[não segue]</code>: “Registrar seguidor” → fork → “Atualizar contador” ‖ “Adicionar lançamentos ao feed” → join. Os dois caminhos se encontram num merge e terminam no final de atividade.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. O modo “Rádio” toca faixas sem fim, até o ouvinte parar. Como desenhar um laço que não termina sozinho?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> merge → “Escolher próxima faixa parecida” → “Tocar faixa” → volta ao merge, sem decisão de saída. O laço fica dentro de uma região interrompível com o aceitar evento “📥 Ouvinte parou”, cuja aresta ⚡ leva ao final de atividade. A saída é por evento, não por condição.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Ao criar uma playlist colaborativa, a Melodia gera o link de convite e, em paralelo, envia um evento de analytics que ninguém precisa esperar. Que nó encerra o ramo de analytics?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> um <em>final de fluxo</em> (círculo com X). Ele encerra só a ficha daquele ramo. Um final de atividade encerraria também a geração do link, se ela ainda não tivesse terminado. Note também que não há join: o ramo de analytics não volta a se juntar ao principal.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">4. Um podcast novo deve ser verificado por um moderador em até 48 horas; se ninguém revisar a tempo, ele é publicado automaticamente com o selo “não revisado”. Qual padrão usar?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> corrida entre eventos, como no Exemplo 7. Uma região interrompível com “📥 Revisão concluída” e “⏳ 48 h depois”. O primeiro sai pela aresta ⚡: a revisão leva a uma decisão <code>[aprovado]</code> / <code>[reprovado]</code>; o tempo leva a “Publicar com selo ‘não revisado’”.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">5. Para a retrospectiva anual (“Seu ano na Melodia”), o sistema gera para cada ouvinte o top 5 artistas, o top 5 faixas e os minutos ouvidos — os três cálculos independentes — e depois monta os cards. Quais elementos você usaria?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> um evento de tempo (“⏳ 1º de dezembro”) inicia o processo; uma região de expansão <code>«parallel»</code> ou <code>«stream»</code> “para cada ouvinte”; dentro dela, fork → três cálculos → join → “Montar cards”. Depois da região, “📤 Enviar sinal: retrospectiva disponível” para o serviço de notificações.</p></div>
+    </details>
+    <details class="ah-card p-5">
+      <summary class="cursor-pointer text-sm font-semibold text-white">6. No Exemplo 4, um colega colocou “Validar áudio” na raia da distribuidora. O que muda no significado do diagrama?</summary>
+      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> muda o responsável: o diagrama passaria a dizer que a distribuidora valida o áudio, e a Melodia confiaria no que recebe. Pode até ser uma decisão de projeto válida (validar na origem), mas é outra decisão. Raias não são decoração: mover uma ação de raia muda quem tem a obrigação e, depois, em qual classe ou serviço o código mora.</p></div>
+    </details>
+  </div>
+</section>
+<!-- MELODIA:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
-  <p class="text-xs text-slate-400 mb-6">Três perguntas sobre fluxo.</p>
+  <p class="text-xs text-slate-400 mb-6">Seis perguntas sobre fluxo, as três últimas com a Melodia.</p>
 
   <div class="space-y-5">
     <div class="ah-quiz ah-card p-5" data-answer="1">
@@ -363,6 +1007,40 @@ flowchart TD
       <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
         Cada aresta de saída carrega sua guarda entre colchetes, e elas devem ser <b>mutuamente exclusivas</b>
         e cobrir todos os casos — costuma-se usar <code>[else]</code> para o caminho restante.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. Na Melodia, o ramo “registrar evento de analytics” roda em paralelo ao download e ninguém espera por ele. Ele deve terminar em:</p>
+      <button class="ah-quiz-opt">Um final de atividade</button>
+      <button class="ah-quiz-opt">Uma barra de join junto com os outros ramos</button>
+      <button class="ah-quiz-opt">Um final de fluxo (círculo com X)</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O final de fluxo encerra só aquela ficha. Um final de atividade mataria o download inteiro se o analytics
+        terminasse primeiro, e um join faria o download esperar por algo que não importa ao ouvinte.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">5. Um stream só conta após 30 s, mas o ouvinte pode pular a faixa a qualquer momento. Como modelar o pulo?</p>
+      <button class="ah-quiz-opt">Uma decisão “pulou?” depois da ação “Tocar faixa”</button>
+      <button class="ah-quiz-opt">Um aceitar evento “Ouvinte pulou” dentro de uma região interrompível</button>
+      <button class="ah-quiz-opt">Um fork entre “Tocar” e “Pular”</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O pulo é um evento externo e assíncrono. A decisão só seria avaliada quando “Tocar” terminasse; a região
+        interrompível descarta a contagem no instante em que o evento chega.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">6. “Para cada ouvinte, gerar a playlist da semana” é melhor representado por:</p>
+      <button class="ah-quiz-opt">Uma região de expansão sobre a coleção de ouvintes</button>
+      <button class="ah-quiz-opt">Uma raia por ouvinte</button>
+      <button class="ah-quiz-opt">Um fork com uma saída por ouvinte</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A região de expansão repete seu conteúdo para cada elemento de uma coleção, em modo
+        <code>«parallel»</code>, <code>«iterative»</code> ou <code>«stream»</code>. Raias representam responsáveis, e
+        um fork tem um número fixo de saídas desenhadas.
       </p>
     </div>
   </div>

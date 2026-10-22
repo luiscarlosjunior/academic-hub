@@ -1,0 +1,1199 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Engenharia de Software na AWS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: guia de campo — índice fixo à esquerda no desktop, coluna de leitura de ~68ch, blocos de evidência com selo de força */
+:root{
+  --bg:#F4F6F4; --surface:#FFFFFF; --sunk:#E8ECE9; --line:#D3DAD6;
+  --fg:#15211D; --muted:#56635E;
+  --accent:#0E6B58; --accent-soft:#D7EBE5;
+  --amber:#9A5B00; --amber-soft:#F6E7CF;
+  --red:#A52A21; --red-soft:#F5DEDB;
+  --blue:#2B5C9E; --blue-soft:#DCE6F4;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1513; --surface:#161E1B; --sunk:#1C2622; --line:#2B3833;
+  --fg:#E2E9E5; --muted:#9AA8A2;
+  --accent:#4DC2A5; --accent-soft:#183A31;
+  --amber:#F0B354; --amber-soft:#3A2B12;
+  --red:#F0857A; --red-soft:#3D1F1B;
+  --blue:#86B0EA; --blue-soft:#1C2B40; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1513; --surface:#161E1B; --sunk:#1C2622; --line:#2B3833;
+  --fg:#E2E9E5; --muted:#9AA8A2;
+  --accent:#4DC2A5; --accent-soft:#183A31;
+  --amber:#F0B354; --amber-soft:#3A2B12;
+  --red:#F0857A; --red-soft:#3D1F1B;
+  --blue:#86B0EA; --blue-soft:#1C2B40; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16.5px;line-height:1.62;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+a{color:var(--accent);text-underline-offset:2px}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.6rem,3.2vw,2.1rem);font-weight:800;letter-spacing:-.01em}
+h3{font-size:1.22rem;font-weight:700;margin-top:1.8rem}
+h4{font-size:1.02rem;font-weight:700}
+p{margin:.7rem 0}
+ul,ol{padding-left:1.25rem;margin:.6rem 0}
+li{margin:.3rem 0}
+strong{font-weight:600}
+code,.mono{font-family:var(--mono);font-size:.88em}
+
+.shell{max-width:1220px;margin:0 auto;display:grid;grid-template-columns:250px minmax(0,1fr);gap:48px;padding-block:28px 80px}
+@media (max-width:900px){.shell{grid-template-columns:minmax(0,1fr);gap:0}}
+
+/* índice */
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);align-self:start;max-height:calc(100vh - 40px);overflow:auto;padding-right:6px}
+nav.toc .brand{font-family:var(--display);font-weight:800;font-size:1.05rem;margin-bottom:.2rem}
+nav.toc .brandsub{font-size:.8rem;color:var(--muted);margin-bottom:1rem}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:t}
+nav.toc li{margin:0}
+nav.toc a{display:flex;gap:.55rem;padding:.32rem .5rem;border-radius:6px;color:var(--muted);text-decoration:none;font-size:.89rem;line-height:1.3}
+nav.toc a::before{counter-increment:t;content:counter(t,decimal-leading-zero);font-family:var(--mono);font-size:.74rem;padding-top:.12rem;opacity:.7}
+nav.toc a:hover{background:var(--sunk);color:var(--fg)}
+nav.toc a.on{background:var(--accent-soft);color:var(--fg)}
+nav.toc .grp{font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:1rem .5rem .3rem;font-weight:600}
+@media (max-width:900px){
+  nav.toc{position:static;max-height:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:14px;margin-bottom:28px}
+  nav.toc ol{columns:2;column-gap:10px}
+  nav.toc .grp{display:none}
+}
+@media (max-width:520px){nav.toc ol{columns:1}}
+
+main{min-width:0}
+section{padding-top:56px;scroll-margin-top:16px}
+section:first-child{padding-top:0}
+.read{max-width:72ch}
+.eyebrow{font-family:var(--mono);font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:.55rem;display:block}
+.lede{font-size:1.12rem;color:var(--muted);max-width:66ch}
+
+/* hero */
+.hero{padding:6px 0 10px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.hero h1{font-size:clamp(2.2rem,5.6vw,3.6rem);font-weight:800;letter-spacing:-.025em;max-width:16ch}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.84rem;color:var(--muted);margin-top:1rem;font-family:var(--mono)}
+
+/* tese */
+.thesis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}
+@media (max-width:760px){.thesis{grid-template-columns:minmax(0,1fr)}}
+.thesis div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.thesis b{display:block;font-family:var(--display);font-size:1.06rem;margin-bottom:.3rem}
+.thesis p{margin:0;font-size:.94rem;color:var(--muted)}
+
+/* callouts */
+.call{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 8px 8px 0;margin:1.2rem 0}
+.call.warn{border-color:var(--amber);background:var(--amber-soft)}
+.call.stop{border-color:var(--red);background:var(--red-soft)}
+.call.info{border-color:var(--blue);background:var(--blue-soft)}
+.call p:first-child{margin-top:0}.call p:last-child{margin-bottom:0}
+.call .lbl{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;display:block;margin-bottom:.25rem}
+
+/* evidência */
+.ev{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+@media (max-width:760px){.ev{grid-template-columns:minmax(0,1fr)}}
+.evc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.evc .num{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1;font-variant-numeric:tabular-nums}
+.evc .num small{font-size:.9rem;font-weight:600;color:var(--muted);margin-left:4px}
+.evc h4{font-size:.98rem}
+.evc p{margin:0;font-size:.92rem;color:var(--muted)}
+.evc .src{font-size:.78rem;font-family:var(--mono);color:var(--muted);margin-top:auto;padding-top:6px;border-top:1px dashed var(--line)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:.7rem;padding:2px 8px;border-radius:99px;letter-spacing:.03em;white-space:nowrap;align-self:flex-start}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.t-strong{background:var(--accent-soft);color:var(--accent)}
+.t-mid{background:var(--blue-soft);color:var(--blue)}
+.t-weak{background:var(--amber-soft);color:var(--amber)}
+.t-risk{background:var(--red-soft);color:var(--red)}
+
+/* tabelas */
+.tw{overflow-x:auto;margin:1rem 0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:640px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td b{font-weight:600}
+
+/* fases */
+.phase{border:1px solid var(--line);background:var(--surface);border-radius:10px;margin:12px 0;overflow:hidden}
+.phase summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:14px 18px}
+.phase summary::-webkit-details-marker{display:none}
+.phase summary h4{font-size:1.06rem}
+.phase summary .sub{font-size:.86rem;color:var(--muted);display:block;font-family:var(--body);font-weight:400;margin-top:2px}
+.phase summary .chev{font-family:var(--mono);color:var(--muted);transition:transform .2s}
+.phase[open] summary .chev{transform:rotate(90deg)}
+.phase .body{padding:0 18px 16px;border-top:1px solid var(--line)}
+.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:12px}
+@media (max-width:760px){.cols3{grid-template-columns:minmax(0,1fr)}}
+.cols3 h5{font-family:var(--mono);font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;margin:0 0 .3rem;color:var(--muted);font-weight:500}
+.cols3 ul{font-size:.92rem;margin:0}
+.ours{margin-top:12px;background:var(--sunk);border-radius:8px;padding:10px 14px;font-size:.9rem}
+.ours b{font-family:var(--mono);font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);font-weight:500;display:block}
+.mat{display:flex;gap:3px;align-items:center}
+.mat i{width:14px;height:6px;border-radius:2px;background:var(--line)}
+.mat i.f{background:var(--accent)}
+
+/* falas */
+.say{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:1rem 0}
+@media (max-width:760px){.say{grid-template-columns:minmax(0,1fr)}}
+.say div{border-radius:10px;padding:14px 16px;border:1px solid var(--line);background:var(--surface)}
+.say .do{border-top:3px solid var(--accent)}
+.say .dont{border-top:3px solid var(--red)}
+.say h5{margin:0 0 .4rem;font-family:var(--mono);font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;font-weight:500}
+.say .do h5{color:var(--accent)} .say .dont h5{color:var(--red)}
+.say ul{margin:0;padding-left:1.1rem;font-size:.93rem}
+q{font-style:italic;quotes:"“" "”"}
+
+/* agenda */
+.agenda{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden;margin:1rem 0}
+.ag{display:grid;grid-template-columns:92px minmax(0,1fr);border-bottom:1px solid var(--line)}
+.ag:last-child{border-bottom:0}
+.ag .tm{font-family:var(--mono);font-size:.82rem;padding:14px;background:var(--sunk);color:var(--muted);font-variant-numeric:tabular-nums}
+.ag .ct{padding:12px 16px;min-width:0}
+.ag .ct h4{font-size:1rem}
+.ag .ct p{margin:.3rem 0 0;font-size:.92rem}
+.ag .ct .line{display:block;margin-top:.4rem;font-size:.92rem;padding-left:10px;border-left:2px solid var(--accent);color:var(--muted)}
+@media (max-width:520px){.ag{grid-template-columns:minmax(0,1fr)}.ag .tm{padding:8px 14px}}
+
+/* personas */
+.people{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:760px){.people{grid-template-columns:minmax(0,1fr)}}
+.person{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.person h4{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.person dl{margin:.5rem 0 0;font-size:.92rem}
+.person dt{font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-top:.55rem}
+.person dd{margin:.15rem 0 0}
+
+/* níveis de autonomia */
+.ladder{display:grid;gap:6px;margin:1rem 0}
+.rung{display:grid;grid-template-columns:62px minmax(0,1fr);gap:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.rung .lv{font-family:var(--display);font-weight:800;font-size:1.4rem;display:flex;align-items:center;justify-content:center;color:var(--accent);background:var(--accent-soft)}
+.rung .tx{padding:10px 14px;font-size:.92rem;min-width:0}
+.rung .tx b{font-family:var(--display);font-size:1rem}
+.rung.hi .lv{color:var(--amber);background:var(--amber-soft)}
+.rung.top .lv{color:var(--red);background:var(--red-soft)}
+
+/* avaliador */
+.tool{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:16px}
+.tool-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:22px}
+@media (max-width:820px){.tool-grid{grid-template-columns:minmax(0,1fr)}}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.presets button,.btn{font:inherit;font-size:.82rem;border:1px solid var(--line);background:var(--sunk);color:var(--fg);padding:5px 10px;border-radius:99px;cursor:pointer}
+.presets button:hover,.btn:hover{border-color:var(--accent)}
+.presets button[aria-pressed="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.fld{margin:10px 0}
+.fld label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;font-weight:500}
+.fld label span{font-family:var(--mono);color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.fld small{display:block;color:var(--muted);font-size:.78rem;line-height:1.35}
+.fld input[type=range]{width:100%;accent-color:var(--accent)}
+.fld input[type=text]{width:100%;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.verdict{border-radius:10px;padding:16px;background:var(--sunk);display:flex;flex-direction:column;gap:10px}
+.verdict .v{font-family:var(--display);font-size:1.5rem;font-weight:800;line-height:1.1}
+.verdict .v.go{color:var(--accent)} .verdict .v.pilot{color:var(--blue)} .verdict .v.no{color:var(--red)} .verdict .v.wait{color:var(--amber)}
+.bars{display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:96px minmax(0,1fr) 34px;gap:8px;align-items:center;font-size:.8rem}
+.bar .tr{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar .tr i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .25s}
+.bar span:last-child{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.verdict ul{font-size:.88rem;margin:0}
+
+/* checklist */
+.check{list-style:none;padding:0}
+.check li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line)}
+.check input{margin-top:.35rem;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.check label{cursor:pointer}
+.check .lvl{font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-left:6px}
+.prog{font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:820px){.road{grid-template-columns:minmax(0,1fr)}}
+.road>div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.road h4{font-size:1.05rem}
+.road .d{font-family:var(--mono);font-size:.74rem;color:var(--accent);letter-spacing:.07em;text-transform:uppercase}
+.road ul{font-size:.92rem}
+.road .exit{font-size:.85rem;border-top:1px dashed var(--line);padding-top:8px;margin-top:8px;color:var(--muted)}
+
+.gloss{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;margin-top:10px}
+@media (max-width:760px){.gloss{grid-template-columns:minmax(0,1fr)}}
+.gloss div{padding:10px 0;border-bottom:1px solid var(--line)}
+.gloss dt{font-family:var(--display);font-weight:700}
+.gloss dd{margin:.15rem 0 0;font-size:.92rem;color:var(--muted)}
+
+.src-list{font-size:.88rem;columns:2;column-gap:32px}
+@media (max-width:760px){.src-list{columns:1}}
+.src-list li{break-inside:avoid;margin-bottom:.5rem}
+
+/* casos */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 4px}
+.filters button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:12px}
+@media (max-width:820px){.cases{grid-template-columns:minmax(0,1fr)}}
+.case{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.case .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.case .co{font-family:var(--display);font-weight:800;font-size:1.15rem}
+.case .yr{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+.case .big{font-family:var(--display);font-weight:700;font-size:1.02rem;line-height:1.3}
+.case p{margin:0;font-size:.92rem}
+.case .k{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:1px}
+.case .lesson{background:var(--sunk);border-radius:6px;padding:8px 10px;font-size:.9rem}
+.case .ask{font-size:.9rem;color:var(--muted);font-style:italic}
+.case .cs{font-family:var(--mono);font-size:.74rem;color:var(--muted);margin-top:auto;padding-top:6px;border-top:1px dashed var(--line)}
+.t-gain{background:var(--accent-soft);color:var(--accent)}
+.t-mandate{background:var(--blue-soft);color:var(--blue)}
+.t-fail{background:var(--red-soft);color:var(--red)}
+.patterns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:760px){.patterns{grid-template-columns:minmax(0,1fr)}}
+.patterns div{border-top:2px solid var(--fg);padding-top:10px}
+.patterns b{font-family:var(--display);display:block;margin-bottom:.2rem}
+.patterns p{margin:0;font-size:.92rem;color:var(--muted)}
+
+/* cultura */
+.scale{display:inline-flex;gap:3px;vertical-align:middle}
+.scale i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--muted)}
+.scale i.f{background:var(--blue);border-color:var(--blue)}
+.layers{display:grid;gap:8px;margin:1rem 0}
+.layer{display:grid;grid-template-columns:150px minmax(0,1fr);border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.layer .ln{padding:12px 14px;font-family:var(--display);font-weight:700;background:var(--sunk)}
+.layer .lt{padding:12px 14px;font-size:.92rem;min-width:0}
+@media (max-width:560px){.layer{grid-template-columns:minmax(0,1fr)}}
+.rituals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:900px){.rituals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.rituals{grid-template-columns:minmax(0,1fr)}}
+.ritual{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.ritual .fq{font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}
+.ritual h4{font-size:1rem}
+.ritual p{margin:0;font-size:.9rem;color:var(--muted)}
+.norms{counter-reset:n;list-style:none;padding:0;margin:1rem 0;display:grid;gap:8px}
+.norms li{counter-increment:n;display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:0}
+.norms li::before{content:counter(n);font-family:var(--display);font-weight:800;font-size:1.3rem;color:var(--accent);line-height:1.2}
+.norms b{font-weight:600}
+.norms span{display:block;font-size:.88rem;color:var(--muted)}
+
+/* aula */
+.goals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+@media (max-width:760px){.goals{grid-template-columns:minmax(0,1fr)}}
+.goals div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:.93rem}
+.goals b{font-family:var(--display);display:block;font-size:1.02rem}
+.timeline{border-left:2px solid var(--line);margin:1rem 0 1rem 6px;padding-left:18px}
+.timeline div{position:relative;margin:0 0 14px}
+.timeline div::before{content:"";position:absolute;left:-25px;top:.45rem;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.timeline .yr{font-family:var(--mono);font-size:.76rem;color:var(--accent)}
+.timeline p{margin:.1rem 0 0;font-size:.93rem}
+.fig{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin:1rem 0}
+.fig svg{width:100%;height:auto;display:block}
+.fig figcaption{font-size:.84rem;color:var(--muted);margin-top:8px}
+.quiz{display:grid;gap:12px;margin-top:14px}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.q h4{font-size:1rem;margin-bottom:.6rem}
+.q .opts{display:grid;gap:6px}
+.q button{font:inherit;font-size:.92rem;text-align:left;border:1px solid var(--line);background:var(--sunk);color:var(--fg);padding:8px 12px;border-radius:8px;cursor:pointer}
+.q button:hover:not(:disabled){border-color:var(--accent)}
+.q button:disabled{cursor:default}
+.q button.ok{background:var(--accent-soft);border-color:var(--accent)}
+.q button.bad{background:var(--red-soft);border-color:var(--red)}
+.q .fb{font-size:.9rem;color:var(--muted);margin:.6rem 0 0}
+.act{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+.act .d{font-family:var(--mono);font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.2rem}
+.act p{margin:.4rem 0 0;font-size:.94rem}
+
+nav.toc a.back{display:block;font-size:.78rem;padding:0;margin-bottom:.6rem;color:var(--accent)}
+nav.toc a.back::before{content:none}
+.nextl{display:block;margin-top:.6rem;font-weight:600}
+/* camada didática */
+.explica{border:1px solid var(--line);border-left:3px solid var(--blue);background:var(--surface);border-radius:0 10px 10px 0;padding:14px 18px;margin:1.2rem 0}
+.explica .lbl,.fixar .lbl{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:.3rem}
+.explica .lbl{color:var(--blue)}
+.explica p{margin:.45rem 0}.explica p:last-child{margin-bottom:0}
+.explica ul{margin:.4rem 0}
+.explica dl{margin:.4rem 0 0;display:grid;gap:.5rem}
+.explica dt{font-weight:600}.explica dd{margin:0;color:var(--muted);font-size:.93rem}
+.fixar{border-top:2px solid var(--accent);padding-top:10px;margin:1.8rem 0 .4rem}
+.fixar .lbl{color:var(--accent)}
+.fixar ul{margin:.3rem 0;font-size:.96rem}
+.prof{display:flex;gap:14px;align-items:flex-start;background:var(--sunk);border-radius:12px;padding:16px 18px;margin:1.4rem 0}
+.prof .av{flex:none;width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--bg);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800}
+.prof b{font-family:var(--display);display:block;margin-bottom:.2rem}
+.prof p{margin:.35rem 0}.prof p:last-child{margin-bottom:0}
+
+footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);font-size:.84rem;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+pre{background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.5;margin:.8rem 0}
+pre code{font-size:inherit}
+.refs{list-style:none;padding:0;font-size:.88rem}
+.refs li{padding-left:1.4rem;text-indent:-1.4rem;margin:.45rem 0}
+.refs a{word-break:break-all}
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="Índice">
+  <a class="back" href="../index.html">← Engenharia de Software com IA</a>
+  <div class="brand">Aula 3 · Engenharia de Software na AWS com IA</div>
+  <div class="brandsub">Aula magna: construir, publicar e operar na nuvem com a ajuda da IA</div>
+  <ol>
+    <li class="grp">Abertura</li>
+    <li><a href="#resumo">A tese em 5 minutos</a></li>
+    <li><a href="#aula">Roteiro da aula</a></li>
+    <li class="grp">Fundamentos da nuvem</li>
+    <li><a href="#nuvem">O que muda quando o software vive na nuvem</a></li>
+    <li><a href="#servicos">Os blocos de construção da AWS</a></li>
+    <li><a href="#wellarch">Well-Architected: os seis pilares</a></li>
+    <li class="grp">Engenharia na AWS com IA</li>
+    <li><a href="#iac">Infraestrutura como código</a></li>
+    <li><a href="#pipeline">Esteira de entrega e deploy seguro</a></li>
+    <li><a href="#ferramentas">A IA da AWS para quem desenvolve</a></li>
+    <li><a href="#agentes">Agentes com acesso à conta AWS</a></li>
+    <li><a href="#exemplo">Exemplo trabalhado com CDK</a></li>
+    <li class="grp">IA dentro do produto</li>
+    <li><a href="#produto">Um assistente com Bedrock e RAG</a></li>
+    <li><a href="#custos">Quanto custa: FinOps com IA</a></li>
+    <li class="grp">Operar com segurança</li>
+    <li><a href="#operacao">Observabilidade e incidentes</a></li>
+    <li><a href="#seguranca">Segurança, privacidade e LGPD</a></li>
+    <li><a href="#padroes">Padrões e antipadrões</a></li>
+    <li class="grp">Praticar e revisar</li>
+    <li><a href="#atividades">Atividades para a turma</a></li>
+    <li><a href="#revisao">Questões de revisão</a></li>
+    <li><a href="#sintese">Síntese da aula</a></li>
+    <li><a href="#referencias">Referências</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="resumo">
+  <div class="hero">
+    <span class="eyebrow">Aula magna · Engenharia de software com IA · Aula 3</span>
+    <h1>Na nuvem, <em>a infraestrutura</em> também virou código.</h1>
+    <p class="lede">Nas aulas anteriores vimos como adotar IA numa equipe e como a engenharia de software e a IA trabalham juntas. Agora vamos levar tudo isso para onde a maior parte do software moderno roda: a nuvem. Usando a AWS como exemplo, vamos ver como se constrói, publica e opera um sistema com a ajuda da IA, e também como colocar a própria IA dentro do produto.</p>
+    <div class="meta"><span>Aula magna · ~2h30</span><span>Exemplo com AWS CDK</span><span>Calculadora de custo</span><span>6 atividades · 11 questões</span></div>
+  </div>
+
+  <div class="read"><div class="prof"><span class="av" aria-hidden="true">P</span><div><b>Palavra do professor: antes de começar</b>
+    <p>Esta é a aula mais "mão na massa" da disciplina. Vamos falar de serviços reais da AWS, de arquivos de configuração e de custos. Mesmo assim, ela foi escrita para ser acompanhada por quem nunca abriu o console da AWS: cada serviço é apresentado com uma explicação simples antes de qualquer detalhe técnico.</p>
+    <p>Uma observação importante: a nuvem muda depressa. Nomes de serviços, recursos e preços mudam ao longo do ano. Por isso, foque nos <strong>princípios</strong> (que duram) e consulte a documentação oficial antes de usar qualquer detalhe em produção. Os preços que aparecem aqui são <strong>ilustrativos</strong>.</p>
+    <p>Vamos continuar usando o sistema de condomínios das aulas anteriores como exemplo. Ele já roda na AWS, o que facilita: cada conceito vai aparecer aplicado a um problema concreto.</p>
+  </div></div></div>
+
+  <div class="read"><h3>A tese em três frases</h3></div>
+  <div class="thesis">
+    <div><b>Na nuvem, tudo é software</b><p>Servidores, redes, permissões e alarmes são descritos em código. Isso traz a infraestrutura para dentro do ciclo de engenharia, e para dentro do alcance da IA.</p></div>
+    <div><b>A IA acelera a nuvem nos dois sentidos</b><p>Ela escreve infraestrutura, diagnostica falhas e explica custos com rapidez. E, com credenciais erradas, pode apagar recursos com a mesma rapidez.</p></div>
+    <div><b>O método é o mesmo, com mais guardas</b><p>Especificar, contextualizar, gerar, verificar, integrar e aprender. Na nuvem, a verificação ganha ferramentas próprias (plano de mudança, políticas, alarmes) e as permissões viram o principal controle.</p></div>
+  </div>
+</section>
+
+<section id="aula">
+  <div class="read">
+    <span class="eyebrow">Roteiro</span>
+    <h2>Como esta aula está organizada</h2>
+    <p class="lede">Começamos entendendo o que é a nuvem e quais são as peças da AWS. Depois vemos como a engenharia de software e a IA trabalham sobre essas peças: código de infraestrutura, esteira de entrega, ferramentas de IA e agentes. Em seguida colocamos a IA dentro do produto e calculamos quanto isso custa. Fechamos com operação, segurança e prática.</p>
+    <h3>Objetivos de aprendizagem</h3>
+    <p>Ao final, você deve conseguir:</p>
+  </div>
+  <div class="goals">
+    <div><b>Explicar</b>o modelo de responsabilidade compartilhada e os principais serviços da AWS em linguagem simples.</div>
+    <div><b>Usar</b>os seis pilares do Well-Architected para avaliar uma arquitetura, inclusive uma com IA.</div>
+    <div><b>Revisar</b>infraestrutura como código gerada por IA, encontrando os erros mais comuns.</div>
+    <div><b>Definir</b>permissões seguras para agentes de IA que acessam uma conta AWS.</div>
+    <div><b>Desenhar</b>uma funcionalidade com IA generativa (RAG no Bedrock) com isolamento, avaliação e guardas.</div>
+    <div><b>Estimar</b>o custo de uma funcionalidade com IA e transformá-lo em custo por cliente.</div>
+  </div>
+  <div class="read"><h3>Roteiro sugerido (cerca de 2h30)</h3></div>
+  <div class="agenda">
+    <div class="ag"><div class="tm">0–20</div><div class="ct"><h4>Fundamentos da nuvem</h4><p>Responsabilidade compartilhada, blocos de construção, Well-Architected.</p></div></div>
+    <div class="ag"><div class="tm">20–50</div><div class="ct"><h4>Infraestrutura como código e esteira</h4><p>Por que a infraestrutura virou software, como a IA ajuda e como verificar o que ela gera.</p></div></div>
+    <div class="ag"><div class="tm">50–75</div><div class="ct"><h4>Ferramentas, agentes e exemplo</h4><p>A IA da AWS para quem desenvolve, permissões de agentes e um exemplo com CDK.</p></div></div>
+    <div class="ag"><div class="tm">75–105</div><div class="ct"><h4>IA dentro do produto</h4><p>Um assistente com Bedrock e RAG, e a calculadora de custo.</p></div></div>
+    <div class="ag"><div class="tm">105–125</div><div class="ct"><h4>Operar com segurança</h4><p>Observabilidade, incidentes, segurança e LGPD.</p></div></div>
+    <div class="ag"><div class="tm">125–150</div><div class="ct"><h4>Praticar e sintetizar</h4><p>Atividades, questões e síntese.</p></div></div>
+  </div>
+</section>
+
+<section id="nuvem">
+  <div class="read">
+    <span class="eyebrow">Fundamentos · 1</span>
+    <h2>O que muda quando o software vive na nuvem</h2>
+    <p class="lede">Até os anos 2000, colocar um sistema no ar exigia comprar servidores, esperar a entrega, instalar num data center e configurar tudo à mão. A computação em nuvem trocou esse modelo por outro: você aluga capacidade sob demanda, paga pelo que usa e controla tudo por meio de uma interface de programação.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: a nuvem como energia elétrica</span>
+      <p>Pense na energia elétrica. Ninguém constrói uma usina em casa: você liga o aparelho na tomada e paga pelo consumo. A nuvem fez o mesmo com computadores. Em vez de comprar e manter servidores, você "liga na tomada" da AWS, do Google ou da Microsoft e paga pelo uso.</p>
+      <p>A grande consequência para a engenharia é que, como tudo é pedido por meio de uma interface de programação (uma API), <strong>criar um servidor passou a ser uma linha de código</strong>. E tudo que é código pode ser versionado, revisado, testado e, agora, escrito com ajuda de IA.</p>
+    </div>
+    <p>Armbrust et al. (2010), num artigo clássico de Berkeley, resumiram as três novidades da nuvem: a ilusão de recursos infinitos sob demanda, o fim do compromisso antecipado com compra de máquinas e o pagamento por uso em pequenas frações de tempo. Quase uma década depois, Jonas et al. (2019) mostraram o passo seguinte, a computação <em>serverless</em>, em que você nem pensa em servidores: entrega uma função e a nuvem cuida do resto.</p>
+
+    <h3>O modelo de responsabilidade compartilhada</h3>
+    <p>Uma ideia que todo estudante precisa levar desta aula: na nuvem, a segurança é <strong>dividida</strong>. A AWS descreve isso como "segurança <em>da</em> nuvem" (dela) e "segurança <em>na</em> nuvem" (sua).</p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Responsabilidade da AWS</th><th>Responsabilidade de quem usa</th></tr></thead>
+    <tbody>
+      <tr><td>Prédios, energia, refrigeração e segurança física dos data centers</td><td>Quem tem acesso à conta e com quais permissões (IAM)</td></tr>
+      <tr><td>Hardware, rede física e a camada de virtualização</td><td>Configuração de rede: o que fica exposto à internet</td></tr>
+      <tr><td>Operação dos serviços gerenciados (por exemplo, o motor do banco de dados no RDS)</td><td>Os dados: classificação, criptografia, backup e retenção</td></tr>
+      <tr><td>Disponibilidade da infraestrutura global</td><td>O código da aplicação, as dependências e o que se envia para modelos de IA</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <div class="call warn">
+      <span class="lbl">Por que isso importa para a IA</span>
+      <p>Quando uma IA gera uma configuração com uma porta aberta para a internet ou uma permissão ampla demais, o problema está do <strong>seu</strong> lado do modelo. A AWS vai executar exatamente o que foi pedido. Nenhum provedor de nuvem protege você de uma configuração errada que você mesmo aplicou.</p>
+    </div>
+  </div>
+  <div class="read"><div class="fixar"><span class="lbl">Para fixar</span><ul>
+    <li>Na nuvem você aluga capacidade sob demanda e controla tudo por API; por isso a infraestrutura vira código.</li>
+    <li>A AWS cuida da segurança <em>da</em> nuvem; você cuida da segurança <em>na</em> nuvem: acessos, rede, dados e código.</li>
+    <li>Erros de configuração, inclusive os gerados por IA, são responsabilidade de quem usa.</li>
+  </ul></div></div>
+</section>
+
+<section id="servicos">
+  <div class="read">
+    <span class="eyebrow">Fundamentos · 2</span>
+    <h2>Os blocos de construção da AWS</h2>
+    <p class="lede">A AWS tem mais de duzentos serviços, mas um sistema típico usa uma dúzia. Conhecer bem esses blocos é mais útil do que decorar o catálogo. Abaixo, cada um com uma explicação simples e o papel que ele tem no sistema de condomínios.</p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Bloco</th><th>Serviço</th><th>Em uma frase</th><th>No caso-guia</th></tr></thead>
+    <tbody>
+      <tr><td><b>Computação</b></td><td>EC2</td><td>Máquinas virtuais alugadas; você controla o sistema operacional</td><td>A API .NET roda em instâncias EC2</td></tr>
+      <tr><td></td><td>Auto Scaling</td><td>Liga e desliga máquinas conforme a demanda</td><td>Mais instâncias no horário de pico da portaria</td></tr>
+      <tr><td></td><td>ECS / Fargate</td><td>Roda contêineres sem gerenciar as máquinas</td><td>Alternativa avaliada (e registrada em ADR)</td></tr>
+      <tr><td></td><td>Lambda</td><td>Executa uma função quando algo acontece; paga por execução</td><td>Processar a foto de cada encomenda</td></tr>
+      <tr><td><b>Armazenamento</b></td><td>S3</td><td>Guarda arquivos de qualquer tamanho, com alta durabilidade</td><td>Fotos de encomendas e documentos</td></tr>
+      <tr><td><b>Banco de dados</b></td><td>RDS / Aurora</td><td>Banco relacional gerenciado (PostgreSQL, MySQL…)</td><td>Reservas, unidades, moradores</td></tr>
+      <tr><td></td><td>DynamoDB</td><td>Banco chave-valor com latência baixa e escala automática</td><td>Sessões e contadores de uso</td></tr>
+      <tr><td><b>Integração</b></td><td>SQS / SNS / EventBridge</td><td>Filas, avisos e eventos para desacoplar partes do sistema</td><td>Fila de encomendas a processar</td></tr>
+      <tr><td><b>Rede</b></td><td>VPC</td><td>A rede privada do seu sistema dentro da AWS</td><td>Banco sem acesso pela internet</td></tr>
+      <tr><td><b>Identidade</b></td><td>IAM</td><td>Quem pode fazer o quê, em qual recurso</td><td>Permissões de pessoas, serviços e agentes</td></tr>
+      <tr><td><b>Observação</b></td><td>CloudWatch / X-Ray / CloudTrail</td><td>Métricas, logs e alarmes; rastreamento de requisições; registro de quem fez o quê na conta</td><td>Alarme de fila parada; auditoria de mudanças</td></tr>
+      <tr><td><b>IA</b></td><td>Textract, Bedrock, Q Developer</td><td>Ler documentos; acessar modelos de linguagem; assistente para quem desenvolve</td><td>Ler etiquetas; assistente do morador; apoio ao time</td></tr>
+    </tbody>
+  </table></div>
+  <figure class="fig">
+    <svg viewBox="0 0 760 236" role="img" aria-label="Arquitetura simplificada do caso-guia na AWS: app e portaria acessam a API em EC2 com Auto Scaling, que usa RDS e S3; fotos de encomendas geram eventos para uma fila SQS processada por Lambda com Textract; Bedrock atende o assistente; CloudWatch e CloudTrail observam tudo">
+      <style>.bx{fill:var(--sunk);stroke:var(--line);stroke-width:1.2}.bx.ai{fill:var(--amber-soft);stroke:var(--amber)}.bx.ob{fill:var(--blue-soft);stroke:var(--blue)}.t1{fill:var(--fg);font:700 13.5px var(--display)}.t2{fill:var(--muted);font:11.5px var(--body)}.ar{stroke:var(--muted);stroke-width:1.5;fill:none}.ah{fill:var(--muted)}</style>
+      <defs><marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs>
+      <rect class="bx" x="10" y="20" width="120" height="56" rx="9"/><text class="t1" x="22" y="44">App e portaria</text><text class="t2" x="22" y="62">usuários</text>
+      <rect class="bx" x="170" y="20" width="160" height="56" rx="9"/><text class="t1" x="182" y="44">API .NET</text><text class="t2" x="182" y="62">EC2 + Auto Scaling</text>
+      <rect class="bx" x="370" y="10" width="120" height="40" rx="9"/><text class="t1" x="382" y="35">RDS</text>
+      <rect class="bx" x="370" y="60" width="120" height="40" rx="9"/><text class="t1" x="382" y="85">S3 (fotos)</text>
+      <rect class="bx" x="530" y="60" width="90" height="40" rx="9"/><text class="t1" x="542" y="85">SQS</text>
+      <rect class="bx ai" x="640" y="60" width="110" height="40" rx="9"/><text class="t1" x="650" y="85">Lambda+Textract</text>
+      <rect class="bx ai" x="170" y="120" width="160" height="50" rx="9"/><text class="t1" x="182" y="142">Bedrock</text><text class="t2" x="182" y="159">assistente do morador</text>
+      <rect class="bx ob" x="10" y="190" width="740" height="36" rx="9"/><text class="t1" x="22" y="213">CloudWatch · X-Ray · CloudTrail</text><text class="t2" x="260" y="213">observam tudo: métricas, logs, alarmes, rastros e auditoria</text>
+      <path class="ar" d="M130,48H167" marker-end="url(#ah3)"/>
+      <path class="ar" d="M330,40H367" marker-end="url(#ah3)"/>
+      <path class="ar" d="M330,62C350,62 350,80 367,80" marker-end="url(#ah3)"/>
+      <path class="ar" d="M490,80H527" marker-end="url(#ah3)"/>
+      <path class="ar" d="M620,80H637" marker-end="url(#ah3)"/>
+      <path class="ar" d="M250,76V117" marker-end="url(#ah3)"/>
+    </svg>
+    <figcaption>Arquitetura simplificada do caso-guia. Em âmbar, onde a IA faz parte do produto: leitura de etiquetas com Textract e o assistente do morador com Bedrock.</figcaption>
+  </figure>
+  <div class="read">
+    <div class="explica"><span class="lbl">Explicando com calma: "serviço gerenciado"</span>
+      <p>Um serviço gerenciado é aquele em que a AWS cuida da parte chata de operar: instalar atualizações, fazer backup, substituir máquinas com defeito. No RDS, por exemplo, você usa o banco de dados, mas não instala nem atualiza o PostgreSQL. Quanto mais gerenciado o serviço, menos trabalho de operação e menos controle fino você tem. É uma troca, e escolher entre elas é uma decisão de arquitetura.</p>
+    </div>
+  </div>
+  <div class="read"><div class="fixar"><span class="lbl">Para fixar</span><ul>
+    <li>Um sistema típico combina computação, armazenamento, banco, integração, rede, identidade e observação.</li>
+    <li>Serviços gerenciados trocam controle por menos trabalho de operação.</li>
+    <li>A IA aparece de dois jeitos: ajudando quem constrói (Q Developer) e como parte do produto (Textract, Bedrock).</li>
+  </ul></div></div>
+</section>
+
+<section id="wellarch">
+  <div class="read">
+    <span class="eyebrow">Fundamentos · 3</span>
+    <h2>Well-Architected: os seis pilares</h2>
+    <p class="lede">A AWS reuniu em um guia chamado <strong>Well-Architected Framework</strong> as boas práticas para avaliar uma arquitetura na nuvem. Ele é organizado em seis pilares e funciona como uma lista de perguntas que qualquer equipe pode fazer sobre o próprio sistema. Recentemente ganhou também uma "lente" específica para IA generativa (AWS, 2025).</p>
+    <div class="explica"><span class="lbl">Explicando com calma: um checklist de vistoria</span>
+      <p>Pense na vistoria de um imóvel: a estrutura está firme? a instalação elétrica é segura? a conta de luz é razoável? Cada pergunta olha o imóvel de um ângulo diferente. Os seis pilares fazem o mesmo com um sistema. Nenhum pilar é mais importante que os outros, e melhorar um costuma custar algo em outro. Equilibrar esses pesos é o trabalho de arquitetura.</p>
+    </div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Pilar</th><th>A pergunta central</th><th>Como a IA ajuda</th><th>Onde a IA traz risco</th></tr></thead>
+    <tbody>
+      <tr><td><b>Excelência operacional</b></td><td>Conseguimos operar, observar e melhorar o sistema?</td><td>Resumir incidentes, gerar runbooks, explicar logs</td><td>Runbooks gerados que ninguém testou</td></tr>
+      <tr><td><b>Segurança</b></td><td>Os dados e acessos estão protegidos?</td><td>Revisar políticas IAM e diffs de infraestrutura</td><td>Permissões amplas geradas "para funcionar"; dados pessoais em prompts</td></tr>
+      <tr><td><b>Confiabilidade</b></td><td>O sistema se recupera de falhas?</td><td>Sugerir alarmes, filas de erro e testes de falha</td><td>Remediação automática que piora o incidente</td></tr>
+      <tr><td><b>Eficiência de desempenho</b></td><td>Usamos os recursos certos para a carga?</td><td>Analisar métricas e sugerir tipos de instância</td><td>Recomendações sem conhecer o padrão real de uso</td></tr>
+      <tr><td><b>Otimização de custos</b></td><td>Pagamos só pelo que gera valor?</td><td>Explicar a fatura e encontrar anomalias</td><td>Custo de tokens crescendo sem dono</td></tr>
+      <tr><td><b>Sustentabilidade</b></td><td>Minimizamos o impacto ambiental?</td><td>Encontrar recursos ociosos</td><td>Modelos grandes usados onde um pequeno bastaria</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <div class="call info"><span class="lbl">Pergunta para a turma</span>
+      <p>Uma funcionalidade com IA generativa responde com qualidade excelente, mas cada resposta custa caro e demora quatro segundos. Quais pilares estão em tensão? Como você decidiria o equilíbrio?</p>
+    </div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>Os seis pilares são: excelência operacional, segurança, confiabilidade, eficiência de desempenho, otimização de custos e sustentabilidade.</li>
+      <li>Eles servem como roteiro de revisão de qualquer arquitetura, inclusive uma proposta gerada por IA.</li>
+      <li>Melhorar um pilar costuma custar algo em outro; arquitetura é escolher o equilíbrio.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="iac">
+  <div class="read">
+    <span class="eyebrow">Engenharia · 1</span>
+    <h2>Infraestrutura como código: onde a IA mais ajuda e mais erra</h2>
+    <p class="lede">Infraestrutura como código (IaC) é descrever servidores, redes, filas e permissões em arquivos de texto, que ficam no repositório junto com o código da aplicação. Kief Morris (2020) resume a ideia: tratar a infraestrutura com as mesmas práticas da engenharia de software, como versionamento, revisão, testes e entrega contínua.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: a planta da casa</span>
+      <p>Antes, montar a infraestrutura era como construir uma casa de memória, tijolo por tijolo, sem planta. Se a casa pegasse fogo, ninguém saberia reconstruí-la igual. Com IaC, existe uma <strong>planta</strong> precisa: o arquivo descreve exatamente o que deve existir. Para recriar o ambiente, basta executar a planta de novo. E qualquer mudança na planta passa por revisão, como uma mudança de código.</p>
+    </div>
+    <h3>As principais ferramentas</h3>
+    <ul>
+      <li><strong>AWS CloudFormation:</strong> a ferramenta nativa da AWS. Você descreve os recursos em YAML ou JSON, e a AWS cria, atualiza ou remove o que for preciso.</li>
+      <li><strong>AWS CDK:</strong> permite escrever a infraestrutura numa linguagem de programação (TypeScript, Python, C#, Java) e gera o CloudFormation por baixo. Ganha laços, funções e tipos.</li>
+      <li><strong>Terraform:</strong> ferramenta de mercado que funciona com vários provedores de nuvem (BRIKMAN, 2022).</li>
+    </ul>
+
+    <h3>O que a pesquisa mostra sobre IaC</h3>
+    <p>IaC é código, então tem os mesmos problemas do código, e alguns próprios. Rahman, Parnin e Williams (2019) analisaram milhares de scripts de infraestrutura e catalogaram sete "pecados" de segurança recorrentes, como senhas escritas no código, permissões de administrador desnecessárias e comunicação sem criptografia. Guerriero et al. (2019), entrevistando profissionais, mostraram que testar e manter IaC está entre as maiores dificuldades da prática.</p>
+    <p>Quando se pede a modelos de linguagem que escrevam IaC, os resultados ainda são mais fracos que em código comum. No benchmark IaC-Eval, Kon et al. (2024) mostraram que mesmo os melhores modelos da época acertavam uma fração pequena dos programas de infraestrutura quando avaliados com testes de comportamento. A explicação é intuitiva: há muito menos exemplos de IaC bem feita do que de código comum, e um detalhe errado de configuração não aparece na sintaxe.</p>
+
+    <h3>Os erros típicos de IaC gerada por IA</h3>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Erro</th><th>Como aparece</th><th>Por que acontece</th><th>Como pegar</th></tr></thead>
+    <tbody>
+      <tr><td><b>Permissão curinga</b></td><td><code>"Action": "*"</code>, <code>"Resource": "*"</code></td><td>É o jeito mais curto de "fazer funcionar"</td><td>cdk-nag, cfn-guard, Checkov, revisão</td></tr>
+      <tr><td><b>Porta aberta ao mundo</b></td><td>Security group com <code>0.0.0.0/0</code> na porta do banco</td><td>Exemplos de tutorial copiados</td><td>Política como código no CI</td></tr>
+      <tr><td><b>Sem fila de erro</b></td><td>Fila SQS sem dead-letter queue</td><td>O "caminho feliz" funciona sem ela</td><td>Checklist de confiabilidade</td></tr>
+      <tr><td><b>Tempo limite incoerente</b></td><td>Timeout da Lambda maior que a visibilidade da fila</td><td>Exige conhecer a interação entre serviços</td><td>Revisão por quem conhece a AWS</td></tr>
+      <tr><td><b>Recurso apagável</b></td><td>Banco sem proteção contra exclusão</td><td>O padrão do serviço não protege</td><td>Revisar o plano de mudança</td></tr>
+      <tr><td><b>Doc diferente da realidade</b></td><td>Arquitetura descrita como ECS quando roda em EC2</td><td>O modelo "completa" com o padrão mais comum</td><td>Comparar com a conta real</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <h3>A verificação própria da infraestrutura</h3>
+    <p>A grande vantagem da IaC é que existe um oráculo forte, antes de qualquer mudança acontecer: o <strong>plano de mudança</strong>. O <code>cdk diff</code>, o <em>change set</em> do CloudFormation e o <code>terraform plan</code> mostram exatamente o que será criado, alterado ou <strong>destruído</strong>. Ler esse plano é a revisão mais importante de toda mudança de infraestrutura, e é exatamente onde a pessoa precisa estar atenta quando a IA escreveu o código.</p>
+    <div class="call stop"><span class="lbl">A palavra que exige parar</span>
+      <p>Se o plano de mudança mostrar <strong>replace</strong> ou <strong>delete</strong> num banco de dados, num bucket com dados ou numa rede, pare. Muitas propriedades, quando alteradas, fazem a AWS destruir o recurso e criar outro no lugar, com perda dos dados. A IA nem sempre sabe quais propriedades fazem isso; o plano sabe.</p>
+    </div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>IaC é a planta da infraestrutura: versionada, revisada e reproduzível.</li>
+      <li>Modelos de IA ainda erram mais em IaC do que em código comum, principalmente em permissões e na interação entre serviços.</li>
+      <li>O plano de mudança (diff, change set, plan) é o oráculo mais valioso: leia-o sempre.</li>
+      <li>Políticas como código (cdk-nag, cfn-guard, Checkov) pegam automaticamente os erros mais comuns.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="read">
+    <span class="eyebrow">Engenharia · 2</span>
+    <h2>A esteira de entrega e o deploy seguro</h2>
+    <p class="lede">A esteira de CI/CD é o caminho único por onde toda mudança chega à produção, seja ela escrita por uma pessoa ou por uma IA. Humble e Farley (2010) mostraram que tornar esse caminho automático, repetível e confiável é a base da entrega contínua. Com IA produzindo mais mudanças, a esteira vira o principal filtro de qualidade.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: a linha de montagem com controle de qualidade</span>
+      <p>Numa fábrica de carros, cada veículo passa por estações de inspeção antes de sair. Ninguém pula a fila, nem o carro do diretor. A esteira de software faz o mesmo: cada mudança é compilada, testada, verificada quanto à segurança e só então publicada, por etapas. Se a IA gerou a mudança, ela passa pelas mesmas estações.</p>
+    </div>
+    <h3>As estações de uma esteira para código com IA</h3>
+    <ol>
+      <li><strong>Build e testes:</strong> compilar e rodar os testes unitários e de integração.</li>
+      <li><strong>Segurança do código:</strong> análise estática (SAST) e verificação de dependências; pacote novo precisa existir e ser mantido.</li>
+      <li><strong>Segurança da infraestrutura:</strong> políticas como código sobre a IaC (cdk-nag, cfn-guard, Checkov).</li>
+      <li><strong>Plano de mudança revisado:</strong> o diff da infraestrutura é exibido e, em produção, exige aprovação manual.</li>
+      <li><strong>Deploy gradual:</strong> primeiro uma parte pequena do tráfego (canário), observando alarmes.</li>
+      <li><strong>Reversão automática:</strong> se os alarmes dispararem, a versão anterior volta sozinha.</li>
+    </ol>
+
+    <h3>Credenciais da esteira: nada de chave fixa</h3>
+    <p>Um erro antigo e ainda comum é guardar uma chave de acesso da AWS (access key) como segredo na ferramenta de CI. Se essa chave vazar, quem a tiver acessa a conta até alguém perceber. A prática recomendada hoje é usar <strong>federação por OIDC</strong>: a esteira (por exemplo, o GitHub Actions) prova sua identidade para a AWS a cada execução e recebe uma credencial <strong>temporária</strong>, válida por minutos, com permissões só para aquele repositório e aquela tarefa. Foi justamente um token de longa duração vazado numa automação de CI que abriu caminho para o ataque ao Nx, visto na aula 1.</p>
+
+    <h3>Deploy seguro: por que publicar aos poucos</h3>
+    <p>Nygard (2018) lembra que sistemas em produção falham de formas que nenhum ambiente de teste reproduz. Por isso a publicação deve limitar o estrago possível: <strong>canário</strong> (uma pequena porcentagem dos usuários recebe a nova versão primeiro), <strong>blue/green</strong> (duas versões lado a lado, com troca instantânea) e <strong>reversão automática</strong> por alarme. Serviços como o CodeDeploy fazem isso para EC2, ECS e Lambda.</p>
+    <div class="ours"><b>No caso-guia</b>O runner de CI com 1 GiB de memória, em que uma formatação de código levou mais de três horas por falta de memória, e o disco cheio nos deploys foram diagnosticados rápido com IA lendo os logs. A correção, porém, passou pela esteira normal e pela revisão de uma pessoa: diagnosticar é nível baixo de risco; mudar a infraestrutura de produção, não.</div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>Toda mudança, de pessoa ou de IA, passa pela mesma esteira: testes, segurança, plano de mudança, deploy gradual.</li>
+      <li>Use credenciais temporárias (OIDC), nunca chaves de acesso fixas guardadas no CI.</li>
+      <li>Publicar aos poucos, com alarmes e reversão automática, limita o estrago de um erro que passou pelos testes.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="ferramentas">
+  <div class="read">
+    <span class="eyebrow">Engenharia · 3</span>
+    <h2>A IA da AWS para quem desenvolve</h2>
+    <p class="lede">A AWS oferece um conjunto de ferramentas de IA voltadas para quem constrói software. Elas mudam rápido, então o mais importante é entender <em>para que tipo de problema</em> cada uma serve. Os nomes e recursos abaixo refletem o cenário de 2025–2026.</p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Ferramenta</th><th>O que é</th><th>Bom para</th><th>Cuidado com</th></tr></thead>
+    <tbody>
+      <tr><td><b>Amazon Q Developer</b></td><td>Assistente de IA para quem desenvolve, na IDE, no terminal e no console da AWS</td><td>Explicar código e serviços, gerar testes e documentação, transformar código (atualizar versões do Java, migrar .NET Framework para .NET moderno), responder dúvidas sobre a conta</td><td>Transformações grandes precisam de testes como rede; respostas sobre a conta dependem das permissões dadas</td></tr>
+      <tr><td><b>Kiro</b></td><td>Ambiente de desenvolvimento com agentes, lançado pela AWS em 2025, focado em desenvolvimento orientado a especificação</td><td>Gerar requisitos, desenho e lista de tarefas antes do código, na linha do "especificar primeiro" da aula 2</td><td>Especificação gerada também precisa ser lida e validada por quem pediu</td></tr>
+      <tr><td><b>Servidores MCP da AWS</b></td><td>Conectores de código aberto (projeto awslabs/mcp) que dão a assistentes de IA acesso a documentação, CDK, custos e serviços da AWS</td><td>Dar à IA a documentação atualizada, em vez de depender do que ela aprendeu no treino</td><td>Cada conector é uma permissão: use credenciais de leitura sempre que possível</td></tr>
+      <tr><td><b>Amazon Bedrock</b></td><td>Serviço que dá acesso, por API, a vários modelos de linguagem (de diferentes empresas) dentro da sua conta AWS</td><td>Colocar IA generativa dentro do produto; usar modelos sem que os dados saiam da AWS</td><td>Custo por token, avaliação de qualidade, guardas de conteúdo</td></tr>
+      <tr><td><b>Serviços de IA prontos</b></td><td>Textract (ler documentos), Rekognition (imagens), Comprehend (texto), Transcribe (áudio)</td><td>Tarefas específicas e bem definidas, sem precisar de modelo genérico</td><td>Custo por chamada; arquitetura que chama mais vezes que o necessário</td></tr>
+      <tr><td><b>Amazon SageMaker</b></td><td>Plataforma para treinar e publicar modelos próprios de aprendizado de máquina</td><td>Quando há dados próprios e um problema de previsão específico</td><td>Exige equipe com conhecimento de ML e operação de modelos</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <div class="explica"><span class="lbl">Explicando com calma: modelo genérico ou serviço específico?</span>
+      <p>Para ler a etiqueta de uma encomenda, você pode usar um serviço feito para ler documentos (Textract) ou pedir a um modelo de linguagem genérico que "olhe a foto e diga o nome". O serviço específico costuma ser mais barato, mais previsível e mais fácil de testar. O modelo genérico é mais flexível. Uma boa regra: <strong>use o serviço específico quando o problema for específico</strong>, e o modelo genérico quando a tarefa exigir entender linguagem livre.</p>
+    </div>
+    <div class="ours"><b>No caso-guia</b>O custo do Textract no "modo expresso" da portaria crescia porque a arquitetura enviava frames continuamente para análise, e não porque o serviço era caro. Trocar de serviço não resolveria. A correção foi de engenharia: enviar só quando a câmera detecta uma etiqueta parada. Ferramenta de IA nenhuma substitui olhar a arquitetura.</div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>Q Developer e Kiro ajudam a construir; Bedrock e os serviços de IA prontos entram no produto.</li>
+      <li>Conectores MCP dão à IA a documentação atual, mas cada um é uma permissão a governar.</li>
+      <li>Para problemas específicos, prefira serviços específicos; para linguagem livre, modelos genéricos.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="agentes">
+  <div class="read">
+    <span class="eyebrow">Engenharia · 4</span>
+    <h2>Agentes com acesso à conta AWS</h2>
+    <p class="lede">Um agente de IA no terminal de quem desenvolve geralmente herda as credenciais da AWS que estão naquele terminal. Se essas credenciais podem apagar o banco de produção, o agente também pode. Por isso, na nuvem, <strong>a principal guarda de um agente é a permissão, não o prompt</strong>. É a lição do caso Replit, da aula 1, aplicada à AWS.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: o crachá de acesso</span>
+      <p>Num prédio comercial, cada pessoa tem um crachá que abre só as portas de que ela precisa. O estagiário não abre a sala dos servidores, e não porque alguém pediu educadamente que ele não entrasse: o crachá dele simplesmente não abre aquela porta. O <strong>IAM</strong> é o sistema de crachás da AWS, e um agente de IA deve receber o crachá mais restrito que ainda permita fazer o trabalho. Isso se chama <strong>princípio do menor privilégio</strong>.</p>
+    </div>
+    <h3>A escada de autonomia, traduzida para a AWS</h3>
+  </div>
+  <div class="ladder">
+    <div class="rung"><div class="lv">0</div><div class="tx"><b>Consulta.</b> Papel IAM somente leitura, de preferência numa conta de observabilidade. O agente lê logs, métricas e custos, mas não altera nada.</div></div>
+    <div class="rung"><div class="lv">1</div><div class="tx"><b>Sugere.</b> O agente escreve IaC e comandos; uma pessoa revisa e aplica pela esteira. O agente não precisa de credencial de escrita.</div></div>
+    <div class="rung"><div class="lv">2</div><div class="tx"><b>Executa em conta isolada.</b> Conta de desenvolvimento ou sandbox separada (AWS Organizations), com limite de permissões (permission boundary) e orçamento com alerta. Sem caminho de rede ou de IAM até produção.</div></div>
+    <div class="rung hi"><div class="lv">3</div><div class="tx"><b>Prepara em produção.</b> O agente gera o change set ou o plano; a esteira exige aprovação manual de uma pessoa para aplicar.</div></div>
+    <div class="rung top"><div class="lv">4</div><div class="tx"><b>Age sozinho, dentro de limites.</b> Só para ações reversíveis e roteirizadas (por exemplo, um runbook do Systems Manager que reinicia um worker travado), com registro no CloudTrail e alarme.</div></div>
+  </div>
+  <div class="read">
+    <h3>As guardas da AWS que mais importam</h3>
+    <ul>
+      <li><strong>Contas separadas por ambiente</strong> (AWS Organizations): desenvolvimento, homologação e produção em contas diferentes. É a separação mais forte que existe.</li>
+      <li><strong>SCPs (Service Control Policies):</strong> regras da organização que nenhuma permissão consegue furar, como "ninguém apaga backups" ou "nada fora da região de São Paulo".</li>
+      <li><strong>Credenciais temporárias:</strong> acesso via IAM Identity Center ou papéis assumidos, que expiram. Nada de chaves fixas em arquivos no disco, que podem ser lidas por um pacote malicioso (caso Nx).</li>
+      <li><strong>CloudTrail:</strong> registro de toda ação na conta. Responde "quem fez isso?", inclusive quando foi um agente.</li>
+      <li><strong>Proteções de recurso:</strong> proteção contra exclusão em bancos, versionamento e bloqueio de objetos em buckets críticos, backups em outra conta.</li>
+    </ul>
+    <div class="call warn"><span class="lbl">Um teste simples para fazer hoje</span>
+      <p>Abra o terminal onde você usa um agente de IA e rode <code>aws sts get-caller-identity</code>. A resposta diz com que identidade o agente está agindo. Se for um usuário administrador de uma conta de produção, você acabou de encontrar o maior risco do seu ambiente.</p>
+    </div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>O agente pode tudo o que a credencial dele permite; instrução no prompt não é controle.</li>
+      <li>Menor privilégio, contas separadas por ambiente e credenciais temporárias são as guardas principais.</li>
+      <li>Em produção, o agente prepara e a pessoa aprova; ação automática só para o que é reversível.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="exemplo">
+  <div class="read">
+    <span class="eyebrow">Engenharia · 5</span>
+    <h2>Exemplo trabalhado: a fila de encomendas com AWS CDK</h2>
+    <p class="lede">Vamos aplicar o ciclo de seis passos da aula 2 a uma tarefa de infraestrutura. A portaria fotografa a etiqueta de cada encomenda; a foto vai para o S3; uma fila recebe o aviso; uma função Lambda lê a etiqueta com o Textract e avisa o morador.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: por que uma fila no meio?</span>
+      <p>Imagine a portaria recebendo cinquenta encomendas de uma vez num fim de tarde. Se cada foto chamasse o Textract diretamente, um pico poderia sobrecarregar o sistema ou estourar limites. A <strong>fila</strong> funciona como a senha de atendimento de um banco: as fotos entram na fila e são processadas no ritmo que o sistema aguenta. Se uma falhar, ela volta para a fila e é tentada de novo; se falhar várias vezes, vai para uma <strong>fila de erro</strong> (dead-letter queue) para alguém olhar. Hohpe e Woolf (2003) catalogaram esses padrões de integração há mais de vinte anos.</p>
+    </div>
+
+    <h3>Passo 1 · Especificar</h3>
+    <ul>
+      <li>Cada foto nova em <code>encomendas/</code> no bucket gera uma mensagem na fila.</li>
+      <li>A função processa a etiqueta em até 30 segundos.</li>
+      <li>Falha temporária é tentada de novo até 3 vezes; depois, a mensagem vai para a fila de erro e um alarme avisa a equipe.</li>
+      <li>Nunca mais que 5 processamentos simultâneos (limite de custo e de chamadas ao Textract).</li>
+      <li>A função só pode ler o bucket de fotos e chamar o Textract. Mais nada.</li>
+    </ul>
+
+    <h3>Passos 2 e 3 · Contextualizar e gerar</h3>
+    <p>Com o arquivo de contexto do projeto e a especificação acima, a IA gerou uma primeira versão. Ela compila e "funciona" no teste manual. Leia com atenção antes de seguir:</p>
+    <pre><code>// Primeira versão gerada pela IA
+const fila = new sqs.Queue(this, 'FilaEncomendas');
+
+const fn = new lambda.Function(this, 'ProcessaEtiqueta', {
+  runtime: lambda.Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: lambda.Code.fromAsset('lambda/etiqueta'),
+});
+
+fn.addEventSource(new SqsEventSource(fila));
+
+fn.addToRolePolicy(new iam.PolicyStatement({
+  actions: ['*'],
+  resources: ['*'],
+}));</code></pre>
+
+    <h3>Passo 4 · Verificar</h3>
+    <p>Compare com a especificação. Antes de ler a lista abaixo, tente encontrar os problemas sozinho: é um ótimo exercício.</p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Problema</th><th>Quem pegou</th><th>Consequência se passasse</th></tr></thead>
+    <tbody>
+      <tr><td><b>Permissão <code>*</code> em <code>*</code></b></td><td>cdk-nag no CI e a revisão humana</td><td>A função, ou quem a comprometesse, poderia fazer qualquer coisa na conta</td></tr>
+      <tr><td><b>Sem fila de erro</b></td><td>Revisão contra a especificação</td><td>Mensagens com defeito ficariam sendo tentadas para sempre, gerando custo</td></tr>
+      <tr><td><b>Timeout padrão de 3 segundos</b></td><td>Revisão por quem conhece a Lambda</td><td>A leitura da etiqueta seria interrompida antes de terminar</td></tr>
+      <tr><td><b>Visibilidade da fila não ajustada</b></td><td>Documentação da AWS (recomenda pelo menos 6 vezes o timeout da função)</td><td>A mesma mensagem poderia ser processada duas vezes, avisando o morador em dobro</td></tr>
+      <tr><td><b>Sem limite de concorrência</b></td><td>Especificação ("no máximo 5")</td><td>Um pico de fotos viraria um pico de custo</td></tr>
+      <tr><td><b>Sem alarme</b></td><td>Especificação</td><td>Falhas silenciosas: encomendas sem aviso e ninguém sabendo</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <p>Versão corrigida, depois da revisão:</p>
+    <pre><code>const dlq = new sqs.Queue(this, 'FilaEncomendasErro', {
+  retentionPeriod: Duration.days(14),
+});
+
+const fila = new sqs.Queue(this, 'FilaEncomendas', {
+  visibilityTimeout: Duration.seconds(180),     // 6x o timeout da função
+  deadLetterQueue: { queue: dlq, maxReceiveCount: 3 },
+});
+
+const fn = new lambda.Function(this, 'ProcessaEtiqueta', {
+  runtime: lambda.Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: lambda.Code.fromAsset('lambda/etiqueta'),
+  timeout: Duration.seconds(30),
+  reservedConcurrentExecutions: 5,               // teto de custo e de chamadas
+});
+
+fn.addEventSource(new SqsEventSource(fila, {
+  batchSize: 5,
+  reportBatchItemFailures: true,                 // só a mensagem que falhou volta
+}));
+
+fotos.grantRead(fn);                             // só leitura, só neste bucket
+fn.addToRolePolicy(new iam.PolicyStatement({
+  actions: ['textract:AnalyzeDocument'],         // só a ação necessária
+  resources: ['*'],                              // esta ação não aceita recurso específico
+}));
+
+new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
+  metric: dlq.metricApproximateNumberOfMessagesVisible(),
+  threshold: 1,
+  evaluationPeriods: 1,
+});</code></pre>
+
+    <h3>Passos 5 e 6 · Integrar e aprender</h3>
+    <p>O PR mostra o <code>cdk diff</code> na descrição, para que quem revisa veja exatamente o que será criado. O cdk-nag passa sem alertas. E o aprendizado vira regra permanente no arquivo de contexto:</p>
+    <pre><code>## Regras de infraestrutura
+- Nunca use "*" em actions de IAM. Use grant* do CDK ou a ação exata.
+- Toda fila SQS tem dead-letter queue e alarme na fila de erro.
+- Visibilidade da fila = pelo menos 6x o timeout da Lambda consumidora.
+- Toda Lambda declara timeout e limite de concorrência explicitamente.</code></pre>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>O código gerado compilava e funcionava no teste manual, e mesmo assim tinha seis problemas.</li>
+      <li>Metade foi pega por ferramentas automáticas e pela especificação; a outra metade, por conhecimento da AWS.</li>
+      <li>Cada problema encontrado virou regra no contexto, para que a IA não repita o erro.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="produto">
+  <div class="read">
+    <span class="eyebrow">IA no produto · 1</span>
+    <h2>Um assistente para moradores com Bedrock e RAG</h2>
+    <p class="lede">Até aqui a IA ajudou a <em>construir</em> o sistema. Agora ela vai fazer parte dele. O síndico pediu um assistente no app que responda dúvidas dos moradores sobre o regimento interno: <q>posso fazer obra no sábado?</q>, <q>até que horas o salão pode ser usado?</q>. Cada condomínio tem o seu regimento.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: o que é RAG</span>
+      <p>Um modelo de linguagem não conhece o regimento do Condomínio Jardim das Flores. Se você perguntar, ele vai inventar uma resposta plausível. O <strong>RAG</strong> (geração aumentada por recuperação; LEWIS et al., 2020) resolve isso em dois passos: primeiro o sistema <em>busca</em> os trechos do regimento que têm a ver com a pergunta; depois entrega esses trechos ao modelo e pede que ele responda <em>com base neles</em>, citando a fonte.</p>
+      <p>É como uma prova com consulta: o aluno não precisa ter decorado o livro, mas precisa encontrar a página certa e responder com base nela.</p>
+    </div>
+  </div>
+  <figure class="fig">
+    <svg viewBox="0 0 760 210" role="img" aria-label="Fluxo do assistente: o morador pergunta pelo app, a API identifica o condomínio, o Guardrails filtra a entrada, a Knowledge Base busca trechos do regimento filtrando pelo condomínio, o modelo responde com citação, o Guardrails filtra a saída e a resposta volta ao app">
+      <style>.bx{fill:var(--sunk);stroke:var(--line);stroke-width:1.2}.bx.ai{fill:var(--amber-soft);stroke:var(--amber)}.bx.g{fill:var(--accent-soft);stroke:var(--accent)}.t1{fill:var(--fg);font:700 13.5px var(--display)}.t2{fill:var(--muted);font:11.5px var(--body)}.ar{stroke:var(--muted);stroke-width:1.5;fill:none}.ah{fill:var(--muted)}</style>
+      <defs><marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs>
+      <rect class="bx" x="10" y="20" width="120" height="60" rx="9"/><text class="t1" x="22" y="45">1 App</text><text class="t2" x="22" y="64">morador pergunta</text>
+      <rect class="bx" x="160" y="20" width="130" height="60" rx="9"/><text class="t1" x="172" y="45">2 API</text><text class="t2" x="172" y="64">sabe o condomínio</text>
+      <rect class="bx g" x="320" y="20" width="130" height="60" rx="9"/><text class="t1" x="332" y="45">3 Guardrails</text><text class="t2" x="332" y="64">filtra a entrada</text>
+      <rect class="bx ai" x="480" y="20" width="130" height="60" rx="9"/><text class="t1" x="492" y="45">4 Knowledge Base</text><text class="t2" x="492" y="64">busca no regimento</text>
+      <rect class="bx ai" x="630" y="20" width="120" height="60" rx="9"/><text class="t1" x="642" y="45">5 Modelo</text><text class="t2" x="642" y="64">responde e cita</text>
+      <rect class="bx g" x="480" y="120" width="130" height="60" rx="9"/><text class="t1" x="492" y="145">6 Guardrails</text><text class="t2" x="492" y="164">filtra a saída</text>
+      <rect class="bx" x="160" y="120" width="290" height="60" rx="9"/><text class="t1" x="172" y="145">7 Resposta com a fonte</text><text class="t2" x="172" y="164">"Art. 12 do regimento: obras até 12h aos sábados"</text>
+      <path class="ar" d="M130,50H157" marker-end="url(#ah4)"/><path class="ar" d="M290,50H317" marker-end="url(#ah4)"/><path class="ar" d="M450,50H477" marker-end="url(#ah4)"/><path class="ar" d="M610,50H627" marker-end="url(#ah4)"/>
+      <path class="ar" d="M690,80V150H613" marker-end="url(#ah4)"/><path class="ar" d="M480,150H453" marker-end="url(#ah4)"/>
+      <text class="t2" x="545" y="100" text-anchor="middle">filtro: condominioId</text>
+    </svg>
+    <figcaption>O fluxo do assistente. Em verde, as guardas; em âmbar, onde a IA trabalha. O filtro por condomínio na busca é o que impede que um morador receba o regimento de outro prédio.</figcaption>
+  </figure>
+  <div class="read">
+    <h3>As peças no Bedrock</h3>
+    <ul>
+      <li><strong>Knowledge Bases:</strong> recebem os documentos (os regimentos, guardados no S3), dividem em trechos, criam o índice de busca e fazem a recuperação. Aceitam <strong>filtro por metadados</strong>: cada trecho carrega o <code>condominioId</code>, e a busca só olha os trechos do condomínio de quem perguntou.</li>
+      <li><strong>Guardrails:</strong> filtros configuráveis na entrada e na saída: bloqueiam assuntos fora do escopo, mascaram dados pessoais e checam se a resposta está fundamentada nos trechos recuperados.</li>
+      <li><strong>O modelo:</strong> escolhido entre os disponíveis no Bedrock. Para responder perguntas curtas com base em trechos, um modelo menor e mais barato costuma bastar.</li>
+    </ul>
+
+    <h3>As perguntas de engenharia que a demonstração não responde</h3>
+    <p>Montar uma demonstração que funciona leva uma tarde. Colocar em produção exige responder às perguntas abaixo. Huyen (2025) dedica boa parte do seu livro a elas.</p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Pergunta</th><th>Por que importa</th><th>Prática</th></tr></thead>
+    <tbody>
+      <tr><td><b>Como sei que as respostas estão certas?</b></td><td>O modelo não é determinístico; um exemplo bom não prova nada</td><td>Conjunto de avaliação (eval) com 100+ perguntas reais e respostas esperadas, rodado a cada mudança de prompt, modelo ou documento</td></tr>
+      <tr><td><b>Um morador pode ver o regimento de outro prédio?</b></td><td>Vazamento entre clientes é o pior incidente de um sistema multi-tenant</td><td>Filtro por <code>condominioId</code> aplicado pela API, nunca pelo texto do prompt; teste automático de isolamento</td></tr>
+      <tr><td><b>E se alguém tentar manipular o assistente?</b></td><td>Injeção de prompt (GRESHAKE et al., 2023)</td><td>Guardrails, escopo restrito, o assistente não executa ações, só responde</td></tr>
+      <tr><td><b>E quando não souber?</b></td><td>Inventar é pior que admitir</td><td>Instruir a responder "não encontrei no regimento" e oferecer contato com a administração</td></tr>
+      <tr><td><b>Quanto custa por morador?</b></td><td>Custo de tokens cresce com o uso</td><td>Ver a <a href="#custos">calculadora</a>; limite de perguntas por usuário</td></tr>
+      <tr><td><b>Quanto demora?</b></td><td>Respostas lentas fazem o morador desistir</td><td>Medir a latência de ponta a ponta; resposta em streaming</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <div class="call info"><span class="lbl">Uma lição da aula 1 que reaparece</span>
+      <p>No caso Uber (aula 1), o assistente interno respondia bem só cerca de metade das vezes no começo. A melhora não veio de trocar o modelo, veio de criar um conjunto de avaliação com especialistas. Aqui é igual: o primeiro artefato a construir não é o prompt, é o eval.</p>
+    </div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>RAG busca os trechos relevantes e pede ao modelo que responda com base neles, citando a fonte.</li>
+      <li>Em sistemas multi-tenant, o isolamento é feito por filtro aplicado no código, nunca por instrução no prompt.</li>
+      <li>Antes de colocar em produção: eval, guardas, plano para "não sei", custo e latência medidos.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="custos">
+  <div class="read">
+    <span class="eyebrow">IA no produto · 2</span>
+    <h2>Quanto custa: FinOps com IA</h2>
+    <p class="lede">Na nuvem, cada decisão de arquitetura é também uma decisão de custo. Com IA generativa isso fica ainda mais visível, porque o custo é proporcional ao uso: cada pergunta do morador consome tokens, e cada token tem preço. Storment e Fuller (2023) descrevem o FinOps como um ciclo de três fases: <strong>informar</strong> (saber quanto e onde se gasta), <strong>otimizar</strong> e <strong>operar</strong> (manter sob controle).</p>
+    <div class="explica"><span class="lbl">Explicando com calma: como se paga um modelo de linguagem</span>
+      <p>Os modelos cobram por <strong>token</strong>, que é um pedaço de palavra. Há dois preços: um para os tokens que você envia (a pergunta mais os trechos do regimento, a "entrada") e outro, geralmente bem maior, para os tokens que o modelo escreve (a "saída"). Os preços são dados por milhão de tokens.</p>
+      <p>No RAG, a entrada costuma ser muito maior que a saída, porque cada pergunta leva junto vários trechos do documento. Por isso, buscar menos trechos e mais relevantes economiza dinheiro e, muitas vezes, melhora a resposta.</p>
+    </div>
+    <h3>Calculadora: o custo do assistente</h3>
+    <p>Os valores iniciais são <strong>ilustrativos</strong>. Consulte a página de preços do Bedrock para o modelo e a região que você usaria.</p>
+  </div>
+  <div class="tool" id="custo">
+    <div class="presets" role="group" aria-label="Cenários">
+      <button type="button" data-c="20000,3000,300,3,15,0,50">Modelo intermediário</button>
+      <button type="button" data-c="20000,3000,300,0.25,1.25,0,50">Modelo pequeno</button>
+      <button type="button" data-c="20000,8000,300,3,15,0,50">Contexto exagerado</button>
+      <button type="button" data-c="20000,3000,300,3,15,70,50">Com cache de prompt</button>
+    </div>
+    <div class="tool-grid">
+      <div>
+        <div class="fld"><label for="cu-q">Perguntas por mês <span id="co-q"></span></label><input type="range" id="cu-q" min="1000" max="200000" step="1000" value="20000"></div>
+        <div class="fld"><label for="cu-in">Tokens de entrada por pergunta <span id="co-in"></span></label><input type="range" id="cu-in" min="500" max="20000" step="500" value="3000"><small>Pergunta + instruções + trechos recuperados</small></div>
+        <div class="fld"><label for="cu-out">Tokens de saída por pergunta <span id="co-out"></span></label><input type="range" id="cu-out" min="50" max="2000" step="50" value="300"></div>
+        <div class="fld"><label for="cu-pin">Preço da entrada (US$ por milhão) <span id="co-pin"></span></label><input type="range" id="cu-pin" min="0.05" max="15" step="0.05" value="3"></div>
+        <div class="fld"><label for="cu-pout">Preço da saída (US$ por milhão) <span id="co-pout"></span></label><input type="range" id="cu-pout" min="0.2" max="75" step="0.05" value="15"></div>
+        <div class="fld"><label for="cu-cache">Entrada reaproveitada por cache <span id="co-cache"></span></label><input type="range" id="cu-cache" min="0" max="90" step="5" value="0"><small>Instruções fixas que se repetem. Aqui, a parte em cache custa 10% do preço normal (ilustrativo)</small></div>
+        <div class="fld"><label for="cu-cond">Condomínios clientes <span id="co-cond"></span></label><input type="range" id="cu-cond" min="1" max="500" step="1" value="50"></div>
+      </div>
+      <div class="verdict" aria-live="polite">
+        <div class="mono" style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Custo mensal estimado</div>
+        <div class="v" id="cu-total">US$ 0</div>
+        <div class="bars">
+          <div class="bar"><span>Entrada</span><span class="tr"><i id="cu-bin"></i></span><span id="cu-nin"></span></div>
+          <div class="bar"><span>Saída</span><span class="tr"><i id="cu-bout"></i></span><span id="cu-nout"></span></div>
+        </div>
+        <ul id="cu-notes"></ul>
+      </div>
+    </div>
+  </div>
+  <div class="read">
+    <h3>As ferramentas de FinOps da AWS</h3>
+    <ul>
+      <li><strong>Cost Explorer e exportações de custo:</strong> ver o gasto por serviço, conta e tag. A IA é ótima para ler esses relatórios e explicar o que mudou no mês, desde que cite de onde veio cada número.</li>
+      <li><strong>Tags de alocação:</strong> marcar recursos com <code>condominioId</code> ou <code>funcionalidade</code> para saber o custo de cada cliente e de cada recurso do produto. É a base do <em>custo unitário</em>.</li>
+      <li><strong>Budgets e Cost Anomaly Detection:</strong> orçamento com alerta e detecção automática de gastos fora do padrão. Configure desde o primeiro dia, inclusive para o Bedrock.</li>
+      <li><strong>Otimizações clássicas:</strong> instâncias Graviton, Savings Plans, desligar ambientes de teste fora do horário, escolher o menor modelo que passa no eval.</li>
+    </ul>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>Modelos cobram por token de entrada e de saída; no RAG, a entrada costuma dominar o custo.</li>
+      <li>Escolher o menor modelo que passa no eval, enviar menos contexto e usar cache são as alavancas principais.</li>
+      <li>Custo por cliente (custo unitário) é o número que conecta engenharia e negócio.</li>
+      <li>Orçamento e alerta de anomalia desde o primeiro dia.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="operacao">
+  <div class="read">
+    <span class="eyebrow">Operar · 1</span>
+    <h2>Observabilidade e incidentes com IA</h2>
+    <p class="lede">Um sistema na nuvem é feito de muitas partes que conversam pela rede, e cada uma pode falhar. Dean e Barroso (2013) mostraram que, em sistemas grandes, os raros atrasos de uma parte viram atrasos frequentes para o usuário. Observar o sistema, ou seja, conseguir responder "o que está acontecendo agora e por quê?", é condição para operar, com ou sem IA.</p>
+    <div class="explica"><span class="lbl">Explicando com calma: os três sinais</span>
+      <p><strong>Métricas</strong> são números ao longo do tempo (quantas requisições, quanto tempo cada uma levou). <strong>Logs</strong> são o diário do sistema, linha a linha. <strong>Rastros</strong> (traces) seguem uma única requisição pelo caminho inteiro, de serviço em serviço. É como investigar um atraso de entrega: as métricas dizem que as entregas atrasaram, os logs contam o que cada pessoa anotou e o rastro mostra por onde aquele pacote passou.</p>
+    </div>
+    <h3>Onde a IA ajuda na operação</h3>
+    <ul>
+      <li><strong>Ler e resumir:</strong> consultas em linguagem natural nos logs (CloudWatch Logs Insights), resumo de um incidente a partir de logs e do chat da equipe.</li>
+      <li><strong>Correlacionar:</strong> detecção de anomalias nas métricas e investigações assistidas que sugerem causas prováveis, cruzando métricas, logs e mudanças recentes.</li>
+      <li><strong>Documentar:</strong> rascunho de postmortem sem culpados em até 24 horas, para a equipe revisar (BEYER et al., 2016).</li>
+    </ul>
+    <h3>Onde a IA ainda não deve mandar</h3>
+    <p>As ironias da automação (BAINBRIDGE, 1983) da aula 2 nasceram em salas de controle. Uma IA que sugere a causa errada com convicção, num momento de pressão, pode levar a equipe para o caminho errado. Por isso, durante um incidente, a IA é <strong>escriba e consultora</strong>, não comandante. E as práticas de resiliência continuam valendo: timeouts, novas tentativas com espera crescente e aleatória (<em>backoff</em> com <em>jitter</em>) e testes de falha planejados, a <strong>engenharia do caos</strong> (BASIRI et al., 2016).</p>
+    <div class="ours"><b>No caso-guia</b>Jobs que rodavam dentro da API, sem trava distribuída, passaram a rodar em dobro quando o Auto Scaling ligava uma segunda instância: moradores recebiam o mesmo aviso duas vezes. A IA ajudou a encontrar o padrão nos logs em minutos. A correção (uma trava distribuída) foi decidida e revisada pela equipe. Depois, virou regra no arquivo de contexto: "jobs em background precisam de trava distribuída".</div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>Observar exige métricas, logs e rastros; sem eles, nem pessoas nem IA conseguem diagnosticar.</li>
+      <li>A IA é ótima para ler, correlacionar e documentar; durante o incidente, a decisão é humana.</li>
+      <li>Resiliência se projeta: timeouts, novas tentativas com backoff, filas de erro e testes de falha.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="seguranca">
+  <div class="read">
+    <span class="eyebrow">Operar · 2</span>
+    <h2>Segurança, privacidade e LGPD na AWS</h2>
+    <p class="lede">O sistema de condomínios guarda quem mora onde, quem entra e sai e fotos de documentos. Na nuvem e com IA, proteger esses dados exige combinar as práticas de sempre com cuidados novos sobre o que se envia aos modelos.</p>
+    <h3>O básico bem feito resolve a maior parte</h3>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Necessidade</th><th>Serviço ou prática</th><th>Em uma frase</th></tr></thead>
+    <tbody>
+      <tr><td><b>Controlar acessos</b></td><td>IAM, IAM Identity Center</td><td>Menor privilégio, credenciais temporárias, sem usuário compartilhado</td></tr>
+      <tr><td><b>Proteger dados</b></td><td>KMS, criptografia no S3 e no RDS</td><td>Dados criptografados em repouso e em trânsito</td></tr>
+      <tr><td><b>Guardar segredos</b></td><td>Secrets Manager</td><td>Senhas e chaves fora do código e fora do disco</td></tr>
+      <tr><td><b>Saber quem fez o quê</b></td><td>CloudTrail</td><td>Registro de toda ação na conta, de pessoas e de agentes</td></tr>
+      <tr><td><b>Detectar ameaças</b></td><td>GuardDuty, Security Hub</td><td>Alertas de comportamento suspeito e visão consolidada de achados</td></tr>
+      <tr><td><b>Configuração correta</b></td><td>AWS Config</td><td>Regras que verificam continuamente se os recursos seguem a política</td></tr>
+      <tr><td><b>Achar dado pessoal</b></td><td>Macie</td><td>Encontra dados pessoais armazenados em buckets do S3</td></tr>
+    </tbody>
+  </table></div>
+  <div class="read">
+    <h3>Os cuidados novos com IA</h3>
+    <ul>
+      <li><strong>O que vai para o modelo:</strong> segundo a documentação da AWS, os dados enviados ao Bedrock não são usados para treinar os modelos nem compartilhados com as empresas que os criaram. Isso resolve parte do problema, mas não dispensa a pergunta: <em>esse dado precisa mesmo ir para o prompt?</em> O princípio da necessidade da LGPD vale aqui.</li>
+      <li><strong>Onde o dado fica:</strong> escolha a região (por exemplo, São Paulo, <code>sa-east-1</code>) e verifique em quais regiões o modelo escolhido está disponível.</li>
+      <li><strong>Mascarar antes de enviar:</strong> Guardrails e filtros próprios podem retirar nome, CPF e telefone antes que o texto chegue ao modelo.</li>
+      <li><strong>Ferramentas de desenvolvimento:</strong> dado de produção não vai para o chat do assistente de código. Para depurar, use dados anonimizados.</li>
+      <li><strong>Lista de risco:</strong> o OWASP Top 10 para aplicações com LLM (OWASP, 2025) e o NIST AI RMF (NIST, 2023) servem como roteiro de revisão.</li>
+    </ul>
+    <div class="call warn"><span class="lbl">LGPD em uma frase</span>
+      <p>Colar dados de moradores num prompt é <strong>tratamento de dado pessoal</strong>. Precisa de finalidade clara, do mínimo necessário e de cuidado com quem mais terá acesso. Estar na AWS não muda isso; só oferece ferramentas melhores para cumprir.</p>
+    </div>
+    <div class="fixar"><span class="lbl">Para fixar</span><ul>
+      <li>IAM, criptografia, segredos, CloudTrail e detecção de ameaças são a base, com ou sem IA.</li>
+      <li>Com IA: enviar o mínimo de dado pessoal, mascarar antes, escolher a região e usar guardas.</li>
+      <li>A LGPD vale para prompts como vale para qualquer outro tratamento de dados.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="padroes">
+  <div class="read">
+    <span class="eyebrow">Síntese prática</span>
+    <h2>Padrões e antipadrões na AWS com IA</h2>
+    <p class="lede">Juntando tudo o que vimos, alguns padrões se repetem nas equipes que usam bem a IA na nuvem, e alguns erros se repetem nas que se machucam.</p>
+  </div>
+  <div class="patterns">
+    <div><b>Plano antes de aplicar</b><p>Toda mudança de infraestrutura gerada por IA chega com o <code>cdk diff</code> ou o change set na descrição do PR.</p></div>
+    <div><b>Política como código</b><p>cdk-nag, cfn-guard ou Checkov no CI pegam permissões curinga e portas abertas antes de qualquer pessoa.</p></div>
+    <div><b>Agente com crachá de leitura</b><p>Para diagnosticar e explicar, o agente só precisa ler. Escrita só em conta isolada.</p></div>
+    <div><b>Conta por ambiente</b><p>Desenvolvimento, homologação e produção separados. O erro de um agente fica contido onde ele trabalha.</p></div>
+    <div><b>Eval antes do prompt</b><p>Para IA no produto, o conjunto de avaliação é o primeiro artefato, não o último.</p></div>
+    <div><b>Custo com dono</b><p>Tag por funcionalidade e por cliente, orçamento com alerta e relatório mensal de custo de IA.</p></div>
+  </div>
+  <div class="read">
+    <div class="tw"><table style="min-width:520px">
+      <thead><tr><th>Antipadrão</th><th>Como aparece</th><th>Consequência</th></tr></thead>
+      <tbody>
+        <tr><td><b>Administrador no terminal</b></td><td>Agente rodando com credencial de administrador de produção</td><td>Um erro ou um pacote malicioso alcança tudo</td></tr>
+        <tr><td><b>Aplicar direto do chat</b></td><td>A IA gera e roda o comando de infraestrutura sem esteira</td><td>Sem revisão, sem plano, sem histórico</td></tr>
+        <tr><td><b>"Funcionou, então está certo"</b></td><td>Aceitar IaC porque o deploy passou</td><td>Permissões amplas e falta de resiliência invisíveis até o incidente</td></tr>
+        <tr><td><b>Isolamento pelo prompt</b></td><td>"Responda só sobre o condomínio X" como única proteção</td><td>Vazamento entre clientes com uma pergunta bem feita</td></tr>
+        <tr><td><b>Modelo grande para tudo</b></td><td>O maior modelo em todas as chamadas</td><td>Custo e latência altos sem ganho de qualidade medido</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="atividades">
+  <div class="read">
+    <span class="eyebrow">Prática</span>
+    <h2>Atividades para a turma</h2>
+    <p class="lede">Seis atividades. As três primeiras podem ser feitas sem conta na AWS; as demais usam uma conta de estudo, de preferência com orçamento e alerta configurados.</p>
+
+    <div class="act"><span class="d">Atividade 1 · duplas · 15 min</span><h4>Quem é responsável?</h4><p>Para dez situações (disco do servidor físico falhou; bucket ficou público; senha do banco no código; data center sem energia; agente apagou uma tabela; modelo respondeu com dado de outro cliente…), classifique se a responsabilidade é da AWS ou de quem usa, segundo o modelo de responsabilidade compartilhada. Justifique.</p></div>
+
+    <div class="act"><span class="d">Atividade 2 · individual · 20 min</span><h4>Caça aos erros na IaC</h4><p>Peça a uma IA que gere, em CDK ou CloudFormation, "um bucket S3 e uma função Lambda que processa os arquivos enviados". Revise o resultado com a tabela de erros típicos e os seis pilares. Liste cada problema encontrado e a correção.</p></div>
+
+    <div class="act"><span class="d">Atividade 3 · grupos · 25 min</span><h4>Revisão Well-Architected do assistente</h4><p>Usando o desenho do <a href="#produto">assistente do morador</a>, cada grupo assume um pilar e escreve três perguntas e três riscos. No fim, a turma monta a lista consolidada e discute onde os pilares entram em conflito.</p></div>
+
+    <div class="act"><span class="d">Atividade 4 · individual · 30 min · conta AWS de estudo</span><h4>Crachá do agente</h4><p>Crie um papel IAM somente leitura para um agente de IA e confirme com <code>aws sts get-caller-identity</code> e com uma tentativa de escrita (que deve falhar). Escreva em um parágrafo por que esse papel é suficiente para diagnosticar problemas.</p></div>
+
+    <div class="act"><span class="d">Atividade 5 · duplas · 20 min</span><h4>Orçamento do assistente</h4><p>Com a <a href="#custos">calculadora</a> e a página oficial de preços do Bedrock, estime o custo mensal e por condomínio do assistente para três modelos. Proponha duas otimizações e estime a economia de cada uma.</p></div>
+
+    <div class="act"><span class="d">Atividade 6 · grupos de 4 · projeto</span><h4>Do zero à produção, com IA</h4><p>Implemente com IA a fila de encomendas do <a href="#exemplo">exemplo trabalhado</a>, seguindo os seis passos: especificação, contexto, geração, verificação (cdk-nag e <code>cdk diff</code>), PR revisado por outro grupo e regras novas no arquivo de contexto. <strong>Critérios:</strong> menor privilégio, fila de erro com alarme, limites de custo e um relatório curto do que a IA errou e como foi pego.</p></div>
+  </div>
+</section>
+
+<section id="revisao">
+  <div class="read">
+    <span class="eyebrow">Revisão</span>
+    <h2>Questões de revisão</h2>
+    <p class="lede">Responda antes de ler a explicação. <span class="prog" id="quiz-score"></span></p>
+    <button type="button" class="btn" id="quiz-reset">Recomeçar</button>
+  </div>
+  <div class="quiz read" id="quiz"></div>
+  <div class="read">
+    <h3>Para discutir (questões abertas)</h3>
+    <ol>
+      <li>Por que a infraestrutura como código trouxe a infraestrutura "para dentro" do ciclo de engenharia de software, e para dentro do alcance da IA?</li>
+      <li>Explique, com o exemplo do crachá, por que a permissão é uma guarda mais forte que uma instrução no prompt.</li>
+      <li>No assistente do morador, onde exatamente deve ficar o filtro por condomínio? O que aconteceria se ele dependesse do texto do prompt?</li>
+      <li>Escolha dois pilares do Well-Architected que entram em conflito numa funcionalidade com IA e explique como você decidiria.</li>
+      <li>Por que, durante um incidente, a IA deve ser "escriba e consultora" e não "comandante"? Relacione com Bainbridge (1983).</li>
+    </ol>
+  </div>
+</section>
+
+<section id="sintese">
+  <div class="read">
+    <span class="eyebrow">Síntese</span>
+    <h2>Dez ideias para levar</h2>
+    <ol class="norms">
+      <li><div><b>Na nuvem, infraestrutura é código.</b><span>Versionada, revisada, testada, e agora também escrita com IA (MORRIS, 2020).</span></div></li>
+      <li><div><b>Segurança é compartilhada.</b><span>A AWS protege a nuvem; você protege o que coloca nela, inclusive o que a IA gerou.</span></div></li>
+      <li><div><b>O plano de mudança é o melhor oráculo da infraestrutura.</b><span>Leia o diff; "replace" e "delete" exigem parar.</span></div></li>
+      <li><div><b>IA ainda erra mais em IaC que em código comum.</b><span>Permissões e interação entre serviços são os pontos fracos (KON et al., 2024).</span></div></li>
+      <li><div><b>Toda mudança passa pela esteira.</b><span>Testes, segurança, plano, deploy gradual e reversão automática (HUMBLE; FARLEY, 2010).</span></div></li>
+      <li><div><b>O crachá vale mais que o pedido.</b><span>Agentes com menor privilégio, contas separadas e credenciais temporárias.</span></div></li>
+      <li><div><b>RAG é prova com consulta.</b><span>Buscar, responder com base no trecho e citar a fonte (LEWIS et al., 2020).</span></div></li>
+      <li><div><b>Isolamento se faz no código.</b><span>Filtro por cliente aplicado pela API, testado automaticamente.</span></div></li>
+      <li><div><b>Custo de IA é decisão de arquitetura.</b><span>Menor modelo que passa no eval, menos contexto, cache e custo por cliente.</span></div></li>
+      <li><div><b>Na operação, a IA é escriba.</b><span>Lê, correlaciona e documenta; a decisão no incidente é humana.</span></div></li>
+    </ol>
+    <div class="prof"><span class="av" aria-hidden="true">P</span><div><b>Palavra final do professor</b>
+      <p>Nas três aulas, a mesma ideia apareceu de formas diferentes. Na aula 1, a IA amplifica a equipe que já existe. Na aula 2, ela muda o custo de escrever, mas não o que faz um software ser bom. Na nuvem, ela escreve infraestrutura com rapidez, e por isso as guardas, as permissões e a verificação valem mais do que nunca.</p>
+      <p>O profissional que se destaca agora é quem sabe usar a IA com a cabeça de engenheiro: especifica bem, dá contexto, verifica com rigor e entende o que colocou em produção. Bons estudos, e boas construções.</p>
+    </div></div>
+  </div>
+</section>
+
+<section id="referencias">
+  <div class="read">
+    <span class="eyebrow">Referências</span>
+    <h2>Referências</h2>
+    <p>Em formato próximo ao da ABNT NBR 6023. A documentação da AWS muda com frequência; confira sempre a versão atual.</p>
+
+    <h3>Livros</h3>
+    <ul class="refs">
+      <li>BEYER, B. et al. (org.). <em>Site Reliability Engineering</em>: How Google Runs Production Systems. Sebastopol: O'Reilly, 2016.</li>
+      <li>BRIKMAN, Y. <em>Terraform: Up &amp; Running</em>. 3. ed. Sebastopol: O'Reilly, 2022.</li>
+      <li>FORSGREN, N.; HUMBLE, J.; KIM, G. <em>Accelerate</em>: The Science of Lean Software and DevOps. Portland: IT Revolution, 2018.</li>
+      <li>HOHPE, G.; WOOLF, B. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003.</li>
+      <li>HUMBLE, J.; FARLEY, D. <em>Continuous Delivery</em>. Upper Saddle River: Addison-Wesley, 2010.</li>
+      <li>HUYEN, C. <em>AI Engineering</em>: Building Applications with Foundation Models. Sebastopol: O'Reilly, 2025.</li>
+      <li>KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly, 2017.</li>
+      <li>MORRIS, K. <em>Infrastructure as Code</em>: Dynamic Systems for the Cloud Age. 2. ed. Sebastopol: O'Reilly, 2020.</li>
+      <li>NEWMAN, S. <em>Building Microservices</em>. 2. ed. Sebastopol: O'Reilly, 2021.</li>
+      <li>NYGARD, M. T. <em>Release It!</em>: Design and Deploy Production-Ready Software. 2. ed. Raleigh: Pragmatic Bookshelf, 2018.</li>
+      <li>RICHARDS, M.; FORD, N. <em>Fundamentals of Software Architecture</em>. Sebastopol: O'Reilly, 2020.</li>
+      <li>ROSENTHAL, C.; JONES, N. <em>Chaos Engineering</em>: System Resiliency in Practice. Sebastopol: O'Reilly, 2020.</li>
+      <li>STORMENT, J. R.; FULLER, M. <em>Cloud FinOps</em>. 2. ed. Sebastopol: O'Reilly, 2023.</li>
+      <li>WITTIG, A.; WITTIG, M. <em>Amazon Web Services in Action</em>. 3. ed. Shelter Island: Manning, 2023.</li>
+    </ul>
+
+    <h3>Artigos</h3>
+    <ul class="refs">
+      <li>ARMBRUST, M. et al. A View of Cloud Computing. <em>Communications of the ACM</em>, v. 53, n. 4, p. 50-58, 2010.</li>
+      <li>BAINBRIDGE, L. Ironies of Automation. <em>Automatica</em>, v. 19, n. 6, p. 775-779, 1983.</li>
+      <li>BASIRI, A. et al. Chaos Engineering. <em>IEEE Software</em>, v. 33, n. 3, p. 35-41, 2016.</li>
+      <li>DEAN, J.; BARROSO, L. A. The Tail at Scale. <em>Communications of the ACM</em>, v. 56, n. 2, p. 74-80, 2013.</li>
+      <li>DECANDIA, G. et al. Dynamo: Amazon's Highly Available Key-value Store. In: <em>SOSP</em>, 2007. p. 205-220.</li>
+      <li>GRESHAKE, K. et al. Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection. In: <em>AISec</em>, 2023. <a href="https://arxiv.org/abs/2302.12173" target="_blank" rel="noopener">arXiv:2302.12173</a>.</li>
+      <li>GUERRIERO, M. et al. Adoption, Support, and Challenges of Infrastructure-as-Code: Insights from Industry. In: <em>ICSME</em>, 2019.</li>
+      <li>HELLERSTEIN, J. M. et al. Serverless Computing: One Step Forward, Two Steps Back. In: <em>CIDR</em>, 2019.</li>
+      <li>JONAS, E. et al. Cloud Programming Simplified: A Berkeley View on Serverless Computing. <em>arXiv</em>, 2019. <a href="https://arxiv.org/abs/1902.03383" target="_blank" rel="noopener">arXiv:1902.03383</a>.</li>
+      <li>KON, P. T. J. et al. IaC-Eval: A Code Generation Benchmark for Cloud Infrastructure-as-Code Programs. In: <em>NeurIPS Datasets and Benchmarks</em>, 2024.</li>
+      <li>LEWIS, P. et al. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. In: <em>NeurIPS</em>, 2020. <a href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">arXiv:2005.11401</a>.</li>
+      <li>RAHMAN, A.; PARNIN, C.; WILLIAMS, L. The Seven Sins: Security Smells in Infrastructure as Code Scripts. In: <em>ICSE</em>, 2019. p. 164-175.</li>
+      <li>VOGELS, W. Eventually Consistent. <em>Communications of the ACM</em>, v. 52, n. 1, p. 40-44, 2009.</li>
+    </ul>
+
+    <h3>Documentação, marcos e normas</h3>
+    <ul class="refs">
+      <li>AMAZON WEB SERVICES. <em>AWS Well-Architected Framework</em>. Documentação on-line. Disponível em: <a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html" target="_blank" rel="noopener">docs.aws.amazon.com/wellarchitected</a>.</li>
+      <li>AMAZON WEB SERVICES. <em>Generative AI Lens</em>: AWS Well-Architected. 2025.</li>
+      <li>AMAZON WEB SERVICES. <em>Shared Responsibility Model</em>. Disponível em: <a href="https://aws.amazon.com/compliance/shared-responsibility-model/" target="_blank" rel="noopener">aws.amazon.com/compliance</a>.</li>
+      <li>AMAZON WEB SERVICES. <em>Amazon Bedrock User Guide</em>: Knowledge Bases, Guardrails e proteção de dados. Documentação on-line.</li>
+      <li>AMAZON WEB SERVICES. <em>Using Lambda with Amazon SQS</em>. AWS Lambda Developer Guide. Documentação on-line.</li>
+      <li>BROOKER, M. Timeouts, Retries, and Backoff with Jitter. <em>Amazon Builders' Library</em>. Disponível em: <a href="https://aws.amazon.com/builders-library/" target="_blank" rel="noopener">aws.amazon.com/builders-library</a>.</li>
+      <li>BRASIL. Lei n.º 13.709, de 14 de agosto de 2018. Lei Geral de Proteção de Dados Pessoais (LGPD).</li>
+      <li>NIST. <em>Artificial Intelligence Risk Management Framework (AI RMF 1.0)</em>. NIST AI 100-1. Gaithersburg, 2023.</li>
+      <li>OWASP. <em>Top 10 for Large Language Model Applications</em>. Versão 2025.</li>
+    </ul>
+  </div>
+  <footer>Aula magna 3 da disciplina Engenharia de Software com IA. O caso-guia é um SaaS de gestão de condomínios usado como exemplo didático. Preços e nomes de serviços citados são ilustrativos e podem mudar.<a class="nextl" href="02-engenharia-software-ia-juntas.html">← Aula anterior: Engenharia de software e IA trabalhando juntas</a><a class="nextl" href="../index.html">Voltar à disciplina</a></footer>
+</section>
+
+</main>
+</div>
+
+<script>
+(function(){
+  function $(i){return document.getElementById(i)}
+  // índice: destaca a seção visível
+  var links=[].slice.call(document.querySelectorAll('nav.toc ol a'));
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.remove('on')});var a=map[e.target.id];if(a)a.classList.add('on')}})},{rootMargin:'-20% 0px -70% 0px'});
+    document.querySelectorAll('main section').forEach(function(s){io.observe(s)});
+  }
+  if(location.hash){var t=document.getElementById(location.hash.slice(1));if(t)setTimeout(function(){t.scrollIntoView()},50)}
+
+  // calculadora de custo do assistente
+  var K=['q','in','out','pin','pout','cache','cond'];
+  function usd(v){return 'US$ '+(v>=100?Math.round(v).toLocaleString('pt-BR'):v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}))}
+  function num(v){return Math.round(v).toLocaleString('pt-BR')}
+  function calc(){
+    var v={};K.forEach(function(k){v[k]=+$('cu-'+k).value});
+    $('co-q').textContent=num(v.q);$('co-in').textContent=num(v['in']);$('co-out').textContent=num(v.out);
+    $('co-pin').textContent='US$ '+v.pin.toFixed(2);$('co-pout').textContent='US$ '+v.pout.toFixed(2);
+    $('co-cache').textContent=v.cache+'%';$('co-cond').textContent=num(v.cond);
+    var tin=v.q*v['in']/1e6, tout=v.q*v.out/1e6, c=v.cache/100;
+    var cin=tin*v.pin*((1-c)+c*0.1), cout=tout*v.pout, tot=cin+cout;
+    $('cu-total').textContent=usd(tot);
+    var mx=Math.max(cin,cout,0.0001);
+    $('cu-bin').style.width=(cin/mx*100)+'%';$('cu-bout').style.width=(cout/mx*100)+'%';
+    $('cu-nin').textContent=Math.round(cin/tot*100)+'%';$('cu-nout').textContent=Math.round(cout/tot*100)+'%';
+    var notes=['Por pergunta: US$ '+(tot/v.q).toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})+' · por condomínio: '+usd(tot/v.cond)+' por mês.'];
+    notes.push(cin>cout?'A entrada domina o custo: enviar menos trechos e usar cache são as alavancas principais.':'A saída domina o custo: respostas mais curtas ou um modelo mais barato ajudam mais.');
+    if(v.cache>0)notes.push('Sem cache, o mesmo cenário custaria '+usd(tin*v.pin+cout)+'.');
+    notes.push('Valores ilustrativos. Confira os preços oficiais do modelo e da região escolhidos.');
+    $('cu-notes').innerHTML=notes.map(function(n){return '<li>'+n+'</li>'}).join('');
+  }
+  var cb=[].slice.call(document.querySelectorAll('#custo .presets button'));
+  K.forEach(function(k){$('cu-'+k).addEventListener('input',function(){cb.forEach(function(b){b.setAttribute('aria-pressed','false')});calc()})});
+  cb.forEach(function(b){b.setAttribute('aria-pressed','false');b.addEventListener('click',function(){
+    var p=b.dataset.c.split(',');K.forEach(function(k,j){$('cu-'+k).value=p[j]});
+    cb.forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});calc()})});
+  cb[0].click();
+
+  // questões de revisão
+  var Q=[
+    {q:'No modelo de responsabilidade compartilhada, quem responde por um bucket do S3 que ficou público por erro de configuração?',o:['A AWS','Quem usa a conta','O fornecedor do modelo de IA','Ninguém: é um risco aceito da nuvem'],a:1,e:'A AWS cuida da segurança da nuvem (prédios, hardware, virtualização). Configuração, acessos e dados são responsabilidade de quem usa, mesmo que a configuração tenha sido gerada por IA.'},
+    {q:'Por que a infraestrutura como código entrou no alcance da IA?',o:['Porque a AWS exige o uso de IA','Porque, descrita em arquivos de texto, a infraestrutura vira código que a IA consegue ler e escrever','Porque a IA tem acesso físico aos data centers','Porque IaC dispensa revisão'],a:1,e:'Tudo que é código pode ser gerado por IA. E, pelo mesmo motivo, pode ser versionado, revisado e verificado como código.'},
+    {q:'Qual é o oráculo mais valioso antes de aplicar uma mudança de infraestrutura?',o:['A opinião da IA sobre a mudança','O plano de mudança (cdk diff, change set, terraform plan)','O número de linhas alteradas','O tempo que o deploy levou'],a:1,e:'O plano mostra exatamente o que será criado, alterado ou destruído. "Replace" ou "delete" em recursos com dados exigem parar e entender.'},
+    {q:'Um agente de IA rodando no seu terminal pode fazer na AWS…',o:['só o que você pediu no prompt','tudo o que a credencial ativa naquele terminal permite','nada, porque agentes não acessam a AWS','só ações de leitura, sempre'],a:1,e:'A permissão é o controle real. Por isso o agente deve usar um papel com menor privilégio, de preferência só leitura ou numa conta isolada.'},
+    {q:'Qual é a forma recomendada de dar acesso à AWS para uma esteira de CI?',o:['Chave de acesso fixa guardada como segredo no CI','Usuário administrador compartilhado','Federação OIDC com credenciais temporárias e escopo restrito','Senha do console no repositório'],a:2,e:'Credenciais temporárias expiram em minutos e valem só para aquele repositório e tarefa. Chaves fixas vazadas dão acesso até alguém perceber.'},
+    {q:'Na Lambda que consome uma fila SQS, por que a visibilidade da fila deve ser bem maior que o timeout da função?',o:['Para economizar armazenamento','Para evitar que a mesma mensagem seja entregue de novo enquanto ainda está sendo processada','Porque a AWS cobra menos','Não importa a relação entre os dois'],a:1,e:'Se a visibilidade acabar antes do processamento terminar, a mensagem reaparece e é processada em dobro. A documentação da AWS recomenda pelo menos seis vezes o timeout.'},
+    {q:'O que o RAG faz no assistente do morador?',o:['Treina um modelo novo com os regimentos','Busca os trechos relevantes do regimento e pede ao modelo que responda com base neles','Traduz as perguntas para inglês','Impede qualquer erro do modelo'],a:1,e:'É como uma prova com consulta: o modelo não precisa ter decorado o regimento, mas precisa responder com base no trecho certo e citar a fonte.'},
+    {q:'Onde deve ser aplicado o isolamento entre condomínios no assistente?',o:['Numa instrução no prompt: "responda só sobre este condomínio"','Num filtro por condominioId aplicado pela API na busca, testado automaticamente','Na escolha do modelo','No Guardrails, apenas'],a:1,e:'Instrução no prompt pode ser contornada com uma pergunta bem feita. O filtro aplicado no código, antes da busca, não depende do modelo.'},
+    {q:'No RAG, qual costuma ser a maior parte do custo por pergunta?',o:['Os tokens de saída','Os tokens de entrada, porque cada pergunta leva vários trechos do documento','O armazenamento no S3','A transferência de rede'],a:1,e:'Por isso enviar menos trechos e mais relevantes, usar cache e escolher o menor modelo que passa no eval são as alavancas principais.'},
+    {q:'Durante um incidente em produção, qual o papel adequado da IA hoje?',o:['Comandante: decide e aplica a correção','Escriba e consultora: lê, correlaciona, resume e sugere; a equipe decide','Nenhum: IA não deve ser usada em incidentes','Substituir o plantão'],a:1,e:'Uma causa errada dita com convicção sob pressão pode desviar a equipe. As ironias da automação lembram que a decisão nos casos raros precisa de gente preparada.'},
+    {q:'Qual destes NÃO é um dos seis pilares do AWS Well-Architected?',o:['Confiabilidade','Otimização de custos','Velocidade de desenvolvimento','Sustentabilidade'],a:2,e:'Os seis pilares são excelência operacional, segurança, confiabilidade, eficiência de desempenho, otimização de custos e sustentabilidade.'}
+  ];
+  var score=0,answered=0;
+  function upd(){$('quiz-score').textContent=score+' de '+answered+' certas · '+(Q.length-answered)+' restantes.'}
+  function build(){
+    var qz=$('quiz');qz.innerHTML='';score=0;answered=0;
+    Q.forEach(function(it,ix){
+      var d=document.createElement('div');d.className='q';
+      var h=document.createElement('h4');h.textContent=(ix+1)+'. '+it.q;d.appendChild(h);
+      var o=document.createElement('div');o.className='opts';d.appendChild(o);
+      var fb=document.createElement('p');fb.className='fb';fb.hidden=true;d.appendChild(fb);
+      it.o.forEach(function(t,j){
+        var b=document.createElement('button');b.type='button';b.textContent=t;
+        b.addEventListener('click',function(){
+          answered++;if(j===it.a)score++;
+          [].forEach.call(o.children,function(x,k){x.disabled=true;if(k===it.a)x.classList.add('ok');else if(k===j)x.classList.add('bad')});
+          fb.hidden=false;fb.textContent=(j===it.a?'Correto. ':'Não exatamente. ')+it.e;upd()});
+        o.appendChild(b)});
+      qz.appendChild(d)});
+    upd();
+  }
+  $('quiz-reset').addEventListener('click',build);
+  build();
+})();
+</script>
