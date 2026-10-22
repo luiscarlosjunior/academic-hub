@@ -46,7 +46,7 @@
     </p>
   </div>
 
-  <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 my-6" id="at-simbolos"></div>
+  <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3 my-6" id="at-simbolos"></div>
 </section>
 
 <!-- ============================ SIMULADOR ============================ -->
@@ -312,17 +312,9 @@ flowchart TD
   <p class="ah-diagram-cap">O estorno e a devolução ao estoque são independentes: a barra de sincronização (join) só libera o aviso quando ambos terminam. A decisão tem duas saídas com guardas mutuamente exclusivas.</p>
 
   <h3 class="ah-h3 mt-6 mb-3">Passo 3 — raias para mostrar quem faz o quê</h3>
-  <div class="overflow-x-auto ah-card">
-    <table class="ah-table">
-      <thead><tr><th>Ação</th><th>Raia</th></tr></thead>
-      <tbody>
-        <tr><td>Solicitar reembolso</td><td>Cliente</td></tr>
-        <tr><td>Verificar prazo, registrar, avisar</td><td>Sistema</td></tr>
-        <tr><td>Estornar no cartão</td><td>Gateway de pagamento</td></tr>
-        <tr><td>Devolver ao estoque</td><td>Operação de estoque</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <p class="ah-lead text-sm mb-4">Cada ação vai para a coluna de quem a executa: cliente, sistema, gateway e estoque. Execute os dois cenários.</p>
+  <div data-raia-sim="reembolso"></div>
+  <p class="ah-diagram-cap">A mesma lógica do passo 2, agora com cada ação na coluna de quem a executa. Acompanhe o contador de trocas de raia: cada troca é uma integração (com o gateway, com o estoque) ou uma mensagem para o cliente.</p>
 
   <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> usar um losango (decisão) para unir o estorno e a devolução. Como ambos acontecem, o losango deixaria o aviso ser enviado duas vezes. Quem junta caminhos paralelos é a barra de join.</div></div>
 </section>
@@ -337,6 +329,8 @@ flowchart TD
       Cada exemplo foi escolhido para exercitar <strong>um conceito novo</strong> do diagrama de atividades, sempre com um
       processo que você já usou como ouvinte. E <strong>todos usam raias</strong>: depois de cada diagrama há uma seção
       “Lendo as raias”, que explica cada seta que muda de responsável e o que ela ensina sobre o projeto.
+      Os diagramas funcionam como o simulador do início da página: escolha um cenário e acompanhe a ficha mudando
+      de raia.
     </p>
     <p>
       Leia cada exemplo em três tempos: primeiro a <em>história</em> em português, depois o <em>diagrama</em> e por último
@@ -501,58 +495,9 @@ flowchart TD
       entradas, e a UML diz que uma ação com várias entradas espera ficha em <em>todas</em> — ou seja, ela nunca rodaria.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph OUV["Ouvinte"]
-        direction TB
-        I((" ")) --> A["Selecionar faixa"]
-        X["Ver 'indisponível na sua região'"]
-    end
-    subgraph APP["App Melodia (no celular)"]
-        direction TB
-        AD["Tocar anúncio de 15 s"]
-        M1{" "}
-        C{"Áudio no cache?"}
-        LC["Ler arquivo local"]
-        M2{" "}
-        T["Iniciar reprodução"]
-    end
-    subgraph BACK["Back-end Melodia"]
-        direction TB
-        L{"Licenciada<br/>no país?"}
-        P{"Plano do ouvinte?"}
-        Q{"3ª faixa desde<br/>o último anúncio?"}
-        R["Registrar 'faixa iniciada'"]
-    end
-    subgraph CDN["CDN"]
-        direction TB
-        CD["Entregar trecho inicial do áudio"]
-    end
-    A --> L
-    L -- "[não]" --> X
-    L -- "[sim]" --> P
-    P -- "[Premium]" --> M1
-    P -- "[Free]" --> Q
-    Q -- "[sim]" --> AD
-    Q -- "[não]" --> M1
-    AD --> M1
-    M1 --> C
-    C -- "[sim]" --> LC
-    C -- "[não]" --> CD
-    LC --> M2
-    CD --> M2
-    M2 --> T
-    T --> R
-    R --> Z(((" ")))
-    X --> Z
-    style OUV fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style APP fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style BACK fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f59e0b
-    style CDN fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Quatro raias, uma por responsável. Cada decisão fica na raia de quem tem a informação para decidir: a licença e o plano estão no servidor; o cache está no aparelho. Os merges (losangos vazios) juntam os caminhos antes do passo seguinte.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="play"></div>
+  <p class="ah-diagram-cap">A cada seta que muda de coluna, o painel mostra a troca de raia. Repare onde ficam as decisões: licença e plano no back-end, onde não podem ser burladas; cache no app, porque só o aparelho sabe o que tem guardado. Os losangos pequenos e vazios são merges.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
     <div class="ah-card p-4 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-1">Ouvinte</div><p class="text-xs text-slate-400">Escolhe a faixa e recebe o resultado.</p></div>
@@ -643,56 +588,9 @@ flowchart TD
       se estiver desligado, a reprodução para e a Melodia sugere uma rádio parecida.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph OUV["Ouvinte"]
-        direction TB
-        I((" ")) --> A["Abrir playlist"]
-        ES{"Aceita a rádio?"}
-        SAI["Fechar o player"]
-    end
-    subgraph APP["App Melodia (player)"]
-        direction TB
-        S{"Aleatório<br/>ligado?"}
-        E["Embaralhar ordem"]
-        M0{" "}
-        P["Posicionar na 1ª faixa"]
-        M1{" "}
-        T["Tocar faixa atual"]
-        AV["Avançar para a próxima"]
-        H{"Há próxima<br/>faixa?"}
-        RP{"Repetir<br/>playlist?"}
-        RD["Tocar a rádio"]
-    end
-    subgraph REC["Serviço de Recomendação"]
-        direction TB
-        SG["Sugerir rádio parecida"]
-    end
-    A --> S
-    S -- "[sim]" --> E
-    S -- "[não]" --> M0
-    E --> M0
-    M0 --> P
-    P --> M1
-    M1 --> T
-    T --> AV
-    AV --> H
-    H -- "[sim]" --> M1
-    H -- "[não]" --> RP
-    RP -- "[sim]" --> P
-    RP -- "[não]" --> SG
-    SG --> ES
-    ES -- "[sim]" --> RD
-    ES -- "[não]" --> SAI
-    RD --> Z(((" ")))
-    SAI --> Z
-    style OUV fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style APP fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style REC fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Os dois laços (faixas e repetir playlist) ficam inteiros dentro da raia do app. A ficha só sai dessa raia no começo, quando o ouvinte abre a playlist, e no fim, quando a recomendação entra em cena e devolve a escolha ao ouvinte.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="playlist"></div>
+  <p class="ah-diagram-cap">Rode “em ordem” e observe o contador de trocas de raia: os dois laços (faixas e repetir playlist) giram inteiros dentro da coluna do app. A ficha só sai dela no começo, quando o ouvinte abre a playlist, e no fim, quando a recomendação entra.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
     <div class="ah-card p-4 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-1">Ouvinte</div><p class="text-xs text-slate-400">Abre a playlist e escolhe o que fazer no fim.</p></div>
@@ -777,67 +675,9 @@ flowchart TD
         final de atividade ali, a primeira ficha a chegar mataria o download inteiro.</li>
     </ul>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph OUV["Ouvinte"]
-        direction TB
-        I((" ")) --> B["Tocar em 'Baixar álbum'"]
-        VER["Ver selo 'disponível offline'"]
-    end
-    subgraph APP["App Melodia"]
-        direction TB
-        E["Verificar espaço no aparelho"]
-        D1{"Espaço<br/>suficiente?"}
-        AV1["Avisar: liberar espaço"]
-        AV2["Avisar: limite de downloads"]
-        F1@{ shape: fork }
-        subgraph EXP["«parallel» para cada faixa do álbum"]
-            direction TB
-            BA["Baixar áudio criptografado"] --> LI["Instalar licença DRM"]
-        end
-        CAPA["Baixar capa em alta resolução"]
-        LET["Baixar letras sincronizadas"]
-        J1@{ shape: fork }
-        OK["Marcar álbum como offline"]
-    end
-    subgraph BACK["Back-end Melodia"]
-        direction TB
-        LIM["Verificar limite de 10 mil faixas da conta"]
-        D2{"Dentro do<br/>limite?"}
-    end
-    subgraph ANA["Analytics"]
-        direction TB
-        AN["Registrar 'download_iniciado'"]
-        FF@{ shape: cross-circ }
-    end
-    B --> E
-    E --> D1
-    D1 -- "[não]" --> AV1
-    D1 -- "[sim]" --> LIM
-    LIM --> D2
-    D2 -- "[não]" --> AV2
-    D2 -- "[sim]" --> F1
-    F1 --> AN
-    AN --> FF
-    F1 --> EXP
-    F1 --> CAPA
-    F1 --> LET
-    EXP --> J1
-    CAPA --> J1
-    LET --> J1
-    J1 --> OK
-    OK --> VER
-    VER --> Z(((" ")))
-    AV1 --> Z
-    AV2 --> Z
-    style OUV fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style APP fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style BACK fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f59e0b
-    style ANA fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">A barra de cima é o fork; a de baixo, o join. A região tracejada “para cada faixa” é a região de expansão, aqui dentro da raia do app. O ramo de analytics cruza para a sua própria raia e termina num final de fluxo (círculo com X), sem segurar nem encerrar o resto.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="offline"></div>
+  <p class="ah-diagram-cap">A barra de cima é a bifurcação; a de baixo, a junção. A caixa tracejada roxa é a região de expansão, que roda uma vez por faixa. O ramo de analytics cruza para a própria raia e termina num final de fluxo (círculo com X), sem segurar nem encerrar o resto.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
     <div class="ah-card p-4 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-1">Ouvinte</div><p class="text-xs text-slate-400">Pede o download e vê o resultado.</p></div>
@@ -864,10 +704,10 @@ flowchart TD
       fica mais correto.
     </p>
     <p>
-      <strong>Sobre a região de expansão e as raias:</strong> na UML, uma região pode atravessar raias — por exemplo,
-      se “Instalar licença” fosse feita pelo back-end. No Mermaid, um subgrafo não atravessa outro, então
-      deixamos a região inteira no app. Ao desenhar no papel ou numa ferramenta UML, coloque cada ação na raia certa
-      mesmo dentro da região.
+      <strong>Sobre a região de expansão e as raias:</strong> aqui a região ficou inteira na raia do app, porque
+      baixar o áudio e instalar a licença acontecem no aparelho. Se a licença fosse emitida pelo back-end a cada faixa,
+      a região atravessaria duas raias — a UML permite — e cada volta faria uma chamada de rede: o mesmo alerta do laço
+      que cruza raias no Exemplo 2.
     </p>
 
   </div>
@@ -914,45 +754,9 @@ album.<span class="fn">marcarDisponivelOffline</span>();</code></pre>
       <code>Faixa [validada]</code>, <code>Faixa [aprovada]</code>, <code>Faixa [publicada]</code>.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph DIST["Artista / Distribuidora"]
-        direction TB
-        I((" ")) --> UP["Enviar WAV e metadados"]
-        COR["Corrigir arquivo ou metadados"]
-    end
-    subgraph ING["Melodia: Ingestão"]
-        direction TB
-        O1["Faixa [enviada]"] --> VA["Validar áudio e metadados"]
-        VA --> FP["Comparar fingerprint acústico"]
-        FP --> D1{"Tudo ok?"}
-    end
-    subgraph MOD["Moderação"]
-        direction TB
-        O2["Faixa [validada]"] --> RV["Revisar capa e letra"]
-        RV --> D2{"Aprovada?"}
-    end
-    subgraph CAT["Melodia: Catálogo"]
-        direction TB
-        O3["Faixa [aprovada]"] --> TE["⏳ Sexta-feira, 00:00"]
-        TE --> PUB["Publicar no catálogo"]
-        PUB --> O4["Faixa [publicada]"]
-        O4 --> Z(((" ")))
-    end
-    UP --> O1
-    D1 -- "[sim]" --> O2
-    D1 -- "[não]" --> COR
-    D2 -- "[sim]" --> O3
-    D2 -- "[não]" --> COR
-    COR --> UP
-    style DIST fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style ING fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style MOD fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f59e0b
-    style CAT fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Cada caixa é uma raia. Os retângulos retos “Faixa [estado]” são nós de objeto: mostram o que flui entre as ações, não uma ação. A ampulheta marca um evento de tempo: a ficha fica parada ali até a sexta-feira chegar. O laço de correção atravessa raias.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="lancamento"></div>
+  <p class="ah-diagram-cap">Os retângulos de canto reto são nós de objeto: a mesma <code>Faixa</code> atravessa as raias mudando de estado. A ampulheta é o evento de tempo. No cenário “recusada na moderação”, veja o laço de correção atravessar três raias.</p>
 
   <div class="ah-prose mt-5">
     <p><strong>O que o diagrama revela que um texto esconderia:</strong></p>
@@ -969,9 +773,9 @@ flowchart TD
   <div class="ah-callout ah-callout-info mt-5">
     <i class="fa-solid fa-circle-info"></i>
     <div>
-      <strong>Notação UML real × diagrama acima:</strong> o Mermaid não tem todos os símbolos da UML. No papel, o evento de
-      tempo é uma <em>ampulheta</em>, o nó de objeto é um retângulo de cantos retos e as raias são faixas paralelas
-      de mesma largura. Os conceitos são os mesmos.
+      <strong>Notação usada no diagrama:</strong> nós de objeto são retângulos de canto reto, com o estado entre
+      colchetes; o evento de tempo é a ampulheta; cada coluna é uma raia. É a notação da UML 2.5, a mesma que você
+      usaria numa ferramenta de modelagem ou no papel.
     </div>
   </div>
 </section>
@@ -993,56 +797,9 @@ flowchart TD
       dentro são descartadas: a contagem para, e o fluxo segue pelo caminho da interrupção.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph OUV["Ouvinte"]
-        direction TB
-        OP["📤 Tocar em 'próxima'"]
-    end
-    subgraph OUT["Outro aparelho da conta"]
-        direction TB
-        OA["📤 Começar a tocar"]
-    end
-    subgraph APP["App Melodia (player)"]
-        direction TB
-        I((" ")) --> INI["Iniciar reprodução"]
-        subgraph R["Região interrompível"]
-            direction TB
-            T["Tocar e contar segundos"] --> D{"Chegou a 30 s?"}
-            D -- "[não]" --> T
-            E1["📥 Ouvinte pulou"]
-            E2["📥 Outro aparelho assumiu"]
-            E3["📥 Conexão perdida"]
-        end
-        PA["Pausar e exibir 'Tocando em outro aparelho'"]
-        B["Exibir aviso de conexão"]
-    end
-    subgraph BACK["Back-end Melodia"]
-        direction TB
-        S["Registrar stream válido"]
-        RO["Somar 1 stream ao artista e à gravadora"]
-        P["Registrar 'pulo' para recomendação"]
-    end
-    INI --> R
-    OP -.->|sinal| E1
-    OA -.->|sinal| E2
-    D -- "[sim]" --> S
-    S --> RO
-    RO --> FIM(((" ")))
-    E1 -- "⚡" --> P
-    E2 -- "⚡" --> PA
-    E3 -- "⚡" --> B
-    P --> FIM
-    PA --> FIM
-    B --> FIM
-    style OUV fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style OUT fill:#0f172a,stroke:#f43f5e,stroke-width:2px,color:#f43f5e
-    style APP fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style BACK fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f59e0b
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">As três ações “📥” são aceitar evento (na UML, um pentágono côncavo) e ficam na raia de quem <em>recebe</em> o evento: o app. As setas pontilhadas vêm das raias de quem <em>envia</em> o sinal (📤). As setas ⚡ são arestas de interrupção.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="stream"></div>
+  <p class="ah-diagram-cap">A caixa tracejada laranja é a região interrompível. Os pentágonos com recorte (aceitar evento) ficam na raia de quem <em>recebe</em>; os pentágonos em forma de seta (enviar sinal) ficam na raia de quem <em>envia</em>. Setas azuis tracejadas são sinais; setas com ⚡ são interrupções.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
     <div class="ah-card p-4 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-1">Ouvinte</div><p class="text-xs text-slate-400">Pode pular a faixa a qualquer momento.</p></div>
@@ -1123,54 +880,9 @@ rede.<span class="fn">aoPerderConexao</span>(()      -&gt; { contagem.<span clas
       segue em frente, sem esperar o celular do ouvinte responder.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph AGE["Agendador"]
-        direction TB
-        T["⏳ Toda segunda, 03:00"]
-        REL["Gerar relatório do job"]
-    end
-    subgraph REC["Serviço de Recomendação"]
-        direction TB
-        A["Selecionar ouvintes ativos nos últimos 28 dias"]
-        subgraph EXP["«parallel» para cada ouvinte"]
-            direction TB
-            H["Ler histórico de 28 dias"] --> V["Encontrar ouvintes com gosto parecido"]
-            V --> C["Coletar e filtrar faixas candidatas"]
-            C --> Q{"Sobraram 30<br/>ou mais?"}
-            Q -- "[não]" --> COMP["Completar com lançamentos do gênero favorito"]
-            Q -- "[sim]" --> M{" "}
-            COMP --> M
-            M --> S["Salvar playlist da semana"]
-            S --> N{"Aceitou<br/>notificações?"}
-            N -- "[sim]" --> SIG["📤 Enviar sinal: playlist pronta"]
-            N -- "[não]" --> M2{" "}
-            SIG --> M2
-        end
-    end
-    subgraph NOT["Serviço de Notificações"]
-        direction TB
-        ACC["📥 Playlist pronta"] --> MP["Montar push no idioma do ouvinte"]
-        MP --> EP["Enviar push"]
-    end
-    subgraph CEL["Celular do ouvinte"]
-        direction TB
-        EX["Exibir notificação"] --> FF@{ shape: cross-circ }
-    end
-    T --> A
-    A --> EXP
-    EXP --> REL
-    REL --> Z(((" ")))
-    SIG -.->|sinal| ACC
-    EP --> EX
-    style AGE fill:#0f172a,stroke:#f43f5e,stroke-width:2px,color:#f43f5e
-    style REC fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    style NOT fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f59e0b
-    style CEL fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Quatro raias, sendo duas de sistemas que só se falam por sinal (seta pontilhada). O fluxo principal começa e termina no agendador; o fluxo de notificação é um processo à parte, iniciado pelo sinal, que acaba num final de fluxo no celular.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="semanal"></div>
+  <p class="ah-diagram-cap">A ampulheta dispara o job e a região de expansão roxa roda uma vez por ouvinte. A recomendação e as notificações só se falam por um sinal (seta azul tracejada). O processo de notificação é independente e termina num final de fluxo, no celular.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
     <div class="ah-card p-4 border-t-4 border-rose-400"><div class="text-xs font-bold text-rose-300 mb-1">Agendador</div><p class="text-xs text-slate-400">Dispara o job e fecha o relatório.</p></div>
@@ -1229,61 +941,9 @@ flowchart TD
       de evento, inclusive um de tempo. O evento que chegar primeiro interrompe a região e cancela os outros.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph TIT["Titular do plano"]
-        direction TB
-        I((" ")) --> CV["Convidar a irmã por e-mail"]
-        CH["Ver 'plano cheio'"]
-        AVT["Ver 'convite expirou'"]
-    end
-    subgraph MEL["Melodia"]
-        direction TB
-        L{"Família já tem<br/>6 contas?"}
-        EN["Enviar convite com link"]
-        subgraph R["Região interrompível: aguardando resposta"]
-            direction LR
-            A1["📥 Convite aceito"]
-            A2["📥 Convite recusado"]
-            A3["⏳ 7 dias depois"]
-        end
-        V{"Mesmo endereço<br/>de residência?"}
-        VIN["Vincular conta e migrar playlists"]
-        NEG["Recusar vínculo"]
-        LIB["Liberar a vaga"]
-        EXPC["Expirar convite"]
-    end
-    subgraph CON["Convidada"]
-        direction TB
-        AB["Abrir o e-mail"] --> DC{"Quer entrar?"}
-        DC -- "[sim]" --> AC["📤 Aceitar"]
-        DC -- "[não]" --> RC["📤 Recusar"]
-    end
-    CV --> L
-    L -- "[sim]" --> CH
-    L -- "[não]" --> EN
-    EN --> R
-    EN -.->|e-mail| AB
-    AC -.->|sinal| A1
-    RC -.->|sinal| A2
-    A1 -- "⚡" --> V
-    V -- "[sim]" --> VIN
-    V -- "[não]" --> NEG
-    A2 -- "⚡" --> LIB
-    A3 -- "⚡" --> EXPC
-    EXPC --> AVT
-    VIN --> Z(((" ")))
-    NEG --> Z
-    LIB --> Z
-    AVT --> Z
-    CH --> Z
-    style TIT fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style MEL fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style CON fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Três raias: quem convida, quem decide e o sistema no meio. A convidada tem o próprio fluxo, que se comunica com a Melodia só por sinais (setas pontilhadas). O evento de tempo não tem raia de origem: o tempo não é um responsável.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="familia"></div>
+  <p class="ah-diagram-cap">Três eventos disputam a mesma região interrompível: o aceite e a recusa, que chegam como sinais vindos da raia da convidada, e o prazo de 7 dias (ampulheta). Teste os quatro cenários e veja qual evento vence em cada um.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
     <div class="ah-card p-4 border-t-4 border-sky-400"><div class="text-xs font-bold text-sky-300 mb-1">Titular do plano</div><p class="text-xs text-slate-400">Convida e é avisado do resultado.</p></div>
@@ -1339,44 +999,9 @@ flowchart TD
       se a diferença para o mês anterior passar de 20%, o fechamento volta para auditoria antes de pagar.
     </p>
   </div>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    subgraph SIS["Sistema de Royalties"]
-        direction TB
-        T["⏳ Dia 1º, 02:00"] --> F1@{ shape: fork }
-        REC["Somar receita do mês"]
-        STR["Consolidar streams válidos"] --> FR["Descartar streams fraudulentos"]
-        J1@{ shape: fork }
-        CAL["Calcular valor por stream"] --> DIS["Distribuir por detentor de direitos"]
-    end
-    subgraph FIN["Financeiro"]
-        direction TB
-        CONF{"Variação acima<br/>de 20%?"}
-        AUD["Auditar fechamento"]
-        APR["Aprovar pagamentos"]
-    end
-    subgraph BAN["Banco"]
-        direction TB
-        PAG["Transferir valores"]
-    end
-    F1 --> REC
-    F1 --> STR
-    REC --> J1
-    FR --> J1
-    J1 --> CAL
-    DIS --> CONF
-    CONF -- "[sim]" --> AUD
-    AUD --> CAL
-    CONF -- "[não]" --> APR
-    APR --> PAG
-    PAG --> Z(((" ")))
-    style SIS fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#10b981
-    style FIN fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f59e0b
-    style BAN fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#a855f7
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Fork e join dentro da raia do sistema, um laço de auditoria que vai do financeiro de volta ao cálculo e uma única passagem para o banco. O join é essencial: calcular o valor por stream sem a receita completa geraria pagamentos errados.</p>
+  <p class="ah-lead text-sm mb-4">Escolha um cenário e acompanhe a ficha atravessando as raias.</p>
+  <div data-raia-sim="royalties"></div>
+  <p class="ah-diagram-cap">Bifurcação e junção na raia do sistema, um laço de auditoria entre financeiro e sistema e uma única passagem para o banco. Rode “variação de 40%” para ver o retrabalho cruzando raias.</p>
   <h3 class="ah-h3 mt-6 mb-3"><i class="fa-solid fa-table-columns text-emerald-400 mr-2"></i>Lendo as raias</h3>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
     <div class="ah-card p-4 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-1">Sistema de Royalties</div><p class="text-xs text-slate-400">Soma, consolida, calcula e distribui.</p></div>
@@ -1599,7 +1224,12 @@ const SIMB = [
   ['Bifurcação', '<rect x="6" y="17" width="28" height="6" fill="#a855f7"/>', 'Divide o fluxo em caminhos <b>simultâneos</b>.'],
   ['Junção', '<rect x="6" y="17" width="28" height="6" fill="#a855f7"/>', 'Espera <b>todos</b> os caminhos paralelos chegarem.'],
   ['Fim de fluxo', '<circle cx="20" cy="20" r="7" fill="none" stroke="#e2e8f0" stroke-width="2"/><line x1="15" y1="15" x2="25" y2="25" stroke="#e2e8f0" stroke-width="2"/><line x1="25" y1="15" x2="15" y2="25" stroke="#e2e8f0" stroke-width="2"/>', 'Encerra apenas aquele caminho; o resto continua.'],
-  ['Fim de atividade', '<circle cx="20" cy="20" r="11" fill="none" stroke="#e2e8f0" stroke-width="2"/><circle cx="20" cy="20" r="6" fill="#e2e8f0"/>', 'Encerra a atividade <b>inteira</b>.']
+  ['Fim de atividade', '<circle cx="20" cy="20" r="11" fill="none" stroke="#e2e8f0" stroke-width="2"/><circle cx="20" cy="20" r="6" fill="#e2e8f0"/>', 'Encerra a atividade <b>inteira</b>.'],
+  ['Merge', '<polygon points="20,10 30,20 20,30 10,20" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>', 'Junta caminhos <b>alternativos</b>, sem esperar.'],
+  ['Nó de objeto', '<rect x="5" y="11" width="30" height="18" fill="#0f172a" stroke="#94a3b8" stroke-width="2"/>', 'Um objeto e seu estado: <code>Faixa [aprovada]</code>.'],
+  ['Aceitar evento', '<polygon points="4,11 36,11 36,29 4,29 11,20" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>', 'Espera um sinal ou evento externo.'],
+  ['Enviar sinal', '<polygon points="4,11 29,11 36,20 29,29 4,29" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>', 'Emite um sinal e segue sem esperar.'],
+  ['Evento de tempo', '<polygon points="13,8 27,8 13,32 27,32" fill="#1e293b" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/>', 'A ficha espera até um instante ou prazo.']
 ];
 document.getElementById('at-simbolos').innerHTML = SIMB.map(s => `
   <div class="ah-card p-3 text-center">
@@ -1772,6 +1402,646 @@ document.getElementById('at-simbolos').innerHTML = SIMB.map(s => `
 
   desenha();
 })();
+
+/* ===================== Raias animadas: um renderizador para todos os exemplos ===================== */
+/* Cada exemplo descreve raias, nós (com a raia e a altura), arestas e cenários.
+   As arestas aceitam: guarda, via (pontos de passagem), tipo ('sinal' tracejada, 'interrupcao' ⚡). */
+const RAIA_SIMS = {
+  /* ---------- Reembolso de pedido ---------- */
+  reembolso: {
+    h: 680,
+    raias: [{ n: 'Cliente', w: 160 }, { n: 'Sistema', w: 260 }, { n: 'Gateway de pagamento', w: 170 }, { n: 'Estoque', w: 170 }],
+    nos: {
+      ini:    { t: 'inicio', raia: 0, y: 60, d: 'Nó inicial, na raia de quem dispara o processo: o cliente.' },
+      sol:    { t: 'acao', raia: 0, y: 110, w: 120, r: 'Solicitar\nreembolso', d: 'O cliente pede o reembolso pelo site.' },
+      prazo:  { t: 'decisao', raia: 1, y: 170, r: 'Dentro de\n7 dias?', d: 'Quem tem a data da compra é o sistema, então a decisão fica na raia dele.' },
+      ver:    { t: 'acao', raia: 0, y: 170, w: 130, r: 'Ver recusa e\njustificativa', d: 'Fora do prazo: a recusa volta para a raia do cliente.' },
+      reg:    { t: 'acao', raia: 1, y: 250, w: 150, r: 'Registrar pedido\nde estorno', d: 'O sistema registra o pedido antes de acionar os parceiros.' },
+      fork:   { t: 'barra', raia: 1, y: 320, w: 200, nome: 'Bifurcação', d: 'Bifurcação: o estorno e a devolução não dependem um do outro.' },
+      est:    { t: 'acao', raia: 2, y: 400, w: 130, r: 'Estornar\nno cartão', d: 'O gateway devolve o valor ao cartão.' },
+      dev:    { t: 'acao', raia: 3, y: 400, w: 130, r: 'Devolver item\nao estoque', d: 'O estoque reintegra o produto.' },
+      join:   { t: 'barra', raia: 1, y: 480, w: 200, nome: 'Junção', d: 'Junção: o aviso só sai quando estorno e devolução terminaram.' },
+      avisar: { t: 'acao', raia: 1, y: 550, w: 130, r: 'Avisar cliente', d: 'O sistema confirma o reembolso.' },
+      receb:  { t: 'acao', raia: 0, y: 550, w: 120, r: 'Receber aviso', d: 'O cliente recebe a confirmação.' },
+      fim:    { t: 'fim', raia: 0, y: 630, d: 'Fim da atividade.' }
+    },
+    arestas: [
+      ['ini', 'sol'], ['sol', 'prazo', { via: [[300, 110]] }],
+      ['prazo', 'ver', '[não]'], ['prazo', 'reg', '[sim]'], ['reg', 'fork'],
+      ['fork', 'est', { via: [[350, 365], [515, 365]] }], ['fork', 'dev', { via: [[390, 345], [685, 345]] }],
+      ['est', 'join', { via: [[515, 440], [370, 440]] }], ['dev', 'join', { via: [[685, 455], [390, 455]] }],
+      ['join', 'avisar'], ['avisar', 'receb'], ['receb', 'fim'],
+      ['ver', 'fim', { via: [[18, 170], [18, 630]] }]
+    ],
+    cenarios: [
+      { n: 'dentro do prazo', passos: [['ini'], ['sol'], ['prazo'], ['reg'], ['fork'], ['est', 'dev'],
+        { at: ['est', 'join'], d: 'O estoque terminou primeiro e a ficha dele espera na junção. O gateway ainda está estornando.' },
+        { at: ['join'], d: 'As duas fichas chegaram: a junção libera uma única ficha.' }, ['avisar'], ['receb'], ['fim']] },
+      { n: 'fora do prazo', passos: [['ini'], ['sol'], ['prazo'], ['ver'], ['fim']] }
+    ]
+  },
+
+  /* ---------- Exemplo 1: dar play ---------- */
+  play: {
+    h: 820,
+    raias: [{ n: 'Ouvinte', w: 170 }, { n: 'App Melodia (celular)', w: 250 }, { n: 'Back-end Melodia', w: 250 }, { n: 'CDN', w: 150 }],
+    nos: {
+      ini:   { t: 'inicio', raia: 0, y: 70, d: 'O ouvinte abre o app. A ficha nasce na raia de quem inicia o processo.' },
+      sel:   { t: 'acao', raia: 0, y: 120, w: 130, r: 'Selecionar faixa', d: 'O ouvinte toca na música.' },
+      lic:   { t: 'decisao', raia: 2, y: 190, r: 'Licenciada\nno país?', d: 'Licença é regra de direitos autorais: fica no servidor, onde não pode ser burlada.' },
+      ind:   { t: 'acao', raia: 0, y: 190, w: 140, r: "Ver 'indisponível\nna sua região'", d: 'A recusa volta direto para a tela do ouvinte.' },
+      plano: { t: 'decisao', raia: 2, y: 270, r: 'Plano do\nouvinte?', d: 'O plano também é dado do servidor.' },
+      q3:    { t: 'decisao', raia: 2, y: 350, r: '3ª faixa desde\no anúncio?', d: 'No plano Free, um anúncio a cada três faixas.' },
+      anun:  { t: 'acao', raia: 1, y: 350, dx: 45, w: 130, r: 'Tocar anúncio\nde 15 s', d: 'Quem toca o anúncio é o player, no aparelho.' },
+      m1:    { t: 'merge', raia: 1, y: 430, dx: -40, d: 'Merge: junta os caminhos com e sem anúncio. Só um deles chega, então não há espera.' },
+      cache: { t: 'decisao', raia: 1, y: 500, dx: -40, r: 'Áudio no\ncache?', d: 'Só o aparelho sabe o que tem guardado: a decisão fica na raia do app.' },
+      local: { t: 'acao', raia: 1, y: 580, dx: -40, w: 130, r: 'Ler arquivo local', d: 'Caminho rápido: nenhuma chamada de rede.' },
+      cdn:   { t: 'acao', raia: 3, y: 500, w: 130, r: 'Entregar trecho\ninicial do áudio', d: 'Um sistema externo entra no fluxo. Se a CDN falhar, a música não começa.' },
+      m2:    { t: 'merge', raia: 1, y: 640, dx: -40, d: 'Merge: cache ou CDN, o áudio está pronto.' },
+      tocar: { t: 'acao', raia: 1, y: 700, dx: -40, w: 130, r: 'Iniciar reprodução', d: 'O som sai.' },
+      reg:   { t: 'acao', raia: 2, y: 700, w: 140, r: "Registrar\n'faixa iniciada'", d: 'O evento vai para o servidor; o ouvinte não espera por ele.' },
+      fim:   { t: 'fim', raia: 2, y: 780, d: 'Fim da atividade.' }
+    },
+    arestas: [
+      ['ini', 'sel'], ['sel', 'lic', { via: [[95, 155], [555, 155]] }],
+      ['lic', 'ind', '[não]'], ['lic', 'plano', '[sim]'],
+      ['plano', 'm1', '[Premium]', { via: [[220, 270], [220, 430]] }], ['plano', 'q3', '[Free]'],
+      ['q3', 'anun', '[sim]'], ['q3', 'm1', '[não]', { via: [[555, 430]] }],
+      ['anun', 'm1', { via: [[350, 395], [265, 395]] }],
+      ['m1', 'cache'], ['cache', 'local', '[sim]'], ['cache', 'cdn', '[não]'],
+      ['local', 'm2'], ['cdn', 'm2', { via: [[755, 640]] }],
+      ['m2', 'tocar'], ['tocar', 'reg'], ['reg', 'fim'],
+      ['ind', 'fim', { via: [[95, 780]] }]
+    ],
+    cenarios: [
+      { n: 'Premium, faixa em cache', passos: [['ini'], ['sel'], ['lic'], ['plano'], ['m1'], ['cache'], ['local'], ['m2'], ['tocar'], ['reg'], ['fim']] },
+      { n: 'Free, 3ª faixa, sem cache', passos: [['ini'], ['sel'], ['lic'], ['plano'], ['q3'], ['anun'], ['m1'], ['cache'], ['cdn'], ['m2'], ['tocar'], ['reg'], ['fim']] },
+      { n: 'sem licença no país', passos: [['ini'], ['sel'], ['lic'], ['ind'], ['fim']] }
+    ]
+  },
+
+  /* ---------- Exemplo 2: playlist ---------- */
+  playlist: {
+    h: 960,
+    raias: [{ n: 'Ouvinte', w: 190 }, { n: 'App Melodia (player)', w: 330 }, { n: 'Recomendação', w: 200 }],
+    nos: {
+      ini:    { t: 'inicio', raia: 0, y: 70, d: 'Início, na raia do ouvinte.' },
+      abrir:  { t: 'acao', raia: 0, y: 120, w: 130, r: 'Abrir playlist', d: 'O ouvinte abre “Treino de sexta”. Daqui em diante o app trabalha sozinho.' },
+      ale:    { t: 'decisao', raia: 1, y: 120, r: 'Aleatório\nligado?', d: 'Decisão tomada uma única vez, antes do laço.' },
+      emb:    { t: 'acao', raia: 1, y: 200, dx: 90, w: 120, r: 'Embaralhar ordem', d: 'Fora do laço: embaralha uma vez só.' },
+      m0:     { t: 'merge', raia: 1, y: 270, d: 'Merge: com ou sem embaralhar.' },
+      pos:    { t: 'acao', raia: 1, y: 330, w: 150, r: 'Posicionar na 1ª faixa', d: 'Início de cada volta na playlist (laço externo).' },
+      m1:     { t: 'merge', raia: 1, y: 400, d: 'Merge de entrada do laço interno: aqui chegam a primeira volta e todas as repetições.' },
+      toc:    { t: 'acao', raia: 1, y: 460, w: 150, r: 'Tocar faixa atual', d: 'Corpo do laço.' },
+      av:     { t: 'acao', raia: 1, y: 530, w: 150, r: 'Avançar para a próxima', d: 'Ainda na raia do app: nenhuma chamada de rede por faixa.' },
+      prox:   { t: 'decisao', raia: 1, y: 610, r: 'Há próxima\nfaixa?', d: 'Teste do laço interno. [sim] volta ao merge.' },
+      rep:    { t: 'decisao', raia: 1, y: 690, r: 'Repetir\nplaylist?', d: 'Teste do laço externo.' },
+      sug:    { t: 'acao', raia: 2, y: 760, w: 140, r: 'Sugerir rádio\nparecida', d: 'A única chamada à recomendação: uma por playlist, não por faixa.' },
+      aceita: { t: 'decisao', raia: 0, y: 840, r: 'Aceita a\nrádio?', d: 'Escolha humana: fica na raia do ouvinte.' },
+      radio:  { t: 'acao', raia: 1, y: 840, w: 130, r: 'Tocar a rádio', d: 'O player volta a trabalhar.' },
+      fechar: { t: 'acao', raia: 0, y: 920, w: 130, r: 'Fechar o player', d: 'O ouvinte encerra.' },
+      fim:    { t: 'fim', raia: 1, y: 920, d: 'Fim da atividade.' }
+    },
+    arestas: [
+      ['ini', 'abrir'], ['abrir', 'ale'],
+      ['ale', 'emb', '[sim]', { via: [[455, 120]] }], ['ale', 'm0', '[não]'], ['emb', 'm0', { via: [[455, 270]] }],
+      ['m0', 'pos'], ['pos', 'm1'], ['m1', 'toc'], ['toc', 'av'], ['av', 'prox'],
+      ['prox', 'm1', '[sim]', { via: [[250, 610], [250, 400]] }], ['prox', 'rep', '[não]'],
+      ['rep', 'pos', '[sim]', { via: [[500, 690], [500, 330]] }], ['rep', 'sug', '[não]', { via: [[365, 760]] }],
+      ['sug', 'aceita', { via: [[630, 800], [105, 800]] }],
+      ['aceita', 'radio', '[sim]'], ['aceita', 'fechar', '[não]'],
+      ['radio', 'fim'], ['fechar', 'fim']
+    ],
+    cenarios: [
+      { n: 'em ordem, aceita a rádio', passos: [['ini'], ['abrir'], ['ale'], ['m0'], ['pos'], ['m1'],
+        { at: ['toc'], d: 'Tocando a faixa 1 de 2.' }, ['av'], { at: ['prox'], d: 'Há a faixa 2: [sim], volta ao merge.' }, ['m1'],
+        { at: ['toc'], d: 'Tocando a faixa 2 de 2. O laço girou sem sair da raia do app.' }, ['av'], { at: ['prox'], d: 'Acabaram as faixas: [não].' },
+        ['rep'], ['sug'], ['aceita'], ['radio'], ['fim']] },
+      { n: 'aleatório, recusa a rádio', passos: [['ini'], ['abrir'], ['ale'], ['emb'], ['m0'], ['pos'], ['m1'], ['toc'], ['av'], ['prox'], ['m1'], ['toc'], ['av'], ['prox'], ['rep'], ['sug'], ['aceita'], ['fechar'], ['fim']] },
+      { n: 'repetir ligado', passos: [['ini'], ['abrir'], ['ale'], ['m0'], ['pos'], ['m1'], ['toc'], ['av'], ['prox'],
+        { at: ['rep'], d: 'Repetir ligado: [sim], volta à primeira faixa. O laço externo segue até o ouvinte parar.' },
+        ['pos'], ['m1'], { at: ['toc'], d: 'Segunda volta na playlist. Repare que “Embaralhar” não roda de novo.' }] }
+    ]
+  },
+
+  /* ---------- Exemplo 3: download offline ---------- */
+  offline: {
+    h: 810,
+    raias: [{ n: 'Ouvinte', w: 170 }, { n: 'App Melodia', w: 420 }, { n: 'Back-end Melodia', w: 190 }, { n: 'Analytics', w: 170 }],
+    nos: {
+      ini:    { t: 'inicio', raia: 0, y: 70, d: 'Início, na raia do ouvinte.' },
+      baixar: { t: 'acao', raia: 0, y: 120, w: 130, r: "Tocar em\n'Baixar álbum'", d: 'O ouvinte pede o download antes da viagem.' },
+      esp:    { t: 'acao', raia: 1, y: 120, dx: 40, w: 140, r: 'Verificar espaço\nno aparelho', d: 'Espaço livre é dado do aparelho: raia do app.' },
+      d1:     { t: 'decisao', raia: 1, y: 200, dx: 40, r: 'Espaço\nsuficiente?', d: 'Primeira condição.' },
+      av1:    { t: 'acao', raia: 1, y: 200, dx: -130, w: 120, r: 'Avisar: liberar\nespaço', d: 'O app avisa e o processo termina.' },
+      lim:    { t: 'acao', raia: 2, y: 200, w: 150, r: 'Verificar limite\nde 10 mil faixas', d: 'O limite é da conta inteira, somando todos os aparelhos: só o servidor sabe.' },
+      d2:     { t: 'decisao', raia: 2, y: 290, r: 'Dentro do\nlimite?', d: 'Segunda condição.' },
+      av2:    { t: 'acao', raia: 1, y: 290, dx: -130, w: 120, r: 'Avisar: limite\natingido', d: 'O app mostra o motivo da recusa.' },
+      fork:   { t: 'barra', raia: 1, y: 380, w: 380, nome: 'Bifurcação', d: 'Bifurcação: quatro ramos independentes.' },
+      aud:    { t: 'acao', raia: 1, y: 460, dx: -130, w: 120, r: 'Baixar áudio\ncriptografado', d: 'Dentro da região de expansão: roda uma vez por faixa.' },
+      lic:    { t: 'acao', raia: 1, y: 540, dx: -130, w: 120, r: 'Instalar\nlicença DRM', d: 'Ainda dentro da região, para cada faixa.' },
+      capa:   { t: 'acao', raia: 1, y: 460, dx: 15, w: 100, r: 'Baixar capa', d: 'Em paralelo com as faixas.' },
+      letras: { t: 'acao', raia: 1, y: 460, dx: 130, w: 100, r: 'Baixar letras', d: 'Em paralelo com as faixas.' },
+      anal:   { t: 'acao', raia: 3, y: 470, w: 150, r: "Registrar\n'download_iniciado'", d: 'Ramo “dispare e esqueça” na raia do analytics.' },
+      ff:     { t: 'fimfluxo', raia: 3, y: 550, d: 'Final de fluxo: encerra só esta ficha. O download continua.' },
+      join:   { t: 'barra', raia: 1, y: 620, w: 380, nome: 'Junção', d: 'Junção: espera faixas, capa e letras. O analytics não entra aqui.' },
+      ok:     { t: 'acao', raia: 1, y: 690, w: 140, r: 'Marcar álbum\ncomo offline', d: 'Tudo baixado.' },
+      ver:    { t: 'acao', raia: 0, y: 690, w: 120, r: "Ver selo\n'offline'", d: 'O resultado volta para o ouvinte.' },
+      fim:    { t: 'fim', raia: 0, y: 770, d: 'Fim da atividade.' }
+    },
+    regioes: [{ id: 'exp', tipo: 'expansao', r: '«parallel» para cada faixa', nos: ['aud', 'lic'] }],
+    arestas: [
+      ['ini', 'baixar'], ['baixar', 'esp'], ['esp', 'd1'],
+      ['d1', 'av1', '[não]'], ['d1', 'lim', '[sim]'], ['lim', 'd2'],
+      ['d2', 'av2', '[não]'], ['d2', 'fork', '[sim]', { via: [[695, 340], [480, 340]] }],
+      ['fork', 'anal', { via: [[875, 380]] }], ['anal', 'ff'],
+      ['fork', 'aud'], ['fork', 'capa'], ['fork', 'letras'], ['aud', 'lic'],
+      ['lic', 'join'], ['capa', 'join'], ['letras', 'join'],
+      ['join', 'ok'], ['ok', 'ver'], ['ver', 'fim'],
+      ['av1', 'fim', { via: [[22, 200], [22, 770]] }], ['av2', 'fim', { via: [[22, 290], [22, 770]] }]
+    ],
+    cenarios: [
+      { n: 'tudo certo', passos: [['ini'], ['baixar'], ['esp'], ['d1'], ['lim'], ['d2'], ['fork'],
+        { at: ['aud', 'capa', 'letras', 'anal'], d: 'Quatro fichas em paralelo, uma delas em outra raia (analytics).' },
+        { at: ['lic', 'join', 'ff'], d: 'Capa e letras já esperam na junção. O analytics terminou no final de fluxo, sem afetar ninguém.' },
+        { at: ['join'], d: 'A região terminou para todas as faixas: a junção libera.' }, ['ok'], ['ver'], ['fim']] },
+      { n: 'sem espaço', passos: [['ini'], ['baixar'], ['esp'], ['d1'], ['av1'], ['fim']] },
+      { n: 'limite atingido', passos: [['ini'], ['baixar'], ['esp'], ['d1'], ['lim'], ['d2'], ['av2'], ['fim']] }
+    ]
+  },
+
+  /* ---------- Exemplo 4: lançamento ---------- */
+  lancamento: {
+    h: 900,
+    raias: [{ n: 'Artista / Distribuidora', w: 190 }, { n: 'Melodia: Ingestão', w: 230 }, { n: 'Moderação', w: 210 }, { n: 'Melodia: Catálogo', w: 210 }],
+    nos: {
+      ini:   { t: 'inicio', raia: 0, y: 70, d: 'Início, na raia da distribuidora.' },
+      env:   { t: 'acao', raia: 0, y: 130, w: 130, r: 'Enviar WAV\ne metadados', d: 'A artista sobe o single “Maré Alta” pela distribuidora.' },
+      o1:    { t: 'objeto', raia: 1, y: 130, r: 'Faixa\n[enviada]', d: 'Nó de objeto: o que flui aqui é a faixa, no estado “enviada”.' },
+      val:   { t: 'acao', raia: 1, y: 210, w: 150, r: 'Validar áudio\ne metadados', d: 'Formato, volume e duração.' },
+      fp:    { t: 'acao', raia: 1, y: 290, w: 150, r: 'Comparar fingerprint\nacústico', d: 'Procura cópias de músicas de terceiros.' },
+      d1:    { t: 'decisao', raia: 1, y: 370, r: 'Tudo ok?', d: 'Decisão automática, na raia da ingestão.' },
+      o2:    { t: 'objeto', raia: 2, y: 370, r: 'Faixa\n[validada]', d: 'A mesma faixa, agora em outro estado e em outra raia.' },
+      rev:   { t: 'acao', raia: 2, y: 450, w: 130, r: 'Revisar capa\ne letra', d: 'Etapa humana: costuma ser a mais lenta.' },
+      d2:    { t: 'decisao', raia: 2, y: 530, r: 'Aprovada?', d: 'Decisão humana, na raia da moderação.' },
+      o3:    { t: 'objeto', raia: 3, y: 530, r: 'Faixa\n[aprovada]', d: 'Aprovada, mas ainda não publicada.' },
+      tempo: { t: 'tempo', raia: 3, y: 610, r: 'sexta, 00:00', d: 'Evento de tempo: a ficha fica parada aqui até sexta à meia-noite.' },
+      pub:   { t: 'acao', raia: 3, y: 690, w: 130, r: 'Publicar no\ncatálogo', d: 'A faixa entra no ar.' },
+      o4:    { t: 'objeto', raia: 3, y: 770, r: 'Faixa\n[publicada]', d: 'Estado final do objeto.' },
+      fim:   { t: 'fim', raia: 3, y: 850, d: 'Fim da atividade.' },
+      cor:   { t: 'acao', raia: 0, y: 450, w: 140, r: 'Corrigir arquivo\nou metadados', d: 'A responsabilidade volta para a distribuidora.' }
+    },
+    arestas: [
+      ['ini', 'env'], ['env', 'o1'], ['o1', 'val'], ['val', 'fp'], ['fp', 'd1'],
+      ['d1', 'o2', '[sim]'], ['d1', 'cor', '[não]', { via: [[315, 450]] }],
+      ['o2', 'rev'], ['rev', 'd2'],
+      ['d2', 'o3', '[sim]'], ['d2', 'cor', '[não]', { via: [[535, 590], [105, 590]] }],
+      ['o3', 'tempo'], ['tempo', 'pub'], ['pub', 'o4'], ['o4', 'fim'],
+      ['cor', 'env', { via: [[22, 450], [22, 130]] }]
+    ],
+    cenarios: [
+      { n: 'aprovada de primeira', passos: [['ini'], ['env'], ['o1'], ['val'], ['fp'], ['d1'], ['o2'], ['rev'], ['d2'], ['o3'], ['tempo'], ['pub'], ['o4'], ['fim']] },
+      { n: 'recusada na moderação', passos: [['ini'], ['env'], ['o1'], ['val'], ['fp'], ['d1'], ['o2'], ['rev'],
+        { at: ['d2'], d: 'A capa tem uma marca registrada: [não].' }, ['cor'],
+        { at: ['env'], d: 'De volta ao início, depois da correção. O laço atravessou três raias.' }, ['o1'], ['val'], ['fp'], ['d1'], ['o2'], ['rev'],
+        { at: ['d2'], d: 'Desta vez, aprovada.' }, ['o3'], ['tempo'], ['pub'], ['o4'], ['fim']] },
+      { n: 'fingerprint achou cópia', passos: [['ini'], ['env'], ['o1'], ['val'], ['fp'], { at: ['d1'], d: 'O áudio coincide com uma faixa já existente: [não].' }, ['cor'], ['env']] }
+    ]
+  },
+
+  /* ---------- Exemplo 5: stream de 30 s ---------- */
+  stream: {
+    h: 690,
+    raias: [{ n: 'Ouvinte', w: 170 }, { n: 'Outro aparelho', w: 170 }, { n: 'App Melodia (player)', w: 420 }, { n: 'Back-end Melodia', w: 280 }],
+    nos: {
+      ini:    { t: 'inicio', raia: 2, y: 70, d: 'Início, na raia do player.' },
+      inic:   { t: 'acao', raia: 2, y: 130, w: 150, r: 'Iniciar reprodução', d: 'A faixa começa. A ficha vai entrar na região interrompível.' },
+      tocar:  { t: 'acao', raia: 2, y: 215, w: 170, r: 'Tocar e contar segundos', d: 'Dentro da região: pode ser interrompida a qualquer momento.' },
+      d30:    { t: 'decisao', raia: 2, y: 290, r: 'Chegou a\n30 s?', d: 'Enquanto não chega, o laço continua.' },
+      e1:     { t: 'evento', raia: 2, y: 380, dx: -130, w: 110, r: 'Ouvinte pulou', d: 'Aceitar evento: o sinal do ouvinte chegou.' },
+      e2:     { t: 'evento', raia: 2, y: 380, w: 110, r: 'Outro aparelho\nassumiu', d: 'Aceitar evento: o notebook tomou a sessão.' },
+      e3:     { t: 'evento', raia: 2, y: 380, dx: 130, w: 110, r: 'Conexão\nperdida', d: 'Aceitar evento sem remetente: a rede não é uma raia, é uma condição do ambiente.' },
+      op:     { t: 'sinal', raia: 0, y: 215, w: 130, r: "Tocar em\n'próxima'", d: 'Enviar sinal: o ouvinte age na sua própria raia.' },
+      oa:     { t: 'sinal', raia: 1, y: 335, w: 140, r: 'Começar a tocar\nno notebook', d: 'Enviar sinal a partir de outra raia.' },
+      stream: { t: 'acao', raia: 3, y: 290, dx: 50, w: 150, r: 'Registrar\nstream válido', d: 'Passou de 30 s: agora conta para royalties.' },
+      roy:    { t: 'acao', raia: 3, y: 370, dx: 50, w: 150, r: 'Somar 1 stream ao\nartista e gravadora', d: 'O ponto em que o play vira dinheiro.' },
+      pulo:   { t: 'acao', raia: 3, y: 520, dx: -50, w: 150, r: "Registrar 'pulo'\npara recomendação", d: 'Interrupção também gera informação.' },
+      pausa:  { t: 'acao', raia: 2, y: 470, w: 120, r: 'Pausar e exibir\naviso', d: '“Tocando em outro aparelho.”' },
+      aviso:  { t: 'acao', raia: 2, y: 470, dx: 130, w: 110, r: 'Exibir aviso\nde conexão', d: 'O player avisa o ouvinte.' },
+      fim:    { t: 'fim', raia: 3, y: 640, dx: 50, d: 'Fim da atividade.' }
+    },
+    regioes: [{ id: 'reg', tipo: 'interrompivel', r: 'região interrompível', nos: ['tocar', 'd30', 'e1', 'e2', 'e3'] }],
+    arestas: [
+      ['ini', 'inic'], ['inic', 'tocar'], ['tocar', 'd30'],
+      ['d30', 'tocar', '[não]', { via: [[460, 290], [460, 215]] }], ['d30', 'stream', '[sim]'],
+      ['stream', 'roy'], ['roy', 'fim'],
+      ['op', 'e1', 'sinal', { tipo: 'sinal', via: [[430, 215]] }],
+      ['oa', 'e2', 'sinal', { tipo: 'sinal', via: [[560, 335]] }],
+      ['e1', 'pulo', { tipo: 'interrupcao', via: [[430, 520]] }],
+      ['e2', 'pausa', { tipo: 'interrupcao' }], ['e3', 'aviso', { tipo: 'interrupcao' }],
+      ['pulo', 'fim', { via: [[860, 640]] }], ['pausa', 'fim', { via: [[560, 640]] }], ['aviso', 'fim', { via: [[690, 640]] }]
+    ],
+    cenarios: [
+      { n: 'ouviu mais de 30 s', passos: [['ini'], ['inic'], { at: ['tocar'], d: '0 a 10 s.' }, ['d30'], { at: ['tocar'], d: '10 a 20 s.' }, ['d30'], { at: ['tocar'], d: '20 a 30 s.' },
+        { at: ['d30'], d: '30 s: [sim]. A ficha sai da região pela saída normal e muda de raia.' }, ['stream'], ['roy'], ['fim']] },
+      { n: 'pulou aos 12 s', passos: [['ini'], ['inic'], ['tocar'], ['d30'],
+        { at: ['tocar', 'op'], d: 'Enquanto a ficha está na região, o ouvinte toca em “próxima” na raia dele.' },
+        { at: ['e1'], d: 'O sinal chega e interrompe a região: a contagem é descartada.' }, ['pulo'], ['fim']] },
+      { n: 'outro aparelho assumiu', passos: [['ini'], ['inic'], ['tocar'], ['d30'], { at: ['tocar', 'oa'], d: 'Na raia “Outro aparelho”, o notebook começa a tocar.' }, ['e2'], ['pausa'], ['fim']] },
+      { n: 'conexão caiu', passos: [['ini'], ['inic'], ['tocar'], { at: ['e3'], d: 'O evento chega sem vir de nenhuma raia.' }, ['aviso'], ['fim']] }
+    ]
+  },
+
+  /* ---------- Exemplo 6: playlist semanal ---------- */
+  semanal: {
+    h: 950,
+    raias: [{ n: 'Agendador', w: 170 }, { n: 'Recomendação', w: 330 }, { n: 'Notificações', w: 200 }, { n: 'Celular do ouvinte', w: 160 }],
+    nos: {
+      tempo: { t: 'tempo', raia: 0, y: 80, dx: -30, r: 'segunda, 03:00', rotulo: 'baixo', d: 'Evento de tempo: ninguém clica, o processo começa sozinho.' },
+      sel:   { t: 'acao', raia: 1, y: 80, dx: -40, w: 160, r: 'Selecionar ouvintes\nativos (28 dias)', d: 'Monta a coleção que a região vai percorrer.' },
+      hist:  { t: 'acao', raia: 1, y: 170, dx: -40, w: 150, r: 'Ler histórico\nde 28 dias', d: 'Começa a região: uma execução por ouvinte. Aqui seguimos uma delas.' },
+      viz:   { t: 'acao', raia: 1, y: 240, dx: -40, w: 150, r: 'Encontrar ouvintes\nparecidos', d: 'Filtragem colaborativa.' },
+      col:   { t: 'acao', raia: 1, y: 310, dx: -40, w: 150, r: 'Coletar e filtrar\ncandidatas', d: 'Remove faixas já ouvidas e bloqueadas.' },
+      q30:   { t: 'decisao', raia: 1, y: 385, dx: -40, r: '30 faixas\nou mais?', d: 'A playlist precisa de 30 faixas.' },
+      comp:  { t: 'acao', raia: 1, y: 385, dx: 95, w: 100, r: 'Completar com\nlançamentos', d: 'Completa com lançamentos do gênero favorito.' },
+      m:     { t: 'merge', raia: 1, y: 460, dx: -40, d: 'Merge.' },
+      salv:  { t: 'acao', raia: 1, y: 520, dx: -40, w: 150, r: 'Salvar playlist\nda semana', d: 'A playlist fica pronta.' },
+      not:   { t: 'decisao', raia: 1, y: 595, dx: -40, r: 'Aceitou\nnotificações?', d: 'Respeita a preferência do ouvinte.' },
+      sig:   { t: 'sinal', raia: 1, y: 670, dx: -40, w: 140, r: 'Enviar sinal:\nplaylist pronta', d: 'Enviar sinal: a recomendação avisa e segue, sem esperar o push.' },
+      m2:    { t: 'merge', raia: 1, y: 740, dx: -40, d: 'Fim desta execução da região.' },
+      rel:   { t: 'acao', raia: 0, y: 820, w: 140, r: 'Gerar relatório\ndo job', d: 'Só roda quando a região terminou para todos os ouvintes.' },
+      fim:   { t: 'fim', raia: 0, y: 900, d: 'Fim da atividade do job.' },
+      acc:   { t: 'evento', raia: 2, y: 670, w: 140, r: 'Playlist pronta', d: 'Aceitar evento: começa outro processo, em outra raia.' },
+      mont:  { t: 'acao', raia: 2, y: 750, w: 150, r: 'Montar push no\nidioma do ouvinte', d: 'Responsabilidade do serviço de notificações.' },
+      envp:  { t: 'acao', raia: 2, y: 830, w: 120, r: 'Enviar push', d: 'Sai para o serviço do sistema operacional.' },
+      exib:  { t: 'acao', raia: 3, y: 830, w: 120, r: 'Exibir\nnotificação', d: 'O celular mostra o aviso.' },
+      ff:    { t: 'fimfluxo', raia: 3, y: 910, d: 'Final de fluxo do processo de notificação.' }
+    },
+    regioes: [{ id: 'reg', tipo: 'expansao', r: '«parallel» para cada ouvinte', nos: ['hist', 'viz', 'col', 'q30', 'comp', 'm', 'salv', 'not', 'sig', 'm2'] }],
+    arestas: [
+      ['tempo', 'sel'], ['sel', 'hist'], ['hist', 'viz'], ['viz', 'col'], ['col', 'q30'],
+      ['q30', 'comp', '[não]'], ['q30', 'm', '[sim]'], ['comp', 'm', { via: [[440, 460]] }],
+      ['m', 'salv'], ['salv', 'not'], ['not', 'sig', '[sim]'], ['not', 'm2', '[não]', { via: [[222, 595], [222, 740]] }],
+      ['sig', 'm2'], ['m2', 'rel', { via: [[305, 820]] }], ['rel', 'fim'],
+      ['sig', 'acc', 'sinal', { tipo: 'sinal' }], ['acc', 'mont'], ['mont', 'envp'], ['envp', 'exib'], ['exib', 'ff']
+    ],
+    cenarios: [
+      { n: 'ouvinte com notificações', passos: [['tempo'], ['sel'], ['hist'], ['viz'], ['col'], ['q30'], ['m'], ['salv'], ['not'], ['sig'],
+        { at: ['m2', 'acc'], d: 'O sinal atravessou para a raia de notificações. Agora há duas fichas, em dois processos.' },
+        ['rel', 'mont'], { at: ['fim', 'envp'], d: 'O job terminou. A notificação é outra atividade, iniciada pelo sinal, e segue sozinha.' }, ['exib'], ['ff']] },
+      { n: 'poucas faixas, sem notificações', passos: [['tempo'], ['sel'], ['hist'], ['viz'], ['col'], ['q30'], ['comp'], ['m'], ['salv'], ['not'], ['m2'], ['rel'], ['fim']] }
+    ]
+  },
+
+  /* ---------- Exemplo 7: plano Família ---------- */
+  familia: {
+    h: 790,
+    raias: [{ n: 'Titular do plano', w: 180 }, { n: 'Melodia', w: 440 }, { n: 'Convidada', w: 200 }],
+    nos: {
+      ini:   { t: 'inicio', raia: 0, y: 60, d: 'Início, na raia do titular.' },
+      conv:  { t: 'acao', raia: 0, y: 110, w: 130, r: 'Convidar a irmã', d: 'O titular envia o convite.' },
+      lim:   { t: 'decisao', raia: 1, y: 160, r: 'Família já tem\n6 contas?', d: 'Regra do plano: decisão do sistema.' },
+      cheio: { t: 'acao', raia: 0, y: 160, w: 130, r: "Ver 'plano cheio'", d: 'O titular é avisado.' },
+      env:   { t: 'acao', raia: 1, y: 240, w: 140, r: 'Enviar convite\ncom link', d: 'O e-mail sai e a Melodia passa a esperar.' },
+      abr:   { t: 'acao', raia: 2, y: 240, w: 120, r: 'Abrir o e-mail', d: 'A convidada recebe o convite na raia dela.' },
+      quer:  { t: 'decisao', raia: 2, y: 300, w: 90, r: 'Quer\nentrar?', d: 'Escolha humana: fica na raia de quem escolhe.' },
+      rec:   { t: 'sinal', raia: 2, y: 360, dx: -50, w: 90, r: 'Recusar', d: 'Enviar sinal de recusa.' },
+      acei:  { t: 'sinal', raia: 2, y: 360, dx: 50, w: 90, r: 'Aceitar', d: 'Enviar sinal de aceite.' },
+      a3:    { t: 'tempo', raia: 1, y: 460, dx: -130, r: '7 dias', d: 'Evento de tempo: 7 dias depois do envio.' },
+      a2:    { t: 'evento', raia: 1, y: 460, w: 100, r: 'Convite\nrecusado', d: 'Aceitar evento: chegou a recusa.' },
+      a1:    { t: 'evento', raia: 1, y: 460, dx: 130, w: 110, r: 'Convite aceito', d: 'Aceitar evento: chegou o aceite.' },
+      expc:  { t: 'acao', raia: 1, y: 560, dx: -130, w: 100, r: 'Expirar\nconvite', d: 'O tempo venceu a corrida.' },
+      lib:   { t: 'acao', raia: 1, y: 560, w: 100, r: 'Liberar a vaga', d: 'A vaga volta para o plano.' },
+      mesmo: { t: 'decisao', raia: 1, y: 560, dx: 130, w: 90, r: 'Mesmo\nendereço?', d: 'Mesmo depois do evento, ainda há regra a checar.' },
+      vinc:  { t: 'acao', raia: 1, y: 640, dx: 130, w: 130, r: 'Vincular conta e\nmigrar playlists', d: 'A irmã entra no plano.' },
+      neg:   { t: 'acao', raia: 2, y: 560, w: 130, r: "Ver 'vínculo\nrecusado'", d: 'A convidada é avisada na raia dela.' },
+      aviso: { t: 'acao', raia: 0, y: 560, w: 130, r: "Ver 'convite\nexpirou'", d: 'O titular fica sabendo.' },
+      fim:   { t: 'fim', raia: 1, y: 740, d: 'Fim da atividade.' }
+    },
+    regioes: [{ id: 'reg', tipo: 'interrompivel', r: 'aguardando resposta', nos: ['a3', 'a2', 'a1'] }],
+    arestas: [
+      ['ini', 'conv'], ['conv', 'lim', { via: [[410, 110]] }],
+      ['lim', 'cheio', '[sim]'], ['lim', 'env', '[não]'],
+      ['env', 'abr', 'e-mail', { tipo: 'sinal' }], ['env', 'reg', { via: [[200, 240], [200, 452]] }],
+      ['abr', 'quer'], ['quer', 'rec', '[não]', { via: [[680, 300]] }], ['quer', 'acei', '[sim]', { via: [[780, 300]] }],
+      ['rec', 'a2', 'sinal', { tipo: 'sinal', via: [[410, 360]] }],
+      ['acei', 'a1', 'sinal', { tipo: 'sinal', via: [[780, 395], [540, 395]] }],
+      ['a1', 'mesmo', { tipo: 'interrupcao' }], ['a2', 'lib', { tipo: 'interrupcao' }], ['a3', 'expc', { tipo: 'interrupcao' }],
+      ['mesmo', 'vinc', '[sim]'], ['mesmo', 'neg', '[não]'], ['expc', 'aviso'],
+      ['lib', 'fim'], ['vinc', 'fim', { via: [[540, 740]] }], ['neg', 'fim', { via: [[730, 740]] }],
+      ['aviso', 'fim', { via: [[100, 740]] }], ['cheio', 'fim', { via: [[20, 160], [20, 740]] }]
+    ],
+    cenarios: [
+      { n: 'aceitou', passos: [['ini'], ['conv'], ['lim'], ['env'],
+        { at: ['reg', 'abr'], d: 'Duas coisas ao mesmo tempo: a Melodia espera na região, e o e-mail chega à raia da convidada.' },
+        ['reg', 'quer'], ['reg', 'acei'], { at: ['a1'], d: 'O aceite chega primeiro: a região é interrompida e o prazo de 7 dias é cancelado.' },
+        ['mesmo'], ['vinc'], ['fim']] },
+      { n: 'recusou', passos: [['ini'], ['conv'], ['lim'], ['env'], ['reg', 'abr'], ['reg', 'quer'], ['reg', 'rec'], ['a2'], ['lib'], ['fim']] },
+      { n: 'ninguém respondeu', passos: [['ini'], ['conv'], ['lim'], ['env'], ['reg', 'abr'],
+        { at: ['reg'], d: 'A convidada abriu o e-mail e não fez nada. Os dias passam.' },
+        { at: ['a3'], d: '7 dias: o evento de tempo vence a corrida.' }, ['expc'], ['aviso'], ['fim']] },
+      { n: 'plano cheio', passos: [['ini'], ['conv'], ['lim'], ['cheio'], ['fim']] }
+    ]
+  },
+
+  /* ---------- Exemplo 8: royalties ---------- */
+  royalties: {
+    h: 720,
+    raias: [{ n: 'Sistema de Royalties', w: 380 }, { n: 'Financeiro', w: 230 }, { n: 'Banco', w: 170 }],
+    nos: {
+      tempo: { t: 'tempo', raia: 0, y: 70, r: 'dia 1º, 02:00', d: 'Evento de tempo: o fechamento começa sozinho.' },
+      fork:  { t: 'barra', raia: 0, y: 130, w: 300, nome: 'Bifurcação', d: 'Receita e streams são calculados em paralelo.' },
+      rec:   { t: 'acao', raia: 0, y: 200, dx: -80, w: 130, r: 'Somar receita\ndo mês', d: 'Assinaturas e anúncios.' },
+      str:   { t: 'acao', raia: 0, y: 200, dx: 80, w: 140, r: 'Consolidar\nstreams válidos', d: 'Os streams de 30 s do Exemplo 5.' },
+      fr:    { t: 'acao', raia: 0, y: 280, dx: 80, w: 140, r: 'Descartar streams\nfraudulentos', d: 'Contas-robô são removidas.' },
+      join:  { t: 'barra', raia: 0, y: 350, w: 300, nome: 'Junção', d: 'Sem os dois números, não dá para calcular.' },
+      cal:   { t: 'acao', raia: 0, y: 420, w: 150, r: 'Calcular valor\npor stream', d: 'Receita ÷ total de streams.' },
+      dis:   { t: 'acao', raia: 0, y: 500, w: 160, r: 'Distribuir por\ndetentor de direitos', d: 'Gravadoras, compositores e intérpretes.' },
+      conf:  { t: 'decisao', raia: 1, y: 500, r: 'Variação\nacima de 20%?', d: 'Passagem de máquina para pessoa: pode esperar dias.' },
+      aud:   { t: 'acao', raia: 1, y: 420, w: 130, r: 'Auditar\nfechamento', d: 'Retrabalho humano.' },
+      apr:   { t: 'acao', raia: 1, y: 590, w: 130, r: 'Aprovar\npagamentos', d: 'O financeiro libera.' },
+      pag:   { t: 'acao', raia: 2, y: 590, w: 120, r: 'Transferir\nvalores', d: 'Sistema externo.' },
+      fim:   { t: 'fim', raia: 2, y: 670, d: 'Fim da atividade.' }
+    },
+    arestas: [
+      ['tempo', 'fork'], ['fork', 'rec'], ['fork', 'str'], ['str', 'fr'],
+      ['rec', 'join'], ['fr', 'join'], ['join', 'cal'], ['cal', 'dis'], ['dis', 'conf'],
+      ['conf', 'aud', '[sim]'], ['aud', 'cal'], ['conf', 'apr', '[não]'], ['apr', 'pag'], ['pag', 'fim']
+    ],
+    cenarios: [
+      { n: 'variação normal', passos: [['tempo'], ['fork'], ['rec', 'str'],
+        { at: ['join', 'fr'], d: 'A receita já chegou e espera na junção. Os streams ainda passam pelo filtro de fraude.' },
+        { at: ['join'], d: 'Os dois chegaram: a junção libera.' }, ['cal'], ['dis'], ['conf'], ['apr'], ['pag'], ['fim']] },
+      { n: 'variação de 40%', passos: [['tempo'], ['fork'], ['rec', 'str'], ['join', 'fr'], ['join'], ['cal'], ['dis'],
+        { at: ['conf'], d: 'R$ 0,007 contra R$ 0,005 no mês anterior: 40%. [sim].' },
+        { at: ['aud'], d: 'O laço de retrabalho cruza raias: custa tempo de gente.' }, { at: ['cal'], d: 'Recalcula depois da auditoria.' }, ['dis'],
+        { at: ['conf'], d: 'A variação foi explicada e corrigida: [não].' }, ['apr'], ['pag'], ['fim']] }
+    ]
+  }
+};
+
+function raiaSim(root, S) {
+  const AMARELO = '#fbbf24', VERDE = '#34d399';
+  const ROT = { inicio: 'Início', fim: 'Fim da atividade', fimfluxo: 'Fim de fluxo', merge: 'Merge', barra: 'Barra' };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /* geometria: posição das raias e dos nós */
+  let x = 10;
+  S.raias.forEach(r => { r.x = x; x += r.w; });
+  const W = x + 10;
+  Object.entries(S.nos).forEach(([id, n]) => {
+    const r = S.raias[n.raia], linhas = (n.r || '').split('\n').length;
+    n.id = id;
+    n.x = r.x + r.w / 2 + (n.dx || 0);
+    n.hw = { inicio: 10, fim: 13, fimfluxo: 10, merge: 12, tempo: 10, decisao: (n.w || 100) / 2 }[n.t] ?? (n.w || 140) / 2;
+    n.hh = { inicio: 10, fim: 13, fimfluxo: 10, merge: 12, tempo: 13, decisao: 24, barra: 4 }[n.t] ?? (linhas > 1 ? 22 : 17);
+  });
+  (S.regioes || []).forEach(g => {
+    const ns = g.nos.map(id => S.nos[id]);
+    const x0 = Math.min(...ns.map(n => n.x - n.hw)) - 14, x1 = Math.max(...ns.map(n => n.x + n.hw)) + 14;
+    const y0 = Math.min(...ns.map(n => n.y - n.hh)) - 30, y1 = Math.max(...ns.map(n => n.y + n.hh)) + 14;
+    S.nos[g.id] = Object.assign(g, { t: 'regiao', raia: ns[0].raia, x: (x0 + x1) / 2, y: (y0 + y1) / 2, hw: (x1 - x0) / 2, hh: (y1 - y0) / 2 });
+  });
+
+  const E = S.arestas.map(([a, b, g, o]) => {
+    if (typeof g === 'object') { o = g; g = ''; }
+    return Object.assign({ a, b, g: g || '' }, o);
+  });
+  const cens = S.cenarios.map(c => ({ n: c.n, passos: c.passos.map(p => Array.isArray(p) ? { at: p } : p) }));
+
+  /* rotas ortogonais */
+  function porta(n, p) {
+    const dx = p.x - n.x, dy = p.y - n.y;
+    if (n.t === 'barra' && Math.abs(dy) > 3) return { x: clamp(p.x, n.x - n.hw + 6, n.x + n.hw - 6), y: n.y + Math.sign(dy) * n.hh };
+    if (Math.abs(dy) >= Math.abs(dx)) return { x: n.x, y: n.y + Math.sign(dy) * n.hh };
+    return { x: n.x + Math.sign(dx) * n.hw, y: n.y };
+  }
+  function rota(e) {
+    const A = S.nos[e.a], B = S.nos[e.b];
+    if (e.via) {
+      const v = e.via.map(([x, y]) => ({ x, y }));
+      return [porta(A, v[0]), ...v, porta(B, v[v.length - 1])];
+    }
+    if (A.t === 'barra' || B.t === 'barra') {
+      /* chegando numa barra, a seta sai por baixo (ou por cima) do nó, nunca pela lateral */
+      const s = A.t === 'barra' ? porta(A, B) : { x: A.x, y: A.y + Math.sign(B.y - A.y) * A.hh }, f = porta(B, s);
+      if (Math.abs(s.x - f.x) < 3) return [s, f];
+      const m = (s.y + f.y) / 2;
+      return [s, { x: s.x, y: m }, { x: f.x, y: m }, f];
+    }
+    if (Math.abs(A.x - B.x) < 3 || Math.abs(A.y - B.y) < 3) return [porta(A, B), porta(B, A)];
+    if (B.y > A.y) {
+      if (A.t === 'decisao' && Math.abs(B.x - A.x) > A.hw) {
+        const s = { x: A.x + Math.sign(B.x - A.x) * A.hw, y: A.y };
+        return [s, { x: B.x, y: A.y }, { x: B.x, y: B.y - B.hh }];
+      }
+      const s = { x: A.x, y: A.y + A.hh }, f = { x: B.x, y: B.y - B.hh }, m = (s.y + f.y) / 2;
+      return [s, { x: s.x, y: m }, { x: f.x, y: m }, f];
+    }
+    const ox = Math.max(A.x + A.hw, B.x + B.hw) + 22;
+    return [{ x: A.x + A.hw, y: A.y }, { x: ox, y: A.y }, { x: ox, y: B.y }, { x: B.x + B.hw, y: B.y }];
+  }
+
+  function texto(linhas, x, y, tam, cor, peso) {
+    const lh = tam + 2.5, y0 = y - (linhas.length - 1) * lh / 2 + tam * 0.35;
+    return `<text x="${x}" y="${y0}" text-anchor="middle" font-size="${tam}" font-weight="${peso || 600}" font-family="Inter, sans-serif" fill="${cor}">` +
+      linhas.map((l, i) => `<tspan x="${x}" dy="${i ? lh : 0}">${l}</tspan>`).join('') + '</text>';
+  }
+
+  function aresta(e, feita) {
+    const pts = rota(e);
+    const base = e.tipo === 'sinal' ? 'rgba(56,189,248,.7)' : e.tipo === 'interrupcao' ? 'rgba(245,158,11,.8)' : 'rgba(100,116,139,.55)';
+    const cor = feita ? VERDE : base;
+    const f = pts[pts.length - 1], q = pts[pts.length - 2];
+    const ang = Math.atan2(f.y - q.y, f.x - q.x), c = Math.cos(ang), s = Math.sin(ang);
+    const bx = f.x - 9 * c, by = f.y - 9 * s;
+    let out = `<path d="M${pts.map(p => `${p.x},${p.y}`).join(' L')}" fill="none" stroke="${cor}" stroke-width="1.7"
+        ${e.tipo ? 'stroke-dasharray="5 4"' : ''}/>
+      <polygon points="${f.x},${f.y} ${bx - 4.5 * s},${by + 4.5 * c} ${bx + 4.5 * s},${by - 4.5 * c}" fill="${cor}"/>`;
+    const rot = e.tipo === 'interrupcao' ? '⚡' : e.g;
+    if (rot) {
+      const [p, p2] = pts, hor = Math.abs(p2.y - p.y) < 1;
+      let lx, ly, anc;
+      if (e.tipo === 'interrupcao') { lx = (p.x + p2.x) / 2 + (hor ? 0 : 8); ly = (p.y + p2.y) / 2 + (hor ? -5 : 4); anc = hor ? 'middle' : 'start'; }
+      else if (hor) { const d = Math.sign(p2.x - p.x); lx = p.x + d * 7; ly = p.y - 6; anc = d > 0 ? 'start' : 'end'; }
+      else { lx = p.x + 6; ly = p.y + (p2.y > p.y ? 14 : -6); anc = 'start'; }
+      const corR = e.tipo === 'sinal' ? '#7dd3fc' : e.tipo === 'interrupcao' ? AMARELO : '#fbbf24';
+      out += `<text x="${lx}" y="${ly}" text-anchor="${anc}" font-size="${e.tipo === 'interrupcao' ? 13 : 9.5}" font-family="Fira Code, monospace" fill="${corR}"
+        stroke="#0b1220" stroke-width="3" paint-order="stroke">${rot}</text>`;
+    }
+    return out;
+  }
+
+  function no(n, ativo, feito) {
+    const borda = ativo ? AMARELO : feito ? VERDE : null;
+    const fundo = ativo ? 'rgba(251,191,36,.18)' : '#1e293b';
+    const corTxt = ativo ? '#fde68a' : feito ? '#a7f3d0' : '#cbd5e1';
+    const L = (n.r || '').split('\n'), { x, y, hw, hh } = n;
+    switch (n.t) {
+      case 'inicio': return `<circle cx="${x}" cy="${y}" r="10" fill="${ativo ? AMARELO : '#e2e8f0'}"/>`;
+      case 'fim': return `<circle cx="${x}" cy="${y}" r="13" fill="none" stroke="${ativo ? AMARELO : '#e2e8f0'}" stroke-width="2"/>
+        <circle cx="${x}" cy="${y}" r="7" fill="${ativo ? AMARELO : '#e2e8f0'}"/>`;
+      case 'fimfluxo': {
+        const c = ativo ? AMARELO : '#e2e8f0';
+        return `<circle cx="${x}" cy="${y}" r="10" fill="#0b1220" stroke="${c}" stroke-width="2"/>
+          <line x1="${x - 7}" y1="${y - 7}" x2="${x + 7}" y2="${y + 7}" stroke="${c}" stroke-width="2"/>
+          <line x1="${x + 7}" y1="${y - 7}" x2="${x - 7}" y2="${y + 7}" stroke="${c}" stroke-width="2"/>`;
+      }
+      case 'decisao': return `<polygon points="${x},${y - hh} ${x + hw},${y} ${x},${y + hh} ${x - hw},${y}" fill="${fundo}" stroke="${borda || '#f59e0b'}" stroke-width="2"/>
+        ${texto(L, x, y, 8.5, ativo ? '#fde68a' : '#fcd34d', 600)}`;
+      case 'merge': return `<polygon points="${x},${y - hh} ${x + hw},${y} ${x},${y + hh} ${x - hw},${y}" fill="${fundo}" stroke="${borda || '#f59e0b'}" stroke-width="2"/>`;
+      case 'barra': return `<rect x="${x - hw}" y="${y - hh}" width="${hw * 2}" height="${hh * 2 + 1}" rx="2" fill="${ativo ? AMARELO : '#a855f7'}"/>`;
+      case 'tempo': {
+        const pos = n.rotulo === 'baixo' ? [x, y + hh + 13, 'middle'] : n.rotulo === 'esq' ? [x - hw - 6, y + 3, 'end'] : [x + hw + 6, y + 3, 'start'];
+        return `<polygon points="${x - hw},${y - hh} ${x + hw},${y - hh} ${x - hw},${y + hh} ${x + hw},${y + hh}" fill="${fundo}" stroke="${borda || '#f59e0b'}" stroke-width="2" stroke-linejoin="round"/>
+          <text x="${pos[0]}" y="${pos[1]}" text-anchor="${pos[2]}" font-size="9.5" font-weight="600" font-family="Inter, sans-serif" fill="${ativo ? '#fde68a' : '#fcd34d'}">${n.r}</text>`;
+      }
+      case 'objeto': {
+        const lh = 12.5, y0 = y - (L.length - 1) * lh / 2 + 3.5;
+        return `<rect x="${x - hw}" y="${y - hh}" width="${hw * 2}" height="${hh * 2}" fill="${ativo ? fundo : '#0f172a'}" stroke="${borda || '#94a3b8'}" stroke-width="2"/>
+          <text x="${x}" y="${y0}" text-anchor="middle" font-size="10" font-family="Inter, sans-serif">` +
+          L.map((l, i) => `<tspan x="${x}" dy="${i ? lh : 0}" font-weight="${i ? 500 : 700}" fill="${i ? '#fcd34d' : corTxt}">${l}</tspan>`).join('') + '</text>';
+      }
+      case 'evento': return `<polygon points="${x - hw},${y - hh} ${x + hw},${y - hh} ${x + hw},${y + hh} ${x - hw},${y + hh} ${x - hw + 11},${y}" fill="${fundo}" stroke="${borda || '#38bdf8'}" stroke-width="2"/>
+        ${texto(L, x + 5, y, 10, corTxt)}`;
+      case 'sinal': return `<polygon points="${x - hw},${y - hh} ${x + hw - 11},${y - hh} ${x + hw},${y} ${x + hw - 11},${y + hh} ${x - hw},${y + hh}" fill="${fundo}" stroke="${borda || '#38bdf8'}" stroke-width="2"/>
+        ${texto(L, x - 5, y, 10, corTxt)}`;
+      default: return `<rect x="${x - hw}" y="${y - hh}" width="${hw * 2}" height="${hh * 2}" rx="12" fill="${fundo}" stroke="${borda || '#64748b'}" stroke-width="2"/>
+        ${texto(L, x, y, 10, corTxt)}`;
+    }
+  }
+
+  /* interface: igual ao simulador do início da página */
+  root.innerHTML = `
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <button class="ah-btn ah-btn-ok" data-acao="play"><i class="fa-solid fa-play"></i> Executar</button>
+      <button class="ah-btn" data-acao="passo"><i class="fa-solid fa-forward-step"></i> Passo</button>
+      <button class="ah-btn ah-btn-ghost" data-acao="reset"><i class="fa-solid fa-rotate-left"></i></button>
+      <div class="flex flex-wrap items-center gap-2 ml-auto">
+        <label class="text-xs text-slate-400">Cenário:</label>
+        <div class="flex flex-wrap gap-1.5">${cens.map((c, i) => `<button class="ah-chip${i ? '' : ' active'}" data-c="${i}">${c.n}</button>`).join('')}</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
+      <div class="lg:col-span-3">
+        <div class="ah-stage p-2 overflow-x-auto">
+          <svg viewBox="0 0 ${W} ${S.h}" class="w-full" style="min-width:${Math.round(W * 0.75)}px"></svg>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div class="ah-card p-5">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Passo atual</h3>
+          <div data-p="atual" class="text-sm font-bold text-white mb-1">—</div>
+          <p data-p="desc" class="text-[11px] text-slate-400 leading-relaxed"></p>
+          <div data-p="troca" class="mt-2 space-y-1"></div>
+        </div>
+        <div class="ah-card p-5">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Histórico</h3>
+          <div data-p="trocas" class="text-[11px] text-sky-300 mb-2"></div>
+          <div data-p="hist" class="space-y-1 text-[11px] max-h-64 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>`;
+  const svg = root.querySelector('svg'), $ = k => root.querySelector(`[data-p="${k}"]`);
+  const btnPlay = root.querySelector('[data-acao="play"]');
+  let ci = 0, passo = -1, timer = null;
+  const nome = id => { const n = S.nos[id]; return (n.r || n.nome || ROT[n.t] || id).replace(/\n/g, ' '); };
+  const raiaDe = id => S.raias[S.nos[id].raia].n;
+
+  function estado() {
+    const P = cens[ci].passos, nos = new Set(), feitas = new Set(), trocas = [];
+    for (let i = 0; i <= passo && i < P.length; i++) {
+      P[i].at.forEach(id => nos.add(id));
+      trocas[i] = [];
+      if (!i) continue;
+      E.forEach((e, k) => {
+        if (e.a !== e.b && P[i - 1].at.includes(e.a) && P[i].at.includes(e.b)) {
+          feitas.add(k);
+          if (S.nos[e.a].raia !== S.nos[e.b].raia) trocas[i].push(e);
+        }
+      });
+    }
+    return { P, nos, feitas, trocas };
+  }
+
+  function desenha() {
+    const { P, nos, feitas, trocas } = estado();
+    const ativos = passo >= 0 ? P[passo].at : [];
+    let out = '';
+
+    S.raias.forEach(r => {
+      out += `<rect x="${r.x}" y="20" width="${r.w}" height="${S.h - 30}" fill="rgba(148,163,184,.03)" stroke="rgba(148,163,184,.25)" stroke-width="1"/>
+        <rect x="${r.x}" y="20" width="${r.w}" height="26" fill="rgba(16,185,129,.1)"/>
+        <text x="${r.x + r.w / 2}" y="37" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter, sans-serif" fill="#6ee7b7">${r.n}</text>`;
+    });
+
+    (S.regioes || []).forEach(g => {
+      const cor = g.tipo === 'interrompivel' ? '#f59e0b' : '#a855f7', at = ativos.includes(g.id);
+      out += `<rect x="${g.x - g.hw}" y="${g.y - g.hh}" width="${g.hw * 2}" height="${g.hh * 2}" rx="14"
+          fill="${at ? 'rgba(251,191,36,.08)' : 'rgba(148,163,184,.025)'}" stroke="${at ? AMARELO : cor}" stroke-width="1.6" stroke-dasharray="6 4"/>
+        <text x="${g.x - g.hw + 10}" y="${g.y - g.hh + 15}" font-size="9.5" font-weight="700" font-family="Inter, sans-serif" fill="${cor}"
+          stroke="#0b1220" stroke-width="3" paint-order="stroke">${g.r}</text>`;
+    });
+
+    E.forEach((e, k) => { out += aresta(e, feitas.has(k)); });
+
+    Object.values(S.nos).forEach(n => {
+      if (n.t !== 'regiao') out += no(n, ativos.includes(n.id), nos.has(n.id) && !ativos.includes(n.id));
+    });
+
+    ativos.forEach(id => {
+      const n = S.nos[id];
+      const cx = n.t === 'regiao' ? n.x + n.hw - 16 : n.x, cy = n.t === 'regiao' ? n.y - n.hh + 12 : n.y;
+      out += `<circle cx="${cx}" cy="${cy}" r="7" fill="${AMARELO}" opacity=".95">
+          <animate attributeName="r" values="7;11;7" dur="1.1s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".95;.35;.95" dur="1.1s" repeatCount="indefinite"/>
+        </circle>`;
+    });
+    svg.innerHTML = out;
+
+    /* painéis */
+    const atual = passo >= 0 ? P[passo] : null;
+    $('atual').textContent = atual ? atual.at.map(nome).join('  +  ') : '—';
+    $('desc').innerHTML = atual
+      ? (atual.d || (atual.at.length > 1 ? 'Várias fichas ativas ao mesmo tempo: os ramos são independentes.' : S.nos[atual.at[0]].d || ''))
+      : 'Escolha um cenário e clique em “Executar” ou avance passo a passo.';
+    $('troca').innerHTML = atual ? trocas[passo].map(e =>
+      `<div class="text-[11px] ${e.tipo === 'sinal' ? 'text-sky-300' : 'text-emerald-300'}"><i class="fa-solid fa-right-left mr-1"></i>${e.tipo === 'sinal' ? 'Sinal' : 'Mudou de raia'}: ${raiaDe(e.a)} → ${raiaDe(e.b)}</div>`).join('') : '';
+    const total = trocas.reduce((t, l) => t + (l ? l.length : 0), 0);
+    $('trocas').innerHTML = `<i class="fa-solid fa-right-left mr-1"></i>Trocas de raia até aqui: <b>${total}</b>`;
+    const hist = [];
+    for (let i = 0; i <= passo && i < P.length; i++) {
+      hist.push(`<div class="flex items-center gap-2 ${i === passo ? 'text-amber-300' : 'text-slate-500'}">
+        <span class="font-mono text-[9px]">${String(i + 1).padStart(2, '0')}</span>
+        <span>${P[i].at.map(nome).join(' ‖ ')}</span>${trocas[i].length ? '<i class="fa-solid fa-right-left text-sky-400 text-[9px]"></i>' : ''}</div>`);
+    }
+    $('hist').innerHTML = hist.join('') || '<span class="text-slate-600 italic">nada executado</span>';
+  }
+
+  const parar = rotulo => { clearInterval(timer); timer = null; btnPlay.innerHTML = rotulo || '<i class="fa-solid fa-play"></i> Executar'; };
+  function avanca() {
+    if (passo >= cens[ci].passos.length - 1) return false;
+    passo++; desenha(); return true;
+  }
+  root.querySelector('[data-acao="passo"]').addEventListener('click', avanca);
+  root.querySelector('[data-acao="reset"]').addEventListener('click', () => { parar(); passo = -1; desenha(); });
+  btnPlay.addEventListener('click', () => {
+    if (timer) return parar();
+    if (passo >= cens[ci].passos.length - 1) passo = -1;
+    btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+    timer = setInterval(() => { if (!avanca()) parar('<i class="fa-solid fa-rotate-left"></i> Executar de novo'); }, 1100);
+  });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-c]');
+    if (!b) return;
+    ci = +b.getAttribute('data-c');
+    root.querySelectorAll('[data-c]').forEach(c => c.classList.toggle('active', c === b));
+    parar(); passo = -1; desenha();
+  });
+  desenha();
+}
+
+document.querySelectorAll('[data-raia-sim]').forEach(el => raiaSim(el, RAIA_SIMS[el.getAttribute('data-raia-sim')]));
 
 AH.initReveal();
 </script>
