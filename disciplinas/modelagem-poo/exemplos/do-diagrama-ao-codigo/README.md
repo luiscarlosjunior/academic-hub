@@ -26,6 +26,8 @@ as regras que o código passa a garantir (multiplicidade, composição, encapsul
 | `aprofundamento.genericos` | Casos que o mapeamento simples não cobre | `Repositorio<T, ID>` + implementação em memória |
 | `aprofundamento.hotel` | Exemplo passo a passo | `Reserva`, `Hospede`, `Quarto` |
 | `exercicios.ex1`, `exercicios.ex2` | Exercícios 1 e 2 | Gabaritos em código |
+| `exercicios.ex4` | Exercício 4 (streaming) | `Album`, `Artista`, `Faixa`: associação navegável e composição 1..* |
+| `exercicios.ex5` | Exercício 5 (streaming) | `Usuario`, `Playlist`, `Musica`, `Plano`, `Reproduzivel`: restrição vira validação |
 | `quiz` | Quiz 1 | `Turma` com validação `3..40` |
 
 O código mostrado nos slides é idêntico ao da aula. Onde a aula mostra só um trecho

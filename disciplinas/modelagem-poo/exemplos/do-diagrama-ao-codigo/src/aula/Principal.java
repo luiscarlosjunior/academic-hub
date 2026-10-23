@@ -107,6 +107,17 @@ public class Principal {
         var albumCorrigido = new exercicios.ex2.Album();
         albumCorrigido.adicionarFaixa("Gravidade Zero");
         tentar("Ex. 2 — alterar as faixas por fora", () -> albumCorrigido.getFaixas().clear());
+        var album4 = new exercicios.ex4.Album("Órbita", new exercicios.ex4.Artista("Banda Nébula"), "Abertura", 95);
+        album4.adicionarFaixa("Cometa", 187);
+        System.out.println("Ex. 4 — duração total do álbum: " + album4.duracaoTotal() + " s");
+        var usuario = new exercicios.ex5.Usuario("Rafa");
+        for (int i = 1; i <= exercicios.ex5.Usuario.LIMITE_GRATUITO; i++) usuario.criarPlaylist("Lista " + i);
+        tentar("Ex. 5 — 4ª playlist no plano gratuito", () -> usuario.criarPlaylist("Lista 4"));
+        usuario.assinarPremium();
+        var foco = usuario.criarPlaylist("Foco");
+        foco.adicionar(new exercicios.ex5.Musica("Gravidade Zero", 213));
+        System.out.print("Ex. 5 — após assinar Premium: ");
+        foco.getMusicas().forEach(exercicios.ex5.Reproduzivel::tocar);
 
         secao("14. Quiz 1: Turma \"1\" —— \"3..40\" Aluno");
         var turma = new quiz.Turma();
