@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Primeiros Passos com o SQLite · AcademicHub</title>
+<meta name="description" content="Instalação, o terminal sqlite3, comandos de ponto, criar o primeiro banco e conectar a partir de Python.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/02-primeiros-passos-sqlite">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="instalar" data-toc="Ter o SQLite disponível" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Ter o SQLite disponível</h2>
+  <div class="ah-prose">
+
+<p>Há três formas comuns de usar o SQLite, e você pode combiná-las:</p>
+<ul class="ah-prose list-disc pl-5 space-y-2 mt-3">
+  <li><strong>Terminal:</strong> o programa <code>sqlite3</code>. No macOS e na maioria das distribuições Linux ele já vem instalado; no Windows, baixe o pacote de ferramentas em sqlite.org.</li>
+  <li><strong>Python:</strong> o módulo <code>sqlite3</code> faz parte da biblioteca padrão. Não é preciso instalar nada.</li>
+  <li><strong>Interface gráfica:</strong> o DB Browser for SQLite permite abrir o arquivo e navegar pelas tabelas.</li>
+</ul>
+<p class="mt-4">Para verificar a versão no terminal, rode o comando abaixo. Versões a partir de 3.35 suportam <code>RETURNING</code> e <code>DROP COLUMN</code>, que usamos neste curso.</p>
+<pre class="ah-code"><code>sqlite3 --version</code></pre>
+
+  </div>
+</section>
+
+<section id="terminal" data-toc="Comandos de ponto no terminal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Comandos de ponto no terminal</h2>
+  <div class="ah-prose">
+
+<p>Ao abrir o programa, você entra num prompt. Comandos que começam com ponto (<code>.</code>) não são SQL: são instruções do próprio <code>sqlite3</code>.</p>
+<pre class="ah-code"><code>sqlite3 biblioteca.db        <span class="cm">-- abre (ou cria) o arquivo</span>
+.tables                     <span class="cm">-- lista as tabelas</span>
+.schema livro               <span class="cm">-- mostra o CREATE TABLE da tabela</span>
+.headers on                 <span class="cm">-- mostra os nomes das colunas</span>
+.mode column                <span class="cm">-- alinha os resultados em colunas</span>
+SELECT * FROM livro;        <span class="cm">-- comando SQL: termina com ponto e vírgula</span>
+.quit</code></pre>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Atenção:</strong> comandos SQL precisam de ponto e vírgula no fim; comandos de ponto não. Esquecer o ponto e vírgula faz o terminal esperar mais linhas, e o prompt muda para <code>...&gt;</code>.</div></div>
+
+  </div>
+</section>
+
+<section id="schema" data-toc="O esquema do banco" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>O esquema do banco</h2>
+  <div class="ah-prose">
+
+<p>O arquivo do banco guarda, além dos dados, o <strong>esquema</strong>: a descrição das tabelas, colunas, índices e restrições. O esquema fica numa tabela de sistema chamada <code>sqlite_master</code>. Consultá-la é a forma programática de fazer o que <code>.tables</code> e <code>.schema</code> fazem no terminal.</p>
+<p>A instrução <code>PRAGMA table_info(tabela)</code> devolve as colunas de uma tabela, com tipo, se aceita nulo e se é chave primária. O exemplo do tópico usa exatamente isso.</p>
+
+  </div>
+</section>
+
+<section id="python" data-toc="Conectando a partir de Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Conectando a partir de Python</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code><span class="kw">import</span> sqlite3
+
+con = sqlite3.connect("biblioteca.db")   <span class="cm"># cria o arquivo se não existir</span>
+cur = con.execute("SELECT sqlite_version()")
+print(cur.fetchone())
+con.close()</code></pre>
+<p class="mt-4">Três conceitos do módulo <code>sqlite3</code> aparecem em todos os tópicos seguintes:</p>
+<ul class="ah-prose list-disc pl-5 space-y-2 mt-3">
+  <li><strong>Connection</strong> (<code>con</code>): representa o arquivo aberto. Fechar é responsabilidade do programa.</li>
+  <li><strong>Cursor</strong> (<code>con.execute(...)</code> devolve um cursor): é onde estão os resultados de uma consulta. <code>fetchone()</code> pega uma linha, <code>fetchall()</code> pega todas.</li>
+  <li><strong>Transação:</strong> alterações ficam pendentes até <code>con.commit()</code> (ou até o fim de um bloco <code>with con:</code>, que confirma se nada der errado).</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: criar o esquema e listar a estrutura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Exemplo executável: criar o esquema e listar a estrutura</h2>
+  <div class="ah-prose">
+
+<p>O script carrega o esquema da biblioteca de um arquivo <code>.sql</code>, lista as tabelas e mostra as colunas de <code>livro</code> lendo <code>PRAGMA table_info</code>. Ele usa um banco em memória, então não deixa arquivos no seu computador.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t02_primeiros_passos.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t02_primeiros_passos.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t02_primeiros_passos.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>versão do SQLite: 3.45.3
+
+Tabelas criadas:
+ - autor
+ - cliente
+ - emprestimo
+ - livro
+ - livro_autor
+
+Colunas de livro:
+  id       INTEGER  NOT NULL=False PK=True
+  titulo   TEXT     NOT NULL=True  PK=False
+  ano      INTEGER  NOT NULL=False PK=False
+  isbn     TEXT     NOT NULL=False PK=False
+  preco    REAL     NOT NULL=True  PK=False</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+# Abrir (ou criar) um banco: em memória, para o exemplo não deixar arquivos.
+con = sqlite3.connect(&quot;:memory:&quot;)
+print(&quot;versão do SQLite:&quot;, sqlite3.sqlite_version)
+
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+
+# O catálogo do banco fica numa tabela de sistema: sqlite_master
+print(&quot;\nTabelas criadas:&quot;)
+for (nome,) in con.execute(&quot;SELECT name FROM sqlite_master WHERE type = &#x27;table&#x27; ORDER BY name&quot;):
+    print(&quot; -&quot;, nome)
+
+# Estrutura de uma tabela (equivale ao comando .schema no terminal)
+print(&quot;\nColunas de livro:&quot;)
+for cid, nome, tipo, notnull, padrao, pk in con.execute(&quot;PRAGMA table_info(livro)&quot;):
+    print(f&quot;  {nome:&lt;8} {tipo:&lt;8} NOT NULL={bool(notnull)!s:&lt;5} PK={bool(pk)}&quot;)
+con.close()
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Esquecer <code>con.commit()</code>:</strong> o INSERT parece funcionar na mesma conexão, mas some ao fechar o programa.</li>
+  <li><strong>Usar caminho relativo sem saber a pasta de execução:</strong> <code>sqlite3.connect("biblioteca.db")</code> cria o arquivo onde você executa o programa, não onde o código está.</li>
+  <li><strong>Abrir o arquivo em dois programas com escrita simultânea:</strong> o SQLite serializa as escritas, e a segunda pode receber “database is locked”.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva um programa Python que crie o arquivo <code>teste.db</code>, crie uma tabela <code>nota</code> com id e texto, e liste as tabelas com <code>sqlite_master</code>.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>con = sqlite3.connect("teste.db")</code>; <code>con.execute("CREATE TABLE IF NOT EXISTS nota (id INTEGER PRIMARY KEY, texto TEXT)")</code>; <code>con.commit()</code>; <code>SELECT name FROM sqlite_master WHERE type='table'</code>. O <code>IF NOT EXISTS</code> permite rodar o programa várias vezes sem erro.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Qual a diferença entre <code>.schema</code> e <code>SELECT * FROM livro</code>?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>.schema</code> mostra a estrutura (a definição da tabela); o SELECT mostra os dados. Um é metadado, o outro é conteúdo.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>Interface de linha de comando (sqlite3)</em>: https://www.sqlite.org/cli.html</li>
+  <li>Python. <em>sqlite3 — DB-API para SQLite</em>: https://docs.python.org/3/library/sqlite3.html</li>
+  <li>SQLite. <em>Tabela sqlite_schema</em>: https://www.sqlite.org/schematab.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

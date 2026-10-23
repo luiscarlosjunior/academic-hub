@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segurança, Migrações e Boas Práticas · AcademicHub</title>
+<meta name="description" content="Injeção de SQL na prática, migrações versionadas com user_version, modo WAL, backup consistente e quando o SQLite é a escolha certa.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/15-seguranca-migracoes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="injecao" data-toc="Injeção de SQL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Injeção de SQL</h2>
+  <div class="ah-prose">
+
+<p>A injeção acontece quando dados de fora do programa são tratados como parte do comando SQL. É uma das falhas de segurança mais antigas e ainda comuns. O exemplo mostra o efeito: a consulta montada por concatenação devolve todos os títulos, porque <code>' OR '1'='1</code> torna a condição sempre verdadeira. A consulta com parâmetro trata a mesma string como texto literal, e não encontra nada.</p>
+<p class="mt-3">A defesa é uma regra só: <strong>parâmetros para todos os valores, sempre</strong>. Para nomes de tabela ou coluna, que não podem ser parâmetros, use uma lista permitida no código.</p>
+
+  </div>
+</section>
+
+<section id="migracoes" data-toc="Migrações versionadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Migrações versionadas</h2>
+  <div class="ah-prose">
+
+<p>O esquema muda com o tempo. Em vez de cada desenvolvedor alterar o banco à mão, cada mudança é um passo numerado, e o banco guarda até qual passo já foi aplicado. O SQLite oferece essa guarda no próprio arquivo: a pragma <code>user_version</code>, um inteiro livre que o programa lê e escreve.</p>
+<pre class="ah-code"><code>MIGRACOES = [
+    (1, "CREATE TABLE livro (id INTEGER PRIMARY KEY, titulo TEXT NOT NULL)"),
+    (2, "ALTER TABLE livro ADD COLUMN ano INTEGER"),
+]
+versao = con.execute("PRAGMA user_version").fetchone()[0]
+for numero, sql in MIGRACOES:
+    if numero &gt; versao:
+        <span class="kw">with</span> con:
+            con.execute(sql)
+            con.execute(f"PRAGMA user_version = {numero}")</code></pre>
+<p class="mt-4">Cada migração roda uma única vez, e rodar o programa de novo não faz nada. Uma migração que precisa mudar uma coluna existente segue o procedimento do tópico 3: criar a tabela nova, copiar, remover a antiga e renomear. Migrações devem ser <strong>testadas em uma cópia</strong> do banco de produção antes de rodar no original.</p>
+
+  </div>
+</section>
+
+<section id="wal" data-toc="Modo WAL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Modo WAL</h2>
+  <div class="ah-prose">
+
+<p>Por padrão, o SQLite usa um diário de desfazer. No modo WAL (<em>Write-Ahead Logging</em>), as escritas vão para um arquivo de log separado, e leitores não bloqueiam o escritor. Em aplicações com muitas leituras e algumas escritas, a diferença é grande. O modo é persistente: uma vez ligado no arquivo, continua ligado. O exemplo mostra <code>PRAGMA journal_mode = WAL</code> devolvendo <code>wal</code>.</p>
+
+  </div>
+</section>
+
+<section id="backup" data-toc="Backup consistente" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Backup consistente</h2>
+  <div class="ah-prose">
+
+<p>Copiar o arquivo <code>.db</code> com o programa em uso pode gerar uma cópia inconsistente, sobretudo no modo WAL, porque parte das alterações está no log. O comando <code>VACUUM INTO 'arquivo.bak'</code> gera uma cópia íntegra e compactada, mesmo com o banco aberto. O exemplo confere a cópia com <code>PRAGMA integrity_check</code>, que deve devolver <code>ok</code>.</p>
+
+  </div>
+</section>
+
+<section id="quando" data-toc="Quando usar SQLite (e quando não)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Quando usar SQLite (e quando não)</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Situação</th><th>SQLite?</th></tr></thead>
+    <tbody>
+      <tr><td>Aplicativo de desktop ou celular, dados de um usuário</td><td>sim: é a escolha clássica</td></tr>
+      <tr><td>Protótipo, ferramenta interna, site de pequeno porte</td><td>sim, com backup e migrações</td></tr>
+      <tr><td>Muitos servidores escrevendo no mesmo banco</td><td>não: use um SGBD cliente-servidor</td></tr>
+      <tr><td>Dados de grande volume com muitas escritas concorrentes</td><td>não: o escritor único vira gargalo</td></tr>
+      <tr><td>Testes automatizados de uma aplicação que usa outro banco</td><td>sim, como banco de teste, com cuidado nas diferenças de SQL</td></tr>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: migrações, WAL, backup e injeção" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Exemplo executável: migrações, WAL, backup e injeção</h2>
+  <div class="ah-prose">
+
+<p>O script aplica as migrações duas vezes (na segunda, nada muda), ativa o WAL, gera e verifica um backup, e compara a consulta vulnerável com a parametrizada usando a mesma entrada maliciosa.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t15_seguranca_migracoes.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t15_seguranca_migracoes.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t15_seguranca_migracoes.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>modo de journal: wal
+primeira execução:
+  aplicada migração 1
+  aplicada migração 2
+  aplicada migração 3
+  versão final: 3
+segunda execução (nada a fazer):
+  versão final: 3
+backup íntegro: ok | versão: 3
+
+consulta vulnerável devolve: [(&#x27;Dom Casmurro&#x27;,), (&#x27;Vidas Secas&#x27;,)]
+consulta parametrizada devolve: []</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3, os, tempfile
+
+# Migrações versionadas com PRAGMA user_version: cada passo roda uma única vez.
+MIGRACOES = [
+    (1, &quot;CREATE TABLE livro (id INTEGER PRIMARY KEY, titulo TEXT NOT NULL)&quot;),
+    (2, &quot;ALTER TABLE livro ADD COLUMN ano INTEGER&quot;),
+    (3, &quot;CREATE INDEX idx_livro_titulo ON livro (titulo)&quot;),
+]
+
+def migrar(con):
+    versao = con.execute(&quot;PRAGMA user_version&quot;).fetchone()[0]
+    for numero, sql in MIGRACOES:
+        if numero &gt; versao:
+            with con:
+                con.execute(sql)
+                con.execute(f&quot;PRAGMA user_version = {numero}&quot;)   # número vem do código, não do usuário
+            print(f&quot;  aplicada migração {numero}&quot;)
+    return con.execute(&quot;PRAGMA user_version&quot;).fetchone()[0]
+
+caminho = os.path.join(tempfile.mkdtemp(), &quot;biblioteca.db&quot;)
+con = sqlite3.connect(caminho)
+# WAL: escritas vão para um arquivo de log separado, leitores não bloqueiam o escritor
+print(&quot;modo de journal:&quot;, con.execute(&quot;PRAGMA journal_mode = WAL&quot;).fetchone()[0])
+print(&quot;primeira execução:&quot;)
+print(&quot;  versão final:&quot;, migrar(con))
+con.close()
+
+con = sqlite3.connect(caminho)
+print(&quot;segunda execução (nada a fazer):&quot;)
+print(&quot;  versão final:&quot;, migrar(con))
+
+# Backup consistente com o banco em uso: VACUUM INTO gera uma cópia íntegra
+destino = caminho + &quot;.bak&quot;
+con.execute(f&quot;VACUUM INTO &#x27;{destino}&#x27;&quot;)
+copia = sqlite3.connect(destino)
+print(&quot;backup íntegro:&quot;, copia.execute(&quot;PRAGMA integrity_check&quot;).fetchone()[0], &quot;| versão:&quot;, copia.execute(&quot;PRAGMA user_version&quot;).fetchone()[0])
+
+# Injeção de SQL: a versão vulnerável x a segura
+con.execute(&quot;INSERT INTO livro (titulo) VALUES (&#x27;Dom Casmurro&#x27;), (&#x27;Vidas Secas&#x27;)&quot;)
+entrada = &quot;&#x27; OR &#x27;1&#x27;=&#x27;1&quot;
+vulneravel = f&quot;SELECT titulo FROM livro WHERE titulo = &#x27;{entrada}&#x27;&quot;
+print(&quot;\nconsulta vulnerável devolve:&quot;, con.execute(vulneravel).fetchall())
+print(&quot;consulta parametrizada devolve:&quot;, con.execute(&quot;SELECT titulo FROM livro WHERE titulo = ?&quot;, (entrada,)).fetchall())
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Migração que muda o código antes do banco:</strong> a aplicação nova roda contra um esquema antigo e falha. Migre primeiro, depois publique o código.</li>
+  <li><strong>Backup nunca testado:</strong> um backup que não foi restaurado é uma hipótese. Restaure periodicamente em outro lugar.</li>
+  <li><strong>Permissão do arquivo:</strong> no SQLite, quem consegue ler o arquivo lê todos os dados. Proteja o arquivo com permissões do sistema operacional.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Adicione a migração 4 que cria a tabela <code>cliente</code> com id e nome, e confirme que ela é aplicada uma única vez.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> acrescente <code>(4, "CREATE TABLE cliente (id INTEGER PRIMARY KEY, nome TEXT NOT NULL)")</code> à lista. A primeira execução aplica a 4; a segunda confirma versão 4 e nada faz.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Um colega sugere “escapar” a entrada removendo apóstrofos em vez de usar parâmetros. Qual o problema?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a lista de caracteres perigosos sempre fica incompleta, e cada banco tem sintaxe própria de escape. Parâmetros separam o valor do comando por construção, sem depender de lista. É uma correção por design, não por remendo.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lock text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>PRAGMA</em> (incluindo user_version e journal_mode): https://www.sqlite.org/pragma.html</li>
+  <li>SQLite. <em>VACUUM INTO</em>: https://www.sqlite.org/lang_vacuum.html</li>
+  <li>OWASP. <em>SQL Injection</em>: https://owasp.org/www-community/attacks/SQL_Injection</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

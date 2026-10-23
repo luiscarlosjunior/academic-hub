@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (C): Inserindo Dados · AcademicHub</title>
+<meta name="description" content="INSERT, inserções em lote, o id gerado, RETURNING e a parametrização que impede injeção de SQL.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/05-create-insert">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="insert" data-toc="A forma do INSERT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>A forma do INSERT</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>INSERT INTO autor (nome) VALUES ('Machado de Assis');
+INSERT INTO autor (nome) VALUES ('Clarice Lispector'), ('Graciliano Ramos');   <span class="cm">-- lote</span></code></pre>
+<p class="mt-4">Nomeie as colunas. Um <code>INSERT INTO autor VALUES (...)</code> sem a lista de colunas depende da ordem exata das colunas no CREATE, e quebra silenciosamente quando alguém adiciona uma coluna no meio.</p>
+
+  </div>
+</section>
+
+<section id="id" data-toc="O id gerado e o lastrowid" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>O id gerado e o lastrowid</h2>
+  <div class="ah-prose">
+
+<p>Quando a chave primária é <code>INTEGER PRIMARY KEY</code>, o banco gera o valor sozinho. Para saber qual foi, o módulo Python oferece <code>cursor.lastrowid</code>, logo após o INSERT. Isso é essencial quando a linha inserida precisa ser ligada a outras (por exemplo, o autor recém-criado que vai para um livro).</p>
+
+  </div>
+</section>
+
+<section id="returning" data-toc="RETURNING: devolver o que foi gravado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>RETURNING: devolver o que foi gravado</h2>
+  <div class="ah-prose">
+
+<p>A partir do SQLite 3.35, a cláusula <code>RETURNING</code> devolve colunas da linha inserida, sem uma consulta extra. Isso evita a condição de corrida de “inserir e depois consultar”, que poderia pegar outra linha.</p>
+<pre class="ah-code"><code>INSERT INTO livro (titulo, ano) VALUES ('Vidas Secas', 1938) RETURNING id, titulo;</code></pre>
+
+  </div>
+</section>
+
+<section id="param" data-toc="Parâmetros: o antídoto contra injeção de SQL" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Parâmetros: o antídoto contra injeção de SQL</h2>
+  <div class="ah-prose">
+
+<p>Nunca monte SQL concatenando dados de usuário. Se o nome digitado for <code>x'); DROP TABLE autor; --</code>, a concatenação transforma a consulta em duas instruções, e a segunda apaga a tabela. Com parâmetros (<code>?</code>), o banco recebe o valor já separado do comando, e o texto é guardado literalmente.</p>
+<pre class="ah-code"><code><span class="cm"># ERRADO: o valor vira parte do comando</span>
+con.execute(f"INSERT INTO autor (nome) VALUES ('{nome}')")
+
+<span class="cm"># CERTO: o valor é enviado separado do comando</span>
+con.execute("INSERT INTO autor (nome) VALUES (?)", (nome,))</code></pre>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Regra sem exceção:</strong> qualquer valor que venha de fora do programa (formulário, API, arquivo) entra por parâmetro. Nomes de tabela e coluna não podem ser parâmetros; se forem dinâmicos, valide contra uma lista fixa.</div></div>
+
+  </div>
+</section>
+
+<section id="lote" data-toc="Inserção em lote" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Inserção em lote</h2>
+  <div class="ah-prose">
+
+<p><code>executemany</code> executa o mesmo INSERT para uma lista de valores, dentro de uma única transação. Em uma importação de milhares de linhas, isso é ordens de grandeza mais rápido do que um INSERT por vez com commit em cada um.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <div class="ah-prose">
+
+<p>O script insere um autor, um lote de dois, um livro com RETURNING e tenta gravar um nome malicioso. Repare que a tabela continua existindo e que o nome foi guardado como texto.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t05_create.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t05_create.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t05_create.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>id gerado: 1
+RETURNING: (1, &#x27;Memórias Póstumas&#x27;)
+tabela autor ainda existe: 4 registros
+nome guardado literalmente: x&#x27;); DROP TABLE autor; --</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+
+# C de CRUD: INSERT simples, com retorno do id gerado
+cur = con.execute(&quot;INSERT INTO autor (nome) VALUES (?)&quot;, (&quot;Machado de Assis&quot;,))
+print(&quot;id gerado:&quot;, cur.lastrowid)
+
+# Vários registros de uma vez
+con.executemany(&quot;INSERT INTO autor (nome) VALUES (?)&quot;,
+                [(&quot;Clarice Lispector&quot;,), (&quot;Graciliano Ramos&quot;,)])
+
+# RETURNING (SQLite 3.35+): devolve os dados inseridos, sem nova consulta
+linha = con.execute(
+    &quot;INSERT INTO livro (titulo, ano, isbn, preco) VALUES (?, ?, ?, ?) RETURNING id, titulo&quot;,
+    (&quot;Memórias Póstumas&quot;, 1881, &quot;978-2&quot;, 39.9)).fetchone()
+print(&quot;RETURNING:&quot;, linha)
+
+# Parametrização: nunca monte SQL com f-string a partir de dados do usuário
+entrada_maliciosa = &quot;x&#x27;); DROP TABLE autor; --&quot;
+con.execute(&quot;INSERT INTO autor (nome) VALUES (?)&quot;, (entrada_maliciosa,))
+print(&quot;tabela autor ainda existe:&quot;, con.execute(&quot;SELECT count(*) FROM autor&quot;).fetchone()[0], &quot;registros&quot;)
+print(&quot;nome guardado literalmente:&quot;, con.execute(&quot;SELECT nome FROM autor WHERE id = last_insert_rowid()&quot;).fetchone()[0])
+con.commit()
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>f-string em SQL:</strong> é o caminho mais curto para a injeção de SQL.</li>
+  <li><strong>Esquecer o commit:</strong> a inserção não é persistida. Com <code>with con:</code> o commit é automático.</li>
+  <li><strong>Ler o id de outra consulta:</strong> <code>SELECT max(id)</code> pode trazer o id de outro usuário concorrente. Use <code>lastrowid</code> ou RETURNING.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva uma função <code>cadastrar_autor(con, nome)</code> que devolva o id criado, de forma segura.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>cur = con.execute("INSERT INTO autor (nome) VALUES (?)", (nome,)); con.commit(); return cur.lastrowid</code>. Parâmetro para o nome, e lastrowid para o id.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que <code>executemany</code> é mais rápido que um laço de <code>execute</code>?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o laço com commit por linha força uma gravação em disco por linha; o lote reúne tudo numa transação e grava uma vez. O número de transações é o fator que mais pesa.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>INSERT</em>: https://www.sqlite.org/lang_insert.html</li>
+  <li>SQLite. <em>RETURNING</em>: https://www.sqlite.org/lang_returning.html</li>
+  <li>OWASP. <em>SQL Injection Prevention Cheat Sheet</em>: https://cheatsheetseries.owasp.org</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

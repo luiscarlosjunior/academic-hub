@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Views e Triggers · AcademicHub</title>
+<meta name="description" content="Views como consultas salvas, triggers que reagem a inserções, alterações e exclusões, e RAISE para impor regras.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/12-views-triggers">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="view" data-toc="VIEW: uma consulta com nome" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>VIEW: uma consulta com nome</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>CREATE VIEW vw_emprestimos_abertos AS
+SELECT e.id, l.titulo, c.nome AS cliente, e.data_saida
+FROM emprestimo e
+JOIN livro l   ON l.id = e.livro_id
+JOIN cliente c ON c.id = e.cliente_id
+WHERE e.devolvido = 0;
+
+SELECT * FROM vw_emprestimos_abertos;</code></pre>
+<p class="mt-4">Uma VIEW não guarda dados: é a consulta armazenada, executada a cada uso. Ela serve para esconder joins complicados, expor só as colunas certas e dar um nome estável para uma regra de leitura, como “empréstimos em aberto”. Uma VIEW no SQLite é somente leitura.</p>
+
+  </div>
+</section>
+
+<section id="trigger" data-toc="TRIGGER: código que roda sozinho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>TRIGGER: código que roda sozinho</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>CREATE TRIGGER trg_log_emprestimo AFTER INSERT ON emprestimo
+BEGIN
+  INSERT INTO log_emprestimo VALUES (NEW.id, 'registrado');
+END;</code></pre>
+<p class="mt-4">Um trigger dispara automaticamente antes (BEFORE) ou depois (AFTER) de INSERT, UPDATE ou DELETE. Dentro dele, <code>NEW</code> é a linha nova e <code>OLD</code> é a linha antiga. Triggers são úteis para auditoria e para regras que precisam valer independentemente de quem grava.</p>
+
+  </div>
+</section>
+
+<section id="raise" data-toc="Triggers que impedem: RAISE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Triggers que impedem: RAISE</h2>
+  <div class="ah-prose">
+
+<p>Um trigger BEFORE pode recusar a operação com <code>RAISE(ABORT, 'mensagem')</code>. No exemplo, uma devolução repetida é bloqueada no próprio banco, e a aplicação recebe um erro de integridade com a mensagem definida.</p>
+
+  </div>
+</section>
+
+<section id="cuidado" data-toc="Quando views e triggers ajudam e quando atrapalham" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Quando views e triggers ajudam e quando atrapalham</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Ajudam:</strong> auditoria consistente, regras que não podem ser contornadas, leituras padronizadas.</li>
+  <li><strong>Atrapalham:</strong> lógica escondida. Um INSERT que parece simples pode gerar cascatas de triggers difíceis de depurar, e o código da aplicação não mostra nada disso.</li>
+  <li><strong>Limite do SQLite:</strong> não há procedimentos armazenados. Regras complexas ficam na aplicação, e o banco só guarda as regras simples como triggers.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: view, log automático e bloqueio" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Exemplo executável: view, log automático e bloqueio</h2>
+  <div class="ah-prose">
+
+<p>O script cria a view e mostra só os empréstimos abertos, cria um trigger que registra cada novo empréstimo, e outro que recusa uma segunda devolução.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t12_views_triggers.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t12_views_triggers.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t12_views_triggers.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>VIEW mostra só os abertos: [(&#x27;Dom Casmurro&#x27;, &#x27;Ana&#x27;)]
+log gerado pelo trigger: [(3, &#x27;empréstimo registrado para livro 2&#x27;)]
+segunda devolução: RECUSADA - empréstimo já devolvido</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+con.execute(&quot;INSERT INTO cliente (id, nome, email) VALUES (1, &#x27;Ana&#x27;, &#x27;ana@x.com&#x27;)&quot;)
+con.executemany(&quot;INSERT INTO livro (id, titulo, ano) VALUES (?,?,?)&quot;, [(1, &quot;Dom Casmurro&quot;, 1899), (2, &quot;Vidas Secas&quot;, 1938)])
+
+# VIEW: uma consulta salva, tratada como tabela só de leitura
+con.execute(&quot;&quot;&quot;CREATE VIEW vw_emprestimos_abertos AS
+               SELECT e.id, l.titulo, c.nome AS cliente, e.data_saida
+               FROM emprestimo e
+               JOIN livro l   ON l.id = e.livro_id
+               JOIN cliente c ON c.id = e.cliente_id
+               WHERE e.devolvido = 0&quot;&quot;&quot;)
+con.execute(&quot;INSERT INTO emprestimo (livro_id, cliente_id, data_saida) VALUES (1, 1, &#x27;2026-10-01&#x27;)&quot;)
+con.execute(&quot;INSERT INTO emprestimo (livro_id, cliente_id, data_saida, devolvido) VALUES (2, 1, &#x27;2026-09-01&#x27;, 1)&quot;)
+print(&quot;VIEW mostra só os abertos:&quot;, con.execute(&quot;SELECT titulo, cliente FROM vw_emprestimos_abertos&quot;).fetchall())
+
+# TRIGGER: regra que roda sozinha depois de uma inserção
+con.execute(&quot;CREATE TABLE log_emprestimo (emprestimo_id INTEGER, mensagem TEXT)&quot;)
+con.execute(&quot;&quot;&quot;CREATE TRIGGER trg_log_emprestimo AFTER INSERT ON emprestimo
+               BEGIN
+                 INSERT INTO log_emprestimo VALUES (NEW.id, &#x27;empréstimo registrado para livro &#x27; || NEW.livro_id);
+               END&quot;&quot;&quot;)
+con.execute(&quot;INSERT INTO emprestimo (livro_id, cliente_id, data_saida) VALUES (2, 1, &#x27;2026-10-03&#x27;)&quot;)
+print(&quot;log gerado pelo trigger:&quot;, con.execute(&quot;SELECT * FROM log_emprestimo&quot;).fetchall())
+
+# TRIGGER de validação: impede devolver um livro duas vezes
+con.execute(&quot;&quot;&quot;CREATE TRIGGER trg_nao_devolver_duas_vezes BEFORE UPDATE OF devolvido ON emprestimo
+               WHEN OLD.devolvido = 1 AND NEW.devolvido = 1
+               BEGIN SELECT RAISE(ABORT, &#x27;empréstimo já devolvido&#x27;); END&quot;&quot;&quot;)
+try:
+    con.execute(&quot;UPDATE emprestimo SET devolvido = 1 WHERE id = 2&quot;)
+except sqlite3.IntegrityError as e:
+    print(&quot;segunda devolução:&quot;, &quot;RECUSADA -&quot;, e)
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Esquecer a condição da view ao usar:</strong> a view é uma consulta, e ela precisa de filtros explícitos se a aplicação não os fornecer.</li>
+  <li><strong>Trigger que chama a si mesmo:</strong> um trigger de UPDATE que atualiza a mesma tabela pode entrar em laço. O SQLite limita a recursão, mas o erro deve ser evitado no desenho.</li>
+  <li><strong>Trigger de auditoria sem o usuário:</strong> o SQLite não sabe quem fez a alteração. Se precisar, a aplicação deve passar essa informação.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Crie uma view com os livros e o número de empréstimos de cada um.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>CREATE VIEW vw_popularidade AS SELECT l.id, l.titulo, COUNT(e.id) AS emprestimos FROM livro l LEFT JOIN emprestimo e ON e.livro_id = l.id GROUP BY l.id</code>. O LEFT JOIN garante que livros sem empréstimo aparecem com zero.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Escreva um trigger que impede emprestar um livro com ano maior que o ano atual.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> um BEFORE INSERT ON emprestimo que consulta o livro e aborta com RAISE(ABORT, ...) se o ano for maior que o atual. A regra fica no banco, então nenhum caminho de gravação a contorna.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>CREATE VIEW</em>: https://www.sqlite.org/lang_createview.html</li>
+  <li>SQLite. <em>CREATE TRIGGER</em>: https://www.sqlite.org/lang_createtrigger.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

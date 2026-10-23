@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (R): Consultando Dados · AcademicHub</title>
+<meta name="description" content="SELECT, filtros com WHERE, LIKE, IN, BETWEEN, ordenação, paginação, agregações, GROUP BY, HAVING e subconsultas.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/06-read-select">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="select" data-toc="A estrutura de uma consulta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>A estrutura de uma consulta</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>SELECT colunas
+FROM   tabela
+WHERE  condição         <span class="cm">-- filtra linhas</span>
+GROUP BY colunas        <span class="cm">-- agrupa linhas</span>
+HAVING condição         <span class="cm">-- filtra grupos</span>
+ORDER BY colunas        <span class="cm">-- ordena</span>
+LIMIT n OFFSET m;       <span class="cm">-- pagina</span></code></pre>
+<p class="mt-4">A ordem das cláusulas é fixa e não corresponde à ordem de execução. O banco primeiro lê a tabela (FROM), depois filtra (WHERE), agrupa, filtra grupos (HAVING), ordena e só então limita. Entender essa ordem explica por que um alias definido no SELECT não pode ser usado no WHERE.</p>
+
+  </div>
+</section>
+
+<section id="filtros" data-toc="Filtros: comparação, LIKE, IN e BETWEEN" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Filtros: comparação, LIKE, IN e BETWEEN</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Operador</th><th>Uso</th><th>Exemplo</th></tr></thead>
+    <tbody>
+      <tr><td><code>=</code>, <code>&lt;&gt;</code>, <code>&lt;</code>, <code>&gt;=</code></td><td>comparação</td><td><code>ano &lt; 1900</code></td></tr>
+      <tr><td><code>LIKE</code></td><td>padrão de texto: <code>%</code> qualquer sequência, <code>_</code> um caractere</td><td><code>titulo LIKE 'M%'</code></td></tr>
+      <tr><td><code>IN</code></td><td>pertence a uma lista</td><td><code>preco IN (24.5, 34.0)</code></td></tr>
+      <tr><td><code>BETWEEN</code></td><td>intervalo, extremos incluídos</td><td><code>ano BETWEEN 1930 AND 1940</code></td></tr>
+      <tr><td><code>IS NULL</code></td><td>o valor está ausente</td><td><code>isbn IS NULL</code></td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>NULL não se compara com =:</strong> <code>isbn = NULL</code> nunca é verdadeiro, nem falso: é desconhecido. Por isso o exemplo mostra zero linhas para <code>= NULL</code>, e o certo é <code>IS NULL</code>.</div></div>
+
+  </div>
+</section>
+
+<section id="ordem" data-toc="Ordenação e paginação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Ordenação e paginação</h2>
+  <div class="ah-prose">
+
+<p><code>ORDER BY ano DESC</code> ordena do mais recente para o mais antigo. Sem ORDER BY, o SQLite pode devolver as linhas em qualquer ordem, e essa ordem pode mudar entre execuções. Para paginar uma lista na interface, use <code>LIMIT tamanho OFFSET (pagina - 1) * tamanho</code>, com ORDER BY sempre presente.</p>
+
+  </div>
+</section>
+
+<section id="agregacao" data-toc="Agregação: COUNT, SUM, AVG, GROUP BY e HAVING" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Agregação: COUNT, SUM, AVG, GROUP BY e HAVING</h2>
+  <div class="ah-prose">
+
+<p>Funções de agregação resumem várias linhas numa só: <code>COUNT</code>, <code>SUM</code>, <code>AVG</code>, <code>MIN</code>, <code>MAX</code>. Com <code>GROUP BY</code>, o resumo é feito por grupo. <code>HAVING</code> filtra os grupos depois da agregação, enquanto <code>WHERE</code> filtra as linhas antes. A regra prática: condição sobre valor original vai no WHERE; condição sobre o resultado de uma agregação vai no HAVING.</p>
+
+  </div>
+</section>
+
+<section id="subconsulta" data-toc="Subconsultas e CASE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Subconsultas e CASE</h2>
+  <div class="ah-prose">
+
+<p>Uma subconsulta é um SELECT dentro de outro. No exemplo, <code>(SELECT AVG(preco) FROM livro)</code> calcula a média, e o WHERE externo compara cada livro com ela. <code>CASE</code> funciona como um “se-senão” dentro da consulta, útil para criar faixas ou rótulos.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: consultas passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Exemplo executável: consultas passo a passo</h2>
+  <div class="ah-prose">
+
+<p>Cada consulta é mostrada com o SQL original e o resultado. Confira à mão um dos resultados: o século XX tem três livros com preço médio de 28,50, porque (24,50 + 34,00 + 27,00) ÷ 3 = 28,50.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t06_read.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t06_read.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t06_read.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>
+-- WHERE com comparação
+   SQL: SELECT titulo, ano FROM livro WHERE ano &lt; 1900
+   (&#x27;Dom Casmurro&#x27;, 1899)
+   (&#x27;Memórias Póstumas&#x27;, 1881)
+
+-- LIKE (curinga % e _)
+   SQL: SELECT titulo FROM livro WHERE titulo LIKE &#x27;M%&#x27; OR titulo LIKE &#x27;_idas%&#x27;
+   (&#x27;Memórias Póstumas&#x27;,)
+   (&#x27;Vidas Secas&#x27;,)
+
+-- IN e BETWEEN
+   SQL: SELECT titulo, preco FROM livro WHERE ano BETWEEN 1930 AND 1940 AND preco IN (24.5, 34.0)
+   (&#x27;Vidas Secas&#x27;, 24.5)
+   (&#x27;Capitães da Areia&#x27;, 34.0)
+
+-- ORDER BY e LIMIT/OFFSET (paginação)
+   SQL: SELECT titulo, ano FROM livro ORDER BY ano DESC LIMIT 2 OFFSET 1
+   (&#x27;Vidas Secas&#x27;, 1938)
+   (&#x27;Capitães da Areia&#x27;, 1937)
+
+-- Agregação com GROUP BY e HAVING
+   SQL: SELECT CASE WHEN ano &lt; 1900 THEN &#x27;século XIX&#x27; ELSE &#x27;século XX&#x27; END AS epoca, COUNT(*) AS total, ROUND(AVG(preco), 2) AS preco_medio FROM livro GROUP BY epoca HAVING COUNT(*) &gt; 1 ORDER BY total DESC
+   (&#x27;século XX&#x27;, 3, 28.5)
+   (&#x27;século XIX&#x27;, 2, 34.9)
+
+-- NULL precisa de IS NULL, não de = NULL
+   SQL: SELECT count(*) FROM livro WHERE isbn = NULL
+   (0,)
+
+-- ...e isto funciona
+   SQL: SELECT count(*) FROM livro WHERE isbn IS NULL
+   (0,)
+
+-- Subconsulta: livros mais caros que a média
+   SQL: SELECT titulo, preco FROM livro WHERE preco &gt; (SELECT AVG(preco) FROM livro) ORDER BY preco DESC
+   (&#x27;Memórias Póstumas&#x27;, 39.9)
+   (&#x27;Capitães da Areia&#x27;, 34.0)
+
+-- Expressão CASE para classificar
+   SQL: SELECT titulo, CASE WHEN preco &gt;= 30 THEN &#x27;caro&#x27; WHEN preco &gt;= 25 THEN &#x27;médio&#x27; ELSE &#x27;barato&#x27; END AS faixa FROM livro ORDER BY preco
+   (&#x27;Vidas Secas&#x27;, &#x27;barato&#x27;)
+   (&#x27;A Hora da Estrela&#x27;, &#x27;médio&#x27;)
+   (&#x27;Dom Casmurro&#x27;, &#x27;médio&#x27;)
+   (&#x27;Capitães da Areia&#x27;, &#x27;caro&#x27;)
+   (&#x27;Memórias Póstumas&#x27;, &#x27;caro&#x27;)</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+con.executemany(&quot;INSERT INTO livro (titulo, ano, isbn, preco) VALUES (?,?,?,?)&quot;, [
+    (&quot;Dom Casmurro&quot;, 1899, &quot;978-1&quot;, 29.9),
+    (&quot;Memórias Póstumas&quot;, 1881, &quot;978-2&quot;, 39.9),
+    (&quot;Vidas Secas&quot;, 1938, &quot;978-3&quot;, 24.5),
+    (&quot;Capitães da Areia&quot;, 1937, &quot;978-4&quot;, 34.0),
+    (&quot;A Hora da Estrela&quot;, 1977, &quot;978-5&quot;, 27.0),
+])
+
+def mostrar(titulo, sql, params=()):
+    print(f&quot;\n-- {titulo}&quot;)
+    print(&quot;   SQL:&quot;, &quot; &quot;.join(sql.split()))
+    for linha in con.execute(sql, params):
+        print(&quot;  &quot;, linha)
+
+mostrar(&quot;WHERE com comparação&quot;, &quot;SELECT titulo, ano FROM livro WHERE ano &lt; 1900&quot;)
+mostrar(&quot;LIKE (curinga % e _)&quot;, &quot;SELECT titulo FROM livro WHERE titulo LIKE &#x27;M%&#x27; OR titulo LIKE &#x27;_idas%&#x27;&quot;)
+mostrar(&quot;IN e BETWEEN&quot;, &quot;SELECT titulo, preco FROM livro WHERE ano BETWEEN 1930 AND 1940 AND preco IN (24.5, 34.0)&quot;)
+mostrar(&quot;ORDER BY e LIMIT/OFFSET (paginação)&quot;, &quot;SELECT titulo, ano FROM livro ORDER BY ano DESC LIMIT 2 OFFSET 1&quot;)
+mostrar(&quot;Agregação com GROUP BY e HAVING&quot;, &quot;&quot;&quot;
+    SELECT CASE WHEN ano &lt; 1900 THEN &#x27;século XIX&#x27; ELSE &#x27;século XX&#x27; END AS epoca,
+           COUNT(*) AS total, ROUND(AVG(preco), 2) AS preco_medio
+    FROM livro GROUP BY epoca HAVING COUNT(*) &gt; 1 ORDER BY total DESC&quot;&quot;&quot;)
+mostrar(&quot;NULL precisa de IS NULL, não de = NULL&quot;, &quot;SELECT count(*) FROM livro WHERE isbn = NULL&quot;)
+mostrar(&quot;...e isto funciona&quot;, &quot;SELECT count(*) FROM livro WHERE isbn IS NULL&quot;)
+mostrar(&quot;Subconsulta: livros mais caros que a média&quot;, &quot;&quot;&quot;
+    SELECT titulo, preco FROM livro
+    WHERE preco &gt; (SELECT AVG(preco) FROM livro) ORDER BY preco DESC&quot;&quot;&quot;)
+mostrar(&quot;Expressão CASE para classificar&quot;, &quot;&quot;&quot;
+    SELECT titulo, CASE WHEN preco &gt;= 30 THEN &#x27;caro&#x27; WHEN preco &gt;= 25 THEN &#x27;médio&#x27; ELSE &#x27;barato&#x27; END AS faixa
+    FROM livro ORDER BY preco&quot;&quot;&quot;)
+
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong><code>SELECT *</code> em produção:</strong> traz colunas que você não usa e quebra quando a tabela muda de forma. Liste as colunas.</li>
+  <li><strong>LIKE com maiúsculas:</strong> no SQLite, LIKE ignora maiúsculas apenas para caracteres ASCII. Para acentos, normalize antes ou use uma coluna auxiliar.</li>
+  <li><strong>Agregação sem GROUP BY misturada com colunas comuns:</strong> o resultado é imprevisível, e o SQLite aceita sem reclamar.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva a consulta dos títulos que começam com “A” e custam entre 20 e 30 reais, ordenados pelo preço.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>SELECT titulo, preco FROM livro WHERE titulo LIKE 'A%' AND preco BETWEEN 20 AND 30 ORDER BY preco</code>.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Quantos livros por década? Escreva a consulta com GROUP BY.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>SELECT (ano / 10) * 10 AS decada, COUNT(*) FROM livro GROUP BY decada ORDER BY decada</code>. A divisão inteira de INTEGER por 10 agrupa os anos por década.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>SELECT</em>: https://www.sqlite.org/lang_select.html</li>
+  <li>SQLite. <em>Expressões e operadores</em>: https://www.sqlite.org/lang_expr.html</li>
+  <li>SQLite. <em>Funções de agregação</em>: https://www.sqlite.org/lang_aggfunc.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

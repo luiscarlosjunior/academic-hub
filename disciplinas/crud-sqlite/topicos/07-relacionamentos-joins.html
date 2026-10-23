@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relacionamentos e JOINs · AcademicHub</title>
+<meta name="description" content="Relacionamentos 1:N e N:N, tabela de junção, INNER JOIN e LEFT JOIN, e como ler um modelo de classes como tabelas.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/07-relacionamentos-joins">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="tipos" data-toc="Tipos de relacionamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Tipos de relacionamento</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Tipo</th><th>Exemplo</th><th>Como implementar</th></tr></thead>
+    <tbody>
+      <tr><td>1:1</td><td>cliente e sua ficha de cadastro</td><td>chave estrangeira UNIQUE na tabela dependente</td></tr>
+      <tr><td>1:N</td><td>cliente e seus empréstimos</td><td>chave estrangeira no lado “muitos”</td></tr>
+      <tr><td>N:N</td><td>livro e autores</td><td>tabela de junção com duas chaves estrangeiras</td></tr>
+    </tbody>
+  </table>
+</div>
+<p class="mt-4">Relações N:N não podem ser implementadas diretamente. Um livro com vários autores não cabe numa coluna <code>autor_id</code> sem perder informação. A solução é uma tabela intermediária, <code>livro_autor</code>, com uma linha para cada par.</p>
+
+  </div>
+</section>
+
+<section id="junção" data-toc="A tabela de junção" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>A tabela de junção</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>CREATE TABLE livro_autor (
+    livro_id INTEGER NOT NULL REFERENCES livro(id) ON DELETE CASCADE,
+    autor_id INTEGER NOT NULL REFERENCES autor(id) ON DELETE CASCADE,
+    PRIMARY KEY (livro_id, autor_id)
+);</code></pre>
+<p class="mt-4">A chave primária composta impede que o mesmo par seja inserido duas vezes. Isso é a integridade de N:N: não existe como dizer duas vezes que o livro 1 é do autor 1.</p>
+
+  </div>
+</section>
+
+<section id="inner" data-toc="INNER JOIN: só o que casa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>INNER JOIN: só o que casa</h2>
+  <div class="ah-prose">
+
+<p>O INNER JOIN devolve apenas as combinações em que a condição de junção é verdadeira nos dois lados. Um livro sem autor não aparece, e um autor sem livro também não.</p>
+<pre class="ah-code"><code>SELECT l.titulo, a.nome
+FROM livro l
+JOIN livro_autor la ON la.livro_id = l.id
+JOIN autor a        ON a.id = la.autor_id;</code></pre>
+
+  </div>
+</section>
+
+<section id="left" data-toc="LEFT JOIN: tudo da esquerda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>LEFT JOIN: tudo da esquerda</h2>
+  <div class="ah-prose">
+
+<p>O LEFT JOIN mantém todas as linhas da tabela da esquerda, e preenche com NULL as colunas da direita quando não há par. É a forma de perguntar “quais livros não têm autor cadastrado?”, combinando LEFT JOIN com <code>WHERE a.id IS NULL</code>.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: N:N e 1:N" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Exemplo executável: N:N e 1:N</h2>
+  <div class="ah-prose">
+
+<p>O script mostra o INNER JOIN e o LEFT JOIN no relacionamento N:N, e uma agregação com LEFT JOIN no relacionamento 1:N, contando os empréstimos de cada cliente. Repare que o cliente sem empréstimo, se existisse, apareceria com zero.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t07_joins.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t07_joins.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t07_joins.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>INNER JOIN (só o que tem par nas duas tabelas):
+   (&#x27;Dom Casmurro&#x27;, &#x27;Machado de Assis&#x27;)
+   (&#x27;Vidas Secas&#x27;, &#x27;Graciliano Ramos&#x27;)
+
+LEFT JOIN (todos os livros, com ou sem autor):
+   (&#x27;Dom Casmurro&#x27;, &#x27;Machado de Assis&#x27;)
+   (&#x27;Vidas Secas&#x27;, &#x27;Graciliano Ramos&#x27;)
+   (&#x27;Livro sem autor&#x27;, None)
+
+1:N: cliente com seus empréstimos
+   (&#x27;Ana&#x27;, 2)</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+con.executemany(&quot;INSERT INTO autor (id, nome) VALUES (?,?)&quot;,
+                [(1, &quot;Machado de Assis&quot;), (2, &quot;Graciliano Ramos&quot;), (3, &quot;Autor sem livro&quot;)])
+con.executemany(&quot;INSERT INTO livro (id, titulo, ano, preco) VALUES (?,?,?,?)&quot;,
+                [(1, &quot;Dom Casmurro&quot;, 1899, 29.9), (2, &quot;Vidas Secas&quot;, 1938, 24.5), (3, &quot;Livro sem autor&quot;, 2000, 10.0)])
+# N:N: um livro pode ter vários autores, e um autor vários livros
+con.executemany(&quot;INSERT INTO livro_autor (livro_id, autor_id) VALUES (?,?)&quot;,
+                [(1, 1), (2, 2)])
+
+print(&quot;INNER JOIN (só o que tem par nas duas tabelas):&quot;)
+for r in con.execute(&quot;&quot;&quot;SELECT l.titulo, a.nome FROM livro l
+                        JOIN livro_autor la ON la.livro_id = l.id
+                        JOIN autor a ON a.id = la.autor_id ORDER BY l.id&quot;&quot;&quot;):
+    print(&quot;  &quot;, r)
+
+print(&quot;\nLEFT JOIN (todos os livros, com ou sem autor):&quot;)
+for r in con.execute(&quot;&quot;&quot;SELECT l.titulo, a.nome FROM livro l
+                        LEFT JOIN livro_autor la ON la.livro_id = l.id
+                        LEFT JOIN autor a ON a.id = la.autor_id ORDER BY l.id&quot;&quot;&quot;):
+    print(&quot;  &quot;, r)
+
+print(&quot;\n1:N: cliente com seus empréstimos&quot;)
+con.execute(&quot;INSERT INTO cliente (id, nome, email) VALUES (1, &#x27;Ana&#x27;, &#x27;ana@x.com&#x27;)&quot;)
+con.executemany(&quot;INSERT INTO emprestimo (livro_id, cliente_id, data_saida) VALUES (?,?,?)&quot;,
+                [(1, 1, &quot;2026-10-01&quot;), (2, 1, &quot;2026-10-05&quot;)])
+for r in con.execute(&quot;&quot;&quot;SELECT c.nome, count(e.id) AS emprestimos FROM cliente c
+                        LEFT JOIN emprestimo e ON e.cliente_id = c.id GROUP BY c.id&quot;&quot;&quot;):
+    print(&quot;  &quot;, r)
+</code></pre>
+  </details>
+</section>
+
+<section id="ler" data-toc="Do diagrama de classes à tabela" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Do diagrama de classes à tabela</h2>
+  <div class="ah-prose">
+
+<p>Um diagrama de classes da modelagem vira tabelas com regras simples. Uma associação 1:N vira uma chave estrangeira. Uma associação N:N vira uma tabela de junção. Uma composição (por exemplo, o livro com suas edições) costuma virar uma chave estrangeira com <code>ON DELETE CASCADE</code>, porque a parte não faz sentido sem o todo. Essa correspondência é o elo entre a disciplina de modelagem e este curso.</p>
+
+  </div>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Esquecer a condição do JOIN:</strong> sem ON, o resultado é o produto cartesiano, com todas as combinações possíveis.</li>
+  <li><strong>Filtrar no WHERE uma tabela do LEFT JOIN:</strong> <code>WHERE a.nome = 'X'</code> transforma o LEFT JOIN em INNER JOIN. A condição sobre a tabela da direita deve ir no ON.</li>
+  <li><strong>Relacionamento N:N como coluna com lista:</strong> <code>autores = 'Ana,Bruno'</code> viola a primeira forma normal e impede consultas por autor.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva a consulta dos livros sem nenhum autor cadastrado.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>SELECT l.titulo FROM livro l LEFT JOIN livro_autor la ON la.livro_id = l.id WHERE la.livro_id IS NULL</code>. A condição IS NULL na coluna da junção identifica quem não tem par.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que a chave primária de livro_autor é composta e não existe uma coluna id própria?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a identidade do vínculo é o próprio par (livro, autor). Um id extra seria redundante e permitiria duplicar o mesmo par.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>Cláusula JOIN</em>: https://www.sqlite.org/lang_select.html#fromclause</li>
+  <li>SQLite. <em>Chaves estrangeiras e ON DELETE</em>: https://www.sqlite.org/foreignkeys.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Índices e Plano de Execução · AcademicHub</title>
+<meta name="description" content="Como o banco encontra linhas, CREATE INDEX, índices compostos, EXPLAIN QUERY PLAN e o custo dos índices na escrita.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/11-indices-desempenho">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="scan" data-toc="Sem índice: a varredura completa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Sem índice: a varredura completa</h2>
+  <div class="ah-prose">
+
+<p>Sem índice, para encontrar as linhas de um cliente, o banco lê a tabela inteira, linha por linha. Com 50 mil empréstimos, isso são 50 mil leituras para responder uma pergunta que traz 10 resultados. O plano de execução mostra esse comportamento como <code>SCAN</code>.</p>
+
+  </div>
+</section>
+
+<section id="indice" data-toc="CREATE INDEX: uma estrutura de busca" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>CREATE INDEX: uma estrutura de busca</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>CREATE INDEX idx_emprestimo_cliente ON emprestimo (cliente_id);</code></pre>
+<p class="mt-4">Um índice é uma estrutura auxiliar, em geral uma árvore B, que mantém os valores de uma ou mais colunas ordenados e aponta para as linhas. A busca passa de uma varredura para uma pesquisa, com custo logarítmico. O plano passa a mostrar <code>SEARCH ... USING INDEX</code>.</p>
+
+  </div>
+</section>
+
+<section id="composto" data-toc="Índices compostos e o prefixo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Índices compostos e o prefixo</h2>
+  <div class="ah-prose">
+
+<p>Um índice em <code>(cliente_id, data_saida)</code> ajuda consultas que filtram por <code>cliente_id</code>, ou por <code>cliente_id</code> e <code>data_saida</code>. Mas não ajuda uma consulta que filtra só por <code>data_saida</code>, porque a árvore está ordenada primeiro por cliente. Essa regra do prefixo esquerdo explica o resultado do exemplo: o segundo plano mostra um <code>SCAN</code> pelo índice inteiro, em vez de uma busca.</p>
+
+  </div>
+</section>
+
+<section id="plano" data-toc="EXPLAIN QUERY PLAN: ler o plano" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>EXPLAIN QUERY PLAN: ler o plano</h2>
+  <div class="ah-prose">
+
+<p>Coloque <code>EXPLAIN QUERY PLAN</code> antes de qualquer SELECT para ver como o banco pretende executá-lo, sem rodá-lo. As palavras-chave mais importantes:</p>
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Saída</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td><code>SCAN tabela</code></td><td>lê a tabela inteira</td></tr>
+      <tr><td><code>SEARCH tabela USING INDEX ...</code></td><td>busca pelo índice</td></tr>
+      <tr><td><code>COVERING INDEX</code></td><td>o índice tem todas as colunas pedidas; a tabela nem é lida</td></tr>
+      <tr><td><code>USE TEMP B-TREE FOR ORDER BY</code></td><td>o banco precisou ordenar em memória ou disco</td></tr>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</section>
+
+<section id="custo" data-toc="O custo do índice" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>O custo do índice</h2>
+  <div class="ah-prose">
+
+<p>Índices não são grátis. Cada INSERT, UPDATE ou DELETE precisa atualizar todos os índices da tabela. Por isso, indexar tudo é um erro: uma tabela com dez índices pode ficar lenta para escrever. A regra prática é indexar as colunas usadas em WHERE, JOIN e ORDER BY das consultas frequentes, e as chaves estrangeiras (que o SQLite não indexa automaticamente).</p>
+<div class="ah-callout ah-callout-tip mt-4"><i class="fa-solid fa-lightbulb"></i><div><strong>Meça antes de otimizar:</strong> o EXPLAIN QUERY PLAN mostra a estratégia, não o tempo. Para decidir, compare o plano antes e depois e, se possível, meça com dados realistas.</div></div>
+
+  </div>
+</section>
+
+<section id="analyze" data-toc="ANALYZE e as estatísticas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>ANALYZE e as estatísticas</h2>
+  <div class="ah-prose">
+
+<p><code>ANALYZE</code> coleta estatísticas sobre a distribuição dos valores, e o otimizador as usa para escolher entre planos. Depois de cargas grandes de dados, rodar ANALYZE costuma corrigir escolhas ruins do plano.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: antes e depois do índice" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Exemplo executável: antes e depois do índice</h2>
+  <div class="ah-prose">
+
+<p>O script cria 50 mil empréstimos, mostra o plano com varredura, cria o índice e mostra a busca. Depois mostra o índice composto, com o prefixo e sem ele. O número de resultados é o mesmo nos dois casos: o índice muda o caminho, não a resposta.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t11_indices.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t11_indices.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t11_indices.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>ANTES do índice:
+   SCAN emprestimo
+DEPOIS do índice:
+   SEARCH emprestimo USING COVERING INDEX idx_emprestimo_cliente (cliente_id=?)
+
+resultado idêntico com e sem índice: 10 linhas
+
+PLANO com filtro no 1º campo do índice composto:
+   SEARCH emprestimo USING COVERING INDEX idx_cli_data (cliente_id=? AND data_saida&gt;?)
+PLANO com filtro só no 2º campo (não usa o prefixo):
+   SCAN emprestimo USING COVERING INDEX idx_cli_data</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.execute(&quot;CREATE TABLE emprestimo (id INTEGER PRIMARY KEY, cliente_id INTEGER, data_saida TEXT, devolvido INTEGER)&quot;)
+# 50 mil registros para o plano de execução fazer diferença
+con.executemany(&quot;INSERT INTO emprestimo (cliente_id, data_saida, devolvido) VALUES (?, ?, ?)&quot;,
+                ((i % 5000, f&quot;2026-{(i % 12) + 1:02d}-01&quot;, i % 2) for i in range(50000)))
+con.execute(&quot;ANALYZE&quot;)
+
+consulta = &quot;SELECT id FROM emprestimo WHERE cliente_id = 42&quot;
+
+print(&quot;ANTES do índice:&quot;)
+for linha in con.execute(&quot;EXPLAIN QUERY PLAN &quot; + consulta):
+    print(&quot;  &quot;, linha[-1])
+
+con.execute(&quot;CREATE INDEX idx_emprestimo_cliente ON emprestimo (cliente_id)&quot;)
+con.execute(&quot;ANALYZE&quot;)
+
+print(&quot;DEPOIS do índice:&quot;)
+for linha in con.execute(&quot;EXPLAIN QUERY PLAN &quot; + consulta):
+    print(&quot;  &quot;, linha[-1])
+
+print(&quot;\nresultado idêntico com e sem índice:&quot;, len(con.execute(consulta).fetchall()), &quot;linhas&quot;)
+
+# Índice composto: a ordem das colunas importa (prefixo esquerdo)
+con.execute(&quot;CREATE INDEX idx_cli_data ON emprestimo (cliente_id, data_saida)&quot;)
+print(&quot;\nPLANO com filtro no 1º campo do índice composto:&quot;)
+for linha in con.execute(&quot;EXPLAIN QUERY PLAN SELECT id FROM emprestimo WHERE cliente_id = 42 AND data_saida &gt; &#x27;2026-06-01&#x27;&quot;):
+    print(&quot;  &quot;, linha[-1])
+print(&quot;PLANO com filtro só no 2º campo (não usa o prefixo):&quot;)
+for linha in con.execute(&quot;EXPLAIN QUERY PLAN SELECT id FROM emprestimo WHERE data_saida &gt; &#x27;2026-06-01&#x27;&quot;):
+    print(&quot;  &quot;, linha[-1])
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Índice na coluna errada:</strong> indexar uma coluna com dois valores (como <code>devolvido</code>) quase não ajuda, porque a busca continua trazendo metade da tabela.</li>
+  <li><strong>Função sobre a coluna:</strong> <code>WHERE substr(data_saida, 1, 4) = '2026'</code> impede o uso do índice. Reescreva como intervalo: <code>data_saida &gt;= '2026-01-01'</code>.</li>
+  <li><strong>Esquecer o índice da chave estrangeira:</strong> o JOIN e a exclusão em cascata passam a varrer a tabela filha inteira.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. A consulta <code>WHERE data_saida = '2026-10-01'</code> usa o índice (cliente_id, data_saida)? Justifique.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> não usa o prefixo, porque cliente_id não aparece no filtro. O plano seria um SCAN do índice (ou da tabela). Para essa consulta, um índice em data_saida sozinho seria a escolha.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Escreva o índice que acelera “empréstimos em aberto de um cliente”.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>CREATE INDEX idx_aberto ON emprestimo (cliente_id, devolvido)</code>. Como cliente_id é o prefixo, o filtro por cliente vira busca, e devolvido é filtrado dentro do intervalo encontrado.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>Como o otimizador de consultas funciona</em>: https://www.sqlite.org/queryplanner.html</li>
+  <li>SQLite. <em>EXPLAIN QUERY PLAN</em>: https://www.sqlite.org/eqp.html</li>
+  <li>SQLite. <em>CREATE INDEX</em>: https://www.sqlite.org/lang_createindex.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
