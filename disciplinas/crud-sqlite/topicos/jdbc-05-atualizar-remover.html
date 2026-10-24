@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (U e D): Atualizar e Remover · AcademicHub</title>
+<meta name="description" content="executeUpdate devolve quantas linhas mudaram, atualização condicional para não sobrescrever mudanças alheias, e remoção com verificação do resultado.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-05-atualizar-remover">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="contagem" data-toc="O valor devolvido pelo executeUpdate" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>O valor devolvido pelo executeUpdate</h2>
+  <div class="ah-prose">
+
+<p><code>executeUpdate()</code> devolve o número de linhas alteradas. É a única forma de saber se o comando encontrou alguma coisa: um <code>UPDATE ... WHERE id = 999</code> não lança erro, apenas devolve 0.</p>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: a atualização condicional" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Animação: a atualização condicional</h2>
+  <div class="ah-prose">
+
+<p>O método <code>atualizarPrecoSeIgual</code> só altera o preço se ele ainda for o que o usuário viu. Acompanhe as duas tentativas do exemplo: a primeira combina com o banco, a segunda não.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>public boolean atualizarPrecoSeIgual(long id, double precoEsperado, double novoPreco) throws SQLException {
+    String sql = &quot;UPDATE livro SET preco = ? WHERE id = ? AND preco = ?&quot;;
+    try (PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setDouble(1, novoPreco);
+        ps.setLong(2, id);
+        ps.setDouble(3, precoEsperado);
+        return ps.executeUpdate() == 1;
+    }
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 1, "titulo": "A condição de duas partes", "texto": "O comando só altera a linha se o id bater <strong>e</strong> o preço atual for igual ao esperado.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">id = 1</span><span class=\"ah-caixa on\">preço = 19.9</span><span class=\"ah-caixa \">altera</span></div>"}, {"linha": 3, "titulo": "Os três valores", "texto": "O novo preço vai na primeira marca, o id na segunda e o preço esperado na terceira.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">id = 1</span><span class=\"ah-caixa ok\">preço = 19.9</span><span class=\"ah-caixa \">altera</span></div>"}, {"linha": 6, "titulo": "Primeira tentativa: combina", "texto": "O banco encontra a linha com preço 19,90. O número de linhas afetadas é 1, e o método devolve <code>true</code>.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">linhas afetadas = 1</span><span class=\"ah-caixa ok\">retorno = true</span></div>"}, {"linha": 6, "titulo": "Segunda tentativa: não combina", "texto": "O preço já mudou para 17,00. A condição falha, nenhuma linha é afetada, e o método devolve <code>false</code>.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">linhas afetadas = 0</span><span class=\"ah-caixa erro\">retorno = false</span></div>"}]</script>
+</div>
+</section>
+
+<section id="otimista" data-toc="Controle otimista na prática" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Controle otimista na prática</h2>
+  <div class="ah-prose">
+
+<p>Dois atendentes leem o mesmo preço. Se ambos gravarem sem verificar, o segundo apaga a mudança do primeiro sem saber. A solução é incluir o valor lido na condição: <code>WHERE id = ? AND preco = ?</code>. Se o preço já mudou, a linha não casa, o número de linhas é 0, e a aplicação pede que o usuário recarregue.</p>
+
+  </div>
+</section>
+
+<section id="remover" data-toc="Remover e verificar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Remover e verificar</h2>
+  <div class="ah-prose">
+
+<p>Para remover, confira o número de linhas. Um <code>DELETE</code> de id inexistente não é erro: a aplicação deve informar isso ao usuário. Se uma chave estrangeira impedir a remoção, o banco lança <code>SQLException</code> (código 19).</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: atualizar, comparar e remover" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Exemplo executável: atualizar, comparar e remover</h2>
+  <div class="ah-prose">
+
+<p>A demonstração atualiza o preço, testa um id inexistente, faz as duas atualizações condicionais, remove o livro e tenta remover de novo.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Demonstração desta aula. A saída abaixo foi gerada por execução real, com Java 17, SQLite 3.46 e o driver sqlite-jdbc 3.46.1.0.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java-sqlite/src/demos/Demo05Atualizar.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java-sqlite/src/demos/Demo05Atualizar.java</code></a></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>== atualizar
+atualizou: true, preço agora: 19.9
+id inexistente: false
+== atualização condicional
+preço esperado 19.9 -&gt; 17.0: true
+preço esperado 19.9 (já mudou) -&gt; 15.0: false
+preço final: 17.0
+== remover
+primeira vez: true
+segunda vez: false
+total: 0</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Demo05Atualizar.java)</summary>
+<pre class="ah-code mt-3"><code>package demos;
+
+import biblioteca.Conexao;
+import biblioteca.Livro;
+import biblioteca.LivroDao;
+import java.sql.Connection;
+import java.util.List;
+
+/** Tópico 5: atualizar (U) e remover (D), olhando o número de linhas afetadas. */
+public class Demo05Atualizar {
+
+    public static void main(String[] args) throws Exception {
+        String arq = &quot;demo05.db&quot;;
+        new java.io.File(arq).delete();
+        try (Connection con = Conexao.abrir(arq)) {
+            Conexao.criarTabelas(con);
+            LivroDao dao = new LivroDao(con);
+            long id = dao.inserir(new Livro(null, &quot;Vidas Secas&quot;, 1938, 24.5, &quot;978-3&quot;));
+
+            System.out.println(&quot;== atualizar&quot;);
+            boolean ok = dao.atualizar(new Livro(id, &quot;Vidas Secas&quot;, 1938, 19.9, &quot;978-3&quot;));
+            System.out.println(&quot;atualizou: &quot; + ok + &quot;, preço agora: &quot; + dao.buscarPorId(id).get().preco());
+            System.out.println(&quot;id inexistente: &quot; + dao.atualizar(new Livro(999L, &quot;X&quot;, 2000, 1, null)));
+
+            System.out.println(&quot;== atualização condicional&quot;);
+            System.out.println(&quot;preço esperado 19.9 -&gt; 17.0: &quot; + dao.atualizarPrecoSeIgual(id, 19.9, 17.0));
+            System.out.println(&quot;preço esperado 19.9 (já mudou) -&gt; 15.0: &quot; + dao.atualizarPrecoSeIgual(id, 19.9, 15.0));
+            System.out.println(&quot;preço final: &quot; + dao.buscarPorId(id).get().preco());
+
+            System.out.println(&quot;== remover&quot;);
+            System.out.println(&quot;primeira vez: &quot; + dao.remover(id));
+            System.out.println(&quot;segunda vez: &quot; + dao.remover(id));
+            System.out.println(&quot;total: &quot; + dao.contar());
+        }
+        new java.io.File(arq).delete();
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li><strong>Ignorar o retorno do <code>executeUpdate</code>:</strong> o programa informa sucesso mesmo quando nada mudou.</li>
+<li><strong>Comparar decimais com <code>==</code> depois de cálculos:</strong> compare o valor com a mesma origem, ou trabalhe com centavos inteiros.</li>
+<li><strong>UPDATE sem WHERE:</strong> altera a tabela inteira.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva <code>aplicarDesconto(double percentual)</code> que reduz o preço dos livros acima de 30.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>UPDATE livro SET preco = preco * (1 - ?) WHERE preco &gt; 30</code>, com <code>ps.setDouble(1, percentual / 100)</code>. O método devolve o <code>executeUpdate()</code>: quantos livros foram afetados.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que a segunda atualização condicional da demonstração devolveu false?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a primeira atualização já tinha mudado o preço para 17,00. A condição <code>preco = 19.9</code> deixou de valer, nenhuma linha casou, e o retorno foi 0.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Wikipedia. <em>Optimistic concurrency control</em>: https://en.wikipedia.org/wiki/Optimistic_concurrency_control</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

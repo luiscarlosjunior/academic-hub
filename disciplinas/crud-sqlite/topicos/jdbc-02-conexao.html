@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conexão com o Banco: DriverManager e try-with-resources · AcademicHub</title>
+<meta name="description" content="Abrir uma conexão JDBC com SQLite, entender a URL, ligar a chave estrangeira e fechar recursos com segurança.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-02-conexao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="ideia" data-toc="JDBC e a conexão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>JDBC e a conexão</h2>
+  <div class="ah-prose">
+
+<p>JDBC é a API padrão do Java para bancos relacionais. O seu código conversa com as interfaces <code>Connection</code>, <code>Statement</code> e <code>ResultSet</code>, e o driver traduz as chamadas para o SQLite. Trocar de banco muda a URL e o driver, mas quase não muda o código.</p>
+<pre class="ah-code"><code>String url = "jdbc:sqlite:biblioteca.db";
+Connection con = DriverManager.getConnection(url);</code></pre>
+<p class="mt-4">A URL tem três partes: <code>jdbc:</code> (a API), <code>sqlite:</code> (o tipo de banco) e <code>biblioteca.db</code> (o arquivo). Um caminho relativo é resolvido a partir da pasta onde o programa roda, e não a partir da pasta do código. Por isso, pela IDE, o arquivo costuma aparecer na pasta do projeto.</p>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: o ciclo de vida da conexão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>Animação: o ciclo de vida da conexão</h2>
+  <div class="ah-prose">
+
+<p>Acompanhe a conexão ser aberta, configurada, usada e fechada. A linha de estados mostra em que fase ela está em cada passo.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>public static void main(String[] args) throws Exception {
+    Connection con = null;
+    try {
+        con = Conexao.abrir(&quot;demo02.db&quot;);
+        System.out.println(&quot;conexão aberta: &quot; + !con.isClosed());
+        try (Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(&quot;PRAGMA foreign_keys&quot;)) {
+            rs.next();
+            System.out.println(&quot;chave estrangeira ligada: &quot; + (rs.getInt(1) == 1));
+        }
+    } finally {
+        if (con != null) {
+            con.close();
+        }
+    }
+    System.out.println(&quot;conexão fechada: &quot; + con.isClosed());
+    new java.io.File(&quot;demo02.db&quot;).delete();
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 1, "titulo": "Preparar a variável", "texto": "A conexão começa como <code>null</code>, para que o bloco <code>finally</code> possa checar se ela chegou a ser criada.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">fechada</span><span class=\"ah-caixa \">aberta</span><span class=\"ah-caixa \">ligada</span><span class=\"ah-caixa \">fechada</span></div>"}, {"linha": 3, "titulo": "Abrir a conexão", "texto": "A chamada a <code>Conexao.abrir</code> abre o arquivo e liga a chave estrangeira. Isso acontece dentro do método, não aqui.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">fechada</span><span class=\"ah-caixa on\">aberta</span><span class=\"ah-caixa on\">ligada</span><span class=\"ah-caixa \">fechada</span></div>"}, {"linha": 4, "titulo": "Confirmar que está aberta", "texto": "<code>isClosed()</code> devolve <code>false</code> enquanto a conexão estiver ativa.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">fechada</span><span class=\"ah-caixa ok\">aberta</span><span class=\"ah-caixa ok\">ligada</span><span class=\"ah-caixa \">fechada</span></div>"}, {"linha": 5, "titulo": "Consultar o PRAGMA", "texto": "A consulta lê a configuração desta conexão. O resultado confirma que a chave estrangeira está ligada.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">fechada</span><span class=\"ah-caixa ok\">aberta</span><span class=\"ah-caixa ok\">ligada</span><span class=\"ah-caixa on\">consultada</span></div>"}, {"linha": 10, "titulo": "Fechar no finally", "texto": "Mesmo com erro, o bloco <code>finally</code> fecha a conexão. É o caminho seguro quando não se usa try-with-resources.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">fechada</span><span class=\"ah-caixa ok\">aberta</span><span class=\"ah-caixa ok\">ligada</span><span class=\"ah-caixa on\">fechada</span></div>"}, {"linha": 15, "titulo": "Estado final", "texto": "A conexão foi fechada e o recurso devolvido ao sistema.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">fechada</span><span class=\"ah-caixa \">aberta</span><span class=\"ah-caixa \">ligada</span><span class=\"ah-caixa \">fechada</span></div>"}]</script>
+</div>
+</section>
+
+<section id="pragma" data-toc="A chave estrangeira em cada conexão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>A chave estrangeira em cada conexão</h2>
+  <div class="ah-prose">
+
+<p>O SQLite começa cada conexão com a verificação de chave estrangeira <strong>desligada</strong>. A classe <code>Conexao</code> executa <code>PRAGMA foreign_keys = ON</code> logo depois de abrir a conexão. Como a configuração vale só para aquela conexão, a regra é repetida em todas: ela fica num único método, <code>Conexao.abrir</code>, usado por toda a aplicação.</p>
+
+  </div>
+</section>
+
+<section id="try" data-toc="try-with-resources: fechar sempre" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>try-with-resources: fechar sempre</h2>
+  <div class="ah-prose">
+
+<p>Uma conexão ocupa recursos do sistema operacional. O bloco <code>try (...)</code> declara os recursos entre parênteses, e o Java os fecha automaticamente ao sair do bloco, mesmo com exceção, na ordem inversa da declaração.</p>
+<pre class="ah-code"><code>try (Connection con = Conexao.abrir("biblioteca.db");
+     Statement st = con.createStatement()) {
+    st.execute("CREATE TABLE IF NOT EXISTS teste (id INTEGER)");
+}   // st e con são fechados aqui, nesta ordem</code></pre>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: abrir, usar e fechar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>Exemplo executável: abrir, usar e fechar</h2>
+  <div class="ah-prose">
+
+<p>A demonstração abre o arquivo <code>demo02.db</code>, confirma que a chave estrangeira está ligada, fecha a conexão e a apaga ao final.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Demonstração desta aula. A saída abaixo foi gerada por execução real, com Java 17, SQLite 3.46 e o driver sqlite-jdbc 3.46.1.0.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java-sqlite/src/demos/Demo02Conexao.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java-sqlite/src/demos/Demo02Conexao.java</code></a></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>conexão aberta: true
+chave estrangeira ligada: true
+conexão fechada: true</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Demo02Conexao.java)</summary>
+<pre class="ah-code mt-3"><code>package demos;
+
+import biblioteca.Conexao;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+/** Tópico 2: abrir, usar e fechar uma conexão com try-with-resources. */
+public class Demo02Conexao {
+
+    public static void main(String[] args) throws Exception {
+        Connection con = null;
+        try {
+            con = Conexao.abrir(&quot;demo02.db&quot;);
+            System.out.println(&quot;conexão aberta: &quot; + !con.isClosed());
+            try (Statement st = con.createStatement();
+                 ResultSet rs = st.executeQuery(&quot;PRAGMA foreign_keys&quot;)) {
+                rs.next();
+                System.out.println(&quot;chave estrangeira ligada: &quot; + (rs.getInt(1) == 1));
+            }
+        } finally {
+            if (con != null) {
+                con.close();
+            }
+        }
+        System.out.println(&quot;conexão fechada: &quot; + con.isClosed());
+        new java.io.File(&quot;demo02.db&quot;).delete();
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li><strong>Esquecer a chave estrangeira:</strong> a aplicação aceita dados órfãos sem reclamar. Confirme com <code>PRAGMA foreign_keys</code>.</li>
+<li><strong>Conexão aberta e não fechada:</strong> em testes, o arquivo fica travado para outros processos.</li>
+<li><strong>URL com erro:</strong> <code>jdbc:sqlite</code> sem os dois pontos, ou outro prefixo, gera <code>No suitable driver found</code>.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva um método que abre um arquivo, conta as tabelas e fecha tudo corretamente.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>try (Connection con = Conexao.abrir(arq); Statement st = con.createStatement(); ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")) { rs.next(); return rs.getInt(1); }</code>. Os três recursos são fechados automaticamente.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o PRAGMA é executado dentro de <code>Conexao.abrir</code>, e não no código que chama o método?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> para que nenhum ponto da aplicação esqueça a regra. Centralizar a configuração garante que toda conexão nasça com a chave estrangeira ligada.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Oracle. <em>JDBC Basics: Connecting to a database</em>: https://docs.oracle.com/javase/tutorial/jdbc/basics/connecting.html</li>
+<li>xerial. <em>sqlite-jdbc</em>: https://github.com/xerial/sqlite-jdbc</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

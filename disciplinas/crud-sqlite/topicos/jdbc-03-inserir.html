@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (C): Inserindo com PreparedStatement · AcademicHub</title>
+<meta name="description" content="Statement e PreparedStatement, executeUpdate, o id gerado pelo banco, inserção em lote com addBatch e o tratamento de chave repetida.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-03-inserir">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="statement" data-toc="Statement ou PreparedStatement?" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Statement ou PreparedStatement?</h2>
+  <div class="ah-prose">
+
+<p><code>Statement</code> executa um texto SQL pronto. <code>PreparedStatement</code> recebe o texto com marcas <code>?</code>, e os valores são enviados separadamente. A diferença é de segurança e de clareza:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th></th><th>Statement</th><th>PreparedStatement</th></tr></thead>
+<tbody>
+<tr><td>Valores vindos do usuário</td><td>concatenados no texto: vulnerável à injeção de SQL</td><td>enviados separados: o banco nunca os interpreta como comando</td></tr>
+<tr><td>Tipos dos valores</td><td>convertidos no texto</td><td>setters tipados (<code>setString</code>, <code>setInt</code>)</td></tr>
+<tr><td>Uso típico</td><td>DDL fixo, como <code>CREATE TABLE</code></td><td>tudo que recebe valores</td></tr>
+</tbody></table></div>
+<pre class="ah-code"><code><span class="cm">// ERRADO: o nome vira parte do comando</span>
+st.executeUpdate("INSERT INTO livro (titulo) VALUES ('" + titulo + "')");
+
+<span class="cm">// CERTO: o valor é enviado separado</span>
+PreparedStatement ps = con.prepareStatement("INSERT INTO livro (titulo) VALUES (?)");
+ps.setString(1, titulo);
+ps.executeUpdate();</code></pre>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: inserir um livro e receber o id" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Animação: inserir um livro e receber o id</h2>
+  <div class="ah-prose">
+
+<p>Acompanhe o método <code>inserir</code> do projeto. O id não é enviado pelo programa: ele é gerado pelo banco e devolvido ao final.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>public long inserir(Livro livro) throws SQLException {
+    String sql = &quot;INSERT INTO livro (titulo, ano, preco, isbn) VALUES (?, ?, ?, ?)&quot;;
+    try (PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        ps.setString(1, livro.titulo().strip());
+        ps.setInt(2, livro.ano());
+        ps.setDouble(3, livro.preco());
+        ps.setString(4, livro.isbn());
+        ps.executeUpdate();
+        try (ResultSet chaves = ps.getGeneratedKeys()) {
+            chaves.next();
+            return chaves.getLong(1);
+        }
+    }
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 1, "titulo": "O texto do comando", "texto": "O SQL tem marcas <code>?</code>. Os valores ainda não foram informados.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">SQL com ?</span><span class=\"ah-caixa \">setString</span><span class=\"ah-caixa \">executeUpdate</span><span class=\"ah-caixa \">getGeneratedKeys</span></div>"}, {"linha": 2, "titulo": "Preparar o comando", "texto": "O driver prepara o comando e pede a devolução das chaves geradas (<code>RETURN_GENERATED_KEYS</code>).", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">SQL com ?</span><span class=\"ah-caixa on\">preparado</span><span class=\"ah-caixa \">executeUpdate</span><span class=\"ah-caixa \">getGeneratedKeys</span></div>"}, {"linha": 3, "titulo": "Enviar os valores", "texto": "Cada valor é enviado em sua posição, com o tipo certo. O texto do comando não muda.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">SQL com ?</span><span class=\"ah-caixa ok\">preparado</span><span class=\"ah-caixa on\">valores enviados</span><span class=\"ah-caixa \">getGeneratedKeys</span></div>"}, {"linha": 7, "titulo": "Executar", "texto": "O banco grava a linha e gera um id. O método devolve quantas linhas mudaram.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">SQL com ?</span><span class=\"ah-caixa ok\">preparado</span><span class=\"ah-caixa ok\">valores enviados</span><span class=\"ah-caixa on\">gravado</span></div>"}, {"linha": 9, "titulo": "Ler o id gerado", "texto": "O cursor das chaves geradas precisa de <code>next()</code> antes de ler a primeira linha.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">gravado</span><span class=\"ah-caixa on\">id lido</span></div>"}, {"linha": 10, "titulo": "Devolver o id", "texto": "O método devolve o id gerado pelo banco. O objeto Java recebe esse número, sem que o programa tenha de adivinhá-lo.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">gravado</span><span class=\"ah-caixa ok\">id lido</span></div>"}]</script>
+</div>
+</section>
+
+<section id="lote" data-toc="Inserção em lote" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Inserção em lote</h2>
+  <div class="ah-prose">
+
+<p><code>addBatch()</code> acumula um INSERT por livro, e <code>executeBatch()</code> envia tudo de uma vez. Combinado com transação (aula 6), o lote é tudo ou nada: se um livro falhar, nenhum entra. O projeto faz isso em <code>inserirLote</code>, com <code>setAutoCommit(false)</code> e <code>commit()</code> no sucesso.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: criar, inserir e recusar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Exemplo executável: criar, inserir e recusar</h2>
+  <div class="ah-prose">
+
+<p>A demonstração cria a tabela, insere um livro e recebe o id, insere três livros em lote e tenta um ISBN repetido, que o banco recusa com o código 19.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Demonstração desta aula. A saída abaixo foi gerada por execução real, com Java 17, SQLite 3.46 e o driver sqlite-jdbc 3.46.1.0.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java-sqlite/src/demos/Demo03Inserir.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java-sqlite/src/demos/Demo03Inserir.java</code></a></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>id gerado: 1
+lote enviado: 2 comandos
+total na tabela: 3
+isbn repetido recusado: código 19</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Demo03Inserir.java)</summary>
+<pre class="ah-code mt-3"><code>package demos;
+
+import biblioteca.Conexao;
+import biblioteca.Livro;
+import biblioteca.LivroDao;
+import java.sql.Connection;
+import java.util.List;
+
+/** Tópico 3: criar a tabela e inserir (C do CRUD), com id gerado e inserção em lote. */
+public class Demo03Inserir {
+
+    public static void main(String[] args) throws Exception {
+        String arq = &quot;demo03.db&quot;;
+        new java.io.File(arq).delete();
+        try (Connection con = Conexao.abrir(arq)) {
+            Conexao.criarTabelas(con);
+            LivroDao dao = new LivroDao(con);
+
+            long id = dao.inserir(new Livro(null, &quot;  Dom Casmurro &quot;, 1899, 29.9, &quot;978-1&quot;));
+            System.out.println(&quot;id gerado: &quot; + id);
+
+            int n = dao.inserirLote(List.of(
+                    new Livro(null, &quot;Vidas Secas&quot;, 1938, 24.5, &quot;978-3&quot;),
+                    new Livro(null, &quot;Capitães da Areia&quot;, 1937, 34.0, &quot;978-4&quot;)));
+            System.out.println(&quot;lote enviado: &quot; + n + &quot; comandos&quot;);
+            System.out.println(&quot;total na tabela: &quot; + dao.contar());
+
+            try {
+                dao.inserir(new Livro(null, &quot;Repetido&quot;, 2000, 1, &quot;978-1&quot;));
+            } catch (java.sql.SQLException e) {
+                System.out.println(&quot;isbn repetido recusado: código &quot; + e.getErrorCode());
+            }
+        }
+        new java.io.File(arq).delete();
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li><strong>Ler o id com <code>SELECT MAX(id)</code>:</strong> outro usuário pode inserir entre as duas consultas. Use <code>getGeneratedKeys()</code>.</li>
+<li><strong>Esquecer <code>next()</code> nas chaves geradas:</strong> o cursor começa antes da primeira linha.</li>
+<li><strong>Preparar o comando dentro do laço:</strong> prepare uma vez e troque só os valores.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva <code>inserirAutor(String nome)</code> que devolve o id gerado, sem concatenação.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>PreparedStatement ps = con.prepareStatement("INSERT INTO autor (nome) VALUES (?)", Statement.RETURN_GENERATED_KEYS); ps.setString(1, nome); ps.executeUpdate(); try (ResultSet rs = ps.getGeneratedKeys()) { rs.next(); return rs.getLong(1); }</code>.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o lote usa transação, se cada INSERT já é atômico?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> cada INSERT é atômico, mas o lote é um conjunto deles. Sem transação, os primeiros livros ficariam gravados antes da falha do quinto. A transação torna o conjunto atômico.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plus text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Oracle. <em>Using Prepared Statements</em>: https://docs.oracle.com/javase/tutorial/jdbc/basics/prepared.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

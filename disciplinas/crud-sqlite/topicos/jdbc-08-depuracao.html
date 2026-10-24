@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Depuração e Problemas Comuns · AcademicHub</title>
+<meta name="description" content="Ler uma stack trace, provocar os erros mais comuns para reconhecê-los, e usar breakpoints no Eclipse, no VS Code e no NetBeans para ver o estado do programa.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-08-depuracao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="ler" data-toc="Lendo uma mensagem de erro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Lendo uma mensagem de erro</h2>
+  <div class="ah-prose">
+
+<p>Uma exceção tem três partes que convém ler nesta ordem: o <strong>tipo</strong> (<code>SQLException</code>), a <strong>mensagem</strong> (o que deu errado) e a <strong>pilha</strong> (onde aconteceu). A linha mais útil costuma ser a primeira que aponta para o seu próprio pacote, <code>biblioteca</code>, e não para a biblioteca do Java.</p>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: reconhecer três erros" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Animação: reconhecer três erros</h2>
+  <div class="ah-prose">
+
+<p>A demonstração provoca três erros. Use os botões para ver a causa de cada um e o código que o produziu.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>public static void main(String[] args) throws Exception {
+    System.out.println(&quot;== 1. URL errada&quot;);
+    try {
+        DriverManager.getConnection(&quot;jdbc:mysql://localhost/x&quot;);
+    } catch (SQLException e) {
+        System.out.println(&quot;SQLException: &quot; + e.getMessage());
+    }
+
+    System.out.println(&quot;== 2. SQL com erro de digitação&quot;);
+    try (Connection con = Conexao.abrir(&quot;demo07.db&quot;);
+         Statement st = con.createStatement()) {
+        st.execute(&quot;SELEC * FROM livro&quot;);
+    } catch (SQLException e) {
+        System.out.println(&quot;código &quot; + e.getErrorCode() + &quot;: &quot; + e.getMessage());
+    }
+
+    System.out.println(&quot;== 3. chave estrangeira violada&quot;);
+    try (Connection con = Conexao.abrir(&quot;demo07.db&quot;);
+         Statement st = con.createStatement()) {
+        st.execute(&quot;CREATE TABLE IF NOT EXISTS pai (id INTEGER PRIMARY KEY)&quot;);
+        st.execute(&quot;CREATE TABLE IF NOT EXISTS filho (pai_id INTEGER REFERENCES pai(id))&quot;);
+        st.execute(&quot;INSERT INTO filho (pai_id) VALUES (999)&quot;);
+    } catch (SQLException e) {
+        System.out.println(&quot;código &quot; + e.getErrorCode() + &quot;: &quot; + e.getMessage());
+    }
+    new java.io.File(&quot;demo07.db&quot;).delete();
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 3, "titulo": "Erro 1: URL", "texto": "Nenhum driver registrado aceita <code>jdbc:mysql</code>. A mensagem diz exatamente isso.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">erro 1: sem driver</span><span class=\"ah-caixa \">erro 2</span><span class=\"ah-caixa \">erro 3</span></div>"}, {"linha": 11, "titulo": "Erro 2: SQL", "texto": "A palavra <code>SELEC</code> não existe na linguagem. O código <code>1</code> indica erro de sintaxe.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">erro 1</span><span class=\"ah-caixa erro\">erro 2: SQL, código 1</span><span class=\"ah-caixa \">erro 3</span></div>"}, {"linha": 21, "titulo": "Erro 3: chave estrangeira", "texto": "O pai 999 não existe. O banco recusa a inserção, com o código 19.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">erro 1</span><span class=\"ah-caixa ok\">erro 2</span><span class=\"ah-caixa erro\">erro 3: FK, código 19</span></div>"}]</script>
+</div>
+</section>
+
+<section id="debugger" data-toc="Breakpoints nas três IDEs" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Breakpoints nas três IDEs</h2>
+  <div class="ah-prose">
+
+<p>Quando a mensagem não basta, o depurador mostra o valor de cada variável no momento em que o programa para. Coloque um ponto de parada clicando na margem esquerda da linha, e inicie a depuração:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Criar o ponto de parada</th><th>Iniciar a depuração</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>duplo clique na margem esquerda da linha</td><td><em>Run → Debug As → Java Application</em> (ou <kbd>F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>clique na margem à esquerda do número da linha</td><td><em>Run and Debug</em> ou <kbd>F5</kbd>, na classe com <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>clique na margem esquerda da linha</td><td><em>Debug → Debug File</em> ou <em>Debug Project</em></td></tr>
+</tbody></table></div>
+<p class="mt-4">Com o programa parado, a janela de variáveis mostra os valores. Em <code>trocarPrecos</code>, por exemplo, você verá <code>idA</code>, <code>idB</code>, <code>precoA</code> e <code>precoB</code>. Avance linha a linha (<em>Step Over</em>) para acompanhar a ordem exata das instruções.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: os erros provocados" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Exemplo executável: os erros provocados</h2>
+  <div class="ah-prose">
+
+<p>A demonstração mostra três erros: uma URL que nenhum driver aceita, uma palavra digitada errado no SQL, e uma chave estrangeira violada.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Demonstração desta aula. A saída abaixo foi gerada por execução real, com Java 17, SQLite 3.46 e o driver sqlite-jdbc 3.46.1.0.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java-sqlite/src/demos/Demo07Erros.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java-sqlite/src/demos/Demo07Erros.java</code></a></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>== 1. URL errada
+SQLException: No suitable driver found for jdbc:mysql://localhost/x
+== 2. SQL com erro de digitação
+código 1: [SQLITE_ERROR] SQL error or missing database (near &quot;SELEC&quot;: syntax error)
+== 3. chave estrangeira violada
+código 19: [SQLITE_CONSTRAINT_FOREIGNKEY] A foreign key constraint failed (FOREIGN KEY constraint failed)</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Demo07Erros.java)</summary>
+<pre class="ah-code mt-3"><code>package demos;
+
+import biblioteca.Conexao;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+/** Tópico 8: provoca os erros mais comuns para aprender a lê-los. */
+public class Demo07Erros {
+
+    public static void main(String[] args) throws Exception {
+        System.out.println(&quot;== 1. URL errada&quot;);
+        try {
+            DriverManager.getConnection(&quot;jdbc:mysql://localhost/x&quot;);
+        } catch (SQLException e) {
+            System.out.println(&quot;SQLException: &quot; + e.getMessage());
+        }
+
+        System.out.println(&quot;== 2. SQL com erro de digitação&quot;);
+        try (Connection con = Conexao.abrir(&quot;demo07.db&quot;);
+             Statement st = con.createStatement()) {
+            st.execute(&quot;SELEC * FROM livro&quot;);
+        } catch (SQLException e) {
+            System.out.println(&quot;código &quot; + e.getErrorCode() + &quot;: &quot; + e.getMessage());
+        }
+
+        System.out.println(&quot;== 3. chave estrangeira violada&quot;);
+        try (Connection con = Conexao.abrir(&quot;demo07.db&quot;);
+             Statement st = con.createStatement()) {
+            st.execute(&quot;CREATE TABLE IF NOT EXISTS pai (id INTEGER PRIMARY KEY)&quot;);
+            st.execute(&quot;CREATE TABLE IF NOT EXISTS filho (pai_id INTEGER REFERENCES pai(id))&quot;);
+            st.execute(&quot;INSERT INTO filho (pai_id) VALUES (999)&quot;);
+        } catch (SQLException e) {
+            System.out.println(&quot;código &quot; + e.getErrorCode() + &quot;: &quot; + e.getMessage());
+        }
+        new java.io.File(&quot;demo07.db&quot;).delete();
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="checklist" data-toc="Checklist de diagnóstico" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Checklist de diagnóstico</h2>
+  <div class="ah-prose">
+
+<ol class="ah-prose list-decimal pl-5 space-y-2">
+<li>A mensagem indica o problema? Leia o tipo, a mensagem e a primeira linha do seu pacote.</li>
+<li>O driver e o slf4j estão no classpath? (aula 1)</li>
+<li>A chave estrangeira está ligada nesta conexão? (aula 2)</li>
+<li>O arquivo é o que você imagina? Confira a pasta de execução: caminhos relativos dependem dela.</li>
+<li>Outro programa está com o banco aberto? (código 5, “database is locked”)</li>
+<li>O valor que chegou ao banco é o esperado? Use o breakpoint para ver os parâmetros.</li>
+</ol>
+
+  </div>
+</section>
+
+<section id="erros" data-toc="Sintomas que confundem" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Sintomas que confundem</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card"><table class="ah-table">
+<thead><tr><th>Sintoma</th><th>Causa mais comum</th></tr></thead>
+<tbody>
+<tr><td>a tabela existe, mas não tem dados</td><td>o programa lê outro arquivo: o caminho relativo mudou de pasta</td></tr>
+<tr><td>o dado é gravado, mas some depois</td><td>autocommit desligado e nenhum <code>commit()</code></td></tr>
+<tr><td>a consulta não acha nada</td><td>parâmetro com espaço, maiúscula ou ordem trocada</td></tr>
+<tr><td>erro <code>SQLITE_BUSY</code></td><td>outra conexão com transação de escrita aberta</td></tr>
+</tbody></table></div>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Provoque o erro 5 com duas conexões: uma com transação de escrita aberta, e outra tentando escrever.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> na primeira conexão, <code>setAutoCommit(false)</code> seguido de um INSERT, sem commit. Na segunda, um INSERT recebe SQLITE_BUSY (código 5) depois do tempo limite.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Com um breakpoint em <code>listarPagina</code>, descubra <code>LIMIT</code> e <code>OFFSET</code> para a página 3 com tamanho 2.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> LIMIT = 2 e OFFSET = (3 − 1) × 2 = 4. A terceira página começa na quinta linha.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Visual Studio Code. <em>Java debugging</em>: https://code.visualstudio.com/docs/java/java-debugging</li>
+<li>Eclipse Foundation. <em>Eclipse Help</em>: https://help.eclipse.org/</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
