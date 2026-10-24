@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projeto Completo: Aplicação de Console · AcademicHub</title>
+<meta name="description" content="Juntar tudo em um projeto: pacotes, a camada de acesso (DAO), o modelo com record e um menu que executa o CRUD, testado com um arquivo de entrada.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-07-projeto-console">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="camadas" data-toc="As camadas do projeto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>As camadas do projeto</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Camada</th><th>Arquivo</th><th>Responsabilidade</th></tr></thead>
+<tbody>
+<tr><td>Interface</td><td><code>App.java</code></td><td>lê o menu, valida o que foi digitado e mostra resultados</td></tr>
+<tr><td>Acesso a dados</td><td><code>LivroDao.java</code></td><td>todo o SQL da tabela; devolve objetos Java</td></tr>
+<tr><td>Modelo</td><td><code>Livro.java</code></td><td>o dado de um livro, como record imutável</td></tr>
+<tr><td>Infraestrutura</td><td><code>Conexao.java</code></td><td>abre a conexão e cria o esquema</td></tr>
+</tbody></table></div>
+<p class="mt-4">Regra prática: nenhuma classe da interface escreve SQL. Se o banco mudar, o estrago fica restrito ao DAO e à infraestrutura.</p>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: uma opção do menu, de ponta a ponta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Animação: uma opção do menu, de ponta a ponta</h2>
+  <div class="ah-prose">
+
+<p>Acompanhe a opção 3 (cadastrar livro): cinco respostas lidas, um objeto montado, uma chamada ao DAO e o id devolvido.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>    case &quot;3&quot; -&gt; {
+        System.out.print(&quot;Título: &quot;);
+        String titulo = entrada.nextLine();
+        System.out.print(&quot;Ano: &quot;);
+        int ano = Integer.parseInt(entrada.nextLine().strip());
+        System.out.print(&quot;Preço: &quot;);
+        double preco = Double.parseDouble(entrada.nextLine().strip().replace(&#x27;,&#x27;, &#x27;.&#x27;));
+        System.out.print(&quot;ISBN (vazio se não tiver): &quot;);
+        String isbn = entrada.nextLine().strip();
+        long id = dao.inserir(new Livro(null, titulo, ano, preco, isbn.isEmpty() ? null : isbn));
+        System.out.println(&quot;Cadastrado com id &quot; + id);
+    }
+    case &quot;4&quot; -&gt; {
+        System.out.print(&quot;Id do livro: &quot;);
+        long id = Long.parseLong(entrada.nextLine().strip());
+        System.out.print(&quot;Novo preço: &quot;);
+        double preco = Double.parseDouble(entrada.nextLine().strip().replace(&#x27;,&#x27;, &#x27;.&#x27;));
+        var atual = dao.buscarPorId(id);
+        if (atual.isEmpty()) {
+            System.out.println(&quot;Livro não encontrado.&quot;);
+        } else {
+            Livro l = atual.get();
+            dao.atualizar(new Livro(l.id(), l.titulo(), l.ano(), preco, l.isbn()));
+            System.out.println(&quot;Preço alterado.&quot;);
+        }
+    }
+    case &quot;5&quot; -&gt; {
+        System.out.print(&quot;Id do livro: &quot;);
+        long id = Long.parseLong(entrada.nextLine().strip());
+        System.out.println(dao.remover(id) ? &quot;Removido.&quot; : &quot;Livro não encontrado.&quot;);
+    }
+    case &quot;0&quot; -&gt; {
+        return false;
+    }
+    default -&gt; System.out.println(&quot;Opção inválida.&quot;);
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 1, "titulo": "Ler o título", "texto": "O menu pede cada campo. A aplicação só lê, valida o que precisa e monta o objeto.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">menu 3</span><span class=\"ah-caixa \">ler 5 campos</span><span class=\"ah-caixa \">gravar</span><span class=\"ah-caixa \">id</span></div>"}, {"linha": 4, "titulo": "Converter o ano", "texto": "Se o usuário digitar letras, <code>parseInt</code> lança <code>NumberFormatException</code>, tratada no laço principal.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">menu 3</span><span class=\"ah-caixa on\">ano lido</span><span class=\"ah-caixa \">gravar</span><span class=\"ah-caixa \">id</span></div>"}, {"linha": 6, "titulo": "Converter o preço", "texto": "A vírgula é trocada por ponto, porque o Java espera ponto decimal.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">menu 3</span><span class=\"ah-caixa ok\">ano lido</span><span class=\"ah-caixa on\">preço lido</span><span class=\"ah-caixa \">gravar</span><span class=\"ah-caixa \">id</span></div>"}, {"linha": 9, "titulo": "Montar o objeto", "texto": "O id ainda é <code>null</code>: quem o define é o banco. O ISBN vazio vira <code>null</code>.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">preço lido</span><span class=\"ah-caixa on\">Livro montado</span><span class=\"ah-caixa \">gravar</span><span class=\"ah-caixa \">id</span></div>"}, {"linha": 9, "titulo": "Chamar o DAO", "texto": "A interface não escreve SQL. Ela delega ao <code>LivroDao</code>, que devolve o id gerado.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">Livro montado</span><span class=\"ah-caixa on\">DAO grava</span><span class=\"ah-caixa \">id</span></div>"}, {"linha": 10, "titulo": "Mostrar o resultado", "texto": "A mensagem com o id volta ao console, e o menu aparece de novo.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">DAO grava</span><span class=\"ah-caixa ok\">id</span></div>"}]</script>
+</div>
+</section>
+
+<section id="rodar" data-toc="Rodar pela IDE e pelo terminal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Rodar pela IDE e pelo terminal</h2>
+  <div class="ah-prose">
+
+<p>Pela IDE, rode a classe <code>App</code> como aplicação Java (passos da primeira aula). Pelo terminal, na pasta do projeto:</p>
+<pre class="ah-code"><code><span class="cm"># macOS / Linux (ou Git Bash no Windows)</span>
+./compilar.sh
+./rodar.sh                          <span class="cm"># menu interativo</span>
+./rodar.sh &lt; entrada-exemplo.txt    <span class="cm"># respostas vindas de um arquivo</span>
+
+<span class="cm"># Windows (Prompt de Comando), na pasta do projeto:</span>
+javac -encoding UTF-8 -cp "lib/*" -d out src\biblioteca\*.java src\demos\*.java
+java -cp "out;lib/*" biblioteca.App</code></pre>
+<p class="mt-4">O arquivo <code>entrada-exemplo.txt</code> repete uma sessão completa. Quando a entrada vem de arquivo, as respostas não aparecem na tela, e isso é normal.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: a sessão de entrada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Exemplo executável: a sessão de entrada</h2>
+  <div class="ah-prose">
+
+<p>A saída é a execução real com <code>entrada-exemplo.txt</code>: dois livros cadastrados, listagem, busca, alteração de preço, remoção e saída.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Sessão real com o arquivo de entrada <code>entrada-exemplo.txt</code>. Como as respostas vêm de arquivo, elas não aparecem na saída, e por isso o menu é mostrado de novo a cada operação.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivos</div>
+    <ul class="text-sm space-y-2"><li><a href="../exemplos/java-sqlite/src/biblioteca/App.java" class="text-indigo-300 hover:underline"><code>biblioteca/App.java</code></a></li>
+    <li><a href="../exemplos/java-sqlite/entrada-exemplo.txt" class="text-indigo-300 hover:underline"><code>entrada-exemplo.txt</code></a></li></ul></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Pelo terminal, com a sessão do arquivo</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos/java-sqlite
+./compilar.sh
+./rodar.sh &lt; entrada-exemplo.txt</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>Banco: /tmp/app-capt.db
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Título: Ano: Preço: ISBN (vazio se não tiver): Cadastrado com id 1
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Título: Ano: Preço: ISBN (vazio se não tiver): Cadastrado com id 2
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Total de livros: 2
+#1 Dom Casmurro (1899) R$ 29,90 ISBN 978-1
+#2 Vidas Secas (1938) R$ 24,50
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Trecho do título: #2 Vidas Secas (1938) R$ 24,50
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Id do livro: Novo preço: Preço alterado.
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Total de livros: 2
+#1 Dom Casmurro (1899) R$ 19,90 ISBN 978-1
+#2 Vidas Secas (1938) R$ 24,50
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Id do livro: Removido.
+
+1) Listar livros (página 1)
+2) Buscar por título
+3) Cadastrar livro
+4) Alterar preço
+5) Remover livro
+0) Sair
+Escolha: Até logo.</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (App.java)</summary>
+<pre class="ah-code mt-3"><code>package biblioteca;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Scanner;
+
+/**
+ * Aplicação de console: menu com as operações do CRUD.
+ * Lê a entrada de System.in, então pode ser testada com um arquivo: java ... &lt; entrada-exemplo.txt
+ */
+public class App {
+
+    public static void main(String[] args) {
+        String arquivo = args.length &gt; 0 ? args[0] : Conexao.ARQUIVO_PADRAO;
+        try (Connection con = Conexao.abrir(arquivo);
+             Scanner entrada = new Scanner(System.in)) {
+            Conexao.criarTabelas(con);
+            LivroDao dao = new LivroDao(con);
+            System.out.println(&quot;Banco: &quot; + arquivo);
+            boolean rodando = true;
+            while (rodando) {
+                mostrarMenu();
+                String opcao = entrada.nextLine().strip();
+                try {
+                    rodando = executar(opcao, dao, entrada);
+                } catch (SQLException e) {
+                    System.out.println(&quot;Erro no banco: &quot; + e.getMessage());
+                } catch (NumberFormatException e) {
+                    System.out.println(&quot;Valor numérico inválido.&quot;);
+                }
+            }
+            System.out.println(&quot;Até logo.&quot;);
+        } catch (SQLException e) {
+            System.out.println(&quot;Não foi possível abrir o banco: &quot; + e.getMessage());
+        }
+    }
+
+    private static void mostrarMenu() {
+        System.out.println(&quot;&quot;&quot;
+                
+                1) Listar livros (página 1)
+                2) Buscar por título
+                3) Cadastrar livro
+                4) Alterar preço
+                5) Remover livro
+                0) Sair&quot;&quot;&quot;);
+        System.out.print(&quot;Escolha: &quot;);
+    }
+
+    private static boolean executar(String opcao, LivroDao dao, Scanner entrada) throws SQLException {
+        switch (opcao) {
+            case &quot;1&quot; -&gt; {
+                List&lt;Livro&gt; pagina = dao.listarPagina(1, 10);
+                System.out.println(&quot;Total de livros: &quot; + dao.contar());
+                pagina.forEach(System.out::println);
+            }
+            case &quot;2&quot; -&gt; {
+                System.out.print(&quot;Trecho do título: &quot;);
+                dao.buscarPorTitulo(entrada.nextLine().strip()).forEach(System.out::println);
+            }
+            case &quot;3&quot; -&gt; {
+                System.out.print(&quot;Título: &quot;);
+                String titulo = entrada.nextLine();
+                System.out.print(&quot;Ano: &quot;);
+                int ano = Integer.parseInt(entrada.nextLine().strip());
+                System.out.print(&quot;Preço: &quot;);
+                double preco = Double.parseDouble(entrada.nextLine().strip().replace(&#x27;,&#x27;, &#x27;.&#x27;));
+                System.out.print(&quot;ISBN (vazio se não tiver): &quot;);
+                String isbn = entrada.nextLine().strip();
+                long id = dao.inserir(new Livro(null, titulo, ano, preco, isbn.isEmpty() ? null : isbn));
+                System.out.println(&quot;Cadastrado com id &quot; + id);
+            }
+            case &quot;4&quot; -&gt; {
+                System.out.print(&quot;Id do livro: &quot;);
+                long id = Long.parseLong(entrada.nextLine().strip());
+                System.out.print(&quot;Novo preço: &quot;);
+                double preco = Double.parseDouble(entrada.nextLine().strip().replace(&#x27;,&#x27;, &#x27;.&#x27;));
+                var atual = dao.buscarPorId(id);
+                if (atual.isEmpty()) {
+                    System.out.println(&quot;Livro não encontrado.&quot;);
+                } else {
+                    Livro l = atual.get();
+                    dao.atualizar(new Livro(l.id(), l.titulo(), l.ano(), preco, l.isbn()));
+                    System.out.println(&quot;Preço alterado.&quot;);
+                }
+            }
+            case &quot;5&quot; -&gt; {
+                System.out.print(&quot;Id do livro: &quot;);
+                long id = Long.parseLong(entrada.nextLine().strip());
+                System.out.println(dao.remover(id) ? &quot;Removido.&quot; : &quot;Livro não encontrado.&quot;);
+            }
+            case &quot;0&quot; -&gt; {
+                return false;
+            }
+            default -&gt; System.out.println(&quot;Opção inválida.&quot;);
+        }
+        return true;
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Acrescente a opção "6) Listar até um ano" ao menu.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> (a) acrescente o texto ao menu; (b) crie um <code>case "6"</code> que lê o ano com <code>Integer.parseInt</code>; (c) crie no DAO <code>listarAteAno(int ano)</code> com <code>WHERE ano &lt;= ?</code>. A interface não ganha SQL: só chama o DAO.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o menu trata <code>NumberFormatException</code> em vez de checar letra por letra?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o <code>parseInt</code> já faz a conversão e lança uma exceção clara quando não é possível. Capturar a exceção é mais simples e confiável do que uma verificação manual.</p></div></details>
+
+  </div>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li><strong>Misturar SQL na interface:</strong> dificulta testes e repete regras. Mova o SQL para o DAO.</li>
+<li><strong>Não tratar <code>NumberFormatException</code>:</strong> uma letra no lugar do número derruba o programa.</li>
+<li><strong>Linha em branco no lugar errado da entrada:</strong> o programa lê a linha vazia como resposta. Por isso o exemplo deixa o ISBN vazio de propósito.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Oracle. <em>Java Records</em>: https://docs.oracle.com/en/java/javase/17/language/records.html</li>
+<li>Fowler, M. <em>Patterns of Enterprise Application Architecture</em>. Padrão Data Access Object.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
