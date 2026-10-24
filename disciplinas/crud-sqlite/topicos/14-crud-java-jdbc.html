@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD em Java com JDBC · AcademicHub</title>
+<meta name="description" content="Conectar ao SQLite com JDBC, PreparedStatement, ResultSet, geração de chaves, transações com rollback e tratamento de SQLException.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/14-crud-java-jdbc">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="jdbc" data-toc="O que é JDBC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>O que é JDBC</h2>
+  <div class="ah-prose">
+
+<p>JDBC (<em>Java Database Connectivity</em>) é a API padrão do Java para falar com bancos relacionais. Ela define interfaces como <code>Connection</code>, <code>PreparedStatement</code> e <code>ResultSet</code>. Cada banco fornece um <strong>driver</strong> que implementa essas interfaces. Para o SQLite, o driver é o <code>sqlite-jdbc</code>.</p>
+
+  </div>
+</section>
+
+<section id="dependencias" data-toc="Dependências do exemplo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>Dependências do exemplo</h2>
+  <div class="ah-prose">
+
+<p>O exemplo precisa de dois jars, ambos disponíveis no Maven Central:</p>
+<ul class="ah-prose list-disc pl-5 space-y-2 mt-3">
+  <li><strong>sqlite-jdbc 3.46.1.0</strong>: https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/3.46.1.0/sqlite-jdbc-3.46.1.0.jar</li>
+  <li><strong>slf4j-api 2.0.13</strong>: https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar (o driver usa log por essa API; sem ela, o programa não inicia)</li>
+</ul>
+<p class="mt-3">Ao rodar, o SLF4J imprime um aviso dizendo que não há provedor de log. É esperado: o exemplo não configura um. O aviso não afeta o resultado.</p>
+
+  </div>
+</section>
+
+<section id="preparado" data-toc="PreparedStatement: a forma segura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>PreparedStatement: a forma segura</h2>
+  <div class="ah-prose">
+
+<p>Assim como em Python, valores são sempre passados por parâmetro. Em Java, o <code>PreparedStatement</code> tem setters tipados (<code>setString</code>, <code>setInt</code>, <code>setDouble</code>), e os parâmetros são numerados a partir de 1. A instrução é preparada uma vez e pode ser reutilizada.</p>
+<pre class="ah-code"><code><span class="kw">try</span> (<span class="ty">Connection</span> con = <span class="ty">DriverManager</span>.getConnection(url);
+     <span class="ty">PreparedStatement</span> ps = con.prepareStatement("SELECT titulo FROM livro WHERE id = ?")) {
+    ps.setLong(1, id);
+    <span class="kw">try</span> (<span class="ty">ResultSet</span> rs = ps.executeQuery()) {
+        <span class="kw">if</span> (rs.next()) System.out.println(rs.getString("titulo"));
+    }
+}</code></pre>
+
+  </div>
+</section>
+
+<section id="recursos" data-toc="try-with-resources: fechar sempre" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>try-with-resources: fechar sempre</h2>
+  <div class="ah-prose">
+
+<p>Conexões, comandos e resultados precisam ser fechados. O bloco <code>try (...)</code> fecha automaticamente tudo o que foi declarado dentro dos parênteses, mesmo quando há exceção. Esquecer de fechar uma conexão é um vazamento que, em um servidor, esgota o recurso.</p>
+
+  </div>
+</section>
+
+<section id="crud" data-toc="Os quatro métodos do repositório" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>Os quatro métodos do repositório</h2>
+  <div class="ah-prose">
+
+<p>A classe <code>LivroCrud</code> segue o mesmo modelo do exemplo em Python: um método por operação do CRUD. Destaques:</p>
+<ul class="ah-prose list-disc pl-5 space-y-2 mt-3">
+  <li><strong>criar</strong> usa <code>Statement.RETURN_GENERATED_KEYS</code> e lê a chave com <code>getGeneratedKeys()</code>, o equivalente ao <code>lastrowid</code>.</li>
+  <li><strong>buscar</strong> devolve <code>Optional</code>, que obriga quem chama a tratar o caso de não encontrado.</li>
+  <li><strong>atualizar</strong> e <strong>remover</strong> devolvem o número de linhas alteradas, o equivalente ao <code>rowcount</code>.</li>
+  <li><strong>trocarPrecos</strong> é a transação: <code>setAutoCommit(false)</code>, <code>commit()</code> no sucesso e <code>rollback()</code> no erro.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="pragma" data-toc="A pragma em cada conexão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>A pragma em cada conexão</h2>
+  <div class="ah-prose">
+
+<p>O método <code>conectar()</code> executa <code>PRAGMA foreign_keys = ON</code> em toda conexão nova. Essa é a forma de garantir a integridade referencial que o tópico 4 explicou: a configuração não é global, e cada conexão começa com ela desligada.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: compilar e rodar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>Exemplo executável: compilar e rodar</h2>
+  <div class="ah-prose">
+
+<p>O código completo está ao lado. Os comandos abaixo compilam e executam o programa com os dois jars no classpath. O arquivo <code>biblioteca-java.db</code> é criado na pasta em que você executar.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Compile e rode com os dois jars no classpath. A saída abaixo foi gerada com o driver 3.46.1.0 e o slf4j-api 2.0.13.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java/LivroCrud.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java/LivroCrud.java</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos/java
+<span class="cm"># 1) baixe os jars (uma vez):</span>
+curl -O https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/3.46.1.0/sqlite-jdbc-3.46.1.0.jar
+curl -O https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar
+<span class="cm"># 2) compile e rode:</span>
+javac -cp sqlite-jdbc-3.46.1.0.jar -d out LivroCrud.java
+java -cp out:sqlite-jdbc-3.46.1.0.jar:slf4j-api-2.0.13.jar LivroCrud</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>== create
+Livro[id=1, titulo=Dom Casmurro, ano=1899, preco=29.9, isbn=978-1]
+Livro[id=2, titulo=Vidas Secas, ano=1938, preco=24.5, isbn=978-3]
+== read
+buscar(2): Vidas Secas
+buscar(999): false
+listar(1930): [Vidas Secas]
+== update
+linhas alteradas: 1, preço agora: 19.9
+== transação
+após troca: 19.9 / 29.9
+troca com livro inexistente: livro 999 não existe
+preços após a falha (sem mudança): 19.9 / 29.9
+== delete
+linhas removidas: 1, de novo: 0
+== erros do banco
+isbn repetido recusado: [SQLITE_CONSTRAINT_UNIQUE] A UNIQUE constraint failed (UNIQUE constraint failed: livro.isbn)
+preço negativo recusado: [SQLITE_CONSTRAINT_CHECK] A CHECK constraint failed (CHECK constraint failed: preco &gt;= 0)</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (LivroCrud.java)</summary>
+<pre class="ah-code mt-3"><code>import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * CRUD de livros com JDBC e SQLite.
+ * Compile e rode (com o driver sqlite-jdbc no classpath):
+ *   javac -cp sqlite-jdbc.jar -d out LivroCrud.java
+ *   java -cp out:sqlite-jdbc.jar LivroCrud
+ */
+public class LivroCrud {
+
+    record Livro(Long id, String titulo, int ano, double preco, String isbn) {}
+
+    static {
+        // Registra o driver do SQLite. Em JDBC 4+ isso costuma ser automático,
+        // mas o registro explícito deixa claro de onde vem a conexão.
+        try {
+            Class.forName(&quot;org.sqlite.JDBC&quot;);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(&quot;driver sqlite-jdbc não está no classpath&quot;, e);
+        }
+    }
+
+    private final String url;
+
+    LivroCrud(String url) throws SQLException {
+        this.url = url;
+        try (Connection con = conectar(); Statement st = con.createStatement()) {
+            st.execute(&quot;PRAGMA foreign_keys = ON&quot;);
+            st.execute(&quot;&quot;&quot;
+                CREATE TABLE IF NOT EXISTS livro (
+                    id     INTEGER PRIMARY KEY,
+                    titulo TEXT    NOT NULL,
+                    ano    INTEGER NOT NULL CHECK (ano &gt; 0),
+                    preco  REAL    NOT NULL DEFAULT 0 CHECK (preco &gt;= 0),
+                    isbn   TEXT    UNIQUE)&quot;&quot;&quot;);
+        }
+    }
+
+    private Connection conectar() throws SQLException {
+        Connection con = DriverManager.getConnection(url);
+        try (Statement st = con.createStatement()) {
+            st.execute(&quot;PRAGMA foreign_keys = ON&quot;);   // a cada conexão: é uma configuração da sessão
+        }
+        return con;
+    }
+
+    // C: create. PreparedStatement evita injeção de SQL.
+    Livro criar(Livro l) throws SQLException {
+        String sql = &quot;INSERT INTO livro (titulo, ano, preco, isbn) VALUES (?, ?, ?, ?)&quot;;
+        try (Connection con = conectar();
+             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, l.titulo().strip());
+            ps.setInt(2, l.ano());
+            ps.setDouble(3, l.preco());
+            ps.setString(4, l.isbn());
+            ps.executeUpdate();
+            try (ResultSet chaves = ps.getGeneratedKeys()) {
+                chaves.next();
+                return new Livro(chaves.getLong(1), l.titulo().strip(), l.ano(), l.preco(), l.isbn());
+            }
+        }
+    }
+
+    // R: read por chave
+    Optional&lt;Livro&gt; buscar(long id) throws SQLException {
+        String sql = &quot;SELECT id, titulo, ano, preco, isbn FROM livro WHERE id = ?&quot;;
+        try (Connection con = conectar(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(mapear(rs)) : Optional.empty();
+            }
+        }
+    }
+
+    // R: read em lista, com filtro e ordenação
+    List&lt;Livro&gt; listar(int anoMinimo) throws SQLException {
+        String sql = &quot;SELECT id, titulo, ano, preco, isbn FROM livro WHERE ano &gt;= ? ORDER BY titulo&quot;;
+        List&lt;Livro&gt; lista = new ArrayList&lt;&gt;();
+        try (Connection con = conectar(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, anoMinimo);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) lista.add(mapear(rs));
+            }
+        }
+        return lista;
+    }
+
+    // U: update. Devolve quantas linhas mudaram (0 significa &quot;não existe&quot;).
+    int atualizar(Livro l) throws SQLException {
+        String sql = &quot;UPDATE livro SET titulo = ?, ano = ?, preco = ?, isbn = ? WHERE id = ?&quot;;
+        try (Connection con = conectar(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, l.titulo());
+            ps.setInt(2, l.ano());
+            ps.setDouble(3, l.preco());
+            ps.setString(4, l.isbn());
+            ps.setLong(5, l.id());
+            return ps.executeUpdate();
+        }
+    }
+
+    // D: delete
+    int remover(long id) throws SQLException {
+        try (Connection con = conectar(); PreparedStatement ps = con.prepareStatement(&quot;DELETE FROM livro WHERE id = ?&quot;)) {
+            ps.setLong(1, id);
+            return ps.executeUpdate();
+        }
+    }
+
+    // Transação: duas operações que precisam acontecer juntas (tudo ou nada)
+    void trocarPrecos(long idA, long idB) throws SQLException {
+        try (Connection con = conectar()) {
+            con.setAutoCommit(false);
+            try (PreparedStatement sel = con.prepareStatement(&quot;SELECT preco FROM livro WHERE id = ?&quot;);
+                 PreparedStatement upd = con.prepareStatement(&quot;UPDATE livro SET preco = ? WHERE id = ?&quot;)) {
+                double pa = precoDe(sel, idA), pb = precoDe(sel, idB);
+                upd.setDouble(1, pb); upd.setLong(2, idA); upd.executeUpdate();
+                upd.setDouble(1, pa); upd.setLong(2, idB); upd.executeUpdate();
+                con.commit();
+            } catch (SQLException e) {
+                con.rollback();          // desfaz as duas alterações
+                throw e;
+            } finally {
+                con.setAutoCommit(true);
+            }
+        }
+    }
+
+    private double precoDe(PreparedStatement sel, long id) throws SQLException {
+        sel.setLong(1, id);
+        try (ResultSet rs = sel.executeQuery()) {
+            if (!rs.next()) throw new SQLException(&quot;livro &quot; + id + &quot; não existe&quot;);
+            return rs.getDouble(1);
+        }
+    }
+
+    private Livro mapear(ResultSet rs) throws SQLException {
+        return new Livro(rs.getLong(&quot;id&quot;), rs.getString(&quot;titulo&quot;), rs.getInt(&quot;ano&quot;),
+                         rs.getDouble(&quot;preco&quot;), rs.getString(&quot;isbn&quot;));
+    }
+
+    public static void main(String[] args) throws SQLException {
+        LivroCrud repo = new LivroCrud(&quot;jdbc:sqlite:biblioteca-java.db&quot;);
+        System.out.println(&quot;== create&quot;);
+        Livro a = repo.criar(new Livro(null, &quot;  Dom Casmurro &quot;, 1899, 29.9, &quot;978-1&quot;));
+        Livro b = repo.criar(new Livro(null, &quot;Vidas Secas&quot;, 1938, 24.5, &quot;978-3&quot;));
+        System.out.println(a);
+        System.out.println(b);
+
+        System.out.println(&quot;== read&quot;);
+        System.out.println(&quot;buscar(&quot; + b.id() + &quot;): &quot; + repo.buscar(b.id()).map(Livro::titulo).orElse(&quot;-&quot;));
+        System.out.println(&quot;buscar(999): &quot; + repo.buscar(999).isPresent());
+        System.out.println(&quot;listar(1930): &quot; + repo.listar(1930).stream().map(Livro::titulo).toList());
+
+        System.out.println(&quot;== update&quot;);
+        int linhas = repo.atualizar(new Livro(b.id(), b.titulo(), b.ano(), 19.9, b.isbn()));
+        System.out.println(&quot;linhas alteradas: &quot; + linhas + &quot;, preço agora: &quot; + repo.buscar(b.id()).get().preco());
+
+        System.out.println(&quot;== transação&quot;);
+        repo.trocarPrecos(a.id(), b.id());
+        System.out.println(&quot;após troca: &quot; + repo.buscar(a.id()).get().preco() + &quot; / &quot; + repo.buscar(b.id()).get().preco());
+        try {
+            repo.trocarPrecos(a.id(), 999);      // o segundo livro não existe: tudo é desfeito
+        } catch (SQLException e) {
+            System.out.println(&quot;troca com livro inexistente: &quot; + e.getMessage());
+        }
+        System.out.println(&quot;preços após a falha (sem mudança): &quot; + repo.buscar(a.id()).get().preco() + &quot; / &quot; + repo.buscar(b.id()).get().preco());
+
+        System.out.println(&quot;== delete&quot;);
+        System.out.println(&quot;linhas removidas: &quot; + repo.remover(a.id()) + &quot;, de novo: &quot; + repo.remover(a.id()));
+
+        System.out.println(&quot;== erros do banco&quot;);
+        try {
+            repo.criar(new Livro(null, &quot;Repetido&quot;, 2000, 1, &quot;978-3&quot;));
+        } catch (SQLException e) {
+            System.out.println(&quot;isbn repetido recusado: &quot; + e.getMessage());
+        }
+        try {
+            repo.criar(new Livro(null, &quot;Preço ruim&quot;, 2000, -5, null));
+        } catch (SQLException e) {
+            System.out.println(&quot;preço negativo recusado: &quot; + e.getMessage());
+        }
+    }
+}
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Concatenar strings no SQL:</strong> a mesma injeção do Python. Use <code>PreparedStatement</code> sempre.</li>
+  <li><strong>Esquecer <code>setAutoCommit(true)</code>:</strong> a conexão volta ao pool com transação aberta. O <code>finally</code> do método de transação existe por isso.</li>
+  <li><strong>Usar <code>ResultSet</code> fora do bloco:</strong> ele é fechado junto com o try. Extraia os dados antes de sair do bloco.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Acrescente um método <code>contar()</code> que devolve o total de livros, usando <code>Statement</code> simples.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>try (Connection con = conectar(); Statement st = con.createStatement(); ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM livro")) { rs.next(); return rs.getInt(1); }</code>. Como não há parâmetro do usuário, <code>Statement</code> é aceitável aqui.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que <code>buscar</code> devolve <code>Optional&lt;Livro&gt;</code> e não <code>Livro</code> com null?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o tipo Optional deixa explícito, na assinatura, que o resultado pode não existir. Quem chama é obrigado a considerar o caso ausente, o que evita NullPointerException em tempo de execução.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>Oracle. <em>Trail: JDBC Database Access</em>: https://docs.oracle.com/javase/tutorial/jdbc/</li>
+  <li>xerial. <em>sqlite-jdbc (driver)</em>: https://github.com/xerial/sqlite-jdbc</li>
+  <li>SQLite. <em>Limites e recursos</em>: https://www.sqlite.org/limits.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

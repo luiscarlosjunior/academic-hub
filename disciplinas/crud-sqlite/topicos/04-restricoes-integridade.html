@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restrições e Integridade · AcademicHub</title>
+<meta name="description" content="NOT NULL, UNIQUE, CHECK, DEFAULT, PRIMARY KEY e FOREIGN KEY, e por que a integridade deve ficar no banco.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/04-restricoes-integridade">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="porque" data-toc="Por que a integridade mora no banco" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Por que a integridade mora no banco</h2>
+  <div class="ah-prose">
+
+<p>Toda aplicação tem validação, mas validação só na tela não basta: outro programa, uma importação, um script de manutenção ou um bug futuro podem gravar dados inválidos. A <strong>integridade</strong> é a garantia de que os dados respeitam as regras do domínio, sempre, independentemente de quem escreve. Ela é imposta pelo banco por meio de <strong>restrições</strong> (constraints).</p>
+
+  </div>
+</section>
+
+<section id="tabela" data-toc="As restrições e o que cada uma garante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>As restrições e o que cada uma garante</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Restrição</th><th>Garante</th><th>Exemplo</th></tr></thead>
+    <tbody>
+      <tr><td><code>NOT NULL</code></td><td>a coluna sempre tem valor</td><td><code>titulo TEXT NOT NULL</code></td></tr>
+      <tr><td><code>UNIQUE</code></td><td>não há dois valores iguais</td><td><code>isbn TEXT UNIQUE</code></td></tr>
+      <tr><td><code>PRIMARY KEY</code></td><td>identifica a linha (único e não nulo)</td><td><code>id INTEGER PRIMARY KEY</code></td></tr>
+      <tr><td><code>CHECK</code></td><td>o valor satisfaz uma condição</td><td><code>CHECK (ano &gt; 0)</code></td></tr>
+      <tr><td><code>DEFAULT</code></td><td>valor quando nada é informado</td><td><code>DEFAULT 0</code></td></tr>
+      <tr><td><code>FOREIGN KEY</code></td><td>o valor existe na tabela referenciada</td><td><code>REFERENCES livro(id)</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</section>
+
+<section id="fk" data-toc="Chave estrangeira e a pragma foreign_keys" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Chave estrangeira e a pragma foreign_keys</h2>
+  <div class="ah-prose">
+
+<p>A chave estrangeira é a restrição mais importante do modelo relacional. Ela diz: “este empréstimo só pode apontar para um livro que existe”. Mas há uma armadilha específica do SQLite: por motivos de compatibilidade, a verificação de chave estrangeira vem <strong>desligada</strong> por padrão. Ela precisa ser ligada em <em>cada conexão</em>:</p>
+<pre class="ah-code"><code>PRAGMA foreign_keys = ON;</code></pre>
+<p class="mt-3">O exemplo mostra os dois comportamentos: com a pragma ligada, o empréstimo para um livro inexistente é recusado; com ela desligada, o banco aceita o dado inválido sem reclamar.</p>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro de produção clássico:</strong> a aplicação funciona em testes e aceita dados órfãos em produção porque uma das conexões não executou a pragma. Coloque a pragma na função que abre a conexão, sempre.</div></div>
+
+  </div>
+</section>
+
+<section id="check" data-toc="CHECK e DEFAULT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>CHECK e DEFAULT</h2>
+  <div class="ah-prose">
+
+<p><code>CHECK</code> aceita qualquer expressão booleana, incluindo combinações de colunas: <code>CHECK (data_fim IS NULL OR data_fim &gt;= data_inicio)</code>. Quando a condição resulta em falso, a inserção ou alteração é recusada. <code>DEFAULT</code> preenche automaticamente a coluna quando o INSERT não a menciona, e pode ser uma constante ou uma expressão como <code>CURRENT_TIMESTAMP</code>.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: provocar cada restrição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Exemplo executável: provocar cada restrição</h2>
+  <div class="ah-prose">
+
+<p>Cada bloco do script tenta uma violação e captura o erro. Repare que o banco diz qual restrição falhou, o que ajuda a depurar a aplicação.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t04_restricoes.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t04_restricoes.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t04_restricoes.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>1. NOT NULL:
+   RECUSADO: NOT NULL constraint failed: autor.nome
+2. UNIQUE (isbn):
+   RECUSADO: UNIQUE constraint failed: livro.isbn
+3. CHECK (ano &gt; 0):
+   RECUSADO: CHECK constraint failed: ano &gt; 0
+4. DEFAULT (preco sem valor informado):
+   (&#x27;Padrão&#x27;, 0.0)
+5. FOREIGN KEY com PRAGMA foreign_keys = ON:
+   RECUSADO: FOREIGN KEY constraint failed
+6. Mesma regra com a chave estrangeira DESLIGADA (padrão antigo do SQLite):
+   aceito -&gt; sem PRAGMA, a regra é ignorada</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+def tentar(con, sql, params=()):
+    try:
+        con.execute(sql, params)
+        return &quot;aceito&quot;
+    except sqlite3.IntegrityError as e:
+        return &quot;RECUSADO: &quot; + str(e)
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+
+print(&quot;1. NOT NULL:&quot;)
+print(&quot;  &quot;, tentar(con, &quot;INSERT INTO autor (nome) VALUES (NULL)&quot;))
+
+print(&quot;2. UNIQUE (isbn):&quot;)
+con.execute(&quot;INSERT INTO livro (titulo, ano, isbn) VALUES (&#x27;Dom Casmurro&#x27;, 1899, &#x27;978-1&#x27;)&quot;)
+print(&quot;  &quot;, tentar(con, &quot;INSERT INTO livro (titulo, ano, isbn) VALUES (&#x27;Outro&#x27;, 2000, &#x27;978-1&#x27;)&quot;))
+
+print(&quot;3. CHECK (ano &gt; 0):&quot;)
+print(&quot;  &quot;, tentar(con, &quot;INSERT INTO livro (titulo, ano) VALUES (&#x27;Sem ano&#x27;, -5)&quot;))
+
+print(&quot;4. DEFAULT (preco sem valor informado):&quot;)
+con.execute(&quot;INSERT INTO livro (titulo, ano) VALUES (&#x27;Padrão&#x27;, 2010)&quot;)
+print(&quot;  &quot;, con.execute(&quot;SELECT titulo, preco FROM livro WHERE titulo = &#x27;Padrão&#x27;&quot;).fetchone())
+
+print(&quot;5. FOREIGN KEY com PRAGMA foreign_keys = ON:&quot;)
+con.execute(&quot;INSERT INTO cliente (nome, email) VALUES (&#x27;Ana&#x27;, &#x27;ana@x.com&#x27;)&quot;)
+print(&quot;  &quot;, tentar(con, &quot;INSERT INTO emprestimo (livro_id, cliente_id, data_saida) VALUES (999, 1, &#x27;2026-10-01&#x27;)&quot;))
+
+print(&quot;6. Mesma regra com a chave estrangeira DESLIGADA (padrão antigo do SQLite):&quot;)
+con2 = sqlite3.connect(&quot;:memory:&quot;)
+con2.execute(&quot;CREATE TABLE pai (id INTEGER PRIMARY KEY)&quot;)
+con2.execute(&quot;CREATE TABLE filho (pai_id INTEGER REFERENCES pai(id))&quot;)
+print(&quot;  &quot;, tentar(con2, &quot;INSERT INTO filho (pai_id) VALUES (999)&quot;), &quot;-&gt; sem PRAGMA, a regra é ignorada&quot;)
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Esquecer a pragma:</strong> a chave estrangeira “existe” no CREATE, mas não é aplicada.</li>
+  <li><strong>UNIQUE com NULL:</strong> o SQLite permite vários NULL em uma coluna UNIQUE, porque NULL não é igual a nenhum outro valor. Se a regra é “no máximo um”, use um índice único parcial ou valide na aplicação.</li>
+  <li><strong>Confiar só na aplicação:</strong> a restrição no banco é a última linha de defesa. Ela existe justamente para o caso em que a aplicação falha.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva a restrição para garantir que uma assinatura tenha data de término posterior à de início, quando houver término.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>CHECK (fim IS NULL OR fim &gt; inicio)</code>. O <code>IS NULL</code> permite assinaturas ainda ativas, que não têm término.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o isbn repetido foi recusado, mas dois livros sem isbn (NULL) são aceitos?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> UNIQUE compara valores; NULL não é igual a outro NULL, então não há conflito. A regra “isbn é único quando informado” é exatamente o que o UNIQUE implementa.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>Chaves estrangeiras</em>: https://www.sqlite.org/foreignkeys.html</li>
+  <li>SQLite. <em>Restrições em CREATE TABLE</em>: https://www.sqlite.org/lang_createtable.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
