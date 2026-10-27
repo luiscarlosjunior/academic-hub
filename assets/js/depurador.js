@@ -51,14 +51,39 @@ const CODIGO = {
  "65": "    trocar(&a[i], &a[hi]);",
  "66": "    quicksort(a, lo, i - 1);",
  "67": "    quicksort(a, i + 1, hi);",
- "68": "}"
+ "68": "}",
+ "72": "static void intercalar(int a[], int aux[], size_t lo, size_t mid, size_t hi) {",
+ "73": "    size_t i = lo, j = mid, k = lo;",
+ "74": "    while (i < mid && j < hi) aux[k++] = (a[i] <= a[j]) ? a[i++] : a[j++];",
+ "75": "    while (i < mid) aux[k++] = a[i++];",
+ "76": "    while (j < hi) aux[k++] = a[j++];",
+ "77": "    memcpy(&a[lo], &aux[lo], (hi - lo) * sizeof *a);",
+ "78": "}",
+ "79": "",
+ "80": "static void merge_rec(int a[], int aux[], size_t lo, size_t hi) {",
+ "81": "    if (hi - lo < 2) return;",
+ "82": "    size_t mid = lo + (hi - lo) / 2;",
+ "83": "    merge_rec(a, aux, lo, mid);",
+ "84": "    merge_rec(a, aux, mid, hi);",
+ "85": "    intercalar(a, aux, lo, mid, hi);",
+ "86": "}",
+ "87": "",
+ "88": "static int merge_sort(int a[], size_t n) {",
+ "89": "    if (n < 2) return 1;",
+ "90": "    int *aux = malloc(n * sizeof *aux);      /* O(n) de memória auxiliar */",
+ "91": "    if (aux == NULL) return 0;",
+ "92": "    merge_rec(a, aux, 0, n);",
+ "93": "    free(aux);",
+ "94": "    return 1;",
+ "95": "}"
 };
 
   const ALGORITMOS = {
     bolha: { nome: 'Bolha (bubble sort)', linhas: [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27] },
     selecao: { nome: 'Seleção', linhas: [31, 32, 33, 34, 35, 36, 37, 38] },
     insercao: { nome: 'Inserção', linhas: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52] },
-    quicksort: { nome: 'Quicksort (Lomuto)', linhas: [56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68] }
+    quicksort: { nome: 'Quicksort (Lomuto)', linhas: [56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68] },
+    mergesort: { nome: 'Merge sort', linhas: [72, 73, 74, 75, 76, 77, 78, 80, 81, 82, 83, 84, 85, 86, 88, 89, 90, 91, 92, 93, 94, 95] }
   };
 
   const VETORES = {
@@ -215,7 +240,69 @@ const CODIGO = {
     return r.S;
   }
 
-  const GERADORES = { bolha: geraBolha, selecao: geraSelecao, insercao: geraInsercao, quicksort: geraQuicksort };
+  function geraMergeSort(a0) {
+    const a = a0.slice(), n = a.length, r = criaRegistro(a), fixo = r.fixo, pilha = r.pilha;
+    let aux = [];
+    const snap = (l, v, hl, t) => { r.st(l, v, hl, t); r.S[r.S.length - 1].aux = aux.slice(); };
+
+    function intercalar(lo, mid, hi) {
+      pilha.push(`intercalar(${lo}, ${mid}, ${hi})`);
+      let i = lo, j = mid, k = lo;
+      snap(73, { lo, mid, hi, i, j, k }, [], `Intercalar [${lo}..${mid - 1}] com [${mid}..${hi - 1}]. i e j começam no início de cada metade; k é a próxima posição de escrita em aux.`);
+      while (i < mid && j < hi) {
+        const ai = a[i], aj = a[j], pegaEsq = ai <= aj;
+        aux[k] = pegaEsq ? ai : aj;
+        if (pegaEsq) i++; else j++;
+        k++;
+        snap(74, { lo, mid, hi, i, j, k, 'a[i]': ai, 'a[j]': aj }, [i - (pegaEsq ? 1 : 0), j - (pegaEsq ? 0 : 1)],
+          `a[i] = ${ai} ≤ a[j] = ${aj}? ${pegaEsq ? 'sim: o da esquerda é copiado para aux[' + (k - 1) + '].' : 'não: o da direita é copiado para aux[' + (k - 1) + '].'} Como as metades estão ordenadas, o menor é sempre o próximo.`);
+      }
+      while (i < mid) {
+        aux[k] = a[i];
+        i++; k++;
+        snap(75, { lo, mid, hi, i, j, k }, [i - 1], `A metade da esquerda sobrou: copia a[${i - 1}] = ${a[i - 1]} para aux[${k - 1}].`);
+      }
+      while (j < hi) {
+        aux[k] = a[j];
+        j++; k++;
+        snap(76, { lo, mid, hi, i, j, k }, [j - 1], `A metade da direita sobrou: copia a[${j - 1}] = ${a[j - 1]} para aux[${k - 1}].`);
+      }
+      for (let p = lo; p < hi; p++) a[p] = aux[p];
+      snap(77, { lo, mid, hi }, [], `memcpy: copia aux[${lo}..${hi - 1}] de volta para a. Este trecho de a agora está ordenado: [${a.slice(lo, hi).join(', ')}].`);
+      pilha.pop();
+    }
+
+    function mr(lo, hi) {
+      pilha.push(`merge_rec(${lo}, ${hi})`);
+      snap(81, { lo, hi }, [], `hi − lo < 2? ${hi - lo} < 2 é ${hi - lo < 2 ? 'verdadeiro: um elemento, já ordenado. A função retorna.' : 'falso: há o que dividir.'}`);
+      if (hi - lo < 2) { pilha.pop(); return; }
+      const mid = lo + Math.floor((hi - lo) / 2);
+      snap(82, { lo, hi, mid }, [], `mid = ${lo} + (${hi} − ${lo}) / 2 = ${mid}: divide [${lo}..${hi - 1}] em [${lo}..${mid - 1}] e [${mid}..${hi - 1}].`);
+      snap(83, { lo, hi, mid }, [], `merge_rec(a, aux, ${lo}, ${mid}): ordena a metade da esquerda antes de tudo (recursão).`);
+      mr(lo, mid);
+      snap(84, { lo, hi, mid }, [], `Voltou da esquerda. Agora merge_rec(a, aux, ${mid}, ${hi}): a metade da direita.`);
+      mr(mid, hi);
+      snap(85, { lo, hi, mid }, [], `Voltou da direita. As duas metades estão ordenadas: intercalar(a, aux, ${lo}, ${mid}, ${hi}).`);
+      intercalar(lo, mid, hi);
+      pilha.pop();
+    }
+
+    snap(88, { n }, [], 'Chamada merge_sort(a, n). A ordenação acontece no próprio vetor, com uma área auxiliar.');
+    snap(89, { n }, [], `n < 2? ${n} < 2 é ${n < 2 ? 'verdadeiro: nada a ordenar, retorna.' : 'falso: há o que ordenar.'}`);
+    if (n >= 2) {
+      aux = Array(n).fill(null);
+      snap(90, { n }, [], `aux = malloc(n × tamanho do int): área auxiliar de ${n} posições. É o custo de memória do merge sort, O(n).`);
+      snap(91, { n }, [], 'if (aux == NULL): a alocação funcionou, então o programa continua.');
+      mr(0, n);
+      aux = [];
+      snap(93, { n }, [], 'free(aux): a área auxiliar volta ao sistema. Sem este free haveria vazamento de memória.');
+    }
+    for (let k = 0; k < n; k++) if (!fixo.includes(k)) fixo.push(k);
+    snap(94, {}, [], 'return 1: merge sort concluído. Vetor ordenado. Em qualquer caso, o custo é O(n log n).');
+    return r.S;
+  }
+
+  const GERADORES = { bolha: geraBolha, selecao: geraSelecao, insercao: geraInsercao, quicksort: geraQuicksort, mergesort: geraMergeSort };
 
   function escapa(s) {
     return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -264,6 +351,10 @@ const CODIGO = {
         <h4>Vetor</h4>
         <div class="dbg-vetor" data-k="vetor"></div>
       </div>
+      <div class="dbg-painel" data-k="auxwrap" hidden>
+        <h4>Área auxiliar (aux)</h4>
+        <div class="dbg-vetor" data-k="aux"></div>
+      </div>
       <div class="dbg-explica" data-k="explica" aria-live="polite"></div>`;
 
     const q = s => el.querySelector(`[data-k="${s}"]`);
@@ -310,6 +401,16 @@ const CODIGO = {
         return `<div class="${cls.join(' ')}">${v}<small>${k}</small></div>`;
       }).join('');
 
+      const temAux = Array.isArray(s.aux) && s.aux.length > 0;
+      q('auxwrap').hidden = !temAux;
+      if (temAux) {
+        q('aux').innerHTML = s.aux.map((v, k) => {
+          const cls = ['dbg-cel'];
+          if (v !== null) cls.push('is-fix');
+          if (s.v.k === k) cls.push('is-hl');
+          return `<div class="${cls.join(' ')}">${v === null ? '&nbsp;' : v}<small>${k}</small></div>`;
+        }).join('');
+      }
       q('explica').textContent = s.t;
       q('passo').textContent = `Passo ${i + 1} de ${estados.length}`;
     }
