@@ -340,6 +340,57 @@ COMMIT;</div>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-fuchsia-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · Dois clientes, a mesma poltrona</h3>
+    <div class="ah-prose">
+      <p>Num lançamento de show, dois compradores escolhem o mesmo assento no mesmo segundo. A tela de cada um verifica “assento livre?”, vê que sim, e confirma a compra. O sistema registra duas vendas para a mesma poltrona, e a casa precisa realocar um dos clientes na portaria.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual anomalia é essa? Por que o isolamento de leitura comum não a impede?</li>
+      <li>Compare três correções: UPDATE condicional, SELECT FOR UPDATE e versão otimista. Qual oferece melhor experiência em pico de acesso?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- correção: só o primeiro comprador consegue marcar a poltrona
+CREATE TABLE assento (id INTEGER PRIMARY KEY, ocupado INTEGER NOT NULL DEFAULT 0);
+INSERT INTO assento VALUES (1, 0), (2, 0);
+
+-- dois compradores executam o mesmo comando, em sequência
+UPDATE assento SET ocupado = 1 WHERE id = 1 AND ocupado = 0;
+UPDATE assento SET ocupado = 1 WHERE id = 1 AND ocupado = 0;
+
+SELECT * FROM assento;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> o segundo UPDATE afeta zero linhas, e a aplicação deve informar “poltrona indisponível”. A condição dentro da própria instrução é o que torna a decisão atômica.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · O plantão sem ninguém</h3>
+    <div class="ah-prose">
+      <p>Um hospital exige ao menos um médico de plantão por turno. Dois médicos da mesma escala pedem para sair ao mesmo tempo. Cada sistema verifica “há outro médico?”, vê que sim, e autoriza a saída. Ao final, o plantão fica descoberto. Cada transação atualizou apenas a própria linha, então nenhuma trava de linha entrou em conflito.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Que nome técnico recebe esse problema? Por que o isolamento REPEATABLE READ não o evita?</li>
+      <li>Como transformar a regra “ao menos um” num ponto de conflito que o banco consiga proteger?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> travar explicitamente uma linha compartilhada (como o registro da escala do turno) antes de decidir, ou usar SERIALIZABLE, resolve o caso. O trabalho de definir a regra continua sendo da modelagem: quem garante a regra precisa conhecê-la.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Berenson, H. et al. “A Critique of ANSI SQL Isolation Levels”. <em>ACM SIGMOD</em>, 1995 (anomalias como write skew e os níveis do padrão).</li>
+    <li><strong>Acadêmica:</strong> Gray, J.; Reuter, A. <em>Transaction Processing: Concepts and Techniques</em>. Morgan Kaufmann, 1993.</li>
+    <li><strong>Acadêmica:</strong> Corbett, J. C. et al. “Spanner: Google’s Globally-Distributed Database”. <em>OSDI</em>, 2012.</li>
+    <li><strong>Mercado:</strong> Kleppmann, M. <em>Designing Data-Intensive Applications</em>. O’Reilly, 2017 (capítulo sobre isolamento e write skew).</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#2a1436)">

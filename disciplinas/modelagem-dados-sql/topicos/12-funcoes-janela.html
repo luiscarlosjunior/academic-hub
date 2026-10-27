@@ -314,6 +314,64 @@ ORDER BY id_categoria, posicao;</pre>
   </p>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-fuchsia-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · O ranking com empate e o prêmio dividido</h3>
+    <div class="ah-prose">
+      <p>Uma empresa premia os três clientes que mais compraram. Dois clientes empatam em número de pedidos. Com <code>ROW_NUMBER</code>, um deles fica em primeiro e o outro em segundo, e a premiação favorece um pelo acaso da ordenação. Com <code>RANK</code>, os dois ficam em primeiro, e o terceiro lugar some da lista.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual função representa a regra “premiar os três primeiros, dividindo empates”? Existe uma resposta única?</li>
+      <li>Se o regulamento for escrito antes da consulta, qual parte dele deveria estar no SQL?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- ranking de clientes por número de pedidos; RANK mantém os empates
+SELECT id_cliente,
+       COUNT(*) AS pedidos,
+       RANK() OVER (ORDER BY COUNT(*) DESC) AS posicao
+FROM pedidos
+GROUP BY id_cliente
+ORDER BY posicao, id_cliente;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> o regulamento é a especificação. Empates precisam de uma regra explícita (desempate por valor, por data, ou divisão do prêmio), e ela deve estar escrita, não implícita na função escolhida.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · O acumulado que soma duas vezes a mesma data</h3>
+    <div class="ah-prose">
+      <p>Um painel mostra o faturamento acumulado do mês. Em dias com vários pedidos na mesma data, o acumulado “pula” de uma vez, e o gráfico mostra o mesmo valor para dois dias diferentes. A causa é o frame padrão com RANGE, que agrupa as linhas de mesma data (“empatadas”) no mesmo passo.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual é a diferença entre o acumulado por linha (ROWS) e o acumulado por data (RANGE)? Qual deles representa o caixa do dia?</li>
+      <li>Por que um erro assim passa despercebido em dados com datas únicas?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>WITH v(d, x) AS (
+  VALUES ('2024-01-01', 10), ('2024-01-01', 20), ('2024-01-02', 5)
+)
+SELECT d, x,
+       SUM(x) OVER (ORDER BY d ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS por_linha,
+       SUM(x) OVER (ORDER BY d)                                                   AS por_data
+FROM v;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> nos dois dias de 1º de janeiro, a coluna por_data já inclui as duas linhas (30 em ambas). Os testes de um painel devem incluir pelo menos um dia com vários lançamentos.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Gray, J. et al. “Data Cube: A Relational Aggregation Operator Generalizing Group-By, Cross-Tab, and Sub-Totals”. <em>Data Mining and Knowledge Discovery</em>, 1997.</li>
+    <li><strong>Padrão:</strong> ISO/IEC 9075:2023 (SQL), que define as funções de janela e os frames.</li>
+    <li><strong>Documentação:</strong> <a href="https://www.sqlite.org/windowfunctions.html" target="_blank" rel="noopener" class="text-fuchsia-400 hover:underline">SQLite — Window Functions</a>, com a definição de frames e o comportamento de RANGE.</li>
+    <li><strong>Mercado:</strong> Kimball, R.; Ross, M. <em>The Data Warehouse Toolkit</em>. 3. ed. Wiley, 2013 (medidas semi-aditivas, como saldos, em relatórios de tempo).</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#2a1436)">

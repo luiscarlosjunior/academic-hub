@@ -304,6 +304,58 @@ SELECT * FROM arquivo;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-cyan-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · A limpeza que apagou demais</h3>
+    <div class="ah-prose">
+      <p>Um desenvolvedor escreve um script para remover clientes inativos há mais de cinco anos. A tabela de pedidos tem <code>ON DELETE CASCADE</code>, e o script apaga também o histórico de notas fiscais, que a lei exige guardar por vários anos. O problema só é percebido na auditoria.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>A cascata foi um erro de projeto ou um erro de uso? Quem deveria ter revisado o script?</li>
+      <li>Qual é a diferença entre apagar um cliente e cumprir um pedido de eliminação de dados pessoais, previsto na LGPD?</li>
+      <li>Há uma alternativa que atenda à privacidade sem perder o registro fiscal?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- alternativa à exclusão: anonimizar os dados pessoais e manter o pedido
+UPDATE clientes
+SET nome = 'Cliente anonimizado', email = NULL
+WHERE id_cliente = 6;
+
+SELECT c.nome, p.id_pedido
+FROM pedidos p
+JOIN clientes c ON c.id_cliente = p.id_cliente
+WHERE c.id_cliente = 6;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> o pedido continua existindo e somando nos relatórios, mas a pessoa deixa de ser identificável. A anonimização costuma ser preferida à exclusão quando há obrigação legal de guardar o registro.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · Pedidos órfãos depois de uma migração</h3>
+    <div class="ah-prose">
+      <p>Um sistema legado criava pedidos sem verificar se o cliente existia. Anos depois, um relatório mostra centenas de pedidos com <code>id_cliente</code> apontando para ninguém. Ao ligar a verificação de chaves estrangeiras no banco novo, a migração falha em dezenas de linhas.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Os pedidos órfãos devem ser apagados, corrigidos ou mantidos em uma área de quarentena? Quem decide?</li>
+      <li>Por que um banco que aceita a inserção por padrão (como o SQLite sem <code>PRAGMA</code>) pode enganar quem migra de outro sistema?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> antes de ligar uma restrição, consulte as violações atuais. Uma consulta de exceção (como as da seção de “validação” do tópico 02) mostra o tamanho do problema antes da mudança.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Codd, E. F. “A Relational Model of Data for Large Shared Data Banks”. <em>Communications of the ACM</em>, v. 13, n. 6, 1970.</li>
+    <li><strong>Legal:</strong> Brasil. <em>Lei nº 13.709, de 14 de agosto de 2018</em> (Lei Geral de Proteção de Dados Pessoais), sobre o tratamento e a eliminação de dados pessoais.</li>
+    <li><strong>Legal:</strong> União Europeia. <em>Regulamento (UE) 2016/679 (GDPR)</em>, artigo 17, sobre o direito ao apagamento.</li>
+    <li><strong>Documentação:</strong> <a href="https://www.postgresql.org/docs/current/ddl-constraints.html" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">PostgreSQL — Constraints</a>, incluindo as ações de chave estrangeira (ON DELETE).</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c3440)">

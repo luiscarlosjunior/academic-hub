@@ -315,6 +315,56 @@ SELECT nome, ativo FROM clientes ORDER BY id_cliente;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-sky-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · A cobrança feita duas vezes</h3>
+    <div class="ah-prose">
+      <p>O cliente clica em “pagar” e a tela demora. O navegador repete a requisição por causa do tempo limite, e o servidor recebe duas solicitações. Ambas são processadas, e o cliente é cobrado duas vezes. O banco não tem culpa aparente: cada INSERT foi válido.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>O que significa uma operação ser <em>idempotente</em>? Por que repetir uma escrita pode ser seguro ou perigoso?</li>
+      <li>Onde a chave de idempotência deve ser gerada: no cliente, no servidor ou no banco? Por quê?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- a mesma requisição, enviada duas vezes, com a mesma chave de idempotência
+CREATE TABLE pagamentos (
+  id_idempotencia TEXT PRIMARY KEY,
+  valor REAL NOT NULL
+);
+INSERT OR IGNORE INTO pagamentos VALUES ('req-1', 100);
+INSERT OR IGNORE INTO pagamentos VALUES ('req-1', 100);
+SELECT COUNT(*) AS cobrancas, SUM(valor) AS total FROM pagamentos;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> a chave única impede a segunda gravação. Sistemas de pagamento usam esse padrão, com uma chave gerada uma vez por intenção de compra, e reenvios apenas reaproveitam o resultado já gravado.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · O UPDATE sem WHERE na sexta-feira</h3>
+    <div class="ah-prose">
+      <p>Um analista precisa zerar o estoque de uma categoria. Ele escreve <code>UPDATE produtos SET estoque = 0</code> e esquece o WHERE. Como a ferramenta do banco estava em modo de autocommit, a alteração é gravada na hora. O backup mais recente é de ontem à noite.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Que práticas teriam impedido o estrago, antes e depois do comando?</li>
+      <li>Por que o ROLLBACK não resolve o problema depois de um COMMIT automático?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> ensaiar com SELECT, executar dentro de uma transação explícita, limitar o acesso de escrita em produção e manter backups com ponto de recuperação (point-in-time recovery) são as defesas usuais.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Gray, J.; Reuter, A. <em>Transaction Processing: Concepts and Techniques</em>. Morgan Kaufmann, 1993.</li>
+    <li><strong>Acadêmica:</strong> Helland, P. “Idempotence Is Not a Medical Condition”. <em>ACM Queue</em>, 2012.</li>
+    <li><strong>Mercado:</strong> Stripe. Documentação de <em>idempotent requests</em> da API de pagamentos (<a href="https://docs.stripe.com/api/idempotent_requests" target="_blank" rel="noopener" class="text-sky-400 hover:underline">docs.stripe.com</a>).</li>
+    <li><strong>Documentação:</strong> <a href="https://www.sqlite.org/lang_insert.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">SQLite — INSERT (conflict resolution)</a>.</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c2a44)">

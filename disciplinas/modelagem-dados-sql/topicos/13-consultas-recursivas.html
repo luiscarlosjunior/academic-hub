@@ -344,6 +344,60 @@ SELECT trilha FROM caminho WHERE atual = 'CWB' ORDER BY trilha;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-fuchsia-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · O organograma com um ciclo</h3>
+    <div class="ah-prose">
+      <p>Um erro de cadastro faz a diretora aparecer como subordinada de uma analista que, por sua vez, reporta a ela, por meio de outros níveis. A consulta recursiva de “todos os subordinados” com UNION ALL nunca termina: o banco continua gerando linhas e o servidor esgota a memória. Com UNION, a mesma consulta termina, porque nenhuma linha nova aparece.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Por que um ciclo em dados de cadastro é mais comum do que parece? Quais validações impediriam esse erro?</li>
+      <li>Se a consulta for executada num sistema que não permite UNION (apenas UNION ALL), qual proteção adicional é necessária?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- cadastro errado: a diretora (1) passa a reportar a Renata (7), que reporta a ela por outro caminho
+UPDATE funcionarios SET id_supervisor = 7 WHERE id_funcionario = 1;
+
+-- com UNION, a recursão termina mesmo com o ciclo
+WITH RECURSIVE sub(id) AS (
+  SELECT 1
+  UNION
+  SELECT f.id_funcionario
+  FROM funcionarios f
+  JOIN sub s ON f.id_supervisor = s.id
+)
+SELECT COUNT(*) AS alcancados FROM sub;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> a validação deve ser feita na escrita (uma verificação de ciclo antes de gravar o supervisor) e a consulta deve ter um limite de profundidade ou UNION, como rede de segurança.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · A rede de indicações que virou fraude</h3>
+    <div class="ah-prose">
+      <p>Um programa de indicação paga um bônus a quem indica novos clientes, e o bônus cresce a cada nível da rede. Um grupo de contas cria indicações em círculo (A indica B, B indica C, C indica A) e passa a receber bônus repetidamente. Uma análise com recursão, que conta quantas pessoas estão “abaixo” de cada conta, revela o anel.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Como uma consulta recursiva ajudaria a detectar o padrão de círculos? Que atributo do caminho precisaria ser guardado?</li>
+      <li>Quais limites operacionais (profundidade, frequência de bônus, verificação humana) devem existir num programa desses?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> a consulta do tópico, que guarda a trilha e corta quando o destino já aparece nela, é exatamente o padrão de detecção de ciclo.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Aho, A. V.; Ullman, J. D. <em>Foundations of Computer Science</em>. Computer Science Press, 1992 (grafos e fecho transitivo).</li>
+    <li><strong>Acadêmica:</strong> Agrawal, R.; Jagadish, H. V. “Direct Algorithms for Computing the Transitive Closure of Database Relations”. <em>VLDB</em>, 1987.</li>
+    <li><strong>Mercado:</strong> Kleppmann, M. <em>Designing Data-Intensive Applications</em>. O’Reilly, 2017 (modelos de grafos e consultas de travessia).</li>
+    <li><strong>Documentação:</strong> <a href="https://www.sqlite.org/lang_with.html" target="_blank" rel="noopener" class="text-fuchsia-400 hover:underline">SQLite — WITH clause (recursive)</a>.</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#2a1436)">

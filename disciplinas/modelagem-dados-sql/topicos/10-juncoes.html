@@ -365,6 +365,55 @@ ORDER BY receita DESC;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-sky-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · O relatório que explodiu</h3>
+    <div class="ah-prose">
+      <p>Um analista escreve uma consulta de clientes de Curitiba e outra tabela de produtos, separadas por vírgula e com o WHERE sobre a cidade. Ele esqueceu a condição de junção. O relatório, que deveria ter poucas linhas, devolve milhares, e o servidor de relatórios fica lento para todos os outros usuários.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual é a diferença entre produto cartesiano e junção? Por que o banco não impede a consulta?</li>
+      <li>Que verificação rápida, feita antes de rodar, detectaria o problema?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- sem condição de junção: cada cliente de Curitiba com cada produto
+SELECT COUNT(*) AS linhas_sem_condicao
+FROM clientes, produtos
+WHERE clientes.cidade = 'Curitiba';
+
+-- o número de clientes de Curitiba, sem nenhuma junção
+SELECT COUNT(*) AS clientes_curitiba FROM clientes WHERE cidade = 'Curitiba';</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> quando duas tabelas não têm relação direta no modelo, a junção entre elas não tem sentido, e a consulta deve passar por uma terceira tabela (a associativa). Um produto cartesiano quase sempre indica uma relação que não foi declarada.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · A campanha de reativação que ignorou quem nunca comprou</h3>
+    <div class="ah-prose">
+      <p>Uma campanha quer enviar cupons aos clientes com compras anteriores. A consulta usa INNER JOIN com pedidos e, por isso, deixa de fora quem se cadastrou e nunca comprou. Esses clientes são justamente o público de conversão mais barata: já estão na base e nunca tiveram uma oferta.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>A campanha precisa de “quem comprou” ou de “quem não comprou”? A resposta define o tipo de junção?</li>
+      <li>Como uma anti-junção explícita (LEFT JOIN com IS NULL) deixa a intenção visível para quem lê a consulta?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> em segmentação de clientes, as três listas (nunca compraram, compraram uma vez, compraram várias vezes) são quase sempre obtidas com junções externas e agregações.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Selinger, P. G. et al. “Access Path Selection in a Relational Database Management System”. <em>Proceedings of ACM SIGMOD</em>, 1979 (base do otimizador baseado em custo).</li>
+    <li><strong>Acadêmica:</strong> Graefe, G. “Query Evaluation Techniques for Large Databases”. <em>ACM Computing Surveys</em>, v. 25, n. 2, 1993 (algoritmos de junção).</li>
+    <li><strong>Mercado:</strong> Winand, M. <em>SQL Performance Explained</em>, 2012 (<a href="https://use-the-index-luke.com/" target="_blank" rel="noopener" class="text-sky-400 hover:underline">use-the-index-luke.com</a>).</li>
+    <li><strong>Documentação:</strong> <a href="https://www.sqlite.org/lang_select.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">SQLite — SELECT (joins)</a>.</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c2a44)">

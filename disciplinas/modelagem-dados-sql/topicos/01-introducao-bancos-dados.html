@@ -309,6 +309,58 @@ ORDER BY name;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-cyan-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · O pagamento que não chegou ao pedido</h3>
+    <div class="ah-prose">
+      <p>Uma loja usa um serviço para cobrar o cartão e outro sistema para registrar o pedido. O cliente é cobrado, mas a queda de rede acontece antes de o pedido ser gravado. Ao atender a reclamação, ninguém encontra o pedido, e o financeiro tem um valor a mais.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual propriedade ACID foi violada? Ela é violada dentro de um banco ou entre dois sistemas?</li>
+      <li>Por que uma transação que envolve dois bancos é mais difícil que uma transação em um só?</li>
+      <li>Como o sistema poderia detectar e corrigir esses casos sem depender de atendimento manual?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- conciliação simples: quanto cada status representa em valor
+SELECT p.status,
+       COUNT(DISTINCT p.id_pedido) AS pedidos,
+       ROUND(SUM(i.quantidade * i.preco_unitario), 2) AS valor
+FROM pedidos p
+JOIN itens_pedido i ON i.id_pedido = p.id_pedido
+GROUP BY p.status
+ORDER BY valor DESC;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> a conciliação compara totais de fontes diferentes. Diferenças entre o que o financeiro vê e o que o pedido registra são o sinal de um problema de atomicidade entre sistemas, que o padrão saga (tópico de sistemas distribuídos) trata.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · Planilhas que discordam</h3>
+    <div class="ah-prose">
+      <p>O time de vendas mantém uma planilha de clientes ativos, o financeiro outra, e o marketing uma terceira exportada do sistema antigo. Numa reunião, os três números de “clientes ativos” são diferentes. Ninguém sabe qual está certo, porque cada planilha foi atualizada por uma pessoa em um dia diferente.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual é a “fonte da verdade” nesse cenário? Um banco resolve sozinho o problema de definir o que é “ativo”?</li>
+      <li>Quais são os custos de manter três cópias da mesma informação, além da divergência?</li>
+      <li>Que regra de negócio precisa ser escrita antes de qualquer modelagem?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> o banco não define o significado de um dado; ele garante que o significado, uma vez definido, seja aplicado de forma consistente. Dicionário de dados e governança vêm antes do esquema.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Date, C. J. <em>Introdução a Sistemas de Banco de Dados</em>. 8. ed. Rio de Janeiro: Elsevier/Campus, 2004.</li>
+    <li><strong>Acadêmica:</strong> Hellerstein, J. M.; Stonebraker, M.; Hamilton, J. “Architecture of a Database System”. <em>Foundations and Trends in Databases</em>, 2007.</li>
+    <li><strong>Mercado:</strong> Kleppmann, M. <em>Designing Data-Intensive Applications</em>. O’Reilly, 2017 (capítulos sobre transações e consistência).</li>
+    <li><strong>Documentação:</strong> <a href="https://www.sqlite.org/whentouse.html" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">SQLite — When To Use SQLite</a>, para entender os limites de um banco embutido.</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c3440)">

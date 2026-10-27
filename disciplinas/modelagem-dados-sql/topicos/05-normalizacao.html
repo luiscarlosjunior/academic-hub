@@ -348,6 +348,58 @@ HAVING COUNT(DISTINCT cidade) &gt; 1;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-cyan-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · Três endereços para a mesma cliente</h3>
+    <div class="ah-prose">
+      <p>O cadastro de clientes de um e-commerce guarda o endereço junto de cada pedido, por comodidade. Um cliente que mudou de cidade aparece com dois endereços nos relatórios de entrega, e a rota de uma transportadora é calculada para o endereço antigo.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Qual é a dependência funcional que está sendo violada? Ela é uma regra de negócio ou apenas um padrão dos dados de hoje?</li>
+      <li>Um pedido deve manter o endereço do dia da compra? Isso muda a resposta sobre normalização?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- detecção: uma mesma cliente com mais de uma cidade na tabela desnormalizada
+WITH pedidos_com_endereco AS (
+  SELECT 1 AS id_cliente, 'Ana' AS nome, 'São Paulo' AS cidade
+  UNION ALL SELECT 1, 'Ana', 'Recife'
+  UNION ALL SELECT 2, 'Bruno', 'Rio de Janeiro'
+)
+SELECT id_cliente, COUNT(DISTINCT cidade) AS cidades
+FROM pedidos_com_endereco
+GROUP BY id_cliente
+HAVING COUNT(DISTINCT cidade) &gt; 1;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> a consulta encontra a contradição, mas não decide qual endereço é o certo. Distinguir o “endereço atual do cliente” do “endereço de entrega de um pedido” é a solução: são dois fatos diferentes, e cada um pertence a uma tabela diferente.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · O painel de BI que é propositalmente desnormalizado</h3>
+    <div class="ah-prose">
+      <p>Uma equipe de análise de dados cria uma tabela larga, com todas as colunas juntas, para que os dashboards rodem sem junções. Em pouco tempo, alguém corrige o nome de um produto na tabela de origem, e o painel continua mostrando o nome antigo, porque a cópia não foi atualizada.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>A desnormalização era um erro ou uma decisão? Como documentar essa decisão para quem vem depois?</li>
+      <li>Qual processo garante que a cópia seja reconstruída quando a origem muda?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> em data warehouses, a desnormalização é intencional e controlada (modelo estrela, cargas periódicas). O erro está em esquecer a cópia e não ter processo de atualização.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Armstrong, W. W. “Dependency Structures of Data Base Relationships”. <em>Proceedings of IFIP Congress</em>, 1974 (os axiomas de Armstrong).</li>
+    <li><strong>Acadêmica:</strong> Codd, E. F. “Further Normalization of the Data Base Relational Model”, em <em>Data Base Systems</em>, Courant Computer Science Symposia, v. 6, 1972.</li>
+    <li><strong>Mercado:</strong> Kimball, R.; Ross, M. <em>The Data Warehouse Toolkit</em>. 3. ed. Wiley, 2013 (modelagem dimensional e desnormalização controlada).</li>
+    <li><strong>Mercado:</strong> Winand, M. <em>SQL Performance Explained</em>, 2012 (<a href="https://use-the-index-luke.com/" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">use-the-index-luke.com</a>) sobre o custo das junções.</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c3440)">

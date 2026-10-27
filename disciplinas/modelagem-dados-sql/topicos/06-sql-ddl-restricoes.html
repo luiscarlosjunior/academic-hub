@@ -352,6 +352,60 @@ UPDATE produtos SET estoque = estoque - 100 WHERE id_produto = 1;</pre>
   </ul>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-sky-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · Centavos que desaparecem</h3>
+    <div class="ah-prose">
+      <p>Um sistema de cobrança guarda valores em <code>REAL</code>. Em um fechamento mensal com milhares de lançamentos, o total calculado não bate com o extrato do banco por alguns centavos. A soma individual parece correta, mas a conferência falha.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Por que a representação binária de frações como 0,1 causa esse erro? Ele aparece sempre ou só em algumas somas?</li>
+      <li>Quais são as opções: <code>DECIMAL</code>, inteiros em centavos, ou arredondar a cada operação? Quais os custos de cada uma?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- com ponto flutuante, 0,1 + 0,2 não é exatamente 0,3
+SELECT 0.1 + 0.2 = 0.3 AS igual,
+       ROUND(0.1 + 0.2, 2) = 0.3 AS igual_arredondado;</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> bancos de pagamento e contábeis costumam guardar dinheiro como inteiro de centavos ou como <code>DECIMAL</code> com escala fixa. O erro é pequeno em cada linha e grande no acumulado.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · A migração que trava a produção</h3>
+    <div class="ah-prose">
+      <p>Um time quer adicionar uma coluna obrigatória à tabela de pedidos, com milhões de linhas. A alteração bloqueia a tabela por vários minutos, e o site para de aceitar compras no horário de pico. Em outro sistema, o mesmo comando foi executado sem problemas porque a tabela era pequena.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Por que adicionar uma coluna <code>NOT NULL</code> sem valor padrão falha, mesmo com a tabela vazia de valores novos?</li>
+      <li>Como dividir a mudança em etapas (coluna opcional, preenchimento em lotes, restrição no fim) para não travar o sistema?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- falha: a coluna não pode ser NOT NULL sem um valor padrão para as linhas existentes
+ALTER TABLE clientes ADD COLUMN telefone TEXT NOT NULL;</pre>
+    </div>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- caminho seguro: primeiro com DEFAULT, depois o preenchimento real em lotes
+ALTER TABLE clientes ADD COLUMN telefone TEXT NOT NULL DEFAULT '';
+SELECT COUNT(*) AS sem_telefone FROM clientes WHERE telefone = '';</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> o primeiro bloco ilustra a regra do SQLite; em PostgreSQL, a mesma mudança pode reescrever a tabela inteira. Cada banco tem seu custo de DDL, e vale conferir antes de rodar em produção.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Padrão:</strong> ISO/IEC 9075 (SQL). Define tipos, restrições e a sintaxe de DDL que esta página usa como base.</li>
+    <li><strong>Acadêmica:</strong> Goldberg, D. “What Every Computer Scientist Should Know About Floating-Point Arithmetic”. <em>ACM Computing Surveys</em>, v. 23, n. 1, 1991.</li>
+    <li><strong>Documentação:</strong> <a href="https://www.sqlite.org/lang_altertable.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">SQLite — ALTER TABLE</a>, com as limitações de alteração de colunas.</li>
+    <li><strong>Mercado:</strong> Winand, M. <em>SQL Performance Explained</em>, 2012 (<a href="https://use-the-index-luke.com/" target="_blank" rel="noopener" class="text-sky-400 hover:underline">use-the-index-luke.com</a>).</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c3440)">

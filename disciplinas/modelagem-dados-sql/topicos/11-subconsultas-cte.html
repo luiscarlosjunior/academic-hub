@@ -334,6 +334,63 @@ ORDER BY qtd_pedidos DESC, c.nome;</pre>
   </div>
 </section>
 
+<!-- ============================ MUNDO REAL ============================ -->
+<section id="mundo-real" data-toc="Problemas do mundo real" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-earth-americas text-sky-400 mr-2"></i>Problemas do mundo real para discutir</h2>
+  <p class="text-xs text-slate-400 mb-5">Casos típicos, descritos de forma genérica. Discuta em grupo antes de olhar as pistas.</p>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 1 · A lista de exclusão que zerou o envio</h3>
+    <div class="ah-prose">
+      <p>Uma equipe monta a lista de clientes que <em>não</em> devem receber e-mail usando <code>NOT IN</code> sobre uma subconsulta. Um registro da lista veio com valor NULL por erro de importação. Resultado: a campanha tem zero destinatários, e ninguém percebe até o fim do dia, porque a consulta não dá erro.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Por que um único NULL na subconsulta esvazia todo o resultado? Explique com a lógica de três valores.</li>
+      <li>Como você escreveria a regra para não depender de a lista estar limpa? Qual forma é mais segura?</li>
+    </ul>
+    <div class="sql-ex mt-3">
+      <pre class="ah-code sql-code" data-run>-- com o NULL na lista: nenhum cliente passa
+SELECT COUNT(*) AS destinatarios_com_null
+FROM clientes
+WHERE id_cliente NOT IN (
+  SELECT id_cliente FROM pedidos WHERE status = 'cancelado'
+  UNION ALL SELECT NULL
+);
+
+-- a forma segura: NOT EXISTS não é afetado pelo NULL
+SELECT COUNT(*) AS destinatarios_seguros
+FROM clientes c
+WHERE NOT EXISTS (
+  SELECT 1 FROM pedidos p
+  WHERE p.id_cliente = c.id_cliente AND p.status = 'cancelado'
+);</pre>
+    </div>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> o resultado silencioso é o pior tipo de bug. Testes com dados reais (que costumam ter NULL) e checagens de contagem antes do envio pegariam o problema.</p>
+  </div>
+
+  <div class="ah-card p-5 mb-4 border-l-4 border-amber-400">
+    <h3 class="ah-h3 mb-2">Caso 2 · A consulta que ninguém consegue manter</h3>
+    <div class="ah-prose">
+      <p>Um relatório financeiro tem seis subconsultas aninhadas, escritas em épocas diferentes por pessoas diferentes. Quando um número diverge, ninguém consegue isolar qual parte está errada, porque nenhuma etapa tem nome nem pode ser executada sozinha.</p>
+    </div>
+    <p class="text-sm text-slate-300 mt-2"><strong>Para discutir:</strong></p>
+    <ul class="text-sm text-slate-300 list-disc pl-5 space-y-1">
+      <li>Como reescrever o relatório com CTEs para que cada etapa seja testável?</li>
+      <li>Qual é o custo de manutenção de uma consulta que ninguém entende, comparado ao custo de algumas linhas a mais de código?</li>
+    </ul>
+    <p class="text-xs text-slate-400 mt-3"><strong>Pista:</strong> escreva cada CTE e rode-a isolada, conferindo o total de linhas e uma soma de controle antes de seguir para a próxima etapa.</p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-2">Referências</h3>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong>Acadêmica:</strong> Date, C. J. “A Critique of the SQL Database Language”. <em>ACM SIGMOD Record</em>, 1984 (crítica sobre ambiguidades do SQL, incluindo NULL).</li>
+    <li><strong>Acadêmica:</strong> Codd, E. F. “Extending the Database Relational Model to Capture More Meaning”. <em>ACM TODS</em>, 1979.</li>
+    <li><strong>Mercado:</strong> Winand, M. <em>SQL Performance Explained</em>, 2012 (<a href="https://use-the-index-luke.com/" target="_blank" rel="noopener" class="text-sky-400 hover:underline">use-the-index-luke.com</a>).</li>
+    <li><strong>Documentação:</strong> <a href="https://www.postgresql.org/docs/current/queries-with.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">PostgreSQL — WITH Queries (CTEs)</a>.</li>
+  </ul>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#0c2a44)">
