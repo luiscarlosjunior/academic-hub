@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do Diagrama ao Código (Java) · Apresentação · AcademicHub</title>
+<meta name="description" content="Apresentação completa do tópico 15 de Modelagem e POO: cada símbolo UML vira uma construção Java.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⌨️</text></svg>">
+<style>
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+
+  /* ---------- palco 16:9 escalado para caber na janela ---------- */
+  #viewport { position: fixed; inset: 0 0 48px 0; display: flex; align-items: center; justify-content: center; }
+  .deck {
+    width: 1280px; height: 720px; position: relative; flex: none; transform-origin: center center;
+    background: var(--ah-bg); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.9), 0 0 0 1px rgba(148,163,184,.12);
+  }
+  .slide {
+    position: absolute; inset: 0; padding: 40px 64px 36px; display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden; transform: translateX(24px);
+    transition: opacity .35s ease, transform .35s ease, visibility .35s;
+  }
+  .slide.active { opacity: 1; visibility: visible; transform: none; }
+  .slide.prev   { transform: translateX(-24px); }
+  .slide.grid-bg {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(99,102,241,.16), transparent 42%),
+      radial-gradient(circle at 85% 0%, rgba(168,85,247,.14), transparent 45%),
+      linear-gradient(rgba(148,163,184,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,.045) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
+  }
+  .slide.quiz-bg { background: linear-gradient(135deg,#1e293b,#11312a); }
+
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #64748b;
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .kicker .sep { color: #334155; }
+  .t { font-size: 34px; font-weight: 800; color: #fff; letter-spacing: -.015em; line-height: 1.15; margin-bottom: 22px; }
+  .t > i { color: #34d399; margin-right: 14px; font-size: .85em; }
+  .lead { font-size: 19px; color: #94a3b8; line-height: 1.6; }
+  .body { flex: 1; min-height: 0; }
+
+  .p { font-size: 21px; line-height: 1.7; color: #cbd5e1; }
+  .p strong, .p b { color: #fff; }
+  .deck code { padding: .08em .35em; border-radius: .3rem; font-size: .86em; border: 1px solid; }
+  .deck pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
+  .deck .ah-code { font-size: 14px; line-height: 1.55; margin: 0; scrollbar-width: none; }
+  .deck .ah-code::-webkit-scrollbar { display: none; }
+  .deck .ah-code.sm { font-size: 12.5px; line-height: 1.5; }
+  .deck .ah-table { font-size: 17px; }
+  .deck .ah-table thead th { font-size: 12px; padding: 11px 16px; }
+  .deck .ah-table tbody td { padding: 11px 16px; }
+  .deck .ah-table td.font-mono { color: #a5b4fc; font-size: 15px; }
+  .deck .ah-callout { font-size: 17px; line-height: 1.6; }
+  .deck .ah-callout i { font-size: 18px; }
+  .deck .ah-chip { font-size: 13px; }
+  .deck .ah-quiz-opt { font-size: 18px; padding: 14px 18px; margin-bottom: 12px; }
+  .deck .ah-card { border-radius: 14px; }
+
+  .bul { list-style: none; margin: 0; padding: 0; }
+  .bul li { position: relative; padding-left: 30px; font-size: 20px; line-height: 1.6; color: #cbd5e1; margin-bottom: 14px; }
+  .bul li::before { content: ''; position: absolute; left: 8px; top: 13px; width: 9px; height: 9px; border-radius: 50%; background: var(--ah-accent); }
+  .bul li strong { color: #fff; }
+  .bul.sm li { font-size: 17px; margin-bottom: 11px; }
+  .bul.sm li::before { top: 11px; }
+
+  .map { display: grid; grid-template-columns: 1fr 44px 1fr; align-items: center; gap: 0; }
+  .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+         text-transform: uppercase; padding: 4px 10px; border-radius: 8px; }
+
+  /* Ícone Pro do FA usado na aula (fa-brackets-curly): sem ele a aula mostra um espaço vazio */
+  .fa-brackets-curly::before { content: "{}"; font-family: 'Fira Code', monospace; font-weight: 600; white-space: nowrap; }
+
+  .reveal-box { display: none; }
+  .reveal-box.show { display: block; animation: fadein .3s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .ah-quiz-exp { display: none; }
+  .ah-quiz.done .ah-quiz-exp { display: block; animation: fadein .3s ease; }
+
+  .check { display: flex; gap: 16px; align-items: flex-start; padding: 13px 18px; border-radius: 12px; cursor: pointer;
+           border: 1px solid var(--ah-border); background: rgba(2,6,23,.45); font-size: 18px; line-height: 1.5; color: #cbd5e1;
+           transition: all .18s; margin-bottom: 10px; user-select: none; }
+  .check i { margin-top: 4px; color: #475569; font-size: 19px; }
+  .check.on { border-color: rgba(16,185,129,.5); background: rgba(16,185,129,.08); color: #fff; }
+  .check.on i { color: #10b981; }
+
+  /* barra inferior */
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; gap: 10px;
+         padding: 0 16px; border-top: 1px solid; font-size: 13px; z-index: 20; }
+  #bar button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid rgba(148,163,184,.18); color: #cbd5e1; background: #0f172a; }
+  #bar button:hover { border-color: var(--ah-accent); color: #fff; }
+  #progress { position: fixed; left: 0; bottom: 48px; height: 3px; background: linear-gradient(90deg,#6366f1,#10b981); transition: width .3s; z-index: 21; }
+  #secao { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #indice { position: fixed; inset: 0 0 48px 0; background: rgba(2,6,23,.94); backdrop-filter: blur(6px); z-index: 30;
+            display: none; overflow-y: auto; padding: 40px 16px; }
+  #indice.open { display: block; }
+  #indice a { display: flex; gap: 12px; align-items: center; padding: 9px 14px; border-radius: 10px; color: #cbd5e1; font-size: 14px; }
+  #indice a:hover, #indice a.cur { background: rgba(99,102,241,.16); color: #fff; }
+  #indice a .n { width: 32px; text-align: right; color: #64748b; font-family: 'Fira Code', monospace; font-size: 12px; }
+
+  .deck .mermaid svg { max-width: 100%; height: auto; max-height: 430px; }
+
+  /* =====================================================================
+     Tema claro para projeção em sala. Redefine os tokens do hub.css e os
+     componentes que ele pinta no escuro; o código copiado da aula fica intacto.
+     ===================================================================== */
+  :root {
+    --ah-bg: #ffffff; --ah-surface: #ffffff; --ah-surface-2: #f8fafc;
+    --ah-border: #e2e8f0; --ah-text: #0f172a; --ah-muted: #475569;
+    --vz-cor: #059669;
+  }
+  html, body { background: #e2e8f0; }
+  body { color: #0f172a; }
+  .deck { background: #fff; box-shadow: 0 24px 60px -30px rgba(15,23,42,.45), 0 0 0 1px #cbd5e1; }
+  .slide.grid-bg {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(99,102,241,.08), transparent 42%),
+      radial-gradient(circle at 85% 0%, rgba(16,185,129,.08), transparent 45%),
+      linear-gradient(rgba(15,23,42,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,23,42,.045) 1px, transparent 1px);
+  }
+  .slide.quiz-bg { background: linear-gradient(135deg,#f8fafc,#ecfdf5); }
+  .kicker { color: #64748b; } .kicker .sep { color: #cbd5e1; }
+  .t { color: #0f172a; } .t > i { color: #059669; }
+  .lead { color: #475569; }
+  .p, .bul li { color: #334155; } .p strong, .p b, .bul li strong { color: #0f172a; }
+  .deck code { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+
+  .ah-card { background: #fff; border-color: #e2e8f0; box-shadow: 0 6px 20px -14px rgba(15,23,42,.35); }
+  .ah-card-hover:hover { border-color: #6366f1; box-shadow: 0 14px 30px -18px rgba(99,102,241,.6); }
+  .ah-stage { background: #f8fafc; border-color: #e2e8f0; }
+
+  .ah-code { background: #f8fafc; border-color: #e2e8f0; color: #1e293b; }
+  .ah-code .kw  { color: #7c3aed; }
+  .ah-code .fn  { color: #2563eb; }
+  .ah-code .str { color: #047857; }
+  .ah-code .num { color: #b45309; }
+  .ah-code .cm  { color: #64748b; }
+  .ah-code .ty  { color: #0e7490; }
+
+  .ah-table thead th { background: #f1f5f9; color: #475569; border-bottom-color: #e2e8f0; }
+  .ah-table tbody td { color: #334155; border-bottom-color: #eef2f7; }
+  .ah-table tbody td:first-child { color: #0f172a; }
+  .ah-table tbody tr:hover { background: #f5f7ff; }
+  .deck .ah-table td.font-mono { color: #4338ca; }
+
+  .ah-chip { background: #fff; border-color: #cbd5e1; color: #475569; }
+  .ah-chip:hover { color: #0f172a; border-color: #6366f1; }
+  .ah-chip.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+  .ah-badge         { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+  .ah-badge-emerald { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .ah-badge-amber   { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+  .ah-badge-sky     { background: #f0f9ff; color: #0369a1; border-color: #bae6fd; }
+  .ah-badge-slate   { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+
+  .ah-callout-info { background: #f0f9ff; border-color: #bae6fd; color: #075985; } .ah-callout-info i { color: #0284c7; }
+  .ah-callout-warn { background: #fffbeb; border-color: #fcd34d; color: #78350f; } .ah-callout-warn i { color: #d97706; }
+  .ah-callout-ok   { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; } .ah-callout-ok i { color: #059669; }
+
+  .ah-btn-ghost { background: #fff; border-color: #cbd5e1; color: #334155; }
+  .ah-btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
+
+  .ah-quiz-opt { background: #fff; border-color: #cbd5e1; color: #334155; }
+  .ah-quiz-opt:hover:not(.locked) { border-color: #6366f1; color: #0f172a; }
+  .ah-quiz-opt.correct { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+  .ah-quiz-opt.wrong   { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
+
+  .check { background: #fff; border-color: #e2e8f0; color: #334155; }
+  .check i { color: #94a3b8; }
+  .check.on { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+  .check.on i { color: #059669; }
+
+  .tag-uml { background: #ecfdf5; color: #047857; }
+
+  /* Diagramas SVG da aula: as cores vêm como atributos e o CSS tem precedência sobre eles */
+  .deck svg rect[fill="#1e293b"]    { fill: #ffffff; }
+  .deck svg polygon[fill="#0f172a"] { fill: #ffffff; }
+  .deck svg text[fill="#fff"]       { fill: #0f172a; }
+  .deck svg text[fill="#cbd5e1"]    { fill: #334155; }
+  .deck svg [stroke="#10b981"] { stroke: #059669; } .deck svg text[fill="#10b981"] { fill: #059669; }
+  .deck svg [stroke="#38bdf8"] { stroke: #0284c7; } .deck svg text[fill="#38bdf8"] { fill: #0284c7; }
+  .deck svg [stroke="#a855f7"] { stroke: #9333ea; } .deck svg text[fill="#a855f7"] { fill: #9333ea; }
+  .deck svg [stroke="#ef4444"] { stroke: #dc2626; } .deck svg [fill="#ef4444"]      { fill: #dc2626; }
+  .deck svg [stroke="#f59e0b"] { stroke: #d97706; } .deck svg text[fill="#f59e0b"] { fill: #d97706; }
+
+  /* Losango vazado (agregação ◇) desenhado a partir do fa-diamond sólido */
+  .fa-diamond.vazado { color: transparent !important; -webkit-text-stroke: 1.6px var(--vz-cor); }
+
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  #bar { background: #fff; border-top-color: #cbd5e1; color: #475569; }
+  #bar button { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+  #bar button:hover { border-color: #6366f1; color: #0f172a; }
+  #indice { background: rgba(248,250,252,.97); }
+  #indice a { color: #334155; }
+  #indice a:hover, #indice a.cur { background: #eef2ff; color: #0f172a; }
+  #indice a .n { color: #94a3b8; }
+  @media print { #bar, #progress, #indice { display: none !important; } }
+</style>
+</head>
+<body>
+
+<div id="viewport"><div class="deck" id="deck">
+
+<!-- =============================== CAPA =============================== -->
+<section class="slide grid-bg" data-title="Capa" data-secao="Capa">
+  <div class="flex-1 flex flex-col justify-center">
+    <div class="flex items-center gap-3 mb-6">
+      <span class="ah-badge text-[13px]"><i class="fa-solid fa-diagram-project"></i>Modelagem e POO</span>
+      <span class="ah-badge ah-badge-slate text-[13px]">Tópico 15</span>
+      <span class="ah-badge ah-badge-amber text-[13px]"><i class="fa-brands fa-java"></i>Trilha Java</span>
+    </div>
+    <div class="flex items-center gap-7">
+      <div class="w-28 h-28 rounded-3xl flex items-center justify-center text-5xl"
+           style="background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(99,102,241,.22));border:1px solid rgba(16,185,129,.35)">
+        <i class="fa-solid fa-file-code text-emerald-600"></i>
+      </div>
+      <div>
+        <h1 class="text-[64px] font-extrabold text-slate-900 leading-none tracking-tight">Do Diagrama ao Código</h1>
+        <p class="text-[30px] font-semibold text-emerald-700 mt-2">em Java</p>
+      </div>
+    </div>
+    <p class="lead text-[23px] mt-8 max-w-[900px]">Tradução mecânica: cada símbolo UML vira uma construção Java — gere o código ao vivo.</p>
+    <div class="flex items-center gap-3 mt-8">
+      <span class="ah-badge ah-badge-sky text-[13px]">Java</span>
+      <span class="ah-badge ah-badge-sky text-[13px]">Implementação</span>
+      <span class="ah-badge ah-badge-emerald text-[13px]"><i class="fa-solid fa-signal"></i>Intermediário</span>
+      <span class="ah-badge ah-badge-slate text-[13px]"><i class="fa-regular fa-clock"></i>20 min</span>
+    </div>
+  </div>
+  <p class="text-[13px] text-slate-500"><i class="fa-solid fa-keyboard mr-2"></i>Use ← → ou espaço para navegar · <b>I</b> abre o índice · <b>F</b> tela cheia</p>
+</section>
+
+<!-- =============================== ROTEIRO =============================== -->
+<section class="slide" data-title="Roteiro da aula" data-secao="Roteiro">
+  <div class="kicker"><i class="fa-solid fa-list"></i>Roteiro</div>
+  <h2 class="t">O que vamos percorrer</h2>
+  <div class="body grid grid-cols-2 gap-x-5 gap-y-2.5 content-start">
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-file-code text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Tradução mecânica</div><div class="text-slate-500 text-[13px] truncate">Cada símbolo tem um equivalente exato</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-language text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Tradutor interativo</div><div class="text-slate-500 text-[13px] truncate">Escolha o símbolo, veja o código</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-table text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Tabela de correspondência</div><div class="text-slate-500 text-[13px] truncate">A tabela para consultar na prova</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-diagram-project text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Exemplo completo</div><div class="text-slate-500 text-[13px] truncate">Um modelo inteiro, traduzido</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-right-left text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Aprofundamento: tabela de mapeamento</div><div class="text-slate-500 text-[13px] truncate">Mapeamento rigoroso: cada símbolo tem uma construção</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-boxes-packing text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Multiplicidade e coleções</div><div class="text-slate-500 text-[13px] truncate">Multiplicidade vira tipo, e o tipo vira regra</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-brackets-curly text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Associações qualificadas e genéricos</div><div class="text-slate-500 text-[13px] truncate">Casos que o mapeamento simples não cobre</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-arrows-rotate text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Engenharia direta e reversa</div><div class="text-slate-500 text-[13px] truncate">Modelo e código: a sincronização é o problema</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-clipboard-check text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Revisar o código contra o modelo</div><div class="text-slate-500 text-[13px] truncate">Checklist de revisão do código</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-pen-to-square text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Exercícios com gabarito</div><div class="text-slate-500 text-[13px] truncate">Cinco exercícios, dois com diagramas de streaming de música</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-bed text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Exemplo passo a passo: reserva de hotel</div><div class="text-slate-500 text-[13px] truncate">Do diagrama de um hotel ao código</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-graduation-cap text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Teste seu entendimento</div><div class="text-slate-500 text-[13px] truncate">Três perguntas de tradução</div></div></div>
+    <div class="ah-card px-4 py-2.5 flex items-center gap-4"><i class="fa-solid fa-book text-emerald-600 text-[20px] w-7 text-center"></i><div class="min-w-0"><div class="text-slate-900 font-bold text-[16px] leading-tight">Para aprofundar</div><div class="text-slate-500 text-[13px] truncate">Fowler e Bloch</div></div></div>
+  </div>
+</section>
+
+<!-- =============================== IDEIA =============================== -->
+<section class="slide" data-title="Cada símbolo tem um equivalente exato" data-secao="Tradução mecânica">
+  <div class="kicker"><i class="fa-solid fa-file-code"></i>Tradução mecânica</div>
+  <h2 class="t"><i class="fa-solid fa-file-code"></i>Cada símbolo tem um equivalente exato</h2>
+  <div class="body flex flex-col gap-7">
+    <p class="p">
+      A maior parte do diagrama de classes traduz-se para código de forma <strong>mecânica</strong>:
+      caixa vira classe, atributo vira campo, operação vira método, seta vira <code>extends</code>,
+      <code>implements</code> ou atributo. Saber essa tabela de correspondência de cor é o que transforma
+      o diagrama de “desenho bonito” em ferramenta de trabalho.
+    </p>
+    <div class="grid grid-cols-4 gap-4">
+      <div class="ah-card p-5"><div class="tag tag-uml">Na UML</div>
+        <div class="text-slate-900 text-[20px] font-bold mt-3">Caixa</div>
+        <div class="text-slate-500 my-2"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="font-mono text-[17px] text-violet-700">class</div></div>
+      <div class="ah-card p-5"><div class="tag tag-uml">Na UML</div>
+        <div class="text-slate-900 text-[20px] font-bold mt-3">Atributo</div>
+        <div class="text-slate-500 my-2"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="font-mono text-[17px] text-violet-700">campo</div></div>
+      <div class="ah-card p-5"><div class="tag tag-uml">Na UML</div>
+        <div class="text-slate-900 text-[20px] font-bold mt-3">Operação</div>
+        <div class="text-slate-500 my-2"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="font-mono text-[17px] text-violet-700">método</div></div>
+      <div class="ah-card p-5"><div class="tag tag-uml">Na UML</div>
+        <div class="text-slate-900 text-[20px] font-bold mt-3">Seta</div>
+        <div class="text-slate-500 my-2"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="font-mono text-[15px] text-violet-700">extends · implements · atributo</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="O que não é mecânico" data-secao="Tradução mecânica">
+  <div class="kicker"><i class="fa-solid fa-file-code"></i>Tradução mecânica</div>
+  <h2 class="t"><i class="fa-solid fa-file-code"></i>O que <em>não</em> é mecânico</h2>
+  <div class="body flex flex-col gap-7">
+    <p class="p">
+      O que <em>não</em> é mecânico: multiplicidades viram decisões sobre tipo de coleção; composição vira
+      decisão sobre quem cria e destrói; e bidirecionalidade vira código de sincronização que ninguém gosta
+      de manter.
+    </p>
+    <div class="grid grid-cols-3 gap-5">
+      <div class="ah-card p-6 border-t-4 border-sky-400">
+        <div class="font-mono text-sky-700 text-[22px] mb-2">0..1 · * · 1..*</div>
+        <div class="text-slate-900 font-bold text-[19px] mb-2">Multiplicidade</div>
+        <p class="text-slate-600 text-[16px] leading-relaxed">vira decisão sobre o <b class="text-slate-900">tipo de coleção</b>: <code>List</code>, <code>Set</code>, <code>Optional</code>, ou referência simples.</p>
+      </div>
+      <div class="ah-card p-6 border-t-4 border-rose-400">
+        <div class="text-rose-700 text-[22px] mb-2"><i class="fa-solid fa-diamond"></i></div>
+        <div class="text-slate-900 font-bold text-[19px] mb-2">Composição</div>
+        <p class="text-slate-600 text-[16px] leading-relaxed">vira decisão sobre <b class="text-slate-900">quem cria e destrói</b> as partes.</p>
+      </div>
+      <div class="ah-card p-6 border-t-4 border-amber-400">
+        <div class="text-amber-700 text-[22px] mb-2"><i class="fa-solid fa-arrows-left-right"></i></div>
+        <div class="text-slate-900 font-bold text-[19px] mb-2">Bidirecionalidade</div>
+        <p class="text-slate-600 text-[16px] leading-relaxed">vira <b class="text-slate-900">código de sincronização</b> que ninguém gosta de manter.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== TRADUTOR (abertura) =============================== -->
+<section class="slide grid-bg" data-title="Escolha o símbolo, veja o código" data-secao="Tradutor interativo">
+  <div class="kicker"><i class="fa-solid fa-language"></i>Tradutor interativo</div>
+  <h2 class="t"><i class="fa-solid fa-language"></i>Escolha o símbolo, veja o código</h2>
+  <p class="lead mb-7">Selecione uma construção da UML e a linguagem no topo do painel de código. Nos próximos oito slides,
+    cada construção aparece com o símbolo, o código em <b class="text-slate-900">Java</b>, <b class="text-slate-900">C#</b> e
+    <b class="text-slate-900">Python</b> e a observação que importa.</p>
+  <div class="body grid grid-cols-4 gap-4 content-start" id="tr-indice"></div>
+</section>
+
+<!--@@TRADUTOR_SLIDES@@-->
+
+<!-- =============================== TABELA =============================== -->
+<section class="slide" data-title="A tabela para consultar na prova (1/2)" data-secao="Tabela de correspondência">
+  <div class="kicker"><i class="fa-solid fa-table"></i>Tabela de correspondência <span class="sep">·</span> 1 de 2: estrutura</div>
+  <h2 class="t"><i class="fa-solid fa-table"></i>A tabela para consultar na prova</h2>
+  <div class="body ah-card overflow-hidden">
+    <table class="ah-table">
+      <thead><tr><th>Na UML</th><th>Em Java</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Caixa de classe</td><td class="font-mono">class Nome { }</td><td>Nome em <i>itálico</i> → <code>abstract</code></td></tr>
+        <tr><td>«interface»</td><td class="font-mono">interface Nome { }</td><td>Membros implicitamente públicos</td></tr>
+        <tr><td><code>+ atributo</code></td><td class="font-mono">public Tipo atributo;</td><td><code>−</code> private, <code>#</code> protected, <code>~</code> package</td></tr>
+        <tr><td><u>sublinhado</u></td><td class="font-mono">static</td><td>Vale para atributos e operações</td></tr>
+        <tr><td>Generalização (sólida ▷)</td><td class="font-mono">extends Super</td><td>Apenas uma superclasse</td></tr>
+        <tr><td>Realização (tracejada ▷)</td><td class="font-mono">implements Interface</td><td>Pode implementar várias</td></tr>
+        <tr><td>«enumeration»</td><td class="font-mono">enum Status { … }</td><td>Conjunto fechado de valores</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="slide" data-title="A tabela para consultar na prova (2/2)" data-secao="Tabela de correspondência">
+  <div class="kicker"><i class="fa-solid fa-table"></i>Tabela de correspondência <span class="sep">·</span> 2 de 2: relacionamentos</div>
+  <h2 class="t"><i class="fa-solid fa-table"></i>A tabela para consultar na prova</h2>
+  <div class="body ah-card overflow-hidden">
+    <table class="ah-table">
+      <thead><tr><th>Na UML</th><th>Em Java</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Associação <code>1</code></td><td class="font-mono">private Outro outro;</td><td>Referência simples</td></tr>
+        <tr><td>Associação <code>0..1</code></td><td class="font-mono">private Optional&lt;Outro&gt; outro;</td><td>Ou campo que aceita <code>null</code></td></tr>
+        <tr><td>Associação <code>*</code> / <code>1..*</code></td><td class="font-mono">private List&lt;Outro&gt; outros;</td><td><code>Set</code> se não houver repetição nem ordem</td></tr>
+        <tr><td>Composição ◆</td><td class="font-mono">final List&lt;Parte&gt; partes</td><td>O todo <b>cria</b> e <b>destrói</b> as partes</td></tr>
+        <tr><td>Agregação ◇</td><td class="font-mono">List&lt;Parte&gt; recebida no construtor</td><td>As partes vêm de fora e sobrevivem</td></tr>
+        <tr><td>Dependência ⇢</td><td class="font-mono">void m(Outro o) { }</td><td>Parâmetro, variável local ou retorno</td></tr>
+        <tr><td>Classe associativa</td><td class="font-mono">class Ligacao { A a; B b; … }</td><td>Vira uma classe própria com os atributos da relação</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- =============================== EXEMPLO COMPLETO =============================== -->
+<section class="slide" data-title="Um modelo inteiro, traduzido" data-secao="Exemplo completo">
+  <div class="kicker"><i class="fa-solid fa-diagram-project"></i>Exemplo completo</div>
+  <h2 class="t"><i class="fa-solid fa-diagram-project"></i>Um modelo inteiro, traduzido</h2>
+  <div class="body grid grid-cols-[500px_1fr] gap-8 min-h-0">
+    <div class="ah-stage p-3 flex items-center justify-center">
+      <svg viewBox="0 0 440 480" style="height:520px;width:auto" id="ex-svg"></svg>
+    </div>
+    <div class="flex flex-col gap-5">
+      <p class="p">
+        Quatro classes, uma interface, uma herança, uma composição e uma associação — e o código correspondente,
+        arquivo por arquivo.
+      </p>
+      <ul class="bul sm">
+        <li><span class="text-sky-700 font-semibold">Realização</span> tracejada: <code>Pedido implements Pagavel</code></li>
+        <li><span class="text-emerald-700 font-semibold">Associação</span> <code>Pedido * — 1 Cliente</code></li>
+        <li><span class="text-rose-700 font-semibold">Composição</span> <code>Pedido ◆— 1..* ItemPedido</code></li>
+        <li><span class="text-emerald-700 font-semibold">Associação</span> <code>ItemPedido — 1 Produto</code></li>
+        <li><span class="text-violet-700 font-semibold">«enumeration»</span> <code>Status</code> como tipo de atributo</li>
+      </ul>
+      <div class="flex flex-wrap gap-2" id="ex-arquivos"></div>
+      <p class="text-[14px] text-slate-500">Pacote <span class="font-mono text-emerald-700">br.com.loja.dominio</span> — cada arquivo vem nos próximos slides.</p>
+    </div>
+  </div>
+</section>
+
+<!--@@ARQUIVO_SLIDES@@-->
+
+<!-- =============================== APROFUNDAMENTO: MAPEAMENTO =============================== -->
+<section class="slide grid-bg" data-title="Mapeamento rigoroso (1/2)" data-secao="Aprofundamento: tabela de mapeamento">
+  <div class="kicker"><i class="fa-solid fa-right-left"></i>Aprofundamento <span class="sep">·</span> tabela de mapeamento 1 de 2</div>
+  <h2 class="t"><i class="fa-solid fa-right-left"></i>Mapeamento rigoroso: cada símbolo tem uma construção</h2>
+  <p class="lead mb-5">
+    Traduzir um diagrama para código não é um processo mágico. Cada elemento UML tem uma correspondência em Java, e conhecê-la
+    é o que permite revisar o código contra o modelo.
+  </p>
+  <div class="body ah-card overflow-hidden">
+    <table class="ah-table">
+      <thead><tr><th>Elemento UML</th><th>Construção Java</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Classe</td><td><code>class</code></td><td>Um arquivo por classe pública</td></tr>
+        <tr><td>Classe abstrata</td><td><code>abstract class</code></td><td>Não instanciável; pode ter métodos concretos</td></tr>
+        <tr><td>Interface</td><td><code>interface</code></td><td>Contrato; métodos abstratos por padrão</td></tr>
+        <tr><td>Generalização</td><td><code>extends</code></td><td>Apenas uma superclasse concreta</td></tr>
+        <tr><td>Realização</td><td><code>implements</code></td><td>Quantas interfaces forem necessárias</td></tr>
+        <tr><td>Atributo <code>- nome : T</code></td><td><code>private T nome;</code></td><td>Visibilidade traduzida diretamente</td></tr>
+        <tr><td>Atributo <em>estático</em></td><td><code>static</code></td><td>Compartilhado pela classe</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="slide grid-bg" data-title="Mapeamento rigoroso (2/2)" data-secao="Aprofundamento: tabela de mapeamento">
+  <div class="kicker"><i class="fa-solid fa-right-left"></i>Aprofundamento <span class="sep">·</span> tabela de mapeamento 2 de 2</div>
+  <h2 class="t"><i class="fa-solid fa-right-left"></i>Mapeamento rigoroso: cada símbolo tem uma construção</h2>
+  <div class="body ah-card overflow-hidden">
+    <table class="ah-table">
+      <thead><tr><th>Elemento UML</th><th>Construção Java</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Operação <code>+ op(p : T) : R</code></td><td><code>public R op(T p)</code></td><td>Parâmetros e retorno com tipos</td></tr>
+        <tr><td>Associação com multiplicidade 1</td><td>campo de referência</td><td>Obrigatório: validar no construtor</td></tr>
+        <tr><td>Multiplicidade <code>*</code></td><td><code>List&lt;T&gt;</code></td><td>A coleção é o papel, não uma classe nova</td></tr>
+        <tr><td>Composição</td><td>objeto criado dentro do todo</td><td><code>new</code> no construtor ou método do todo</td></tr>
+        <tr><td>Agregação</td><td>objeto recebido de fora</td><td>Parâmetro de método ou do construtor</td></tr>
+        <tr><td>Enumeração (<code>«enumeration»</code>)</td><td><code>enum</code></td><td>Valores fixos, com comportamento opcional</td></tr>
+        <tr><td>Restrição <code>{...}</code></td><td>validação ou asserção</td><td>Pré, pós e invariantes (tópico 03)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- =============================== MULTIPLICIDADE =============================== -->
+<section class="slide" data-title="Multiplicidade vira tipo, e o tipo vira regra" data-secao="Multiplicidade e coleções">
+  <div class="kicker"><i class="fa-solid fa-boxes-packing"></i>Aprofundamento <span class="sep">·</span> multiplicidade e coleções</div>
+  <h2 class="t"><i class="fa-solid fa-boxes-packing"></i>Multiplicidade vira tipo, e o tipo vira regra</h2>
+  <div class="body grid grid-cols-[1fr_640px] gap-8 min-h-0">
+    <div class="flex flex-col gap-5">
+      <p class="p text-[19px]">
+        A multiplicidade é a parte mais informativa do diagrama, e a mais esquecida no código. Ela decide o tipo do campo e as
+        validações do construtor. Um <code>1..*</code> exige uma lista não vazia, e um <code>0..1</code> aceita <code>null</code> ou
+        <code>Optional</code>.
+      </p>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="ah-card p-4"><div class="font-mono text-amber-700 text-[22px]">1..*</div><div class="text-slate-700 text-[15px] mt-1">lista <b class="text-slate-900">não vazia</b></div></div>
+        <div class="ah-card p-4"><div class="font-mono text-amber-700 text-[22px]">0..1</div><div class="text-slate-700 text-[15px] mt-1"><code>null</code> ou <code>Optional</code></div></div>
+      </div>
+    </div>
+<pre class="ah-code"><code><span class="cm">// Album "1" *-- "1..*" Musica   (composição, pelo menos uma faixa)</span>
+<span class="kw">public class</span> <span class="ty">Album</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; faixas = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Album</span>(String titulo, String artista, <span class="kw">int</span> primeiraDuracao) {
+        <span class="cm">// 1..* : o álbum nasce com pelo menos uma faixa</span>
+        faixas.add(<span class="kw">new</span> <span class="ty">Musica</span>(titulo, artista, primeiraDuracao));
+    }
+}
+
+<span class="cm">// Playlist "0..*" o-- "0..*" Musica   (agregação: a música vem de fora)</span>
+<span class="kw">public class</span> <span class="ty">Playlist</span> {
+    <span class="kw">private final</span> List&lt;<span class="ty">Musica</span>&gt; musicas = <span class="kw">new</span> ArrayList&lt;&gt;();
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Musica</span> m) { musicas.add(m); }
+}</code></pre>
+  </div>
+</section>
+
+<!-- =============================== CASOS ESPECIAIS =============================== -->
+<section class="slide" data-title="Casos que o mapeamento simples não cobre" data-secao="Associações qualificadas e genéricos">
+  <div class="kicker"><i class="fa-solid fa-brackets-curly"></i>Aprofundamento <span class="sep">·</span> associações qualificadas e genéricos</div>
+  <h2 class="t"><i class="fa-solid fa-brackets-curly"></i>Casos que o mapeamento simples não cobre</h2>
+  <div class="body flex flex-col gap-5">
+    <p class="p">Alguns elementos não têm uma tradução direta, e exigem uma decisão de projeto explícita:</p>
+    <ul class="bul">
+      <li><strong>Associação qualificada:</strong> o qualificador vira a chave de um <code>Map</code> (tópico 06).</li>
+      <li><strong>Classe de associação:</strong> vira uma classe própria, com referências aos dois lados, como <code>Assinatura</code>.</li>
+      <li><strong>Classe parametrizada (<code>&lt;&lt;template&gt;&gt;</code>):</strong> vira um genérico, como <code>Repositorio&lt;T&gt;</code>.</li>
+      <li><strong>Operações com retorno múltiplo ou sem retorno:</strong> use <code>void</code>, um <code>record</code> de resposta ou uma exceção.</li>
+    </ul>
+<pre class="ah-code" style="font-size:16px"><code><span class="cm">// Classe parametrizada: um repositório genérico para qualquer entidade</span>
+<span class="kw">public interface</span> <span class="ty">Repositorio</span>&lt;T, ID&gt; {
+    <span class="kw">void</span> <span class="fn">salvar</span>(T entidade);
+    <span class="ty">Optional</span>&lt;T&gt; <span class="fn">buscar</span>(ID id);
+}</code></pre>
+  </div>
+</section>
+
+<!-- =============================== ENGENHARIA DIRETA / REVERSA =============================== -->
+<section class="slide" data-title="Modelo e código: a sincronização é o problema" data-secao="Engenharia direta e reversa">
+  <div class="kicker"><i class="fa-solid fa-arrows-rotate"></i>Aprofundamento <span class="sep">·</span> engenharia direta e reversa</div>
+  <h2 class="t"><i class="fa-solid fa-arrows-rotate"></i>Modelo e código: a sincronização é o problema</h2>
+  <div class="body flex flex-col gap-6">
+    <div class="grid grid-cols-2 gap-6">
+      <div class="ah-card p-7 border-t-4 border-emerald-400">
+        <div class="text-[15px] font-bold text-emerald-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-arrow-right"></i>Engenharia direta <span class="text-slate-500 font-normal">modelo → código</span></div>
+        <p class="text-[19px] text-slate-700 leading-relaxed">Gera código a partir do modelo. Funciona bem para a estrutura (classes, campos, assinaturas). Não gera a lógica, que precisa ser escrita.</p>
+      </div>
+      <div class="ah-card p-7 border-t-4 border-rose-400">
+        <div class="text-[15px] font-bold text-rose-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i>Engenharia reversa <span class="text-slate-500 font-normal">código → modelo</span></div>
+        <p class="text-[19px] text-slate-700 leading-relaxed">Gera o diagrama a partir do código. Mostra o que existe, mas não o que deveria existir. Um código ruim gera um diagrama ruim.</p>
+      </div>
+    </div>
+    <div class="ah-callout ah-callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>
+        <strong>O diagrama que mente:</strong> depois de algumas semanas, modelo e código divergem. Um diagrama desatualizado é
+        pior que nenhum, porque ele inspira confiança. Escolha uma fonte da verdade (normalmente o código, com testes) e
+        atualize o diagrama como documentação viva, ou gere-o a partir do código.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== CHECKLIST =============================== -->
+<section class="slide" data-title="Checklist de revisão do código" data-secao="Revisar o código contra o modelo">
+  <div class="kicker"><i class="fa-solid fa-clipboard-check"></i>Aprofundamento <span class="sep">·</span> revisar o código contra o modelo</div>
+  <h2 class="t"><i class="fa-solid fa-clipboard-check"></i>Checklist de revisão do código</h2>
+  <div class="body" data-checklist>
+    <div class="check"><i class="fa-regular fa-square"></i><span>Toda associação do diagrama tem um campo (ou um parâmetro, se for agregação ou dependência)?</span></div>
+    <div class="check"><i class="fa-regular fa-square"></i><span>A multiplicidade <code>1</code> é garantida no construtor, e não apenas na documentação?</span></div>
+    <div class="check"><i class="fa-regular fa-square"></i><span>Atributos marcados como privados no diagrama estão privados no código?</span></div>
+    <div class="check"><i class="fa-regular fa-square"></i><span>Toda composição cria a parte dentro do todo, e a parte não é exposta para criação externa?</span></div>
+    <div class="check"><i class="fa-regular fa-square"></i><span>As restrições do diagrama aparecem como validações ou testes?</span></div>
+    <div class="check"><i class="fa-regular fa-square"></i><span>Não há dependência no código que o diagrama não mostra (por exemplo, uma classe de domínio importando um pacote de infraestrutura)?</span></div>
+  </div>
+</section>
+
+<!-- =============================== EXERCÍCIOS =============================== -->
+<section class="slide" data-title="Exercício 1" data-secao="Exercícios com gabarito">
+  <div class="kicker"><i class="fa-solid fa-pen-to-square"></i>Exercícios <span class="sep">·</span> 1 de 5</div>
+  <h2 class="t"><i class="fa-solid fa-pen-to-square"></i>Exercícios</h2>
+  <div class="body flex flex-col gap-6">
+    <div class="ah-card p-7">
+      <p class="text-[24px] font-semibold text-slate-900 leading-snug">1. Traduza para Java: <code>Ouvinte "1" -- "0..*" Playlist</code>, em que a playlist é criada pelo ouvinte.</p>
+    </div>
+    <button class="ah-btn ah-btn-ghost self-start text-[15px] px-5 py-2.5" data-reveal><i class="fa-solid fa-eye"></i>Mostrar gabarito</button>
+    <div class="reveal-box">
+      <div class="grid grid-cols-[1fr_600px] gap-6">
+        <p class="p text-[19px]"><strong>Gabarito:</strong> em <code>Ouvinte</code>, <code>private final List&lt;Playlist&gt; playlists</code> e um método <code>montarPlaylist(nome)</code> que cria a playlist com <code>new</code>. Como o ouvinte cria a playlist, a relação é de composição do lado do ouvinte; se a playlist pudesse existir sem ouvinte, seria agregação.</p>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Ouvinte</span> {
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">Playlist</span>&gt; playlists = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="cm">// o ouvinte cria a playlist com new → composição</span>
+    <span class="kw">public</span> <span class="ty">Playlist</span> <span class="fn">montarPlaylist</span>(<span class="ty">String</span> nome) {
+        <span class="ty">Playlist</span> p = <span class="kw">new</span> <span class="ty">Playlist</span>(nome);
+        playlists.<span class="fn">add</span>(p);
+        <span class="kw">return</span> p;
+    }
+}</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Exercício 2" data-secao="Exercícios com gabarito">
+  <div class="kicker"><i class="fa-solid fa-pen-to-square"></i>Exercícios <span class="sep">·</span> 2 de 5</div>
+  <h2 class="t"><i class="fa-solid fa-pen-to-square"></i>Exercícios</h2>
+  <div class="body flex flex-col gap-6">
+    <div class="ah-card p-7">
+      <p class="text-[24px] font-semibold text-slate-900 leading-snug">2. Um colega gera código de um diagrama com <code>Musica</code> ligada a <code>Album</code> por composição e o código tem <code>public List&lt;Musica&gt; faixas</code>. Qual o problema?</p>
+    </div>
+    <button class="ah-btn ah-btn-ghost self-start text-[15px] px-5 py-2.5" data-reveal><i class="fa-solid fa-eye"></i>Mostrar gabarito</button>
+    <div class="reveal-box">
+      <div class="grid grid-cols-[1fr_600px] gap-6">
+        <p class="p text-[19px]"><strong>Gabarito:</strong> a lista pública permite que qualquer código altere as faixas, o que quebra a posse exclusiva do álbum. O correto é <code>private</code> com retorno de lista imutável (<code>Collections.unmodifiableList</code>), e a adição feita pelo próprio álbum.</p>
+<pre class="ah-code"><code><span class="kw">public class</span> <span class="ty">Album</span> {
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">Musica</span>&gt; faixas = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public void</span> <span class="fn">adicionarFaixa</span>(<span class="ty">String</span> titulo) {
+        faixas.<span class="fn">add</span>(<span class="kw">new</span> <span class="ty">Musica</span>(titulo));
+    }
+
+    <span class="kw">public</span> <span class="ty">List</span>&lt;<span class="ty">Musica</span>&gt; <span class="fn">getFaixas</span>() {
+        <span class="kw">return</span> <span class="ty">Collections</span>.<span class="fn">unmodifiableList</span>(faixas);
+    }
+}</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Exercício 3" data-secao="Exercícios com gabarito">
+  <div class="kicker"><i class="fa-solid fa-pen-to-square"></i>Exercícios <span class="sep">·</span> 3 de 5</div>
+  <h2 class="t"><i class="fa-solid fa-pen-to-square"></i>Exercícios</h2>
+  <div class="body flex flex-col gap-6">
+    <div class="ah-card p-7">
+      <p class="text-[24px] font-semibold text-slate-900 leading-snug">3. Por que a engenharia reversa pura não basta para projetar um sistema?</p>
+    </div>
+    <button class="ah-btn ah-btn-ghost self-start text-[15px] px-5 py-2.5" data-reveal><i class="fa-solid fa-eye"></i>Mostrar gabarito</button>
+    <div class="reveal-box">
+      <div class="ah-callout ah-callout-ok">
+        <i class="fa-solid fa-circle-check"></i>
+        <div><strong>Gabarito:</strong> porque ela descreve o que foi feito, com todos os acidentes do código, e não o que deveria ser feito. Projetar exige decidir antes de implementar, e a reversa só documenta essas decisões depois, quando já estão tomadas.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Exercício 4 — álbum, artista e faixas" data-secao="Exercícios com gabarito">
+  <div class="kicker"><i class="fa-solid fa-pen-to-square"></i>Exercícios <span class="sep">·</span> 4 de 5 <span class="sep">·</span> <i class="fa-solid fa-music"></i>streaming de música</div>
+  <h2 class="t"><i class="fa-solid fa-pen-to-square"></i>4. Traduza o diagrama para Java</h2>
+  <div class="body grid grid-cols-[600px_1fr] gap-8 min-h-0">
+    <div class="ah-stage p-4 flex items-center justify-center">
+      <svg viewBox="0 0 460 230" style="width:100%;height:auto" data-ex-svg="4"></svg>
+    </div>
+    <div class="flex flex-col gap-4">
+      <p class="p text-[19px]">Um catálogo de streaming: cada álbum é de um artista e é formado por faixas.</p>
+      <div class="text-[12px] uppercase tracking-wider text-slate-500 font-bold">Antes de escrever, decida</div>
+      <ul class="bul sm">
+        <li>Em qual classe fica o campo da associação com <code>Artista</code>? Por quê?</li>
+        <li>Quem dá o <code>new Faixa</code>? Que visibilidade tem o construtor de <code>Faixa</code>?</li>
+        <li>Como o código garante o <code>1</code> do artista e o <code>1..*</code> das faixas?</li>
+        <li>O que <code>getFaixas()</code> deve devolver?</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Exercício 5 — usuário, plano e playlists" data-secao="Exercícios com gabarito">
+  <div class="kicker"><i class="fa-solid fa-pen-to-square"></i>Exercícios <span class="sep">·</span> 5 de 5 <span class="sep">·</span> <i class="fa-solid fa-music"></i>streaming de música</div>
+  <h2 class="t"><i class="fa-solid fa-pen-to-square"></i>5. Traduza o diagrama para Java</h2>
+  <div class="body grid grid-cols-[560px_1fr] gap-8 min-h-0">
+    <div class="ah-stage p-3 flex items-center justify-center">
+      <svg viewBox="0 0 460 330" style="width:100%;height:auto;max-height:520px" data-ex-svg="5"></svg>
+    </div>
+    <div class="flex flex-col gap-4">
+      <p class="p text-[19px]">O usuário cria playlists e coloca nelas músicas do catálogo. No plano gratuito, até 3 playlists.</p>
+      <div class="text-[12px] uppercase tracking-wider text-slate-500 font-bold">Antes de escrever, decida</div>
+      <ul class="bul sm">
+        <li>O que viram <code>«interface»</code> e a seta tracejada até <code>Musica</code>?</li>
+        <li>Composição ou agregação: quem cria a <code>Playlist</code>? E quem cria a <code>Musica</code>?</li>
+        <li>Que tipo tem o atributo <code>plano</code>, e qual o valor inicial?</li>
+        <li>Onde a restrição <code>{GRATUITO: até 3}</code> vira código?</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== HOTEL =============================== -->
+<section class="slide" data-title="Hotel — passo 1: o diagrama" data-secao="Exemplo passo a passo: reserva de hotel">
+  <div class="kicker"><i class="fa-solid fa-bed"></i>Exemplo passo a passo <span class="sep">·</span> passo 1 de 3</div>
+  <h2 class="t"><i class="fa-solid fa-bed"></i>Do diagrama de um hotel ao código</h2>
+  <p class="lead mb-4">Uma reserva liga um hóspede a quartos. Cada elemento do diagrama vira uma decisão concreta no código.</p>
+  <h3 class="text-slate-900 font-bold text-[20px] mb-3">Passo 1 — o diagrama</h3>
+  <div class="body ah-stage p-4 flex items-center justify-center">
+    <pre class="mermaid" style="background:transparent;margin:0">
+classDiagram
+    class Reserva {
+        -LocalDate entrada
+        -LocalDate saida
+        +diarias() int
+    }
+    class Hospede {
+        -String nome
+    }
+    class Quarto {
+        -int numero
+    }
+    Hospede "1" --&gt; "1..*" Reserva : faz
+    Reserva "1" o-- "1..*" Quarto : ocupa
+    </pre>
+  </div>
+</section>
+
+<section class="slide" data-title="Hotel — passo 2: traduzir cada elemento" data-secao="Exemplo passo a passo: reserva de hotel">
+  <div class="kicker"><i class="fa-solid fa-bed"></i>Exemplo passo a passo <span class="sep">·</span> passo 2 de 3</div>
+  <h2 class="t"><i class="fa-solid fa-bed"></i>Passo 2 — traduzir cada elemento</h2>
+  <div class="body ah-card overflow-hidden self-start w-full">
+    <table class="ah-table">
+      <thead><tr><th>Elemento do diagrama</th><th>Construção em Java</th></tr></thead>
+      <tbody>
+        <tr><td>Classe <code>Reserva</code></td><td><code>class Reserva</code></td></tr>
+        <tr><td>Atributo <code>-LocalDate entrada</code></td><td><code>private final LocalDate entrada;</code></td></tr>
+        <tr><td>Operação <code>+diarias() int</code></td><td><code>public int diarias()</code></td></tr>
+        <tr><td>Multiplicidade <code>1..*</code> de quartos</td><td><code>List&lt;Quarto&gt;</code> não vazia, validada no construtor</td></tr>
+        <tr><td>Agregação (losango vazio)</td><td>quartos recebidos de fora, não criados pela reserva</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="slide" data-title="Hotel — passo 3: o código gerado e revisado" data-secao="Exemplo passo a passo: reserva de hotel">
+  <div class="kicker"><i class="fa-solid fa-bed"></i>Exemplo passo a passo <span class="sep">·</span> passo 3 de 3</div>
+  <h2 class="t"><i class="fa-solid fa-bed"></i>Passo 3 — o código gerado e revisado</h2>
+  <div class="body">
+  <pre class="ah-code" style="font-size:14.5px"><code><span class="kw">public class</span> <span class="ty">Reserva</span> {
+    <span class="kw">private final</span> LocalDate entrada;
+    <span class="kw">private final</span> LocalDate saida;
+    <span class="kw">private final</span> List&lt;<span class="ty">Quarto</span>&gt; quartos;
+
+    <span class="kw">public</span> <span class="fn">Reserva</span>(LocalDate entrada, LocalDate saida, List&lt;<span class="ty">Quarto</span>&gt; quartos) {
+        <span class="kw">if</span> (!saida.isAfter(entrada)) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"saída deve ser depois da entrada"</span>);
+        <span class="kw">if</span> (quartos == <span class="kw">null</span> || quartos.isEmpty()) <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"ao menos um quarto (1..*)"</span>);
+        <span class="kw">this</span>.entrada = entrada;
+        <span class="kw">this</span>.saida = saida;
+        <span class="kw">this</span>.quartos = List.copyOf(quartos);   <span class="cm">// cópia: a reserva não altera a lista de quem chamou</span>
+    }
+
+    <span class="kw">public int</span> <span class="fn">diarias</span>() {
+        <span class="kw">return</span> (<span class="kw">int</span>) ChronoUnit.DAYS.between(entrada, saida);
+    }
+}</code></pre>
+  </div>
+</section>
+
+<section class="slide" data-title="Hotel — três decisões e o erro típico" data-secao="Exemplo passo a passo: reserva de hotel">
+  <div class="kicker"><i class="fa-solid fa-bed"></i>Exemplo passo a passo <span class="sep">·</span> o que o diagrama decidiu</div>
+  <h2 class="t"><i class="fa-solid fa-bed"></i>Três decisões saíram direto do diagrama</h2>
+  <div class="body flex flex-col gap-6">
+    <div class="grid grid-cols-3 gap-5">
+      <div class="ah-card p-6 border-t-4 border-amber-400">
+        <div class="font-mono text-amber-700 text-[22px] mb-2">1..*</div>
+        <div class="text-slate-900 font-bold text-[18px] mb-2">Validação da multiplicidade</div>
+        <p class="text-slate-600 text-[15px] leading-relaxed"><code>quartos == null || quartos.isEmpty()</code> lança exceção no construtor.</p>
+      </div>
+      <div class="ah-card p-6 border-t-4 border-sky-400">
+        <div class="text-sky-700 text-[22px] mb-2"><i class="fa-regular fa-copy"></i></div>
+        <div class="text-slate-900 font-bold text-[18px] mb-2">Cópia defensiva da lista</div>
+        <p class="text-slate-600 text-[15px] leading-relaxed">Agregação: <code>List.copyOf(quartos)</code> — a reserva não altera a lista de quem chamou.</p>
+      </div>
+      <div class="ah-card p-6 border-t-4 border-emerald-400">
+        <div class="text-emerald-700 text-[22px] mb-2"><i class="fa-solid fa-ban"></i></div>
+        <div class="text-slate-900 font-bold text-[18px] mb-2">Nenhum <code>new Quarto</code></div>
+        <p class="text-slate-600 text-[15px] leading-relaxed">Ausência de criação de <code>Quarto</code> dentro da reserva: os quartos vêm de fora.</p>
+      </div>
+    </div>
+    <div class="ah-callout ah-callout-warn"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> gerar o código e não revisar a multiplicidade. O gerador quase sempre cria <code>List&lt;Quarto&gt;</code> sem validar o <code>1..*</code>, e o diagrama fica documentando uma regra que o código não cumpre.</div></div>
+  </div>
+</section>
+
+<!-- =============================== QUIZ =============================== -->
+<section class="slide quiz-bg" data-title="Quiz 1" data-secao="Teste seu entendimento">
+  <div class="kicker"><i class="fa-solid fa-graduation-cap"></i>Teste seu entendimento <span class="sep">·</span> 1 de 3</div>
+  <h2 class="t"><i class="fa-solid fa-graduation-cap"></i>Teste seu entendimento</h2>
+  <p class="text-[15px] text-slate-600 -mt-3 mb-5">Três perguntas de tradução.</p>
+  <div class="body ah-quiz" data-answer="2">
+    <p class="font-semibold text-slate-900 mb-5 text-[24px]">1. <code>Turma "1" —— "3..40" Aluno</code> vira, no código de Turma:</p>
+    <button class="ah-quiz-opt">Um atributo <code>Aluno aluno;</code></button>
+    <button class="ah-quiz-opt">Nada — multiplicidade não gera código</button>
+    <button class="ah-quiz-opt">Uma coleção <code>List&lt;Aluno&gt;</code>, com validação de tamanho entre 3 e 40</button>
+    <p class="ah-quiz-exp text-[17px] mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed">
+      A coleção vem do “muitos”; os limites <code>3..40</code> são uma regra de negócio que o compilador
+      não garante — precisa virar validação explícita no método que adiciona alunos.
+    </p>
+  </div>
+</section>
+
+<section class="slide quiz-bg" data-title="Quiz 2" data-secao="Teste seu entendimento">
+  <div class="kicker"><i class="fa-solid fa-graduation-cap"></i>Teste seu entendimento <span class="sep">·</span> 2 de 3</div>
+  <h2 class="t"><i class="fa-solid fa-graduation-cap"></i>Teste seu entendimento</h2>
+  <div class="body ah-quiz" data-answer="0">
+    <p class="font-semibold text-slate-900 mb-5 text-[24px]">2. A diferença no código entre composição e agregação aparece principalmente:</p>
+    <button class="ah-quiz-opt">Em quem cria e destrói a parte: na composição, o próprio todo</button>
+    <button class="ah-quiz-opt">No tipo da coleção usada</button>
+    <button class="ah-quiz-opt">Na visibilidade do atributo</button>
+    <p class="ah-quiz-exp text-[17px] mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed">
+      Composição: <code>itens.add(new Item(...))</code> dentro do todo, coleção <code>final</code> e não
+      exposta. Agregação: a parte chega pronta pelo construtor ou por um <em>setter</em>. A sintaxe é
+      parecida; a <b>responsabilidade pelo ciclo de vida</b> é o que muda.
+    </p>
+  </div>
+</section>
+
+<section class="slide quiz-bg" data-title="Quiz 3" data-secao="Teste seu entendimento">
+  <div class="kicker"><i class="fa-solid fa-graduation-cap"></i>Teste seu entendimento <span class="sep">·</span> 3 de 3</div>
+  <h2 class="t"><i class="fa-solid fa-graduation-cap"></i>Teste seu entendimento</h2>
+  <div class="body ah-quiz" data-answer="1">
+    <p class="font-semibold text-slate-900 mb-5 text-[24px]">3. Uma <em>classe associativa</em> entre <code>Aluno</code> e <code>Disciplina</code>, com o atributo <code>nota</code>, vira:</p>
+    <button class="ah-quiz-opt">Um atributo <code>nota</code> em Aluno</button>
+    <button class="ah-quiz-opt">Uma classe própria, ex.: <code>Matricula</code>, ligando os dois e guardando a nota</button>
+    <button class="ah-quiz-opt">Um atributo <code>nota</code> em Disciplina</button>
+    <p class="ah-quiz-exp text-[17px] mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 leading-relaxed">
+      A nota não pertence ao aluno (ele tem várias) nem à disciplina (ela tem várias): pertence ao
+      <b>par</b>. Esse é o sinal clássico de que a associação precisa virar classe — e, no banco, a tabela
+      de junção com colunas extras.
+    </p>
+  </div>
+</section>
+
+<!-- =============================== REFERÊNCIAS =============================== -->
+<section class="slide" data-title="Para aprofundar" data-secao="Para aprofundar">
+  <div class="kicker"><i class="fa-solid fa-book"></i>Referências</div>
+  <h2 class="t"><i class="fa-solid fa-book"></i>Para aprofundar</h2>
+  <div class="body flex flex-col gap-5">
+    <div class="ah-card p-7 flex gap-5 items-start">
+      <i class="fa-solid fa-book text-emerald-600 text-3xl mt-1"></i>
+      <div><div class="text-slate-900 text-[22px] font-bold">FOWLER, Martin. <em>UML Essencial</em>. Bookman.</div>
+        <p class="text-slate-600 text-[18px] mt-2">Discussão sobre o papel do diagrama como esboço, e não como especificação completa.</p></div>
+    </div>
+    <div class="ah-card p-7 flex gap-5 items-start">
+      <i class="fa-solid fa-book text-emerald-600 text-3xl mt-1"></i>
+      <div><div class="text-slate-900 text-[22px] font-bold">BLOCH, Joshua. <em>Effective Java</em>, 3ª edição.</div>
+        <p class="text-slate-600 text-[18px] mt-2">Itens sobre imutabilidade, coleções e encapsulamento de campos.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== CÓDIGO PRONTO =============================== -->
+<section class="slide grid-bg" data-title="O código desta aula, pronto para rodar" data-secao="Código pronto">
+  <div class="kicker"><i class="fa-brands fa-java"></i>Código pronto</div>
+  <h2 class="t"><i class="fa-brands fa-java"></i>O código desta aula, pronto para rodar</h2>
+  <div class="body grid grid-cols-[1fr_600px] gap-8">
+    <div class="flex flex-col gap-4">
+      <p class="p text-[19px]">Todos os exemplos dos slides estão em <code>exemplos/do-diagrama-ao-codigo</code>, um pacote por bloco da aula.
+        <code>aula.Principal</code> percorre tudo na ordem dos slides e mostra as regras que o código passa a garantir.</p>
+<pre class="ah-code" style="font-size:15px"><code><span class="cm"># Java 17+</span>
+<span class="kw">cd</span> disciplinas/modelagem-poo/exemplos/do-diagrama-ao-codigo
+javac -encoding UTF-8 -d out $(find src -name <span class="str">"*.java"</span>)
+java -cp out aula.Principal</code></pre>
+      <div class="ah-card p-5 flex items-center gap-4 mt-auto">
+        <i class="fa-solid fa-scale-balanced text-indigo-600 text-2xl"></i>
+        <div><div class="text-[12px] uppercase tracking-wider text-slate-500 font-bold">Próximo tópico</div>
+          <div class="text-slate-900 font-bold text-[18px]">16 · Princípios de Projeto (SOLID)</div></div>
+      </div>
+    </div>
+<pre class="ah-code sm"><code><span class="ty">src/</span>
+├── <span class="ty">aula/</span>Principal.java            <span class="cm">roteiro executável</span>
+├── <span class="ty">tradutor/</span>
+│   ├── classe/        Produto
+│   ├── abstrata/      Conta, Poupanca
+│   ├── interfaces/    Pagavel, Fatura
+│   ├── associacao/    Cliente, Pedido
+│   ├── composicao/    Pedido, ItemPedido, Produto
+│   ├── agregacao/     Time, Jogador
+│   ├── associativa/   Aluno, Disciplina, Matricula
+│   └── enumeracao/    Status, Pedido
+├── <span class="ty">br/com/loja/dominio/</span>             <span class="cm">exemplo completo</span>
+│       Pagavel, Pedido, ItemPedido,
+│       Produto, Cliente, Status
+├── <span class="ty">aprofundamento/</span>
+│   ├── multiplicidade/ Album, Musica, Playlist
+│   ├── genericos/      Repositorio, RepositorioEmMemoria
+│   └── hotel/          Reserva, Hospede, Quarto
+├── <span class="ty">exercicios/</span>ex1 … ex5         <span class="cm">gabaritos</span>
+└── <span class="ty">quiz/</span>Turma, Aluno               <span class="cm">3..40 validado</span></code></pre>
+  </div>
+</section>
+
+</div></div>
+
+<div id="progress"></div>
+<div id="bar">
+  <button id="b-prev" title="Anterior (←)"><i class="fa-solid fa-chevron-left"></i></button>
+  <button id="b-next" title="Próximo (→)"><i class="fa-solid fa-chevron-right"></i></button>
+  <span id="contador" class="font-mono text-[12px] text-slate-600 w-16 text-center"></span>
+  <span id="secao"></span>
+  <button id="b-indice" title="Índice (I)"><i class="fa-solid fa-list"></i></button>
+  <button id="b-full" title="Tela cheia (F)"><i class="fa-solid fa-expand"></i></button>
+  <a href="../topicos/15-do-diagrama-ao-codigo.html" class="text-[12px] text-slate-600 hover:text-slate-900 ml-2"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Aula</a>
+</div>
+<div id="indice"><div class="max-w-3xl mx-auto" id="indice-lista"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script>
+/* ===================== Dados copiados da aula (tópico 15) ===================== */
+const cx = (x, y, w, nome, membros, cor, estereotipo, italico) => {
+  const h = (estereotipo ? 38 : 26) + membros.length * 14 + 8;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="#1e293b" stroke="${cor}" stroke-width="1.7"/>
+    ${estereotipo ? `<text x="${x + w / 2}" y="${y + 15}" text-anchor="middle" font-size="9"
+      font-family="Fira Code, monospace" fill="${cor}">«${estereotipo}»</text>` : ''}
+    <text x="${x + w / 2}" y="${y + (estereotipo ? 31 : 18)}" text-anchor="middle" font-size="11.5"
+      font-weight="700" font-family="Inter, sans-serif" fill="#fff" ${italico ? 'font-style="italic"' : ''}>${nome}</text>
+    <line x1="${x}" y1="${y + (estereotipo ? 38 : 26)}" x2="${x + w}" y2="${y + (estereotipo ? 38 : 26)}"
+      stroke="${cor}88" stroke-width="1.1"/>
+    ${membros.map((m, i) => `<text x="${x + 8}" y="${y + (estereotipo ? 52 : 40) + i * 14}" font-size="9"
+      font-family="Fira Code, monospace" fill="#cbd5e1">${m}</text>`).join('')}`;
+};
+
+  const CONSTR = [
+    {
+      n: 'Classe simples', i: 'fa-square',
+      svg: cx(130, 30, 200, 'Produto', ['− nome: String', '− preco: double', '+ aplicarDesconto(p)'], '#10b981'),
+      nota: 'Visibilidade: <code>+</code> public, <code>−</code> private, <code>#</code> protected, <code>~</code> package.',
+      java: `<span class="kw">public class</span> <span class="ty">Produto</span> {
+    <span class="kw">private</span> <span class="ty">String</span> nome;
+    <span class="kw">private double</span> preco;
+
+    <span class="kw">public void</span> <span class="fn">aplicarDesconto</span>(<span class="ty">double</span> p) {
+        preco -= preco * p;
+    }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Produto</span> {
+    <span class="kw">private string</span> nome;
+    <span class="kw">private double</span> preco;
+
+    <span class="kw">public void</span> <span class="fn">AplicarDesconto</span>(<span class="kw">double</span> p) {
+        preco -= preco * p;
+    }
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Produto</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, nome, preco):
+        self.__nome = nome      <span class="cm"># “privado” por convenção</span>
+        self.__preco = preco
+
+    <span class="kw">def</span> <span class="fn">aplicar_desconto</span>(self, p):
+        self.__preco -= self.__preco * p`
+    },
+    {
+      n: 'Classe abstrata', i: 'fa-ghost',
+      svg: cx(130, 20, 200, 'Conta', ['# saldo: double', '+ depositar(v)', '+ taxaMensal()'], '#a855f7', null, true) +
+           cx(130, 118, 200, 'Poupanca', ['+ taxaMensal()'], '#10b981') +
+           `<line x1="230" y1="118" x2="230" y2="102" stroke="#a855f7" stroke-width="1.7"/>
+            <polygon points="230,84 221,102 239,102" fill="#0f172a" stroke="#a855f7" stroke-width="1.7"/>`,
+      nota: 'Nome e operações abstratas aparecem em <i>itálico</i>. A classe abstrata não pode ser instanciada.',
+      java: `<span class="kw">public abstract class</span> <span class="ty">Conta</span> {
+    <span class="kw">protected double</span> saldo;
+
+    <span class="kw">public void</span> <span class="fn">depositar</span>(<span class="ty">double</span> v) { saldo += v; }
+
+    <span class="kw">public abstract double</span> <span class="fn">taxaMensal</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Poupanca</span> <span class="kw">extends</span> <span class="ty">Conta</span> {
+    <span class="cm">@Override</span>
+    <span class="kw">public double</span> <span class="fn">taxaMensal</span>() { <span class="kw">return</span> <span class="num">0.005</span>; }
+}`,
+      csharp: `<span class="kw">public abstract class</span> <span class="ty">Conta</span> {
+    <span class="kw">protected double</span> saldo;
+
+    <span class="kw">public void</span> <span class="fn">Depositar</span>(<span class="kw">double</span> v) => saldo += v;
+
+    <span class="kw">public abstract double</span> <span class="fn">TaxaMensal</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Poupanca</span> : <span class="ty">Conta</span> {
+    <span class="kw">public override double</span> <span class="fn">TaxaMensal</span>() => <span class="num">0.005</span>;
+}`,
+      python: `<span class="kw">from</span> abc <span class="kw">import</span> ABC, abstractmethod
+
+<span class="kw">class</span> <span class="ty">Conta</span>(ABC):
+    <span class="kw">def</span> <span class="fn">depositar</span>(self, v):
+        self._saldo += v
+
+    <span class="cm">@abstractmethod</span>
+    <span class="kw">def</span> <span class="fn">taxa_mensal</span>(self): ...
+
+<span class="kw">class</span> <span class="ty">Poupanca</span>(<span class="ty">Conta</span>):
+    <span class="kw">def</span> <span class="fn">taxa_mensal</span>(self):
+        <span class="kw">return</span> <span class="num">0.005</span>`
+    },
+    {
+      n: 'Interface (realização)', i: 'fa-plug',
+      svg: cx(130, 20, 200, 'Pagavel', ['+ calcularValor()'], '#38bdf8', 'interface') +
+           cx(130, 118, 200, 'Fatura', ['+ calcularValor()'], '#10b981') +
+           `<line x1="230" y1="118" x2="230" y2="102" stroke="#38bdf8" stroke-width="1.7" stroke-dasharray="6 4"/>
+            <polygon points="230,84 221,102 239,102" fill="#0f172a" stroke="#38bdf8" stroke-width="1.7"/>`,
+      nota: 'Linha <b>tracejada</b> com ponta triangular vazada. Uma classe pode realizar várias interfaces.',
+      java: `<span class="kw">public interface</span> <span class="ty">Pagavel</span> {
+    <span class="ty">double</span> <span class="fn">calcularValor</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Fatura</span> <span class="kw">implements</span> <span class="ty">Pagavel</span> {
+    <span class="cm">@Override</span>
+    <span class="kw">public double</span> <span class="fn">calcularValor</span>() { <span class="kw">return</span> total; }
+}`,
+      csharp: `<span class="kw">public interface</span> <span class="ty">IPagavel</span> {
+    <span class="kw">double</span> <span class="fn">CalcularValor</span>();
+}
+
+<span class="kw">public class</span> <span class="ty">Fatura</span> : <span class="ty">IPagavel</span> {
+    <span class="kw">public double</span> <span class="fn">CalcularValor</span>() => total;
+}`,
+      python: `<span class="kw">from</span> typing <span class="kw">import</span> Protocol
+
+<span class="kw">class</span> <span class="ty">Pagavel</span>(Protocol):
+    <span class="kw">def</span> <span class="fn">calcular_valor</span>(self) -> <span class="ty">float</span>: ...
+
+<span class="kw">class</span> <span class="ty">Fatura</span>:          <span class="cm"># duck typing: basta ter o método</span>
+    <span class="kw">def</span> <span class="fn">calcular_valor</span>(self) -> <span class="ty">float</span>:
+        <span class="kw">return</span> self.total`
+    },
+    {
+      n: 'Associação 1 → *', i: 'fa-arrow-right-long',
+      svg: cx(20, 55, 175, 'Cliente', ['− nome: String'], '#10b981') +
+           cx(265, 55, 175, 'Pedido', ['− data: LocalDate'], '#10b981') +
+           `<line x1="195" y1="88" x2="255" y2="88" stroke="#10b981" stroke-width="1.8"/>
+            <polyline points="245,82 257,88 245,94" fill="none" stroke="#10b981" stroke-width="1.8"/>
+            <text x="205" y="80" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">1</text>
+            <text x="248" y="112" text-anchor="end" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>`,
+      nota: 'A seta indica <b>navegabilidade</b>: só o Cliente conhece seus Pedidos. O lado “muitos” vira coleção.',
+      java: `<span class="kw">public class</span> <span class="ty">Cliente</span> {
+    <span class="kw">private</span> <span class="ty">String</span> nome;
+    <span class="kw">private</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; pedidos = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Pedido</span> p) {
+        pedidos.<span class="fn">add</span>(p);
+    }
+    <span class="kw">public</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; <span class="fn">getPedidos</span>() {
+        <span class="kw">return</span> <span class="ty">Collections</span>.<span class="fn">unmodifiableList</span>(pedidos);
+    }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Cliente</span> {
+    <span class="kw">private readonly</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; pedidos = <span class="kw">new</span>();
+
+    <span class="kw">public string</span> Nome { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public</span> <span class="ty">IReadOnlyList</span>&lt;<span class="ty">Pedido</span>&gt; Pedidos => pedidos;
+
+    <span class="kw">public void</span> <span class="fn">Adicionar</span>(<span class="ty">Pedido</span> p) => pedidos.<span class="fn">Add</span>(p);
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Cliente</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, nome):
+        self.nome = nome
+        self._pedidos: <span class="ty">list</span>[<span class="ty">Pedido</span>] = []
+
+    <span class="kw">def</span> <span class="fn">adicionar</span>(self, pedido):
+        self._pedidos.append(pedido)
+
+    <span class="cm">@property</span>
+    <span class="kw">def</span> <span class="fn">pedidos</span>(self):
+        <span class="kw">return</span> <span class="fn">tuple</span>(self._pedidos)   <span class="cm"># imutável</span>`
+    },
+    {
+      n: 'Composição ◆', i: 'fa-diamond',
+      svg: cx(20, 55, 175, 'Pedido', ['− numero: String'], '#ef4444') +
+           cx(265, 55, 175, 'ItemPedido', ['− quantidade: int'], '#ef4444') +
+           `<line x1="195" y1="88" x2="255" y2="88" stroke="#ef4444" stroke-width="1.8"/>
+            <polygon points="195,88 207,81 219,88 207,95" fill="#ef4444" stroke="#ef4444" stroke-width="1.6"/>
+            <text x="248" y="112" text-anchor="end" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">1..*</text>`,
+      nota: 'O losango <b>preenchido</b> fica do lado do todo. O todo cria e destrói as partes; elas não existem sozinhas.',
+      java: `<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; itens = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="cm">// é o Pedido que CRIA o item</span>
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Produto</span> p, <span class="ty">int</span> qtd) {
+        itens.<span class="fn">add</span>(<span class="kw">new</span> <span class="ty">ItemPedido</span>(p, qtd));
+    }
+
+    <span class="cm">// ao descartar o Pedido, os itens vão junto</span>
+    <span class="kw">public void</span> <span class="fn">limpar</span>() { itens.<span class="fn">clear</span>(); }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private readonly</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; itens = <span class="kw">new</span>();
+
+    <span class="kw">public void</span> <span class="fn">Adicionar</span>(<span class="ty">Produto</span> p, <span class="kw">int</span> qtd)
+        => itens.<span class="fn">Add</span>(<span class="kw">new</span> <span class="ty">ItemPedido</span>(p, qtd));
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Pedido</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, numero):
+        self.numero = numero
+        self._itens = []          <span class="cm"># criados aqui dentro</span>
+
+    <span class="kw">def</span> <span class="fn">adicionar</span>(self, produto, qtd):
+        self._itens.append(<span class="ty">ItemPedido</span>(produto, qtd))`
+    },
+    {
+      n: 'Agregação ◇', i: 'fa-diamond',
+      svg: cx(20, 55, 175, 'Time', ['− nome: String'], '#38bdf8') +
+           cx(265, 55, 175, 'Jogador', ['− nome: String'], '#38bdf8') +
+           `<line x1="195" y1="88" x2="255" y2="88" stroke="#38bdf8" stroke-width="1.8"/>
+            <polygon points="195,88 207,81 219,88 207,95" fill="#0f172a" stroke="#38bdf8" stroke-width="1.6"/>
+            <text x="248" y="112" text-anchor="end" font-size="10" font-family="Fira Code, monospace" fill="#cbd5e1">1..*</text>`,
+      nota: 'Losango <b>vazado</b>. As partes chegam prontas de fora e sobrevivem ao fim do todo.',
+      java: `<span class="kw">public class</span> <span class="ty">Time</span> {
+    <span class="kw">private</span> <span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores;
+
+    <span class="cm">// recebe jogadores que já existiam</span>
+    <span class="kw">public</span> <span class="fn">Time</span>(<span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores) {
+        <span class="kw">this</span>.jogadores = jogadores;
+    }
+
+    <span class="kw">public void</span> <span class="fn">escalar</span>(<span class="ty">Jogador</span> j) { jogadores.<span class="fn">add</span>(j); }
+}`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Time</span> {
+    <span class="kw">private</span> <span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores;
+
+    <span class="kw">public</span> <span class="fn">Time</span>(<span class="ty">List</span>&lt;<span class="ty">Jogador</span>&gt; jogadores)
+        => <span class="kw">this</span>.jogadores = jogadores;
+}`,
+      python: `<span class="kw">class</span> <span class="ty">Time</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, nome, jogadores):
+        self.nome = nome
+        self.jogadores = jogadores   <span class="cm"># vieram de fora</span>`
+    },
+    {
+      n: 'Classe associativa', i: 'fa-link',
+      svg: cx(20, 30, 160, 'Aluno', ['− nome'], '#10b981') +
+           cx(280, 30, 160, 'Disciplina', ['− nome'], '#10b981') +
+           `<line x1="180" y1="58" x2="280" y2="58" stroke="#10b981" stroke-width="1.8"/>
+            <text x="190" y="50" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>
+            <text x="272" y="50" text-anchor="end" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>
+            <line x1="230" y1="58" x2="230" y2="105" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5 4"/>` +
+           cx(150, 105, 160, 'Matricula', ['− nota: double', '− faltas: int'], '#f59e0b'),
+      nota: 'Quando a relação “muitos-para-muitos” tem <b>atributos próprios</b>, ela vira uma classe — e, no banco, uma tabela de junção com colunas extras.',
+      java: `<span class="kw">public class</span> <span class="ty">Matricula</span> {
+    <span class="kw">private final</span> <span class="ty">Aluno</span> aluno;
+    <span class="kw">private final</span> <span class="ty">Disciplina</span> disciplina;
+    <span class="kw">private double</span> nota;
+    <span class="kw">private int</span> faltas;
+
+    <span class="kw">public boolean</span> <span class="fn">aprovado</span>() {
+        <span class="kw">return</span> nota &gt;= <span class="num">6.0</span> &amp;&amp; faltas &lt;= <span class="num">15</span>;
+    }
+}
+
+<span class="cm">// Aluno e Disciplina passam a referenciar Matricula,
+// não mais um ao outro diretamente</span>`,
+      csharp: `<span class="kw">public class</span> <span class="ty">Matricula</span> {
+    <span class="kw">public</span> <span class="ty">Aluno</span> Aluno { <span class="kw">get</span>; <span class="kw">init</span>; }
+    <span class="kw">public</span> <span class="ty">Disciplina</span> Disciplina { <span class="kw">get</span>; <span class="kw">init</span>; }
+    <span class="kw">public double</span> Nota { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public int</span> Faltas { <span class="kw">get</span>; <span class="kw">set</span>; }
+
+    <span class="kw">public bool</span> <span class="fn">Aprovado</span>() => Nota &gt;= <span class="num">6.0</span> &amp;&amp; Faltas &lt;= <span class="num">15</span>;
+}`,
+      python: `<span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass
+
+<span class="cm">@dataclass</span>
+<span class="kw">class</span> <span class="ty">Matricula</span>:
+    aluno: <span class="ty">Aluno</span>
+    disciplina: <span class="ty">Disciplina</span>
+    nota: <span class="ty">float</span> = <span class="num">0.0</span>
+    faltas: <span class="ty">int</span> = <span class="num">0</span>
+
+    <span class="kw">def</span> <span class="fn">aprovado</span>(self) -> <span class="ty">bool</span>:
+        <span class="kw">return</span> self.nota &gt;= <span class="num">6.0</span> <span class="kw">and</span> self.faltas &lt;= <span class="num">15</span>`
+    },
+    {
+      n: 'Enumeração e estático', i: 'fa-list-ol',
+      svg: cx(130, 20, 200, 'Status', ['ABERTO', 'PAGO', 'CANCELADO'], '#a855f7', 'enumeration') +
+           cx(130, 118, 200, 'Pedido', ['− status: Status', '<tspan text-decoration="underline">− total: int</tspan>'], '#10b981'),
+      nota: 'Membros <u>sublinhados</u> são <code>static</code>: pertencem à classe, não à instância.',
+      java: `<span class="kw">public enum</span> <span class="ty">Status</span> {
+    ABERTO, PAGO, CANCELADO
+}
+
+<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private</span> <span class="ty">Status</span> status = <span class="ty">Status</span>.ABERTO;
+
+    <span class="cm">// sublinhado na UML = static</span>
+    <span class="kw">private static int</span> totalDePedidos = <span class="num">0</span>;
+}`,
+      csharp: `<span class="kw">public enum</span> <span class="ty">Status</span> { Aberto, Pago, Cancelado }
+
+<span class="kw">public class</span> <span class="ty">Pedido</span> {
+    <span class="kw">private</span> <span class="ty">Status</span> status = <span class="ty">Status</span>.Aberto;
+    <span class="kw">private static int</span> totalDePedidos = <span class="num">0</span>;
+}`,
+      python: `<span class="kw">from</span> enum <span class="kw">import</span> Enum, auto
+
+<span class="kw">class</span> <span class="ty">Status</span>(Enum):
+    ABERTO = auto()
+    PAGO = auto()
+    CANCELADO = auto()
+
+<span class="kw">class</span> <span class="ty">Pedido</span>:
+    total_de_pedidos = <span class="num">0</span>      <span class="cm"># atributo de classe</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        self.status = <span class="ty">Status</span>.ABERTO`
+    }
+  ];
+
+  const ARQUIVOS = {
+    'Pagavel.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="cm">/** Contrato: qualquer coisa que possa ser paga. */</span>
+<span class="kw">public interface</span> <span class="ty">Pagavel</span> {
+    <span class="ty">double</span> <span class="fn">calcularTotal</span>();
+}`,
+    'Pedido.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="kw">import</span> java.time.LocalDate;
+<span class="kw">import</span> java.util.*;
+
+<span class="kw">public class</span> <span class="ty">Pedido</span> <span class="kw">implements</span> <span class="ty">Pagavel</span> {
+
+    <span class="kw">private final</span> <span class="ty">String</span> numero;
+    <span class="kw">private final</span> <span class="ty">LocalDate</span> data;
+    <span class="kw">private</span> <span class="ty">Status</span> status = <span class="ty">Status</span>.ABERTO;
+
+    <span class="cm">// associação 1: todo pedido tem um cliente</span>
+    <span class="kw">private final</span> <span class="ty">Cliente</span> cliente;
+
+    <span class="cm">// composição 1..*: o pedido é dono dos itens</span>
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; itens = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Pedido</span>(<span class="ty">String</span> numero, <span class="ty">Cliente</span> cliente) {
+        <span class="kw">this</span>.numero = <span class="ty">Objects</span>.<span class="fn">requireNonNull</span>(numero);
+        <span class="kw">this</span>.cliente = <span class="ty">Objects</span>.<span class="fn">requireNonNull</span>(cliente);
+        <span class="kw">this</span>.data = <span class="ty">LocalDate</span>.<span class="fn">now</span>();
+    }
+
+    <span class="cm">// o Pedido CRIA o item — isso é composição</span>
+    <span class="kw">public void</span> <span class="fn">adicionar</span>(<span class="ty">Produto</span> p, <span class="ty">int</span> quantidade) {
+        <span class="kw">if</span> (status != <span class="ty">Status</span>.ABERTO)
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"Pedido já fechado"</span>);
+        itens.<span class="fn">add</span>(<span class="kw">new</span> <span class="ty">ItemPedido</span>(p, quantidade));
+    }
+
+    <span class="cm">@Override</span>
+    <span class="kw">public double</span> <span class="fn">calcularTotal</span>() {
+        <span class="kw">return</span> itens.<span class="fn">stream</span>()
+                    .<span class="fn">mapToDouble</span>(<span class="ty">ItemPedido</span>::subtotal)
+                    .<span class="fn">sum</span>();
+    }
+
+    <span class="cm">// multiplicidade 1..* vira regra de negócio explícita</span>
+    <span class="kw">public void</span> <span class="fn">fechar</span>() {
+        <span class="kw">if</span> (itens.<span class="fn">isEmpty</span>())
+            <span class="kw">throw new</span> <span class="ty">IllegalStateException</span>(<span class="str">"Pedido precisa de ao menos 1 item"</span>);
+        status = <span class="ty">Status</span>.AGUARDANDO_PAGAMENTO;
+    }
+
+    <span class="kw">public</span> <span class="ty">List</span>&lt;<span class="ty">ItemPedido</span>&gt; <span class="fn">getItens</span>() {
+        <span class="kw">return</span> <span class="ty">Collections</span>.<span class="fn">unmodifiableList</span>(itens);
+    }
+}`,
+    'ItemPedido.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="cm">/** Parte de um Pedido. Não faz sentido existir sozinho. */</span>
+<span class="kw">public class</span> <span class="ty">ItemPedido</span> {
+
+    <span class="kw">private final</span> <span class="ty">Produto</span> produto;   <span class="cm">// associação 1</span>
+    <span class="kw">private final</span> <span class="ty">int</span> quantidade;
+
+    <span class="cm">// visibilidade de pacote: só o Pedido cria itens</span>
+    <span class="fn">ItemPedido</span>(<span class="ty">Produto</span> produto, <span class="ty">int</span> quantidade) {
+        <span class="kw">if</span> (quantidade &lt;= <span class="num">0</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"Quantidade inválida"</span>);
+        <span class="kw">this</span>.produto = produto;
+        <span class="kw">this</span>.quantidade = quantidade;
+    }
+
+    <span class="kw">public double</span> <span class="fn">subtotal</span>() {
+        <span class="kw">return</span> produto.<span class="fn">getPreco</span>() * quantidade;
+    }
+}`,
+    'Produto.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="kw">public class</span> <span class="ty">Produto</span> {
+
+    <span class="kw">private final</span> <span class="ty">String</span> nome;
+    <span class="kw">private double</span> preco;
+
+    <span class="kw">public</span> <span class="fn">Produto</span>(<span class="ty">String</span> nome, <span class="ty">double</span> preco) {
+        <span class="kw">this</span>.nome = nome;
+        <span class="fn">setPreco</span>(preco);
+    }
+
+    <span class="kw">public void</span> <span class="fn">setPreco</span>(<span class="ty">double</span> preco) {
+        <span class="kw">if</span> (preco &lt; <span class="num">0</span>)
+            <span class="kw">throw new</span> <span class="ty">IllegalArgumentException</span>(<span class="str">"Preço negativo"</span>);
+        <span class="kw">this</span>.preco = preco;
+    }
+
+    <span class="kw">public double</span> <span class="fn">getPreco</span>() { <span class="kw">return</span> preco; }
+    <span class="kw">public</span> <span class="ty">String</span> <span class="fn">getNome</span>()  { <span class="kw">return</span> nome; }
+}`,
+    'Cliente.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="kw">import</span> java.util.*;
+
+<span class="kw">public class</span> <span class="ty">Cliente</span> {
+
+    <span class="kw">private final</span> <span class="ty">String</span> nome;
+    <span class="kw">private final</span> <span class="ty">String</span> email;
+
+    <span class="cm">// associação * — navegável só deste lado</span>
+    <span class="kw">private final</span> <span class="ty">List</span>&lt;<span class="ty">Pedido</span>&gt; pedidos = <span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public</span> <span class="fn">Cliente</span>(<span class="ty">String</span> nome, <span class="ty">String</span> email) {
+        <span class="kw">this</span>.nome = nome;
+        <span class="kw">this</span>.email = email;
+    }
+
+    <span class="kw">public</span> <span class="ty">Pedido</span> <span class="fn">novoPedido</span>(<span class="ty">String</span> numero) {
+        <span class="ty">Pedido</span> p = <span class="kw">new</span> <span class="ty">Pedido</span>(numero, <span class="kw">this</span>);
+        pedidos.<span class="fn">add</span>(p);
+        <span class="kw">return</span> p;
+    }
+}`,
+    'Status.java': `<span class="kw">package</span> br.com.loja.dominio;
+
+<span class="cm">/** Vem do diagrama de máquina de estados do Pedido. */</span>
+<span class="kw">public enum</span> <span class="ty">Status</span> {
+    ABERTO,
+    AGUARDANDO_PAGAMENTO,
+    PAGO,
+    ENVIADO,
+    ENTREGUE,
+    CANCELADO
+}`
+  };
+
+const caixa = cx;
+const EXEMPLO_SVG =
+    caixa(130, 10, 180, 'Pagavel', ['+ calcularTotal()'], '#38bdf8', 'interface') +
+    caixa(120, 110, 200, 'Pedido', ['− numero: String', '− status: Status', '+ adicionar(p, q)', '+ calcularTotal()'], '#10b981') +
+    `<line x1="220" y1="110" x2="220" y2="94" stroke="#38bdf8" stroke-width="1.7" stroke-dasharray="6 4"/>
+     <polygon points="220,76 211,94 229,94" fill="#0f172a" stroke="#38bdf8" stroke-width="1.7"/>` +
+    caixa(10, 250, 170, 'Cliente', ['− nome: String', '− email: String'], '#10b981') +
+    `<line x1="120" y1="180" x2="95" y2="250" stroke="#10b981" stroke-width="1.7"/>
+     <text x="100" y="205" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">*</text>
+     <text x="86" y="242" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">1</text>` +
+    caixa(240, 250, 190, 'ItemPedido', ['− quantidade: int', '+ subtotal()'], '#ef4444') +
+    `<line x1="290" y1="194" x2="320" y2="250" stroke="#ef4444" stroke-width="1.8"/>
+     <polygon points="290,194 301,200 296,212 285,206" fill="#ef4444" stroke="#ef4444" stroke-width="1.5"/>
+     <text x="322" y="242" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">1..*</text>` +
+    caixa(240, 370, 190, 'Produto', ['− nome: String', '− preco: double'], '#10b981') +
+    `<line x1="335" y1="320" x2="335" y2="370" stroke="#10b981" stroke-width="1.7"/>
+     <text x="340" y="362" font-size="9" font-family="Fira Code, monospace" fill="#cbd5e1">1</text>` +
+    caixa(10, 370, 170, 'Status', ['ABERTO', 'PAGO', '…'], '#a855f7', 'enumeration') +
+    `<line x1="180" y1="395" x2="230" y2="395" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5 4" opacity=".5"/>`;
+
+/* ===================== Slides gerados: tradutor ===================== */
+/* Agregação é ◇ (vazado) na UML; o ícone da aula é o mesmo fa-diamond da composição, então desenhamos só o contorno */
+const vazado = c => /Agrega/.test(c.n) ? ' vazado' : '';
+const ROTULO = { java: 'Java', csharp: 'C#', python: 'Python' };
+function slideTradutor(c, idx) {
+  const s = document.createElement('section');
+  s.className = 'slide';
+  s.dataset.title = 'Tradutor · ' + c.n;
+  s.dataset.secao = 'Tradutor interativo';
+  s.innerHTML = `
+    <div class="kicker"><i class="fa-solid fa-language"></i>Tradutor interativo <span class="sep">·</span> ${idx + 1} de ${CONSTR.length}</div>
+    <h2 class="t"><i class="fa-solid ${c.i}${vazado(c)}"></i>${c.n}</h2>
+    <div class="body grid grid-cols-[520px_1fr] gap-7 min-h-0">
+      <div class="flex flex-col gap-4">
+        <div class="ah-stage p-4"><svg viewBox="0 0 460 170" style="width:100%;height:auto">${c.svg}</svg></div>
+        <div class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><div>${c.nota}</div></div>
+        <div class="flex gap-1.5 mt-auto">${CONSTR.map((x, i) => `
+          <span title="${x.n}" class="w-9 h-9 rounded-lg flex items-center justify-center text-[13px] border
+            ${i === idx ? 'border-emerald-500 bg-emerald-50 text-emerald-600' : 'border-slate-200 bg-white text-slate-600'}"
+            style="--vz-cor:${i === idx ? '#059669' : '#94a3b8'}">
+            <i class="fa-solid ${x.i}${vazado(x)}"></i></span>`).join('')}</div>
+      </div>
+      <div class="ah-card overflow-hidden flex flex-col min-h-0">
+        <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-200 bg-slate-50">
+          ${Object.keys(ROTULO).map(l => `<button class="ah-chip ${l === 'java' ? 'active' : ''}" data-lang="${l}">${ROTULO[l]}</button>`).join('')}
+          <span class="ml-auto text-[13px] text-slate-500">${c.n}</span>
+        </div>
+        <pre class="ah-code border-0 rounded-none flex-1" style="font-size:15px" data-code></pre>
+      </div>
+    </div>`;
+  const pre = s.querySelector('[data-code]');
+  const pinta = lang => {
+    pre.innerHTML = c[lang];
+    s.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  };
+  s.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => pinta(b.dataset.lang)));
+  pinta('java');
+  return s;
+}
+
+/* ===================== Slides gerados: arquivos do exemplo completo ===================== */
+const PARTES = [
+  { f: 'Pagavel.java', de: 0, ate: null, titulo: 'Pagavel.java — a interface',
+    itens: ['<span class="text-sky-700">«interface»</span> vira <code>interface</code>',
+            'A operação <code>+ calcularTotal()</code> vira um método sem corpo, implicitamente <code>public</code>',
+            'A seta tracejada com ponta vazada (de <code>Pedido</code>) vai virar <code>implements Pagavel</code>'] },
+  { f: 'Status.java', de: 0, ate: null, titulo: 'Status.java — a enumeração',
+    itens: ['<span class="text-violet-700">«enumeration»</span> vira <code>enum</code>: conjunto fechado de valores',
+            'Os valores vêm do <b>diagrama de máquina de estados</b> do Pedido',
+            'No diagrama de classes aparece como tipo do atributo <code>− status: Status</code>'] },
+  { f: 'Pedido.java', de: 0, ate: 'o Pedido CRIA', titulo: 'Pedido.java (1/3) — campos e construtor',
+    itens: ['<span class="text-sky-700">Realização</span>: <code>implements Pagavel</code>',
+            'Atributos <code>−</code> viram campos <code>private</code>; os que não mudam, <code>final</code>',
+            '<code>− status: Status</code> começa em <code>Status.ABERTO</code>',
+            '<span class="text-emerald-700">Associação 1</span> com Cliente: campo obrigatório, garantido com <code>requireNonNull</code>',
+            '<span class="text-rose-700">Composição 1..*</span>: <code>final List&lt;ItemPedido&gt;</code> criada dentro do pedido'] },
+  { f: 'Pedido.java', de: 'o Pedido CRIA', ate: 'multiplicidade 1..*', titulo: 'Pedido.java (2/3) — operações',
+    itens: ['<code>+ adicionar(p, q)</code>: o Pedido <b>cria</b> o item com <code>new</code> — isso é composição',
+            'Restrição de estado: só adiciona enquanto o status é <code>ABERTO</code>',
+            '<code>+ calcularTotal()</code> cumpre o contrato de <code>Pagavel</code> (<code>@Override</code>)',
+            'O total é a soma dos <code>subtotal()</code> das partes'] },
+  { f: 'Pedido.java', de: 'multiplicidade 1..*', ate: null, titulo: 'Pedido.java (3/3) — regras e encapsulamento',
+    itens: ['A multiplicidade <code>1..*</code> vira <b>regra de negócio explícita</b> em <code>fechar()</code>',
+            'A transição <code>ABERTO → AGUARDANDO_PAGAMENTO</code> vem da máquina de estados',
+            '<code>getItens()</code> devolve <code>unmodifiableList</code>: ninguém de fora altera as partes'] },
+  { f: 'ItemPedido.java', de: 0, ate: null, titulo: 'ItemPedido.java — a parte da composição',
+    itens: ['Parte de um Pedido: não faz sentido existir sozinho',
+            'Construtor com <b>visibilidade de pacote</b>: só o Pedido cria itens',
+            '<span class="text-emerald-700">Associação 1</span> com Produto: campo <code>final</code>',
+            '<code>− quantidade: int</code> validada (<code>&gt; 0</code>); <code>+ subtotal()</code> vira método público'] },
+  { f: 'Produto.java', de: 0, ate: null, titulo: 'Produto.java — atributos e invariante',
+    itens: ['<code>− nome: String</code> e <code>− preco: double</code> viram campos privados',
+            'A restrição “preço não negativo” vira validação em <code>setPreco</code>',
+            'O construtor reaproveita <code>setPreco</code>: a regra vale desde o nascimento do objeto'] },
+  { f: 'Cliente.java', de: 0, ate: null, titulo: 'Cliente.java — o lado “muitos” da associação',
+    itens: ['<span class="text-emerald-700">Associação *</span>, navegável só deste lado: <code>List&lt;Pedido&gt;</code>',
+            '<code>novoPedido(numero)</code> cria o pedido já ligado a <code>this</code> e o registra',
+            'Assim a associação 1 do lado do Pedido nunca fica sem cliente'] }
+];
+function recorte(texto, de, ate) {
+  const linhas = texto.split('\n');
+  const acha = m => linhas.findIndex(l => l.includes(m));
+  let i = typeof de === 'string' ? acha(de) : 0;
+  let f = ate ? acha(ate) : linhas.length;
+  // mantém as linhas em branco nas bordas fora do recorte
+  while (f > i && linhas[f - 1].trim() === '') f--;
+  let txt = linhas.slice(i, f).join('\n');
+  if (typeof de === 'string') txt = '<span class="cm">    // …</span>\n' + txt;
+  if (ate) txt += '\n<span class="cm">    // …</span>';
+  return txt;
+}
+function slideArquivo(p) {
+  const s = document.createElement('section');
+  s.className = 'slide';
+  s.dataset.title = 'Exemplo · ' + p.titulo;
+  s.dataset.secao = 'Exemplo completo';
+  s.innerHTML = `
+    <div class="kicker"><i class="fa-solid fa-diagram-project"></i>Exemplo completo <span class="sep">·</span>
+      <i class="fa-brands fa-java"></i><span class="normal-case tracking-normal font-mono">${p.f}</span></div>
+    <h2 class="t"><i class="fa-solid fa-diagram-project"></i>${p.titulo}</h2>
+    <div class="body grid grid-cols-[400px_1fr] gap-7 min-h-0">
+      <div>
+        <div class="text-[12px] uppercase tracking-wider text-slate-500 font-bold mb-3">O que veio do diagrama</div>
+        <ul class="bul sm">${p.itens.map(x => `<li>${x}</li>`).join('')}</ul>
+      </div>
+      <div class="ah-card overflow-hidden flex flex-col min-h-0">
+        <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-50 font-mono text-[13px] text-emerald-700">br/com/loja/dominio/${p.f}</div>
+        <pre class="ah-code border-0 rounded-none flex-1" style="font-size:13px;line-height:1.5">${recorte(ARQUIVOS[p.f], p.de, p.ate)}</pre>
+      </div>
+    </div>`;
+  return s;
+}
+
+/* ===================== Montagem ===================== */
+const deck = document.getElementById('deck');
+function trocaMarcador(marca, nos) {
+  const it = document.createNodeIterator(deck, NodeFilter.SHOW_COMMENT);
+  let n;
+  while ((n = it.nextNode())) if (n.nodeValue.trim() === marca) {
+    nos.forEach(x => n.parentNode.insertBefore(x, n));
+    n.remove();
+    return;
+  }
+}
+trocaMarcador('@@TRADUTOR_SLIDES@@', CONSTR.map(slideTradutor));
+trocaMarcador('@@ARQUIVO_SLIDES@@', PARTES.map(slideArquivo));
+
+document.getElementById('tr-indice').innerHTML = CONSTR.map((c, i) => `
+  <button data-ir-tradutor="${i}" class="ah-card ah-card-hover p-5 text-left flex flex-col gap-3">
+    <i class="fa-solid ${c.i}${vazado(c)} text-emerald-600 text-2xl"></i>
+    <span class="text-slate-900 font-bold text-[17px]">${c.n}</span>
+  </button>`).join('');
+
+document.getElementById('ex-svg').innerHTML = EXEMPLO_SVG;
+/* ===================== Exercícios 4 e 5: diagramas de streaming de música ===================== */
+const linha = (x1, y1, x2, y2, cor, tracejada) =>
+  `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${cor}" stroke-width="1.7"${tracejada ? ' stroke-dasharray="6 4"' : ''}/>`;
+const rot = (x, y, txt, ancora = 'start', cor = '#cbd5e1') =>
+  `<text x="${x}" y="${y}" font-size="10" font-family="Fira Code, monospace" fill="${cor}" text-anchor="${ancora}">${txt}</text>`;
+const EX_SVG = {
+  4: cx(20, 20, 190, 'Album', ['− titulo: String', '+ adicionarFaixa(t, d)', '+ duracaoTotal(): int'], '#10b981') +
+     cx(270, 34, 170, 'Artista', ['− nome: String'], '#10b981') +
+     linha(210, 58, 268, 58, '#10b981') +
+     `<polyline points="258,52 270,58 258,64" fill="none" stroke="#10b981" stroke-width="1.8"/>` +
+     rot(216, 52, '*') + rot(262, 76, '1', 'end') +
+     cx(20, 150, 190, 'Faixa', ['− titulo: String', '− duracao: int'], '#ef4444') +
+     `<polygon points="115,96 107,106 115,116 123,106" fill="#ef4444" stroke="#ef4444" stroke-width="1.5"/>` +
+     linha(115, 116, 115, 150, '#ef4444') + rot(122, 144, '1..*'),
+  5: cx(10, 10, 200, 'Usuario', ['− nome: String', '− plano: Plano', '+ criarPlaylist(nome)'], '#10b981') +
+     cx(280, 10, 170, 'Reproduzivel', ['+ tocar()'], '#38bdf8', 'interface') +
+     cx(10, 160, 200, 'Playlist', ['− nome: String', '+ adicionar(m: Musica)'], '#38bdf8') +
+     cx(280, 130, 170, 'Musica', ['− titulo: String', '− duracao: int', '+ tocar()'], '#10b981') +
+     cx(280, 250, 170, 'Plano', ['GRATUITO', 'PREMIUM'], '#a855f7', 'enumeration') +
+     /* composição Usuario ◆— 0..* Playlist, com a restrição */
+     `<polygon points="110,86 102,96 110,106 118,96" fill="#ef4444" stroke="#ef4444" stroke-width="1.5"/>` +
+     linha(110, 106, 110, 160, '#ef4444') + rot(117, 154, '0..*') +
+     rot(117, 130, '{GRATUITO: até 3}', 'start', '#f59e0b') +
+     /* agregação Playlist ◇— 0..* Musica */
+     `<polygon points="210,185 222,178 234,185 222,192" fill="#0f172a" stroke="#38bdf8" stroke-width="1.6"/>` +
+     linha(234, 185, 280, 185, '#38bdf8') + rot(274, 202, '0..*', 'end') +
+     /* realização Musica ..|> Reproduzivel */
+     linha(365, 130, 365, 88, '#38bdf8', true) +
+     `<polygon points="365,70 356,88 374,88" fill="#0f172a" stroke="#38bdf8" stroke-width="1.7"/>`
+};
+document.querySelectorAll('[data-ex-svg]').forEach(s => { s.innerHTML = EX_SVG[s.dataset.exSvg]; });
+
+document.getElementById('ex-arquivos').innerHTML = Object.keys(ARQUIVOS).map(n =>
+  `<span class="ah-chip"><i class="fa-brands fa-java mr-1"></i>${n}</span>`).join('');
+
+/* ===================== Navegação ===================== */
+const slides = [...deck.querySelectorAll('.slide')];
+let atual = 0;
+
+function escala() {
+  const vp = document.getElementById('viewport');
+  const s = Math.min(vp.clientWidth / 1280, vp.clientHeight / 720) * 0.97;
+  deck.style.transform = `scale(${s})`;
+}
+function vai(i) {
+  atual = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, k) => {
+    s.classList.toggle('active', k === atual);
+    s.classList.toggle('prev', k < atual);
+  });
+  document.getElementById('contador').textContent = `${atual + 1} / ${slides.length}`;
+  document.getElementById('secao').textContent = slides[atual].dataset.secao;
+  document.getElementById('progress').style.width = ((atual + 1) / slides.length * 100) + '%';
+  history.replaceState(null, '', '#' + (atual + 1));
+  document.querySelectorAll('#indice a').forEach((a, k) => a.classList.toggle('cur', k === atual));
+}
+
+document.getElementById('indice-lista').innerHTML =
+  '<p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3 px-3">Índice da apresentação</p>' +
+  slides.map((s, i) => `<a href="#${i + 1}" data-i="${i}"><span class="n">${i + 1}</span>
+    <span class="text-slate-500 text-[12px] w-56 shrink-0 truncate">${s.dataset.secao}</span>${s.dataset.title}</a>`).join('');
+const indice = document.getElementById('indice');
+indice.addEventListener('click', e => {
+  const a = e.target.closest('[data-i]');
+  if (a) { e.preventDefault(); vai(+a.dataset.i); }
+  indice.classList.remove('open');
+});
+const alternaIndice = () => indice.classList.toggle('open');
+const telaCheia = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+
+document.getElementById('b-prev').onclick = () => vai(atual - 1);
+document.getElementById('b-next').onclick = () => vai(atual + 1);
+document.getElementById('b-indice').onclick = alternaIndice;
+document.getElementById('b-full').onclick = telaCheia;
+
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); vai(atual + 1); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); vai(atual - 1); }
+  else if (k === 'Home') vai(0);
+  else if (k === 'End') vai(slides.length - 1);
+  else if (k === 'f' || k === 'F') telaCheia();
+  else if (k === 'i' || k === 'I') alternaIndice();
+  else if (k === 'Escape') indice.classList.remove('open');
+});
+
+/* toque: deslizar para os lados */
+let x0 = null;
+deck.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+deck.addEventListener('touchend', e => {
+  if (x0 === null) return;
+  const dx = e.changedTouches[0].clientX - x0;
+  if (Math.abs(dx) > 50) vai(atual + (dx < 0 ? 1 : -1));
+  x0 = null;
+});
+
+/* ===================== Interações dentro dos slides ===================== */
+deck.addEventListener('click', e => {
+  const ir = e.target.closest('[data-ir-tradutor]');
+  if (ir) { vai(slides.findIndex(s => s.dataset.title === 'Tradutor · ' + CONSTR[+ir.dataset.irTradutor].n)); return; }
+
+  const rev = e.target.closest('[data-reveal]');
+  if (rev) {
+    const box = rev.nextElementSibling;
+    box.classList.toggle('show');
+    rev.innerHTML = box.classList.contains('show')
+      ? '<i class="fa-solid fa-eye-slash"></i>Ocultar gabarito' : '<i class="fa-solid fa-eye"></i>Mostrar gabarito';
+    return;
+  }
+
+  const chk = e.target.closest('.check');
+  if (chk) {
+    chk.classList.toggle('on');
+    chk.querySelector('i').className = chk.classList.contains('on') ? 'fa-solid fa-square-check' : 'fa-regular fa-square';
+    return;
+  }
+
+  const opt = e.target.closest('.ah-quiz-opt');
+  if (opt) {
+    const q = opt.closest('.ah-quiz');
+    if (q.classList.contains('done')) return;
+    const opts = [...q.querySelectorAll('.ah-quiz-opt')];
+    const certa = +q.dataset.answer;
+    opts.forEach((o, i) => { o.classList.add('locked'); if (i === certa) o.classList.add('correct'); });
+    if (opts.indexOf(opt) !== certa) opt.classList.add('wrong');
+    q.classList.add('done');
+  }
+});
+
+window.addEventListener('resize', escala);
+window.addEventListener('hashchange', () => {
+  const n = parseInt(location.hash.slice(1), 10);
+  if (n && n - 1 !== atual) vai(n - 1);
+});
+escala();
+vai(Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+
+/* Mermaid com as variáveis do hub.js, na versão clara */
+if (window.mermaid) {
+  mermaid.initialize({
+    startOnLoad: false, securityLevel: 'loose', theme: 'base',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    themeVariables: {
+      background: '#ffffff', primaryColor: '#f8fafc', primaryTextColor: '#0f172a', primaryBorderColor: '#6366f1',
+      secondaryColor: '#f1f5f9', tertiaryColor: '#ffffff', lineColor: '#475569', textColor: '#0f172a',
+      noteBkgColor: '#fefce8', noteTextColor: '#0f172a', noteBorderColor: '#a855f7', classText: '#0f172a', labelColor: '#0f172a'
+    }
+  });
+  // O Mermaid mede o texto para dimensionar as caixas: espera a Inter carregar e
+  // desenha com o palco sem scale(), senão as medidas saem encolhidas e o texto é cortado.
+  document.fonts.ready.then(async () => {
+    deck.style.transform = 'none';
+    try { await mermaid.run({ querySelector: '.mermaid' }); } finally { escala(); }
+  });
+}
+</script>
+</body>
+</html>

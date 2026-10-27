@@ -245,6 +245,118 @@ for ent in doc.ents:
   </div>
 </section>
 
+<!-- ============================ EXEMPLO 2 · TOKENIZAÇÃO: ONDE O TEXTO QUEBRA ============================ -->
+<section id="ex-tokenizacao" data-toc="Exemplo: tokenização de frases difíceis" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-indigo-400 mr-2"></i>Exemplo 2 · Tokenização: onde o texto quebra</h2>
+  <p class="ah-lead text-sm mb-5">Tokenizar parece simples: separar palavras e pontuação. Na prática, a dificuldade está nos casos que não seguem a regra de separar pelos espaços.</p>
+  <div class="ah-prose">
+    <p>Considere a frase: <em>“Dr. Silva pagou R$ 1.250,00 em 2026, não é?”</em>. Uma tokenização ingênua, que separa pelos espaços, produz tokens errados. Veja como um tokenizador adequado deve tratar cada caso:</p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Trecho</th><th>Tokenização ingênua</th><th>Tokenização adequada</th><th>Por quê</th></tr></thead>
+      <tbody><tr><td>Dr.</td><td>Dr. (com o ponto colado)</td><td>Dr. (abreviação preservada)</td><td>o ponto faz parte da abreviação, não encerra a frase</td></tr><tr><td>R$ 1.250,00</td><td>R$ | 1.250,00</td><td>R$ | 1.250,00</td><td>o separador decimal não pode dividir o número</td></tr><tr><td>não é?</td><td>não | é? (pontuação colada)</td><td>não | é | ?</td><td>a interrogação é um token próprio</td></tr><tr><td>2026,</td><td>2026, (vírgula colada)</td><td>2026 | ,</td><td>a vírgula de fim de oração é separada</td></tr></tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>Regras como essas são mantidas em dicionários de exceções. Em português, há ainda contrações (“do”, “pelo”) que alguns sistemas separam em duas partes, e outros tratam como um único token, conforme a tarefa. Essa escolha altera a análise seguinte, por isso é preciso documentá-la.</p>
+  </div>
+  <div class="ah-callout ah-callout-warn my-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>Um erro de tokenização se propaga por todo o pipeline. Antes de culpar o modelo, confira a saída da tokenização em alguns exemplos reais.</div>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO 3 · ANÁLISE DE SENTIMENTO DE UMA AVALIAÇÃO ============================ -->
+<section id="ex-sentimento" data-toc="Exemplo: análise de sentimento passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-face-smile text-indigo-400 mr-2"></i>Exemplo 3 · Análise de sentimento de uma avaliação</h2>
+  <p class="ah-lead text-sm mb-5">A análise de sentimento classifica um texto como positivo, negativo ou neutro. Vamos acompanhar uma avaliação de produto com um método baseado em léxico, em que cada palavra tem uma polaridade.</p>
+  <div class="ah-prose">
+    <p>Avaliação: <em>“Entrega rápida, mas o produto chegou quebrado.”</em></p><p><strong>Passo 1 · Tokenizar e normalizar.</strong> Tokens: entrega, rápida, mas, o, produto, chegou, quebrado. Convertemos para minúsculas e removemos a pontuação.</p><p><strong>Passo 2 · Consultar o léxico.</strong> Suponha que o léxico tenha: rápida = +1, quebrado = −2, excelente = +2.</p><p><strong>Passo 3 · Somar.</strong> Apenas rápida (+1) e quebrado (−2) estão no léxico. Pontuação total: −1. Resultado: <strong>negativo</strong>.</p><p>Esse método é simples, mas tem limites claros, que mostram por que modelos estatísticos foram adotados.</p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Frase</th><th>Problema do método por léxico</th><th>Por que acontece</th></tr></thead>
+      <tbody><tr><td>“Não gostei do produto.”</td><td>a palavra “gostei” conta como positiva</td><td>a negação “não” inverte o sentido, e o léxico não a vê</td></tr><tr><td>“Esperava o pior, mas foi excelente.”</td><td>as duas polaridades se misturam</td><td>a conjunção “mas” indica que a parte depois pesa mais</td></tr><tr><td>“Que bom, quebrou no primeiro dia.”</td><td>“bom” puxa para o positivo</td><td>ironia depende do contexto, que o léxico não tem</td></tr></tbody>
+    </table>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-3">A alternativa estatística</h3>
+  <div class="ah-prose">
+    <p>Um classificador como o Naive Bayes ou a regressão logística, treinado com avaliações rotuladas, aprende sozinho que “não gostei” é negativo e que a parte depois de “mas” costuma definir a opinião. Ele aprende padrões de palavras e pares de palavras a partir dos exemplos, sem depender de uma lista manual de polaridades.</p>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO 4 · QUAL É O SENTIDO DE “BANCO”? ============================ -->
+<section id="ex-desambiguacao" data-toc="Exemplo: desambiguação do sentido de uma palavra" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clone text-indigo-400 mr-2"></i>Exemplo 4 · Qual é o sentido de “banco”?</h2>
+  <p class="ah-lead text-sm mb-5">Palavras com vários sentidos são um desafio clássico. A desambiguação do sentido de palavras (WSD) escolhe, em cada contexto, o significado correto. Um método antigo, o de Lesk, compara as palavras do contexto com a definição de cada sentido.</p>
+  <div class="ah-prose">
+    <p>Considere dois sentidos de “banco”, com palavras associadas em suas definições:</p><p>• <strong>banco₁</strong> (instituição financeira): dinheiro, conta, saque, agência, juros.<br>
+• <strong>banco₂</strong> (assento): sentar, madeira, praça, parque, pessoa.</p><p><strong>Frase 1:</strong> “Fui ao banco sacar dinheiro.” As palavras do contexto que aparecem nas definições são <em>dinheiro</em> (de banco₁) e <em>sacar</em>, que corresponde a <em>saque</em> depois da lematização. Pontuação: banco₁ = 2, banco₂ = 0. Escolha: <strong>instituição financeira</strong>.</p><p><strong>Frase 2:</strong> “Sentei no banco da praça.” Aqui aparecem <em>sentei</em> (lema <em>sentar</em>, de banco₂) e <em>praça</em> (de banco₂). Pontuação: banco₁ = 0, banco₂ = 2. Escolha: <strong>assento</strong>.</p>
+  </div>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>O método de Lesk é simples e explica bem a ideia, mas depende de definições escritas. Sistemas atuais usam representações vetoriais do contexto, aprendidas a partir de grandes textos.</div>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO 5 · RECONHECIMENTO DE ENTIDADES: LENDO UM COMPROVANTE ============================ -->
+<section id="ex-entidades" data-toc="Exemplo: extração de informação de um comprovante" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-invoice-dollar text-indigo-400 mr-2"></i>Exemplo 5 · Reconhecimento de entidades: lendo um comprovante</h2>
+  <p class="ah-lead text-sm mb-5">Uma empresa quer preencher automaticamente um sistema de despesas a partir de frases de comprovantes. A tarefa é o reconhecimento de entidades nomeadas (NER): localizar trechos que representam valores, datas, organizações e pessoas.</p>
+  <div class="ah-prose">
+    <p>Frase: <em>“Pagamento de R$ 320,00 à Loja Alfa em 03/10/2026.”</em></p><p>Um modelo de NER marca cada token com uma etiqueta. O formato BIO indica o início (B) e o interior (I) de cada entidade:</p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Token</th><th>Etiqueta</th><th>Campo do sistema</th></tr></thead>
+      <tbody><tr><td>R$</td><td>B-VALOR</td><td>valor</td></tr><tr><td>320,00</td><td>I-VALOR</td><td>valor</td></tr><tr><td>Loja</td><td>B-ORG</td><td>favorecido</td></tr><tr><td>Alfa</td><td>I-ORG</td><td>favorecido</td></tr><tr><td>03/10/2026</td><td>B-DATA</td><td>data</td></tr><tr><td>demais tokens</td><td>O (fora de entidade)</td><td>—</td></tr></tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>Depois da etiquetagem, basta converter cada entidade em um campo: “R$ 320,00” vira valor, “Loja Alfa” vira favorecido e “03/10/2026” vira data. A parte difícil é generalizar: “R$ 320” e “320 reais” devem gerar o mesmo valor, e “Alfa Ltda.” deve ser reconhecido como a mesma organização de “Loja Alfa” quando o contexto indicar isso.</p>
+  </div>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Sempre valide a extração antes de gravar dados financeiros. Um valor lido com a vírgula trocada por ponto pode multiplicar o erro por mil.</div>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLOS PRÁTICOS DE PLN ============================ -->
+<section id="ex-codigo-pln" data-toc="Mais exemplos do dia a dia em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-indigo-400 mr-2"></i>Exemplos práticos de PLN</h2>
+  <p class="ah-lead text-sm mb-5">Estes trechos mostram as tarefas desta página em código. Os modelos prontos mudam com frequência; por isso, confira nas documentações qual modelo em português usar.</p>
+  <div class="ah-prose">
+    <p><strong>Tokenização e lematização com spaCy:</strong> separe o texto em tokens e veja o lema de cada um.</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">import spacy
+
+nlp = spacy.load(&quot;pt_core_news_sm&quot;)
+doc = nlp(&quot;Fui ao banco sacar dinheiro.&quot;)
+for token in doc:
+    print(token.text, token.lemma_, token.pos_)</pre>
+  <div class="ah-prose">
+    <p><strong>Extração de entidades:</strong> a mesma biblioteca reconhece valores, datas e organizações.</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">doc = nlp(&quot;Pagamento de R$ 320,00 à Loja Alfa em 03/10/2026.&quot;)
+for ent in doc.ents:
+    print(ent.text, ent.label_)</pre>
+  <div class="ah-prose">
+    <p><strong>Análise de sentimento com um modelo pré-treinado:</strong> a biblioteca Transformers oferece um pipeline genérico. O modelo padrão costuma ser em inglês, então escolha um modelo treinado em português ao usar em produção.</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">from transformers import pipeline
+
+classificador = pipeline(&quot;sentiment-analysis&quot;, model=&quot;NOME_DO_MODELO_EM_PORTUGUES&quot;)
+print(classificador(&quot;Entrega rápida, mas o produto chegou quebrado.&quot;))</pre>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Tarefa</th><th>Ferramenta sugerida</th><th>Cuidado</th></tr></thead>
+      <tbody><tr><td>Tokenização e lematização</td><td>spaCy ou NLTK</td><td>conferir casos como abreviações e números</td></tr><tr><td>Extração de entidades</td><td>spaCy com modelo em português</td><td>checar valores e datas antes de gravar</td></tr><tr><td>Sentimento</td><td>modelo pré-treinado em português</td><td>ironia e negação exigem teste específico</td></tr><tr><td>Busca de documentos</td><td>TF-IDF com scikit-learn</td><td>depende de bom pré-processamento</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">

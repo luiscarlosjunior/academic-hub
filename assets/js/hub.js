@@ -449,6 +449,96 @@
     global.mermaid.run({ querySelector: '.mermaid' });
   };
 
+  /* ------------------------------------------------------------------ */
+  /* Passo a passo animado: código destacado linha a linha + explicação   */
+  /*   <div class="ah-stepper">                                           */
+  /*     <pre class="ah-code ah-stepper-code"><code>linhas…</code></pre> */
+  /*     <script type="application/json" class="ah-steps">[{…}]</script>  */
+  /*   </div>                                                             */
+  /*   cada passo: {linha, titulo, texto, visual} (linha = -1 sem destaque)*/
+  /* ------------------------------------------------------------------ */
+  AH.initStepper = function (scope) {
+    (scope || document).querySelectorAll('.ah-stepper').forEach(box => {
+      if (box.dataset.ready) return;
+      box.dataset.ready = '1';
+      const codeEl = box.querySelector('.ah-stepper-code code');
+      const dados = box.querySelector('script.ah-steps');
+      if (!codeEl || !dados) return;
+
+      let passos = [];
+      try { passos = JSON.parse(dados.textContent); } catch (e) { return; }
+      const linhas = codeEl.textContent.replace(/\n$/, '').split('\n');
+      codeEl.innerHTML = linhas.map((l, i) =>
+        `<span class="ah-code-line" data-n="${i}">${l.replace(/&/g, '&amp;').replace(/</g, '&lt;') || ' '}</span>`).join('\n');
+
+      const info = document.createElement('div');
+      info.className = 'ah-stepper-info';
+      info.setAttribute('aria-live', 'polite');
+      info.innerHTML = `
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <span class="ah-stepper-titulo text-sm font-bold text-white"></span>
+          <span class="ah-stepper-contador text-xs text-slate-400 font-mono"></span>
+        </div>
+        <div class="ah-stepper-texto text-sm text-slate-300 leading-relaxed"></div>
+        <div class="ah-stepper-visual mt-4"></div>`;
+      const controles = document.createElement('div');
+      controles.className = 'ah-stepper-controles';
+      controles.innerHTML = `
+        <button type="button" class="ah-btn ah-btn-ghost" data-acao="antes"><i class="fa-solid fa-backward-step"></i> Anterior</button>
+        <button type="button" class="ah-btn ah-btn-primary" data-acao="depois">Próximo <i class="fa-solid fa-forward-step"></i></button>
+        <button type="button" class="ah-btn ah-btn-ghost" data-acao="animar"><i class="fa-solid fa-play"></i> Animar</button>
+        <button type="button" class="ah-btn ah-btn-ghost" data-acao="reiniciar"><i class="fa-solid fa-rotate-left"></i></button>`;
+      box.appendChild(info);
+      box.appendChild(controles);
+
+      let atual = 0;
+      let timer = null;
+      const btnAnimar = () => controles.querySelector('[data-acao="animar"]');
+      const pare = () => {
+        if (timer) clearInterval(timer);
+        timer = null;
+        btnAnimar().innerHTML = '<i class="fa-solid fa-play"></i> Animar';
+      };
+
+      function mostrar(n) {
+        atual = Math.max(0, Math.min(passos.length - 1, n));
+        const p = passos[atual] || {};
+        codeEl.querySelectorAll('.ah-code-line').forEach(el =>
+          el.classList.toggle('active', Number(el.dataset.n) === p.linha));
+        const linhaAtiva = codeEl.querySelector('.ah-code-line.active');
+        if (linhaAtiva) linhaAtiva.scrollIntoView({ block: 'nearest' });
+        info.querySelector('.ah-stepper-titulo').textContent = p.titulo || '';
+        info.querySelector('.ah-stepper-contador').textContent = `passo ${atual + 1} de ${passos.length}`;
+        info.querySelector('.ah-stepper-texto').innerHTML = p.texto || '';
+        info.querySelector('.ah-stepper-visual').innerHTML = p.visual || '';
+        controles.querySelector('[data-acao="antes"]').disabled = atual === 0;
+        controles.querySelector('[data-acao="depois"]').disabled = atual === passos.length - 1;
+      }
+
+      controles.addEventListener('click', e => {
+        const b = e.target.closest('[data-acao]');
+        if (!b) return;
+        const acao = b.getAttribute('data-acao');
+        if (acao === 'animar') {
+          if (timer) { pare(); return; }
+          if (atual === passos.length - 1) mostrar(0);
+          btnAnimar().innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+          timer = setInterval(() => {
+            if (atual >= passos.length - 1) { pare(); return; }
+            mostrar(atual + 1);
+          }, 2200);
+          return;
+        }
+        pare();
+        if (acao === 'antes') mostrar(atual - 1);
+        if (acao === 'depois') mostrar(atual + 1);
+        if (acao === 'reiniciar') mostrar(0);
+      });
+
+      mostrar(0);
+    });
+  };
+
   /* ------------------------------ helpers --------------------------- */
   AH.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   AH.lerp = (a, b, t) => a + (b - a) * t;
@@ -609,6 +699,7 @@
       AH.initReveal();
       AH.initMermaid();
     }
+    AH.initStepper();
   };
 
   document.addEventListener('DOMContentLoaded', AH.boot);

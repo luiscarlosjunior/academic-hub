@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transações em Java e Leitura dos Erros · AcademicHub</title>
+<meta name="description" content="setAutoCommit, commit e rollback no JDBC, o controle de transação em um método de negócio, e como interpretar SQLException e seus códigos.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-06-transacoes-erros">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="ideia" data-toc="Transação no JDBC" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Transação no JDBC</h2>
+  <div class="ah-prose">
+
+<p>Por padrão, o JDBC confirma cada instrução sozinha, assim que ela termina. Para agrupar várias instruções, desligue esse comportamento com <code>setAutoCommit(false)</code>. Nada vale até o <code>commit()</code>. Se algo der errado, o <code>rollback()</code> desfaz tudo desde o último commit.</p>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: a troca de preços como transação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Animação: a troca de preços como transação</h2>
+  <div class="ah-prose">
+
+<p>O método <code>trocarPrecos</code> lê os dois preços e faz duas atualizações. Acompanhe o caminho feliz e depois o caminho de erro, em que o segundo livro não existe e tudo é desfeito.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>public void trocarPrecos(long idA, long idB) throws SQLException {
+    boolean autoCommitAntes = con.getAutoCommit();
+    con.setAutoCommit(false);
+    try {
+        double precoA = precoDe(idA);
+        double precoB = precoDe(idB);
+        try (PreparedStatement ps = con.prepareStatement(&quot;UPDATE livro SET preco = ? WHERE id = ?&quot;)) {
+            ps.setDouble(1, precoB);
+            ps.setLong(2, idA);
+            ps.executeUpdate();
+            ps.setDouble(1, precoA);
+            ps.setLong(2, idB);
+            ps.executeUpdate();
+        }
+        con.commit();
+    } catch (SQLException e) {
+        con.rollback();
+        throw e;
+    } finally {
+        con.setAutoCommit(autoCommitAntes);
+    }
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 1, "titulo": "Guardar o estado", "texto": "O método guarda a configuração atual, para restaurá-la no fim.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">autocommit</span><span class=\"ah-caixa \">transação</span><span class=\"ah-caixa \">commit</span></div>"}, {"linha": 2, "titulo": "Abrir a transação", "texto": "A partir daqui nada é confirmado sozinho. Cada alteração fica pendente.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">autocommit</span><span class=\"ah-caixa on\">transação</span><span class=\"ah-caixa \">commit</span></div>"}, {"linha": 4, "titulo": "Ler os dois preços", "texto": "Duas leituras dentro da transação: 29,90 e 19,90.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">autocommit</span><span class=\"ah-caixa on\">transação</span><span class=\"ah-caixa ok\">leituras ok</span></div>"}, {"linha": 7, "titulo": "Primeira atualização", "texto": "O livro A recebe o preço de B (19,90), ainda sem gravação definitiva.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">transação</span><span class=\"ah-caixa on\">A = 19,90</span><span class=\"ah-caixa \">B = 19,90</span></div>"}, {"linha": 14, "titulo": "Confirmar", "texto": "Se nada falhou, <code>commit()</code> torna as duas alterações definitivas, ao mesmo tempo.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">transação</span><span class=\"ah-caixa ok\">A = 19,90</span><span class=\"ah-caixa ok\">B = 29,90</span><span class=\"ah-caixa ok\">commit</span></div>"}, {"linha": 16, "titulo": "Caminho de erro", "texto": "Se o segundo livro não existir, a exceção sobe para o <code>catch</code>, que executa <code>rollback()</code>. Nada é gravado.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">erro no B</span><span class=\"ah-caixa on\">rollback</span><span class=\"ah-caixa ok\">A = 29,90</span><span class=\"ah-caixa ok\">B = 19,90</span></div>"}, {"linha": 19, "titulo": "Restaurar sempre", "texto": "O <code>finally</code> devolve a conexão ao estado original, com ou sem erro.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">autocommit restaurado</span></div>"}]</script>
+</div>
+</section>
+
+<section id="lote" data-toc="Rollback no lote" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Rollback no lote</h2>
+  <div class="ah-prose">
+
+<p>O mesmo padrão aparece em <code>inserirLote</code>. Se um livro do lote tiver preço negativo, o banco recusa o INSERT, o método executa <code>rollback()</code>, e nenhum dos livros anteriores permanece. Na demonstração, o total continua 2 depois da falha.</p>
+
+  </div>
+</section>
+
+<section id="codigos" data-toc="Lendo o erro: getErrorCode e getMessage" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Lendo o erro: getErrorCode e getMessage</h2>
+  <div class="ah-prose">
+
+<p>Uma <code>SQLException</code> traz uma mensagem e um código. Os principais códigos do SQLite:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Código</th><th>Nome</th><th>Significado</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>SQLITE_ERROR</td><td>erro de SQL, como uma palavra digitada errado</td></tr>
+<tr><td>5</td><td>SQLITE_BUSY</td><td>banco ocupado por outra conexão escrevendo (“database is locked”)</td></tr>
+<tr><td>19</td><td>SQLITE_CONSTRAINT</td><td>violação de restrição: UNIQUE, CHECK, NOT NULL ou chave estrangeira</td></tr>
+</tbody></table></div>
+<p class="mt-4">A mensagem entre colchetes, como <code>[SQLITE_CONSTRAINT_UNIQUE]</code>, dá o detalhe da restrição. Ao exibir erros ao usuário, mostre uma mensagem clara, e registre o erro completo para o desenvolvedor.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: transações e erros" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Exemplo executável: transações e erros</h2>
+  <div class="ah-prose">
+
+<p>A demonstração troca os preços, mostra a falha de um livro inexistente sem alteração, e recusa um lote inteiro por causa de um preço negativo.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Demonstração desta aula. A saída abaixo foi gerada por execução real, com Java 17, SQLite 3.46 e o driver sqlite-jdbc 3.46.1.0.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java-sqlite/src/demos/Demo06Transacoes.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java-sqlite/src/demos/Demo06Transacoes.java</code></a></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>antes:  29.9 / 19.9
+troca:  19.9 / 29.9
+falhou: livro 999 não existe
+depois da falha (nada mudou): 19.9 / 29.9
+== lote com um registro inválido (preço negativo)
+lote recusado: código 19
+total após o lote recusado: 2</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Demo06Transacoes.java)</summary>
+<pre class="ah-code mt-3"><code>package demos;
+
+import biblioteca.Conexao;
+import biblioteca.Livro;
+import biblioteca.LivroDao;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
+
+/** Tópico 6: transações com commit e rollback, e leitura dos erros do banco. */
+public class Demo06Transacoes {
+
+    public static void main(String[] args) throws Exception {
+        String arq = &quot;demo06.db&quot;;
+        new java.io.File(arq).delete();
+        try (Connection con = Conexao.abrir(arq)) {
+            Conexao.criarTabelas(con);
+            LivroDao dao = new LivroDao(con);
+            long a = dao.inserir(new Livro(null, &quot;Dom Casmurro&quot;, 1899, 29.9, null));
+            long b = dao.inserir(new Livro(null, &quot;Vidas Secas&quot;, 1938, 19.9, null));
+
+            System.out.println(&quot;antes:  &quot; + precos(dao, a, b));
+            dao.trocarPrecos(a, b);
+            System.out.println(&quot;troca:  &quot; + precos(dao, a, b));
+
+            try {
+                dao.trocarPrecos(a, 999);     // o segundo livro não existe
+            } catch (SQLException e) {
+                System.out.println(&quot;falhou: &quot; + e.getMessage());
+            }
+            System.out.println(&quot;depois da falha (nada mudou): &quot; + precos(dao, a, b));
+
+            System.out.println(&quot;== lote com um registro inválido (preço negativo)&quot;);
+            try {
+                dao.inserirLote(List.of(
+                        new Livro(null, &quot;Bom&quot;, 2000, 10, null),
+                        new Livro(null, &quot;Ruim&quot;, 2000, -1, null)));
+            } catch (SQLException e) {
+                System.out.println(&quot;lote recusado: código &quot; + e.getErrorCode());
+            }
+            System.out.println(&quot;total após o lote recusado: &quot; + dao.contar());
+        }
+        new java.io.File(arq).delete();
+    }
+
+    private static String precos(LivroDao dao, long a, long b) throws SQLException {
+        return dao.buscarPorId(a).get().preco() + &quot; / &quot; + dao.buscarPorId(b).get().preco();
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li><strong>Não restaurar o autocommit no <code>finally</code>:</strong> a conexão volta ao uso com transação aberta.</li>
+<li><strong>Capturar a exceção sem relançar:</strong> o método parece bem-sucedido.</li>
+<li><strong>Transação longa:</strong> bloqueia escritas de outras conexões. Mantenha-as curtas.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva <code>registrarEmprestimo</code> que insere um empréstimo e marca o livro como indisponível, em uma transação.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>setAutoCommit(false)</code>; executar o INSERT e o UPDATE; <code>commit()</code>; no <code>catch</code>, <code>rollback()</code> e relançar; no <code>finally</code>, <code>setAutoCommit(true)</code>.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Um erro com código 5 aparece quando dois programas escrevem ao mesmo tempo. O que a aplicação faz?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> tenta de novo após uma pausa curta, com limite de tentativas, e avisa o usuário se continuar ocupado. Transações curtas reduzem a chance desse erro.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Oracle. <em>Transactions</em>: https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html</li>
+<li>SQLite. <em>Result and error codes</em>: https://www.sqlite.org/rescode.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

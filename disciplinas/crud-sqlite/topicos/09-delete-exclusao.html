@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (D): Removendo Dados · AcademicHub</title>
+<meta name="description" content="DELETE, as ações ON DELETE (RESTRICT, CASCADE, SET NULL) e a exclusão lógica para preservar histórico.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/09-delete-exclusao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="delete" data-toc="A forma do DELETE e o WHERE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>A forma do DELETE e o WHERE</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>DELETE FROM livro WHERE id = 7;</code></pre>
+<p class="mt-4">Como no UPDATE, sem WHERE todas as linhas são removidas. E como não há lixeira, a remoção é permanente, a menos que exista backup ou uma transação aberta.</p>
+
+  </div>
+</section>
+
+<section id="acoes" data-toc="O que acontece com as linhas relacionadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>O que acontece com as linhas relacionadas</h2>
+  <div class="ah-prose">
+
+<p>A chave estrangeira diz o que fazer quando a linha referenciada é apagada. As três ações mais usadas:</p>
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Ação</th><th>Comportamento</th><th>Uso típico</th></tr></thead>
+    <tbody>
+      <tr><td><code>RESTRICT</code> / sem ação</td><td>recusa a exclusão enquanto houver filhos</td><td>empréstimo impede apagar o livro</td></tr>
+      <tr><td><code>CASCADE</code></td><td>apaga as linhas dependentes junto</td><td>vínculos de livro_autor ao apagar o livro</td></tr>
+      <tr><td><code>SET NULL</code></td><td>zera a chave estrangeira dependente</td><td>funcionário sem departamento</td></tr>
+    </tbody>
+  </table>
+</div>
+<p class="mt-4">A escolha entre as ações é uma decisão de negócio. CASCADE em vínculos (como a tabela de junção) costuma ser seguro. CASCADE em registros de histórico, como empréstimos, pode apagar informação que a empresa precisa guardar por lei.</p>
+
+  </div>
+</section>
+
+<section id="logica" data-toc="Exclusão lógica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>Exclusão lógica</h2>
+  <div class="ah-prose">
+
+<p>Em vez de apagar, marque a linha como excluída. Assim o histórico permanece, a auditoria continua possível, e a restauração é um UPDATE. O custo é que toda consulta precisa filtrar os excluídos (<code>WHERE excluido = 0</code>), e isso deve ser feito em um lugar só do código (ou em uma VIEW, tópico 12).</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: restrição, cascata e exclusão lógica" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>Exemplo executável: restrição, cascata e exclusão lógica</h2>
+  <div class="ah-prose">
+
+<p>O script tenta apagar um livro que tem empréstimo (e é recusado), devolve e apaga o empréstimo, apaga o livro (e a cascata remove o vínculo com o autor, mas o autor continua existindo), e por fim faz uma exclusão lógica.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t09_delete.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t09_delete.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t09_delete.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>candidatos: [(1, &#x27;Dom Casmurro&#x27;)]
+apagar livro emprestado: RECUSADO - FOREIGN KEY constraint failed
+livro apagado, linhas: 1
+vínculos restantes em livro_autor: 0
+autor continua existindo: [(&#x27;Machado de Assis&#x27;,)]
+consulta normal depois da exclusão lógica: []</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+con.execute(&quot;INSERT INTO autor (id, nome) VALUES (1, &#x27;Machado de Assis&#x27;)&quot;)
+con.execute(&quot;INSERT INTO livro (id, titulo, ano) VALUES (1, &#x27;Dom Casmurro&#x27;, 1899)&quot;)
+con.execute(&quot;INSERT INTO livro_autor VALUES (1, 1)&quot;)
+con.execute(&quot;INSERT INTO cliente (id, nome, email) VALUES (1, &#x27;Ana&#x27;, &#x27;ana@x.com&#x27;)&quot;)
+con.execute(&quot;INSERT INTO emprestimo (livro_id, cliente_id, data_saida) VALUES (1, 1, &#x27;2026-10-01&#x27;)&quot;)
+
+# D de CRUD: DELETE. Sempre com WHERE, e conferir antes com SELECT.
+print(&quot;candidatos:&quot;, con.execute(&quot;SELECT id, titulo FROM livro WHERE ano &lt; 1900&quot;).fetchall())
+
+# ON DELETE RESTRICT: livro com empréstimo não pode ser apagado
+try:
+    con.execute(&quot;DELETE FROM livro WHERE id = 1&quot;)
+except sqlite3.IntegrityError as e:
+    print(&quot;apagar livro emprestado:&quot;, &quot;RECUSADO -&quot;, e)
+
+# ON DELETE CASCADE: apagar o livro leva junto as linhas de livro_autor
+con.execute(&quot;UPDATE emprestimo SET devolvido = 1&quot;)
+con.execute(&quot;DELETE FROM emprestimo&quot;)
+cur = con.execute(&quot;DELETE FROM livro WHERE id = 1&quot;)
+print(&quot;livro apagado, linhas:&quot;, cur.rowcount)
+print(&quot;vínculos restantes em livro_autor:&quot;, con.execute(&quot;SELECT count(*) FROM livro_autor&quot;).fetchone()[0])
+print(&quot;autor continua existindo:&quot;, con.execute(&quot;SELECT nome FROM autor&quot;).fetchall())
+
+# Exclusão lógica: marca em vez de apagar (preserva histórico e auditoria)
+con.execute(&quot;ALTER TABLE autor ADD COLUMN excluido INTEGER NOT NULL DEFAULT 0&quot;)
+con.execute(&quot;UPDATE autor SET excluido = 1 WHERE id = 1&quot;)
+print(&quot;consulta normal depois da exclusão lógica:&quot;, con.execute(&quot;SELECT nome FROM autor WHERE excluido = 0&quot;).fetchall())
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>DELETE sem WHERE:</strong> o banco executa sem reclamar.</li>
+  <li><strong>Ignorar a pragma de chave estrangeira:</strong> sem ela, o DELETE apaga o pai e deixa filhos órfãos, sem nenhuma recusa.</li>
+  <li><strong>Apagar em cascata sem pensar:</strong> um DELETE de cliente pode apagar todo o histórico de empréstimos. Modele a política antes.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Por que o autor continuou existindo depois que o livro foi apagado?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o CASCADE está na chave estrangeira de livro_autor, que aponta para livro. Ao apagar o livro, apagam-se as linhas de junção. A tabela autor não tem chave estrangeira para livro, então nada a afeta.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Escreva a exclusão lógica de um cliente e a consulta dos clientes ativos.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>UPDATE cliente SET excluido = 1 WHERE id = ?</code>; consulta: <code>SELECT * FROM cliente WHERE excluido = 0</code>.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trash-can text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>DELETE</em>: https://www.sqlite.org/lang_delete.html</li>
+  <li>SQLite. <em>Ações de chave estrangeira (ON DELETE)</em>: https://www.sqlite.org/foreignkeys.html#fk_actions</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (U): Atualizando Dados · AcademicHub</title>
+<meta name="description" content="UPDATE com WHERE, RETURNING, UPSERT com ON CONFLICT e atualização condicional para evitar sobrescrever alterações alheias.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/08-update-upsert">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="update" data-toc="A forma do UPDATE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>A forma do UPDATE</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>UPDATE livro
+SET preco = preco * 1.10, ano = 1900
+WHERE ano &lt; 1900;</code></pre>
+<p class="mt-4">O WHERE decide quais linhas mudam. <strong>Sem WHERE, todas as linhas da tabela são alteradas</strong>, sem aviso. A prática segura é escrever primeiro o SELECT com a mesma condição, conferir o resultado e só então trocar por UPDATE.</p>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Regra de ouro:</strong> antes de qualquer UPDATE ou DELETE em produção, rode o SELECT equivalente e confira quantas linhas aparecem. Faça a alteração dentro de uma transação, para poder desfazer se o número estiver errado.</div></div>
+
+  </div>
+</section>
+
+<section id="rowcount" data-toc="Quantas linhas mudaram" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>Quantas linhas mudaram</h2>
+  <div class="ah-prose">
+
+<p><code>cursor.rowcount</code> informa quantas linhas a última instrução alterou. Use-o para decidir: se um UPDATE por id devolve 0, o registro não existe mais, e a aplicação deve saber disso em vez de assumir sucesso.</p>
+
+  </div>
+</section>
+
+<section id="returning" data-toc="RETURNING no UPDATE" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>RETURNING no UPDATE</h2>
+  <div class="ah-prose">
+
+<p>Assim como no INSERT, <code>RETURNING</code> devolve as linhas alteradas. Útil quando a interface precisa mostrar o valor final, por exemplo um preço já com desconto aplicado.</p>
+
+  </div>
+</section>
+
+<section id="upsert" data-toc="UPSERT: inserir ou atualizar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>UPSERT: inserir ou atualizar</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>INSERT INTO livro (titulo, ano, isbn, preco) VALUES (?, ?, ?, ?)
+ON CONFLICT (isbn) DO UPDATE SET preco = excluded.preco;</code></pre>
+<p class="mt-4">Se o isbn já existe, a linha atual é atualizada; se não, é inserida. A palavra <code>excluded</code> se refere aos valores que o INSERT tentou gravar. O UPSERT exige uma restrição UNIQUE ou chave primária na coluna do conflito.</p>
+
+  </div>
+</section>
+
+<section id="otimista" data-toc="Atualização condicional (controle otimista)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>Atualização condicional (controle otimista)</h2>
+  <div class="ah-prose">
+
+<p>Imagine que dois atendentes leem o preço de 31,00, e os dois querem alterá-lo. Se o segundo sobrescrever o primeiro sem saber, uma alteração se perde. A solução é incluir o valor lido na condição do UPDATE: <code>WHERE isbn = ? AND preco = ?</code>. Se o valor já mudou, nenhuma linha é alterada, e a aplicação avisa o usuário para recarregar.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: UPDATE, RETURNING, UPSERT e condição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>Exemplo executável: UPDATE, RETURNING, UPSERT e condição</h2>
+  <div class="ah-prose">
+
+<p>O script aumenta preços só para os livros anteriores a 1900, mostra o RETURNING, faz um UPSERT com um isbn existente e outro novo, e testa a atualização condicional com o valor correto e com um valor antigo.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t08_update.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t08_update.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t08_update.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>linhas alteradas: 1
+[(&#x27;Dom Casmurro&#x27;, 32.89), (&#x27;Vidas Secas&#x27;, 24.5)]
+RETURNING: (&#x27;Vidas Secas&#x27;, 19.9)
+após UPSERT: [(&#x27;978-1&#x27;, 31.0), (&#x27;978-3&#x27;, 19.9), (&#x27;978-9&#x27;, 15.0)]
+atualização condicional aceita: True
+segunda tentativa com valor antigo aceita: False</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+con.executescript(open(&quot;biblioteca_schema.sql&quot;, encoding=&quot;utf-8&quot;).read())
+con.executemany(&quot;INSERT INTO livro (id, titulo, ano, isbn, preco) VALUES (?,?,?,?,?)&quot;, [
+    (1, &quot;Dom Casmurro&quot;, 1899, &quot;978-1&quot;, 29.9),
+    (2, &quot;Vidas Secas&quot;, 1938, &quot;978-3&quot;, 24.5),
+])
+
+# U de CRUD: UPDATE com WHERE. Sem WHERE, TODAS as linhas mudam.
+cur = con.execute(&quot;UPDATE livro SET preco = preco * 1.10 WHERE ano &lt; 1900&quot;)
+print(&quot;linhas alteradas:&quot;, cur.rowcount)
+print(con.execute(&quot;SELECT titulo, round(preco, 2) FROM livro&quot;).fetchall())
+
+# UPDATE ... RETURNING: devolve o registro alterado
+print(&quot;RETURNING:&quot;, con.execute(&quot;UPDATE livro SET preco = 19.9 WHERE id = 2 RETURNING titulo, preco&quot;).fetchone())
+
+# UPSERT: insere, ou atualiza se a chave única já existir
+for isbn, preco in [(&quot;978-1&quot;, 31.0), (&quot;978-9&quot;, 15.0)]:
+    con.execute(&quot;&quot;&quot;INSERT INTO livro (titulo, ano, isbn, preco) VALUES (&#x27;Título&#x27;, 2000, ?, ?)
+                   ON CONFLICT (isbn) DO UPDATE SET preco = excluded.preco&quot;&quot;&quot;, (isbn, preco))
+print(&quot;após UPSERT:&quot;, con.execute(&quot;SELECT isbn, preco FROM livro ORDER BY isbn&quot;).fetchall())
+
+# Atualização segura: a condição inclui o valor esperado (controle otimista)
+antigo = 31.0
+cur = con.execute(&quot;UPDATE livro SET preco = 35.0 WHERE isbn = &#x27;978-1&#x27; AND preco = ?&quot;, (antigo,))
+print(&quot;atualização condicional aceita:&quot;, cur.rowcount == 1)
+cur = con.execute(&quot;UPDATE livro SET preco = 36.0 WHERE isbn = &#x27;978-1&#x27; AND preco = ?&quot;, (antigo,))
+print(&quot;segunda tentativa com valor antigo aceita:&quot;, cur.rowcount == 1)
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>UPDATE sem WHERE:</strong> altera a tabela inteira. Confira o SELECT antes.</li>
+  <li><strong>Atualizar duas vezes com base no valor lido antes:</strong> o cálculo <code>preco = 30 * 1.1</code> em uma aplicação concorrente pode sobrescrever outra alteração. Prefira calcular no próprio banco (<code>preco = preco * 1.1</code>), ou usar a condição otimista.</li>
+  <li><strong>Ignorar rowcount:</strong> o programa segue como se a alteração tivesse acontecido.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva a atualização que dá 10% de desconto nos livros com preço acima de 30, sem alterar os demais.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>UPDATE livro SET preco = preco * 0.9 WHERE preco &gt; 30;</code>. A condição no WHERE limita as linhas afetadas.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que a segunda tentativa da atualização condicional retornou False?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o preço já tinha mudado para 35,00, então a condição <code>preco = 31.0</code> não era mais verdadeira. Nenhuma linha casou, e o rowcount foi zero.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>UPDATE</em>: https://www.sqlite.org/lang_update.html</li>
+  <li>SQLite. <em>UPSERT</em>: https://www.sqlite.org/lang_upsert.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

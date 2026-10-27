@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transações e ACID · AcademicHub</title>
+<meta name="description" content="O que é uma transação, as propriedades ACID, BEGIN, COMMIT, ROLLBACK, SAVEPOINT e o controle de escrita concorrente no SQLite.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/10-transacoes-acid">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="conceito" data-toc="O que é uma transação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>O que é uma transação</h2>
+  <div class="ah-prose">
+
+<p>Uma <strong>transação</strong> é um conjunto de operações que deve acontecer por inteiro ou não acontecer. O exemplo clássico é a transferência bancária: debitar de uma conta e creditar em outra. Se o programa cair entre as duas operações, o dinheiro some, a menos que as duas tenham sido agrupadas numa transação.</p>
+
+  </div>
+</section>
+
+<section id="acid" data-toc="As propriedades ACID" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>As propriedades ACID</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Propriedade</th><th>Significado</th><th>Na transferência</th></tr></thead>
+    <tbody>
+      <tr><td><strong>A</strong>tomicidade</td><td>tudo ou nada</td><td>o débito e o crédito acontecem juntos ou nenhum</td></tr>
+      <tr><td><strong>C</strong>onsistência</td><td>o banco vai de um estado válido a outro válido</td><td>o saldo continua não negativo (CHECK)</td></tr>
+      <tr><td><strong>I</strong>solamento</td><td>transações concorrentes não se veem pela metade</td><td>outro leitor não vê o débito sem o crédito</td></tr>
+      <tr><td><strong>D</strong>urabilidade</td><td>o que foi confirmado sobrevive a falhas</td><td>após o COMMIT, a queda de energia não desfaz a transferência</td></tr>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</section>
+
+<section id="comandos" data-toc="Comandos de transação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Comandos de transação</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>BEGIN IMMEDIATE;          <span class="cm">-- inicia e já reserva a escrita</span>
+UPDATE conta SET saldo = saldo - 30 WHERE id = 1;
+UPDATE conta SET saldo = saldo + 30 WHERE id = 2;
+COMMIT;                   <span class="cm">-- confirma tudo</span>
+
+BEGIN;
+UPDATE conta SET saldo = saldo - 500 WHERE id = 1;   <span class="cm">-- viola CHECK (saldo &gt;= 0)</span>
+ROLLBACK;                 <span class="cm">-- desfaz</span></code></pre>
+<p class="mt-4">Dentro de uma transação, as alterações são visíveis para a própria conexão, mas não definitivas. O COMMIT as torna permanentes; o ROLLBACK as descarta.</p>
+
+  </div>
+</section>
+
+<section id="savepoint" data-toc="SAVEPOINT: desfazer só uma parte" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>SAVEPOINT: desfazer só uma parte</h2>
+  <div class="ah-prose">
+
+<p>SAVEPOINT cria um ponto de retorno dentro da transação. <code>ROLLBACK TO ponto</code> desfaz apenas o que veio depois dele, e a transação continua. É útil quando uma sub-etapa pode falhar sem invalidar o resto.</p>
+
+  </div>
+</section>
+
+<section id="sqlite" data-toc="Como o SQLite implementa isso" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Como o SQLite implementa isso</h2>
+  <div class="ah-prose">
+
+<p>O SQLite usa um arquivo de diário (<em>rollback journal</em>) para desfazer alterações, e no modo WAL (tópico 15) usa um arquivo de log separado. Em ambos os casos, há <strong>um escritor de cada vez</strong>. <code>BEGIN IMMEDIATE</code> adquire o direito de escrita logo no início, e <code>BEGIN DEFERRED</code>, o padrão, só o adquire na primeira escrita. Se duas conexões tentarem escrever ao mesmo tempo, a segunda recebe “database is locked” depois de um tempo limite.</p>
+<p class="mt-3">Para transferências, use <code>BEGIN IMMEDIATE</code>: a leitura do saldo e a escrita ficam protegidas de uma concorrente que leria o mesmo valor antigo.</p>
+
+  </div>
+</section>
+
+<section id="python" data-toc="Transações no módulo sqlite3" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Transações no módulo sqlite3</h2>
+  <div class="ah-prose">
+
+<p>Por padrão, o módulo <code>sqlite3</code> abre transações implicitamente antes de um INSERT, UPDATE ou DELETE. Para controle total, abra a conexão com <code>isolation_level=None</code>, como no exemplo, e escreva BEGIN, COMMIT e ROLLBACK explicitamente. Um bloco <code>with con:</code> faz commit no fim e rollback em caso de exceção, sem fechar a conexão.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: transferência, ROLLBACK e SAVEPOINT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Exemplo executável: transferência, ROLLBACK e SAVEPOINT</h2>
+  <div class="ah-prose">
+
+<p>O script faz uma transferência válida, uma que viola o CHECK e é desfeita, mostra que um débito no meio de uma transação some com o ROLLBACK, e demonstra o SAVEPOINT desfazendo só a parte final.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t10_transacoes.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t10_transacoes.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t10_transacoes.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>inicial: [(&#x27;Ana&#x27;, 100), (&#x27;Bruno&#x27;, 50)]
+transferir 30 de Ana para Bruno: confirmada [(&#x27;Ana&#x27;, 70), (&#x27;Bruno&#x27;, 80)]
+transferir 500 de Ana para Bruno: desfeita: CHECK constraint failed: saldo &gt;= 0 [(&#x27;Ana&#x27;, 70), (&#x27;Bruno&#x27;, 80)]
+dentro da transação, saldo de Ana: 60
+após ROLLBACK, saldo de Ana: 70
+com SAVEPOINT, saldo de Bruno: 85</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;, isolation_level=None)   # controle manual de transações
+con.execute(&quot;CREATE TABLE conta (id INTEGER PRIMARY KEY, titular TEXT, saldo INTEGER NOT NULL CHECK (saldo &gt;= 0))&quot;)
+con.executemany(&quot;INSERT INTO conta VALUES (?,?,?)&quot;, [(1, &quot;Ana&quot;, 100), (2, &quot;Bruno&quot;, 50)])
+
+def saldos():
+    return con.execute(&quot;SELECT titular, saldo FROM conta ORDER BY id&quot;).fetchall()
+
+def transferir(origem, destino, valor):
+    con.execute(&quot;BEGIN IMMEDIATE&quot;)          # bloqueia escrita: outros escritores esperam
+    try:
+        con.execute(&quot;UPDATE conta SET saldo = saldo - ? WHERE id = ?&quot;, (valor, origem))
+        con.execute(&quot;UPDATE conta SET saldo = saldo + ? WHERE id = ?&quot;, (valor, destino))
+        con.execute(&quot;COMMIT&quot;)               # tudo ou nada
+        return &quot;confirmada&quot;
+    except sqlite3.IntegrityError as e:
+        con.execute(&quot;ROLLBACK&quot;)             # desfaz as duas alterações
+        return &quot;desfeita: &quot; + str(e)
+
+print(&quot;inicial:&quot;, saldos())
+print(&quot;transferir 30 de Ana para Bruno:&quot;, transferir(1, 2, 30), saldos())
+print(&quot;transferir 500 de Ana para Bruno:&quot;, transferir(1, 2, 500), saldos())
+
+# Atomicidade mesmo com erro no meio: o débito feito antes é desfeito
+con.execute(&quot;BEGIN&quot;)
+con.execute(&quot;UPDATE conta SET saldo = saldo - 10 WHERE id = 1&quot;)
+print(&quot;dentro da transação, saldo de Ana:&quot;, con.execute(&quot;SELECT saldo FROM conta WHERE id=1&quot;).fetchone()[0])
+con.execute(&quot;ROLLBACK&quot;)
+print(&quot;após ROLLBACK, saldo de Ana:&quot;, con.execute(&quot;SELECT saldo FROM conta WHERE id=1&quot;).fetchone()[0])
+
+# SAVEPOINT: desfaz só uma parte da transação
+con.execute(&quot;BEGIN&quot;)
+con.execute(&quot;UPDATE conta SET saldo = saldo + 5 WHERE id = 2&quot;)
+con.execute(&quot;SAVEPOINT ponto1&quot;)
+con.execute(&quot;UPDATE conta SET saldo = saldo + 1000 WHERE id = 2&quot;)
+con.execute(&quot;ROLLBACK TO ponto1&quot;)
+con.execute(&quot;COMMIT&quot;)
+print(&quot;com SAVEPOINT, saldo de Bruno:&quot;, con.execute(&quot;SELECT saldo FROM conta WHERE id=2&quot;).fetchone()[0])
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Transação aberta e esquecida:</strong> o banco fica bloqueado para outros escritores até o COMMIT ou ROLLBACK.</li>
+  <li><strong>Capturar a exceção e seguir:</strong> sem ROLLBACK, parte da transação fica pendente e é confirmada no próximo COMMIT.</li>
+  <li><strong>Ler, calcular na aplicação e gravar:</strong> entre a leitura e a escrita, outra transação pode mudar o valor. Calcule no próprio UPDATE ou use BEGIN IMMEDIATE.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva a transação que registra um empréstimo e marca o livro como indisponível. Se uma das duas falhar, nenhuma deve valer.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> BEGIN; INSERT INTO emprestimo ...; UPDATE livro SET disponivel = 0 WHERE id = ?; COMMIT; em caso de erro, ROLLBACK. Com a transação, o empréstimo não fica registrado sem o livro marcado.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Qual propriedade ACID o modo WAL ajuda a manter com leitores e escritor simultâneos?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o isolamento: leitores veem o último estado confirmado e não esperam o escritor, sem enxergar alterações pela metade.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>Transações</em>: https://www.sqlite.org/lang_transaction.html</li>
+  <li>SQLite. <em>Modo WAL</em>: https://www.sqlite.org/wal.html</li>
+  <li>Haerder, T.; Reuter, A. “Principles of Transaction-Oriented Database Recovery”, ACM Computing Surveys, 1983. Origem do termo ACID.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

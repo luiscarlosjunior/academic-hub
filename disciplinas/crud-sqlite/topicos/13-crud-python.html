@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD Completo em Python · AcademicHub</title>
+<meta name="description" content="Uma camada de repositório com create, read, update e delete, validação, tratamento de erros e testes automatizados.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/13-crud-python">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="arquitetura" data-toc="Separar o banco do resto do programa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Separar o banco do resto do programa</h2>
+  <div class="ah-prose">
+
+<p>Em um programa real, o SQL não deve se espalhar pela interface. A prática comum é uma <strong>camada de repositório</strong>: uma classe que conhece o banco e oferece métodos do domínio (<code>criar</code>, <code>buscar</code>, <code>atualizar</code>, <code>remover</code>). Quem usa o repositório não precisa saber que existe SQL. Se amanhã o banco mudar, a mudança fica em um lugar só.</p>
+<div class="ah-diagram mt-4"><pre class="mermaid">
+flowchart LR
+    UI["Interface (menu, API)"] --&gt; R["LivroRepositorio"]
+    R --&gt; S[("SQLite: biblioteca.db")]
+</pre></div>
+
+  </div>
+</section>
+
+<section id="crud" data-toc="Os quatro métodos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Os quatro métodos</h2>
+  <div class="ah-prose">
+
+<p>Cada método traduz uma operação do CRUD. Repare no padrão em comum: SQL com parâmetros, <code>with con:</code> para confirmar ou desfazer, e retorno que reflete o resultado.</p>
+<pre class="ah-code"><code><span class="cm"># C: create</span>
+<span class="kw">with</span> self.con:
+    cur = self.con.execute("INSERT INTO livro (titulo, ano, preco, isbn) VALUES (?, ?, ?, ?)", (...))
+livro.id = cur.lastrowid
+
+<span class="cm"># R: read</span>
+linha = self.con.execute("SELECT ... FROM livro WHERE id = ?", (id,)).fetchone()
+
+<span class="cm"># U: update: rowcount diz se alguma linha casou</span>
+cur = self.con.execute("UPDATE livro SET ... WHERE id = ?", (...))
+return cur.rowcount == 1
+
+<span class="cm"># D: delete: mesma ideia</span>
+cur = self.con.execute("DELETE FROM livro WHERE id = ?", (id,))
+return cur.rowcount == 1</code></pre>
+
+  </div>
+</section>
+
+<section id="validacao" data-toc="Validação em duas camadas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Validação em duas camadas</h2>
+  <div class="ah-prose">
+
+<p>A aplicação valida o que é regra de apresentação (título não vazio, por exemplo) e lança <code>ValueError</code>. O banco valida o que é regra de integridade (preço não negativo, isbn único) e lança <code>sqlite3.IntegrityError</code>. O repositório deixa as duas exceções subirem, e quem chama decide como mostrar a mensagem.</p>
+
+  </div>
+</section>
+
+<section id="testes" data-toc="Testar cada operação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Testar cada operação</h2>
+  <div class="ah-prose">
+
+<p>O código de teste do exemplo usa um banco em memória (<code>":memory:"</code>), então cada execução começa do zero e não toca o arquivo real. Ele verifica create, read (inclusive o caso de id inexistente), update, delete e as duas recusas. Testes como esses rodam em milissegundos e devem acompanhar qualquer mudança no repositório.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: o repositório e seus testes" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Exemplo executável: o repositório e seus testes</h2>
+  <div class="ah-prose">
+
+<p>O programa roda os testes e imprime cada operação. Ao final, a mensagem “Todos os testes passaram” só aparece se todos os asserts forem verdadeiros.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t13_crud_python.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t13_crud_python.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t13_crud_python.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>create ok: Livro(titulo=&#x27;Dom Casmurro&#x27;, ano=1899, preco=29.9, isbn=&#x27;978-1&#x27;, id=1)
+read ok: [&#x27;Dom Casmurro&#x27;, &#x27;Vidas Secas&#x27;]
+read com filtro ano &gt;= 1930: [&#x27;Vidas Secas&#x27;]
+update ok: preço de Vidas Secas agora 19.9
+delete ok: restam 1 livro(s)
+recusado (título vazio): ValueError - título é obrigatório
+recusado (preço negativo): IntegrityError - CHECK constraint failed: preco &gt;= 0
+unicidade recusou isbn repetido: UNIQUE constraint failed: livro.isbn
+
+Todos os testes passaram.</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>&quot;&quot;&quot;CRUD completo de livros com uma camada de repositório, validação e testes.&quot;&quot;&quot;
+import sqlite3
+from dataclasses import dataclass
+
+@dataclass
+class Livro:
+    titulo: str
+    ano: int
+    preco: float = 0.0
+    isbn: str | None = None
+    id: int | None = None
+
+class LivroRepositorio:
+    def __init__(self, caminho: str = &quot;:memory:&quot;):
+        self.con = sqlite3.connect(caminho)
+        self.con.execute(&quot;PRAGMA foreign_keys = ON&quot;)
+        self.con.execute(&quot;&quot;&quot;CREATE TABLE IF NOT EXISTS livro (
+                              id INTEGER PRIMARY KEY,
+                              titulo TEXT NOT NULL,
+                              ano INTEGER NOT NULL CHECK (ano &gt; 0),
+                              preco REAL NOT NULL DEFAULT 0 CHECK (preco &gt;= 0),
+                              isbn TEXT UNIQUE)&quot;&quot;&quot;)
+
+    # C: create
+    def criar(self, livro: Livro) -&gt; Livro:
+        livro.titulo = livro.titulo.strip()          # normaliza ANTES de gravar
+        if not livro.titulo:
+            raise ValueError(&quot;título é obrigatório&quot;)
+        with self.con:  # commit automático, ou rollback se houver exceção
+            cur = self.con.execute(
+                &quot;INSERT INTO livro (titulo, ano, preco, isbn) VALUES (?, ?, ?, ?)&quot;,
+                (livro.titulo, livro.ano, livro.preco, livro.isbn))
+        livro.id = cur.lastrowid
+        return livro
+
+    # R: read (um e vários)
+    def buscar(self, id: int) -&gt; Livro | None:
+        linha = self.con.execute(&quot;SELECT id, titulo, ano, preco, isbn FROM livro WHERE id = ?&quot;, (id,)).fetchone()
+        return Livro(*linha[1:], id=linha[0]) if linha else None
+
+    def listar(self, ano_minimo: int = 0) -&gt; list[Livro]:
+        linhas = self.con.execute(
+            &quot;SELECT id, titulo, ano, preco, isbn FROM livro WHERE ano &gt;= ? ORDER BY titulo&quot;, (ano_minimo,))
+        return [Livro(t, a, p, i, id=k) for k, t, a, p, i in linhas]
+
+    # U: update (retorna se alterou)
+    def atualizar(self, livro: Livro) -&gt; bool:
+        with self.con:
+            cur = self.con.execute(
+                &quot;UPDATE livro SET titulo = ?, ano = ?, preco = ?, isbn = ? WHERE id = ?&quot;,
+                (livro.titulo, livro.ano, livro.preco, livro.isbn, livro.id))
+        return cur.rowcount == 1
+
+    # D: delete
+    def remover(self, id: int) -&gt; bool:
+        with self.con:
+            cur = self.con.execute(&quot;DELETE FROM livro WHERE id = ?&quot;, (id,))
+        return cur.rowcount == 1
+
+# ---------- Testes: cada operação verificada ----------
+def testar():
+    repo = LivroRepositorio()
+    a = repo.criar(Livro(&quot;  Dom Casmurro &quot;, 1899, 29.9, &quot;978-1&quot;))
+    b = repo.criar(Livro(&quot;Vidas Secas&quot;, 1938, 24.5, &quot;978-3&quot;))
+    assert a.id == 1 and a.titulo == &quot;Dom Casmurro&quot;, &quot;create com trim&quot;
+    print(&quot;create ok:&quot;, a)
+
+    assert repo.buscar(b.id).titulo == &quot;Vidas Secas&quot;
+    assert repo.buscar(999) is None
+    print(&quot;read ok:&quot;, [l.titulo for l in repo.listar()])
+    print(&quot;read com filtro ano &gt;= 1930:&quot;, [l.titulo for l in repo.listar(1930)])
+
+    b.preco = 19.9
+    assert repo.atualizar(b) and repo.buscar(b.id).preco == 19.9
+    print(&quot;update ok: preço de&quot;, b.titulo, &quot;agora&quot;, repo.buscar(b.id).preco)
+
+    assert repo.remover(a.id) and repo.buscar(a.id) is None
+    assert not repo.remover(a.id)
+    print(&quot;delete ok: restam&quot;, len(repo.listar()), &quot;livro(s)&quot;)
+
+    # Validação na aplicação (ValueError) e no banco (IntegrityError)
+    for descricao, livro in [(&quot;título vazio&quot;, Livro(&quot;   &quot;, 2000)),
+                             (&quot;preço negativo&quot;, Livro(&quot;X&quot;, 2000, -1.0))]:
+        try:
+            repo.criar(livro)
+        except (ValueError, sqlite3.IntegrityError) as e:
+            print(f&quot;recusado ({descricao}):&quot;, type(e).__name__, &quot;-&quot;, e)
+    try:
+        repo.criar(Livro(&quot;Duplicado&quot;, 2001, isbn=&quot;978-3&quot;))
+    except sqlite3.IntegrityError as e:
+        print(&quot;unicidade recusou isbn repetido:&quot;, e)
+
+if __name__ == &quot;__main__&quot;:
+    testar()
+    print(&quot;\nTodos os testes passaram.&quot;)
+</code></pre>
+  </details>
+</section>
+
+<section id="evolucao" data-toc="Próximos passos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Próximos passos</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>Trocar o <code>print</code> por uma interface (linha de comando com <code>argparse</code>, ou uma API web).</li>
+  <li>Para bibliotecas maiores, use um framework de ORM, como SQLAlchemy, depois de entender o SQL que ele gera. O ORM não substitui o conhecimento deste curso; ele o embala.</li>
+  <li>Adicionar paginação em <code>listar</code> com LIMIT e OFFSET (tópico 6).</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Um objeto de domínio por conexão:</strong> abrir uma conexão a cada método funciona, mas é lento. Uma conexão por repositório, fechada no fim, é o padrão.</li>
+  <li><strong>Esquecer a pragma de chave estrangeira na conexão:</strong> ver tópico 4.</li>
+  <li><strong>Testar no arquivo real:</strong> um teste que apaga dados de produção é um desastre. Use banco em memória ou um arquivo temporário.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Adicione o método <code>buscar_por_isbn(isbn)</code> e um teste para ele.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o método executa <code>SELECT ... WHERE isbn = ?</code> e devolve Livro ou None, como <code>buscar</code>. O teste cria um livro com isbn, busca por ele e verifica o título; depois busca um isbn inexistente e verifica None.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o teste usa <code>":memory:"</code> e não o arquivo <code>biblioteca.db</code>?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o banco em memória começa vazio a cada execução, é isolado e não deixa resíduos. Testar no arquivo real pode apagar ou alterar dados e torna os testes dependentes do estado anterior.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-python text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>Python. <em>sqlite3 — DB-API</em>: https://docs.python.org/3/library/sqlite3.html</li>
+  <li>Python. <em>unittest</em>: https://docs.python.org/3/library/unittest.html</li>
+  <li>Fowler, M. <em>Patterns of Enterprise Application Architecture</em>. Addison-Wesley. Padrão Repository.</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

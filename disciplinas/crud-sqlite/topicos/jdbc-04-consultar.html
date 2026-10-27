@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD (R): ResultSet, Cursor e Paginação · AcademicHub</title>
+<meta name="description" content="Ler os resultados de uma consulta com ResultSet, o cursor que avança com next(), o mapeamento para objetos e a paginação com LIMIT e OFFSET.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/jdbc-04-consultar">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="cursor" data-toc="O ResultSet é um cursor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>O ResultSet é um cursor</h2>
+  <div class="ah-prose">
+
+<p>Uma consulta não devolve uma lista pronta: devolve um <code>ResultSet</code>, um <strong>cursor</strong> posicionado antes da primeira linha. Cada <code>next()</code> avança uma linha e devolve <code>false</code> quando acabam. Os valores são lidos pelo nome da coluna (<code>rs.getString("titulo")</code>) ou pela posição, começando em 1.</p>
+
+  </div>
+</section>
+
+<section id="animado" data-toc="Animação: o cursor percorrendo as linhas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Animação: o cursor percorrendo as linhas</h2>
+  <div class="ah-prose">
+
+<p>A tabela mostra as linhas que a consulta devolve, e o destaque é a linha que o cursor está lendo. Avance e veja cada linha virar um objeto <code>Livro</code> na lista.</p>
+
+  </div>
+</section>
+
+<section id="passo-a-passo" data-toc="Passo a passo animado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Passo a passo animado</h2>
+  <p class="ah-lead text-sm mb-5">O código abaixo é um trecho real do projeto. Avance com os botões ou use <em>Animar</em>: a linha em execução é destacada e a explicação acompanha.</p>
+  <div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>public List&lt;Livro&gt; buscarPorTitulo(String trecho) throws SQLException {
+    String sql = &quot;SELECT id, titulo, ano, preco, isbn FROM livro WHERE titulo LIKE ? ORDER BY titulo&quot;;
+    List&lt;Livro&gt; lista = new ArrayList&lt;&gt;();
+    try (PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, &quot;%&quot; + trecho + &quot;%&quot;);   // o % é montado no código, não digitado pelo usuário no SQL
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                lista.add(mapear(rs));
+            }
+        }
+    }
+    return lista;
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 1, "titulo": "A consulta", "texto": "O filtro <code>LIKE ?</code> recebe o trecho como parâmetro. Ainda não há linhas lidas.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">consulta</span><span class=\"ah-caixa \">cursor antes da 1ª</span><span class=\"ah-caixa \">lista vazia</span></div>"}, {"linha": 4, "titulo": "Montar o padrão", "texto": "O <code>%</code> é colocado no código, em volta do trecho. O usuário não escreve SQL.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">consulta</span><span class=\"ah-caixa on\">padrão %da%</span><span class=\"ah-caixa \">lista vazia</span></div>"}, {"linha": 5, "titulo": "Executar", "texto": "O banco devolve um ResultSet: um cursor posicionado antes da primeira linha.", "visual": "<div class=\"text-xs text-slate-400 mb-1\">ResultSet: o cursor fica numa linha por vez</div><table><tbody><tr class=\"\"><td>5</td><td>A Hora da Estrela</td></tr><tr class=\"\"><td>4</td><td>Capitães da Areia</td></tr><tr class=\"\"><td>3</td><td>Vidas Secas</td></tr></tbody></table>"}, {"linha": 6, "titulo": "Primeira linha", "texto": "<code>next()</code> avança o cursor e devolve <code>true</code>: há uma linha para ler.", "visual": "<div class=\"text-xs text-slate-400 mb-1\">ResultSet: o cursor fica numa linha por vez</div><table><tbody><tr class=\"cursor\"><td>5</td><td>A Hora da Estrela</td></tr><tr class=\"\"><td>4</td><td>Capitães da Areia</td></tr><tr class=\"\"><td>3</td><td>Vidas Secas</td></tr></tbody></table>"}, {"linha": 7, "titulo": "Mapear a linha", "texto": "O método <code>mapear</code> lê as colunas e cria um objeto <code>Livro</code>, que entra na lista.", "visual": "<div class=\"text-xs text-slate-400 mb-1\">ResultSet: o cursor fica numa linha por vez</div><table><tbody><tr class=\"cursor\"><td>5</td><td>A Hora da Estrela</td></tr><tr class=\"\"><td>4</td><td>Capitães da Areia</td></tr><tr class=\"\"><td>3</td><td>Vidas Secas</td></tr></tbody></table>"}, {"linha": 6, "titulo": "Próxima linha", "texto": "O cursor avança para a segunda linha. O processo se repete.", "visual": "<div class=\"text-xs text-slate-400 mb-1\">ResultSet: o cursor fica numa linha por vez</div><table><tbody><tr class=\"passado\"><td>5</td><td>A Hora da Estrela</td></tr><tr class=\"cursor\"><td>4</td><td>Capitães da Areia</td></tr><tr class=\"\"><td>3</td><td>Vidas Secas</td></tr></tbody></table>"}, {"linha": 11, "titulo": "Fim", "texto": "Quando <code>next()</code> devolve <code>false</code>, não há mais linhas. A lista é devolvida.", "visual": "<div class=\"text-xs text-slate-400 mb-1\">ResultSet: o cursor fica numa linha por vez</div><table><tbody><tr class=\"passado\"><td>5</td><td>A Hora da Estrela</td></tr><tr class=\"passado\"><td>4</td><td>Capitães da Areia</td></tr><tr class=\"passado\"><td>3</td><td>Vidas Secas</td></tr></tbody></table>"}]</script>
+</div>
+</section>
+
+<section id="paginacao" data-toc="Paginação com LIMIT e OFFSET" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Paginação com LIMIT e OFFSET</h2>
+  <div class="ah-prose">
+
+<p>Para mostrar uma página de cada vez, use <code>LIMIT tamanho OFFSET (pagina - 1) * tamanho</code>. Sempre inclua <code>ORDER BY</code>: sem ele, a ordem entre páginas pode mudar. No projeto, <code>listarPagina</code> calcula o deslocamento em Java e envia os dois números como parâmetros.</p>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: chave, trecho e páginas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Exemplo executável: chave, trecho e páginas</h2>
+  <div class="ah-prose">
+
+<p>A demonstração busca um livro pela chave, depois os títulos que contêm <code>da</code>, e percorre três páginas de dois livros cada.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Demonstração desta aula. A saída abaixo foi gerada por execução real, com Java 17, SQLite 3.46 e o driver sqlite-jdbc 3.46.1.0.</p>
+  <div class="ah-card p-5 mb-5"><div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/java-sqlite/src/demos/Demo04Consultar.java" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/java-sqlite/src/demos/Demo04Consultar.java</code></a></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+  <div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>IDE</th><th>Como executar esta classe</th></tr></thead>
+<tbody>
+<tr><td>Eclipse</td><td>abra o arquivo e use <em>Run → Run As → Java Application</em> (ou <kbd>Ctrl+F11</kbd>)</td></tr>
+<tr><td>VS Code</td><td>abra o arquivo e clique em <em>Run</em> acima de <code>main</code></td></tr>
+<tr><td>NetBeans</td><td>botão direito no arquivo → <em>Run File</em></td></tr>
+<tr><td>Terminal</td><td><code>./compilar.sh</code> e depois <code>java -cp "out:lib/*" demos.NOME</code></td></tr>
+</tbody></table></div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>== por chave
+achou: #3 Vidas Secas (1938) R$ 24,50 ISBN 978-3
+id 99: false
+== por trecho do título (&#x27;da&#x27;)
+#5 A Hora da Estrela (1977) R$ 27,00 ISBN 978-5
+#4 Capitães da Areia (1937) R$ 34,00 ISBN 978-4
+#3 Vidas Secas (1938) R$ 24,50 ISBN 978-3
+== paginação, 2 por página
+página 1: [A Hora da Estrela, Capitães da Areia]
+página 2: [Dom Casmurro, Memórias Póstumas]
+página 3: [Vidas Secas]</code></pre>
+  <details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Demo04Consultar.java)</summary>
+<pre class="ah-code mt-3"><code>package demos;
+
+import biblioteca.Conexao;
+import biblioteca.Livro;
+import biblioteca.LivroDao;
+import java.sql.Connection;
+import java.util.List;
+
+/** Tópico 4: consultar (R do CRUD): por chave, por trecho de título e paginado. */
+public class Demo04Consultar {
+
+    public static void main(String[] args) throws Exception {
+        String arq = &quot;demo04.db&quot;;
+        new java.io.File(arq).delete();
+        try (Connection con = Conexao.abrir(arq)) {
+            Conexao.criarTabelas(con);
+            LivroDao dao = new LivroDao(con);
+            dao.inserirLote(List.of(
+                    new Livro(null, &quot;Dom Casmurro&quot;, 1899, 29.9, &quot;978-1&quot;),
+                    new Livro(null, &quot;Memórias Póstumas&quot;, 1881, 39.9, &quot;978-2&quot;),
+                    new Livro(null, &quot;Vidas Secas&quot;, 1938, 24.5, &quot;978-3&quot;),
+                    new Livro(null, &quot;Capitães da Areia&quot;, 1937, 34.0, &quot;978-4&quot;),
+                    new Livro(null, &quot;A Hora da Estrela&quot;, 1977, 27.0, &quot;978-5&quot;)));
+
+            System.out.println(&quot;== por chave&quot;);
+            dao.buscarPorId(3).ifPresentOrElse(
+                    l -&gt; System.out.println(&quot;achou: &quot; + l),
+                    () -&gt; System.out.println(&quot;não existe&quot;));
+            System.out.println(&quot;id 99: &quot; + dao.buscarPorId(99).isPresent());
+
+            System.out.println(&quot;== por trecho do título (&#x27;da&#x27;)&quot;);
+            dao.buscarPorTitulo(&quot;da&quot;).forEach(System.out::println);
+
+            System.out.println(&quot;== paginação, 2 por página&quot;);
+            for (int pagina = 1; pagina &lt;= 3; pagina++) {
+                List&lt;Livro&gt; p = dao.listarPagina(pagina, 2);
+                System.out.println(&quot;página &quot; + pagina + &quot;: &quot; + p.stream().map(Livro::titulo).toList());
+            }
+        }
+        new java.io.File(arq).delete();
+    }
+}
+</code></pre></details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li><strong>Ler antes de <code>next()</code>:</strong> o cursor ainda não está em nenhuma linha.</li>
+<li><strong>Usar o ResultSet depois de fechar a conexão:</strong> extraia os dados dentro do <code>try</code>.</li>
+<li><strong>Montar o <code>%</code> no texto da consulta:</strong> coloque o trecho inteiro como parâmetro, como o projeto faz.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva <code>livrosAteAno(int ano)</code> que devolve os livros publicados até o ano informado, em ordem de ano.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>SELECT ... FROM livro WHERE ano &lt;= ? ORDER BY ano</code>, com <code>ps.setInt(1, ano)</code> e <code>while (rs.next())</code> mapeando cada linha.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que <code>mapear</code> está separado dos outros métodos?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a conversão de linha para objeto é a mesma em todas as consultas. Um único lugar evita que uma coluna seja lida de formas diferentes.</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+<li>Oracle. <em>Retrieving and Modifying Values from Result Sets</em>: https://docs.oracle.com/javase/tutorial/jdbc/basics/retrieving.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>

@@ -731,6 +731,128 @@
     }
   });
 
+  /* ===================================================================
+     8. TÓPICO 18: padrões corporativos. Cada padrão é um fluxo de nós
+     reaproveitando desenhaFluxo; os estados mudam no sublabel.
+     =================================================================== */
+  function geraEstrangulador() {
+    const nos = (sub, novo) => [
+      { nome: 'Cliente', sub: 'navegador' },
+      { nome: 'Roteador', sub: 'CloudFront / ALB' },
+      { nome: 'Legado', sub: sub },
+      { nome: 'Novo', sub: novo }
+    ];
+    return [
+      { nos: nos('100% do tráfego', 'ainda não existe'), foco: 0, ate: 0,
+        t: 'Todo o tráfego atravessa o sistema legado. Nenhuma funcionalidade foi movida ainda.' },
+      { nos: nos('100% do tráfego', 'pronto, sem tráfego'), foco: 2, ate: 2,
+        t: 'Um roteador é colocado na frente do sistema. Ele mantém o comportamento atual, e por isso a mudança é segura.' },
+      { nos: nos('70% do tráfego', '30% do tráfego'), foco: 3, ate: 3,
+        t: 'Uma funcionalidade é reescrita. Parte das requisições passa a ser atendida pelo novo serviço, e os resultados são comparados.' },
+      { nos: nos('desativado', '100% do tráfego'), foco: 3, ate: 3,
+        t: 'Concluída a validação, o legado é desativado. O sistema antigo é estrangulado gradualmente, sem uma troca de uma só vez.' }
+    ];
+  }
+
+  function geraFanout(opcao) {
+    const falha = opcao === 'falha';
+    const nos = [
+      { nome: 'Pedido', sub: 'API' },
+      { nome: 'SNS', sub: 'tópico' },
+      { nome: 'Fila', sub: 'estoque' },
+      { nome: 'Fila', sub: 'faturamento' },
+      { nome: 'Fila', sub: 'e-mail' }
+    ];
+    const quadros = [
+      { nos, foco: 0, ate: 0, t: 'O pedido é criado e a API publica um evento no tópico. A API não conhece os consumidores.' },
+      { nos, foco: 1, ate: 1, t: 'O tópico replica a mensagem para cada assinante. Cada fila recebe uma cópia independente.' },
+      { nos, foco: 2, ate: 2, t: 'Cada consumidor processa no próprio ritmo. Um consumidor lento não atrasa os demais.' }
+    ];
+    if (falha) {
+      quadros.push({ nos, foco: 4, ate: 4, erro: 4,
+        t: 'O consumidor de e-mail falha repetidamente. Após o limite de tentativas, a mensagem vai para uma fila de mensagens mortas, para análise.' });
+    } else {
+      quadros.push({ nos, foco: 4, ate: 4,
+        t: 'Todas as filas são processadas. Os serviços não se conhecem e podem ser evoluídos separadamente.' });
+    }
+    return quadros;
+  }
+
+  function geraSaga(opcao) {
+    const nos = [
+      { nome: 'Reservar', sub: 'estoque' },
+      { nome: 'Cobrar', sub: 'pagamento' },
+      { nome: 'Emitir', sub: 'nota fiscal' },
+      { nome: 'Enviar', sub: 'confirmação' }
+    ];
+    if (opcao === 'falha-cobranca') {
+      return [
+        { nos, foco: 0, ate: 0, t: 'A saga começa reservando o estoque. Cada passo é uma transação local, com efeito imediato.' },
+        { nos, foco: 1, ate: 1, erro: 1, t: 'A cobrança é recusada. Não há transação global que desfaça a reserva automaticamente.' },
+        { nos, foco: 0, ate: 0, erro: 1, t: 'Compensação: a reserva de estoque é liberada por uma ação inversa. O sistema volta a um estado consistente.' }
+      ];
+    }
+    return [
+      { nos, foco: 0, ate: 0, t: 'A saga começa reservando o estoque. Cada passo é uma transação local, com efeito imediato.' },
+      { nos, foco: 1, ate: 1, t: 'O pagamento é cobrado. Se algum passo seguinte falhar, a cobrança também terá uma compensação.' },
+      { nos, foco: 2, ate: 2, t: 'A nota fiscal é emitida pelo serviço fiscal, em sua própria transação local.' },
+      { nos, foco: 3, ate: 3, t: 'A confirmação é enviada ao cliente. Todos os passos foram concluídos, sem transação distribuída.' }
+    ];
+  }
+
+  function geraDisjuntor(opcao) {
+    const estavel = opcao === 'estavel';
+    const nos = (disj) => [
+      { nome: 'Chamada', sub: 'requisição' },
+      { nome: 'Disjuntor', sub: disj },
+      { nome: 'Serviço', sub: 'externo' },
+      { nome: 'Fallback', sub: 'resposta padrão' }
+    ];
+    if (estavel) {
+      return [
+        { nos: nos('fechado'), foco: 0, ate: 0, t: 'As chamadas passam normalmente pelo disjuntor, que está fechado.' },
+        { nos: nos('fechado'), foco: 2, ate: 2, t: 'O serviço externo responde dentro do tempo limite. O disjuntor registra o sucesso e permanece fechado.' }
+      ];
+    }
+    return [
+      { nos: nos('fechado'), foco: 0, ate: 0, t: 'As chamadas passam pelo disjuntor, que está fechado e conta as falhas recentes.' },
+      { nos: nos('contando falhas'), foco: 2, ate: 2, erro: 2, t: 'O serviço externo excede o tempo limite com frequência. Ao atingir o limiar de falhas, o disjuntor se prepara para abrir.' },
+      { nos: nos('aberto'), foco: 3, ate: 3, erro: 1, t: 'O disjuntor abre. As chamadas não chegam ao serviço, e o fallback responde de imediato, protegendo o sistema.' },
+      { nos: nos('meio-aberto'), foco: 1, ate: 1, t: 'Após um intervalo, o disjuntor permite algumas chamadas de teste. Se elas tiverem sucesso, ele volta a fechar.' }
+    ];
+  }
+
+  Object.assign(ANIMACOES, {
+    estrangulador: {
+      canvas: 'cvEstrangulador', ctl: 'ctlEstrangulador', cap: 'capEstrangulador',
+      desenha: desenhaFluxo, gera: geraEstrangulador, velocidade: 2600
+    },
+    fanout: {
+      canvas: 'cvFanout', ctl: 'ctlFanout', cap: 'capFanout',
+      desenha: desenhaFluxo, gera: geraFanout, velocidade: 2200,
+      opcoes: [
+        { v: 'normal', rotulo: 'Processamento normal' },
+        { v: 'falha', rotulo: 'Consumidor com falha' }
+      ]
+    },
+    saga: {
+      canvas: 'cvSaga', ctl: 'ctlSaga', cap: 'capSaga',
+      desenha: desenhaFluxo, gera: geraSaga, velocidade: 2400,
+      opcoes: [
+        { v: 'sucesso', rotulo: 'Pedido concluído' },
+        { v: 'falha-cobranca', rotulo: 'Cobrança recusada' }
+      ]
+    },
+    disjuntor: {
+      canvas: 'cvDisjuntor', ctl: 'ctlDisjuntor', cap: 'capDisjuntor',
+      desenha: desenhaFluxo, gera: geraDisjuntor, velocidade: 2400,
+      opcoes: [
+        { v: 'estavel', rotulo: 'Serviço estável' },
+        { v: 'instavel', rotulo: 'Serviço instável' }
+      ]
+    }
+  });
+
   function monta(nome) {
     const cfg = ANIMACOES[nome];
     if (!cfg || !document.getElementById(cfg.canvas)) return;

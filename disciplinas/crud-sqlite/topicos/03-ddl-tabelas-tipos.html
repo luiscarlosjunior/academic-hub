@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDL: Criando Tabelas e Tipos de Dados · AcademicHub</title>
+<meta name="description" content="CREATE TABLE, os tipos do SQLite e a tipagem por afinidade, ALTER TABLE e DROP TABLE.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="sqlite/03-ddl-tabelas-tipos">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="create" data-toc="CREATE TABLE: a forma geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>CREATE TABLE: a forma geral</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>CREATE TABLE <em>nome</em> (
+    <em>coluna</em> <em>tipo</em> <em>restrições</em>,
+    ...
+    <em>restrições de tabela</em>
+);</code></pre>
+<p class="mt-4">Use <code>CREATE TABLE IF NOT EXISTS</code> em scripts de inicialização: a segunda execução não falha. Nomes de tabela e coluna são identificadores; prefira minúsculas, sem acentos e sem espaços, porque isso evita aspas em todas as consultas.</p>
+
+  </div>
+</section>
+
+<section id="tipos" data-toc="Os cinco tipos de armazenamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Os cinco tipos de armazenamento</h2>
+  <div class="ah-prose">
+
+<p>O SQLite armazena cada <strong>valor</strong> com um de cinco tipos de armazenamento:</p>
+<div class="overflow-x-auto ah-card mt-3">
+  <table class="ah-table">
+    <thead><tr><th>Tipo</th><th>O que guarda</th><th>Exemplo</th></tr></thead>
+    <tbody>
+      <tr><td>INTEGER</td><td>inteiros de até 8 bytes</td><td><code>42</code>, <code>-7</code></td></tr>
+      <tr><td>REAL</td><td>ponto flutuante de 8 bytes</td><td><code>3.5</code></td></tr>
+      <tr><td>TEXT</td><td>texto em UTF-8, UTF-16 ou UTF-32</td><td><code>'Dom Casmurro'</code></td></tr>
+      <tr><td>BLOB</td><td>dados binários, exatamente como recebidos</td><td><code>x'DEADBEEF'</code></td></tr>
+      <tr><td>NULL</td><td>ausência de valor</td><td><code>NULL</code></td></tr>
+    </tbody>
+  </table>
+</div>
+<p class="mt-4">Não existe tipo nativo para data, booleano ou dinheiro. Por convenção, datas são guardadas como TEXT no formato ISO 8601 (<code>'2026-10-23'</code>), que se ordena corretamente como texto; booleanos são INTEGER 0 ou 1; valores monetários podem ser INTEGER em centavos, o que evita erro de arredondamento de REAL.</p>
+
+  </div>
+</section>
+
+<section id="afinidade" data-toc="Tipagem por afinidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Tipagem por afinidade</h2>
+  <div class="ah-prose">
+
+<p>Diferente de bancos como PostgreSQL, o SQLite não impede que uma coluna receba um valor de outro tipo. Cada coluna tem uma <strong>afinidade</strong>, que é a conversão preferida. Se o valor puder ser convertido, ele é; se não, é guardado como veio.</p>
+<p class="mt-3">O exemplo mostra o efeito: a coluna <code>n</code> (INTEGER) recebe o texto <code>'42'</code> e guarda o inteiro 42; já o texto <code>'texto livre'</code> continua texto. Use <code>typeof()</code> para ver o tipo real de cada valor.</p>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Cuidado:</strong> a afinidade não valida dados. Para garantir um formato, use <code>CHECK</code> (tópico 4) e, se possível, a aplicação deve validar antes de gravar.</div></div>
+
+  </div>
+</section>
+
+<section id="alter" data-toc="ALTER TABLE: mudar a estrutura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>ALTER TABLE: mudar a estrutura</h2>
+  <div class="ah-prose">
+
+<pre class="ah-code"><code>ALTER TABLE livro ADD COLUMN editora TEXT;        <span class="cm">-- nova coluna</span>
+ALTER TABLE livro RENAME COLUMN editora TO casa;   <span class="cm">-- renomear (SQLite 3.25+)</span>
+ALTER TABLE livro DROP COLUMN casa;               <span class="cm">-- remover (SQLite 3.35+)</span>
+ALTER TABLE livro RENAME TO obra;                 <span class="cm">-- renomear a tabela</span></code></pre>
+<p class="mt-4">O SQLite tem menos suporte a <code>ALTER</code> que outros bancos: não é possível mudar o tipo de uma coluna nem alterar uma restrição existente. Nesses casos, o procedimento padrão é criar uma tabela nova, copiar os dados, apagar a antiga e renomear a nova. O tópico de migrações mostra esse padrão.</p>
+
+  </div>
+</section>
+
+<section id="drop" data-toc="DROP TABLE: remover de vez" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>DROP TABLE: remover de vez</h2>
+  <div class="ah-prose">
+
+<p><code>DROP TABLE</code> remove a tabela, os dados, os índices e os gatilhos associados. Não há lixeira nem desfazer fora de uma transação. Por isso, em produção, faça backup antes (tópico 15).</p>
+<pre class="ah-code"><code>DROP TABLE IF EXISTS tabela_antiga;   <span class="cm">-- não falha se a tabela não existir</span></code></pre>
+
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo executável: tipos, ALTER e DROP" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Exemplo executável: tipos, ALTER e DROP</h2>
+  <div class="ah-prose">
+
+<p>O script cria uma tabela com cinco colunas de tipos diferentes, insere valores que testam a afinidade, mostra os tipos reais, altera a estrutura e remove a tabela.</p>
+
+  </div>
+</section>
+
+<section id="exemplo-executavel" data-toc="Exemplo executável" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-sky-400 mr-2"></i>Exemplo executável</h2>
+  <p class="ah-lead text-sm mb-5">Este programa roda de ponta a ponta. A saída abaixo é a execução real, feita com Python 3.13 e SQLite 3.45.</p>
+  <div class="ah-card p-5 mb-5">
+    <div class="text-xs uppercase tracking-wide text-sky-300 font-bold mb-2">Arquivo</div>
+    <a href="../exemplos/t03_ddl.py" class="text-indigo-300 underline-offset-2 hover:underline text-sm"><code>exemplos/t03_ddl.py</code></a>
+  </div>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como rodar</div>
+<pre class="ah-code"><code>cd disciplinas/crud-sqlite/exemplos
+python3 t03_ddl.py</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-5 mb-2">Saída real</div>
+<pre class="ah-code"><code>valores e tipos reais armazenados:
+   (1, 42, &#x27;integer&#x27;, 3.5, &#x27;real&#x27;, &#x27;123&#x27;, &#x27;text&#x27;)
+   (2, &#x27;texto livre&#x27;, &#x27;text&#x27;, &#x27;x&#x27;, &#x27;text&#x27;, &#x27;ok&#x27;, &#x27;text&#x27;)
+
+colunas após ALTER: [&#x27;id&#x27;, &#x27;n&#x27;, &#x27;r&#x27;, &#x27;descricao&#x27;, &#x27;ativo&#x27;]
+tabelas após DROP: 0</code></pre>
+  <details class="ah-card p-5 mt-5">
+    <summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo</summary>
+<pre class="ah-code mt-3"><code>import sqlite3
+
+con = sqlite3.connect(&quot;:memory:&quot;)
+
+# DDL: CREATE, ALTER, DROP. Aqui, a tabela de teste de tipos.
+con.execute(&quot;CREATE TABLE tipos (id INTEGER PRIMARY KEY, n INTEGER, r REAL, t TEXT, b BLOB)&quot;)
+
+# SQLite usa tipagem por afinidade: o valor é convertido se possível.
+con.execute(&quot;INSERT INTO tipos (n, r, t, b) VALUES (&#x27;42&#x27;, &#x27;3.5&#x27;, 123, x&#x27;DEADBEEF&#x27;)&quot;)
+con.execute(&quot;INSERT INTO tipos (n, r, t, b) VALUES (&#x27;texto livre&#x27;, &#x27;x&#x27;, &#x27;ok&#x27;, NULL)&quot;)
+
+print(&quot;valores e tipos reais armazenados:&quot;)
+for row in con.execute(&quot;SELECT id, n, typeof(n), r, typeof(r), t, typeof(t) FROM tipos&quot;):
+    print(&quot;  &quot;, row)
+
+# ALTER TABLE: adicionar, renomear e remover colunas
+con.execute(&quot;ALTER TABLE tipos ADD COLUMN ativo INTEGER NOT NULL DEFAULT 1&quot;)
+con.execute(&quot;ALTER TABLE tipos RENAME COLUMN t TO descricao&quot;)
+con.execute(&quot;ALTER TABLE tipos DROP COLUMN b&quot;)
+print(&quot;\ncolunas após ALTER:&quot;, [c[1] for c in con.execute(&quot;PRAGMA table_info(tipos)&quot;)])
+
+# DROP TABLE remove a tabela e os dados. Não há lixeira.
+con.execute(&quot;DROP TABLE tipos&quot;)
+print(&quot;tabelas após DROP:&quot;, con.execute(&quot;SELECT count(*) FROM sqlite_master WHERE type=&#x27;table&#x27;&quot;).fetchone()[0])
+</code></pre>
+  </details>
+</section>
+
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li><strong>Usar REAL para dinheiro:</strong> <code>0.1 + 0.2</code> não é exatamente 0,3 em ponto flutuante. Guarde centavos em INTEGER.</li>
+  <li><strong>Guardar data como número sem padrão:</strong> <code>10/10/26</code> e <code>2026-10-10</code> não se ordenam juntos. Use ISO 8601.</li>
+  <li><strong>DROP sem WHERE na mente:</strong> <code>DROP TABLE</code> não pede confirmação. Revise o nome antes de executar.</li>
+</ul>
+
+  </div>
+</section>
+
+<section id="exercicios" data-toc="Exercícios" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Exercícios</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Escreva o CREATE TABLE de uma tabela <code>produto</code> com id, nome, preço em centavos e data de cadastro.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> <code>CREATE TABLE produto (id INTEGER PRIMARY KEY, nome TEXT NOT NULL, preco_centavos INTEGER NOT NULL, cadastrado_em TEXT NOT NULL)</code>. Preço em centavos evita arredondamento; data em TEXT ISO 8601.</p></div></details>
+<details class="ah-card p-5"><summary class="cursor-pointer text-sm font-semibold text-white">2. Por que o SQLite aceitou o texto <code>'42'</code> numa coluna INTEGER?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a afinidade INTEGER converte o texto para inteiro quando a conversão é exata. Por isso o valor foi armazenado como 42 (INTEGER).</p></div></details>
+
+  </div>
+</section>
+
+<section id="referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-sky-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="ah-prose list-disc pl-5 space-y-2">
+  <li>SQLite. <em>Tipos de dados e afinidade</em>: https://www.sqlite.org/datatype3.html</li>
+  <li>SQLite. <em>ALTER TABLE</em>: https://www.sqlite.org/lang_altertable.html</li>
+  <li>SQLite. <em>CREATE TABLE</em>: https://www.sqlite.org/lang_createtable.html</li>
+</ul>
+
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+</body>
+</html>
