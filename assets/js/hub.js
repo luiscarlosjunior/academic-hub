@@ -118,6 +118,7 @@
               <a href="${root}index.html#disciplinas" class="ah-menu-all"><i class="fa-solid fa-table-cells-large"></i> Ver todas na página inicial</a>
             </div>
           </details>
+          <button id="ah-tema" type="button" class="ah-nav-link" aria-pressed="false"></button>
         </nav>
       </div>`;
 
@@ -520,8 +521,80 @@
   /* ------------------------------------------------------------------ */
   /* Boot automático                                                     */
   /* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  /* Tema claro/escuro: claro para projetor, escuro para estudo          */
+  /* ------------------------------------------------------------------ */
+  const TEMA_KEY = 'academic-hub:tema';
+
+  AH.temaAtual = function () {
+    try { return localStorage.getItem(TEMA_KEY) === 'light' ? 'light' : 'dark'; } catch (e) { return 'dark'; }
+  };
+
+  AH.aplicarTema = function (tema) {
+    if (tema === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    const b = document.getElementById('ah-tema');
+    if (!b) return;
+    const claro = tema === 'light';
+    b.innerHTML = `<i class="fa-solid ${claro ? 'fa-moon' : 'fa-sun'}"></i><span class="hidden sm:inline">${claro ? 'Escuro' : 'Claro'}</span>`;
+    b.setAttribute('aria-pressed', claro ? 'true' : 'false');
+    b.title = claro ? 'Voltar ao tema escuro' : 'Tema claro (ideal para projetor)';
+  };
+
+  AH.alternarTema = function () {
+    const novo = AH.temaAtual() === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem(TEMA_KEY, novo); } catch (e) { /* navegação privada: vale só nesta página */ }
+    AH.aplicarTema(novo);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Sumário recolhível: a coluna de tópicos some e o texto ocupa a tela */
+  /* ------------------------------------------------------------------ */
+  const SUMARIO_KEY = 'academic-hub:sumario';
+
+  AH.initSidebar = function () {
+    const toc = document.getElementById('ah-toc');
+    if (!toc) return;
+    const aside = toc.closest('aside');
+    if (!aside || !aside.parentElement) return;
+    const grade = aside.parentElement;
+    grade.classList.add('ah-grade-topico');
+
+    const recolher = document.createElement('button');
+    recolher.type = 'button';
+    recolher.className = 'ah-toc-btn';
+    recolher.innerHTML = '<i class="fa-solid fa-angles-left"></i> Recolher sumário';
+    const cabeca = aside.querySelector('p');
+    if (cabeca) cabeca.parentNode.insertBefore(recolher, cabeca);
+    else aside.prepend(recolher);
+
+    const abrir = document.createElement('button');
+    abrir.type = 'button';
+    abrir.id = 'ah-toc-abrir';
+    abrir.hidden = true;
+    abrir.setAttribute('aria-label', 'Mostrar sumário dos tópicos');
+    abrir.innerHTML = '<i class="fa-solid fa-list-ul"></i><span>Sumário</span>';
+    document.body.appendChild(abrir);
+
+    const aplicar = recolhido => {
+      grade.classList.toggle('ah-toc-off', recolhido);
+      abrir.hidden = !recolhido;
+      try { localStorage.setItem(SUMARIO_KEY, recolhido ? 'recolhido' : 'aberto'); } catch (e) { /* ignora */ }
+    };
+    recolher.addEventListener('click', () => aplicar(true));
+    abrir.addEventListener('click', () => { aplicar(false); recolher.focus(); });
+
+    let guardado = null;
+    try { guardado = localStorage.getItem(SUMARIO_KEY); } catch (e) { /* ignora */ }
+    if (guardado === 'recolhido') aplicar(true);
+  };
+
   AH.boot = function () {
     AH.mountHeader();
+    AH.aplicarTema(AH.temaAtual());
+    const bt = document.getElementById('ah-tema');
+    if (bt) bt.addEventListener('click', AH.alternarTema);
+
     AH.initQuizzes();
     AH.initTabs();
     AH.initReveal();
@@ -531,6 +604,7 @@
     if (page) {
       const parts = page.split('/');
       AH.mountTopic(parts[0], parts[1]);
+      AH.initSidebar();
       AH.mountGuia();
       AH.initReveal();
       AH.initMermaid();
