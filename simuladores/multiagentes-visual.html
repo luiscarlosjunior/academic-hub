@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-900 text-slate-100">
+<head>
+<script>try{if(localStorage.getItem('academic-hub:tema')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laboratório de Sistemas Multiagentes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;600&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    canvas { touch-action: none; }
+    .aba-ativa { background: #4f46e5; color: #fff; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+    .btn { background: #334155; color: #e2e8f0; padding: 6px 12px; border-radius: 8px; font-size: 13px; }
+    .btn:hover { background: #475569; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover { background: #6366f1; }
+    input[type=range] { width: 100%; }
+    pre.log { font-family: 'Fira Code', monospace; font-size: 12px; background: #020617; border-radius: 8px; padding: 10px; max-height: 160px; overflow: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body class="h-full p-4 sm:p-6">
+<div class="max-w-5xl mx-auto space-y-4">
+
+  <header class="flex flex-wrap items-center gap-3">
+    <i class="fa-solid fa-network-wired text-indigo-400 text-xl"></i>
+    <h1 class="text-xl font-bold">Laboratório de Sistemas Multiagentes</h1>
+    <span class="text-xs text-slate-400">Três experimentos: coordenação, comportamento emergente e cooperação.</span>
+  </header>
+
+  <nav class="flex flex-wrap gap-2">
+    <button data-aba="leilao" class="btn aba-ativa"><i class="fa-solid fa-gavel"></i> 1 · Leilão (Contract Net)</button>
+    <button data-aba="boids" class="btn"><i class="fa-solid fa-crow"></i> 2 · Enxame (boids)</button>
+    <button data-aba="dilema" class="btn"><i class="fa-solid fa-handshake"></i> 3 · Dilema iterado</button>
+  </nav>
+
+  <!-- ===================== 1. LEILÃO ===================== -->
+  <section id="painel-leilao" class="card p-4 space-y-3">
+    <p class="text-sm text-slate-300">Um gerente anuncia cada tarefa. Cada robô devolve um <strong>lance</strong>: a distância até a tarefa. O menor lance ganha. Clique no mapa para criar uma tarefa, ou use o botão.</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2">
+        <canvas id="cv-leilao" width="560" height="400" class="w-full rounded-lg bg-slate-950 border border-slate-800"></canvas>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button id="l-nova" class="btn"><i class="fa-solid fa-plus"></i> Nova tarefa</button>
+          <button id="l-leiloa" class="btn btn-primary"><i class="fa-solid fa-gavel"></i> Anunciar e leiloar</button>
+          <button id="l-mover" class="btn"><i class="fa-solid fa-forward-step"></i> Mover 1 passo</button>
+          <button id="l-auto" class="btn"><i class="fa-solid fa-play"></i> Automático</button>
+          <button id="l-reset" class="btn"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div class="card p-3 text-xs space-y-1">
+          <div class="text-slate-400">Robôs (cor) · tarefas feitas · distância percorrida</div>
+          <div id="l-placar" class="font-mono text-slate-200"></div>
+        </div>
+        <div class="card p-3">
+          <div class="text-xs text-slate-400 mb-1">Lances do último anúncio</div>
+          <pre id="l-lances" class="log">—</pre>
+        </div>
+      </div>
+    </div>
+    <div class="card p-3 space-y-2">
+      <div class="text-sm font-semibold">Comparar estratégias (40 tarefas aleatórias)</div>
+      <p class="text-xs text-slate-400">Mede quanto os robôs andam no total. O leilão atribui cada tarefa ao robô mais próximo; a atribuição aleatória ignora a posição.</p>
+      <button id="l-comparar" class="btn"><i class="fa-solid fa-scale-balanced"></i> Comparar</button>
+      <pre id="l-comp" class="log">—</pre>
+    </div>
+  </section>
+
+  <!-- ===================== 2. BOIDS ===================== -->
+  <section id="painel-boids" class="card p-4 space-y-3 hidden">
+    <p class="text-sm text-slate-300">Cada ave segue só três regras locais, usando apenas os vizinhos próximos: <strong>separação</strong> (não bater), <strong>alinhamento</strong> (seguir a direção média) e <strong>coesão</strong> (ficar perto do grupo). O bando inteiro aparece sem que nenhum indivíduo comande o movimento.</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2">
+        <canvas id="cv-boids" width="560" height="400" class="w-full rounded-lg bg-slate-950 border border-slate-800"></canvas>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button id="b-pausa" class="btn btn-primary"><i class="fa-solid fa-pause"></i> Pausar</button>
+          <button id="b-reset" class="btn"><i class="fa-solid fa-shuffle"></i> Novo bando</button>
+        </div>
+      </div>
+      <div class="card p-3 space-y-3 text-xs">
+        <label>Separação: <span id="b-sep-v" class="font-mono text-amber-300">0,5</span><input id="b-sep" type="range" min="0" max="30" value="5"></label>
+        <label>Alinhamento: <span id="b-ali-v" class="font-mono text-sky-300">1,5</span><input id="b-ali" type="range" min="0" max="20" value="15"></label>
+        <label>Coesão: <span id="b-coe-v" class="font-mono text-emerald-300">0,5</span><input id="b-coe" type="range" min="0" max="20" value="5"></label>
+        <div>Ordem do grupo (0 = caos, 1 = bando alinhado):</div>
+        <div id="b-ordem" class="font-mono text-2xl text-indigo-300">—</div>
+        <p class="text-slate-400">Experimente: com alinhamento alto e separação baixa, o bando se move como um só. Com coesão zero, o grupo se dispersa. Às vezes o bando se forma em dois subgrupos e demora mais para se unir: clique em “Novo bando”.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 3. DILEMA ===================== -->
+  <section id="painel-dilema" class="card p-4 space-y-3 hidden">
+    <p class="text-sm text-slate-300">Dois agentes escolhem <strong>cooperar (C)</strong> ou <strong>trair (D)</strong> a cada rodada. Os pagamentos são: C e C = 3 cada; D contra C = 5 para quem trai e 0 para quem coopera; D e D = 1 cada. Cada estratégia decide só com base no histórico do adversário.</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 space-y-3">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="text-left text-slate-400"><th class="p-2">Estratégia</th><th class="p-2">Pontos totais</th><th class="p-2">Média por rodada</th></tr></thead>
+            <tbody id="d-tabela"><tr><td class="p-2 text-slate-500" colspan="3">Clique em “Rodar torneio”.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="d-rodar" class="btn btn-primary"><i class="fa-solid fa-trophy"></i> Rodar torneio</button>
+        </div>
+      </div>
+      <div class="card p-3 space-y-3 text-xs">
+        <label>Rodadas por confronto: <span id="d-r-v" class="font-mono text-amber-300">100</span><input id="d-r" type="range" min="10" max="300" step="10" value="100"></label>
+        <div class="text-slate-400">Estratégias:</div>
+        <ul class="space-y-1 text-slate-300">
+          <li><strong>Sempre coopera</strong>: nunca trai.</li>
+          <li><strong>Sempre trai</strong>: sempre trai.</li>
+          <li><strong>Tit-for-tat</strong>: copia a última jogada do adversário.</li>
+          <li><strong>Gatilho</strong>: coopera até ser traído, depois trai para sempre.</li>
+          <li><strong>Pavlov</strong>: mantém a jogada se o adversário cooperou; senão, troca.</li>
+          <li><strong>Aleatório</strong>: escolhe com 50% de chance.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ===================== Abas ===================== */
+const abas = { leilao: 'painel-leilao', boids: 'painel-boids', dilema: 'painel-dilema' };
+document.querySelectorAll('[data-aba]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-aba]').forEach(x => x.classList.remove('aba-ativa'));
+  b.classList.add('aba-ativa');
+  Object.entries(abas).forEach(([k, id]) => document.getElementById(id).classList.toggle('hidden', k !== b.dataset.aba));
+  if (b.dataset.aba === 'boids') iniciaBoids();
+}));
+
+const el = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const dist = (p, q) => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]);
+
+/* ===================== 1. Leilão (Contract Net) ===================== */
+const GW = 14, GH = 10, CELL = 40;
+const CORES = ['#38bdf8', '#f59e0b', '#a855f7', '#10b981'];
+let robos, tarefas, feitas, distTotal, log, timerL = null;
+
+function resetLeilao() {
+  robos = [[0, 0], [GW - 1, 0], [0, GH - 1], [GW - 1, GH - 1]].map((p, i) => ({ pos: p.slice(), fila: [], cor: CORES[i], dist: 0, feitas: 0 }));
+  tarefas = [];
+  feitas = 0; distTotal = 0; log = [];
+  for (let i = 0; i < 4; i++) novaTarefa();
+  el('l-lances').textContent = 'Anuncie uma tarefa para ver os lances.';
+  desenhaLeilao(); placarLeilao();
+}
+
+function celulaLivre(p) {
+  const ocupada = robos.some(r => r.pos[0] === p[0] && r.pos[1] === p[1]) || tarefas.some(t => t[0] === p[0] && t[1] === p[1]);
+  return !ocupada;
+}
+
+function novaTarefa() {
+  for (let k = 0; k < 200; k++) {
+    const p = [Math.floor(rnd(0, GW)), Math.floor(rnd(0, GH))];
+    if (celulaLivre(p)) { tarefas.push(p); break; }
+  }
+  desenhaLeilao();
+}
+
+function leiloa() {
+  if (!tarefas.length) { el('l-lances').textContent = 'Não há tarefas pendentes. Crie uma nova.'; return; }
+  const t = tarefas.shift();
+  // lance = distância do robô até a tarefa, somada à carga já assumida (evita concentrar tudo num robô)
+  const lances = robos.map((r, i) => ({ i, lance: dist(r.pos, t) + 1.5 * r.fila.length }));
+  lances.sort((a, b) => a.lance - b.lance);
+  const vencedor = lances[0].i;
+  robos[vencedor].fila.push(t);
+  const linhas = [`Tarefa em (${t[0]}, ${t[1]}) anunciada pelo gerente:`];
+  lances.forEach(x => linhas.push(`  robô ${x.i + 1}: lance ${x.lance.toFixed(1).replace('.', ',')}${x.i === vencedor ? '  ← vence' : ''}`));
+  el('l-lances').textContent = linhas.join('\n');
+  desenhaLeilao(); placarLeilao();
+}
+
+function moveRobos() {
+  robos.forEach(r => {
+    if (!r.fila.length) return;
+    const alvo = r.fila[0];
+    if (r.pos[0] !== alvo[0]) { r.pos[0] += Math.sign(alvo[0] - r.pos[0]); r.dist++; distTotal++; }
+    else if (r.pos[1] !== alvo[1]) { r.pos[1] += Math.sign(alvo[1] - r.pos[1]); r.dist++; distTotal++; }
+    if (r.pos[0] === alvo[0] && r.pos[1] === alvo[1]) { r.fila.shift(); r.feitas++; feitas++; }
+  });
+  desenhaLeilao(); placarLeilao();
+}
+
+function desenhaLeilao() {
+  const cv = el('cv-leilao'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const cw = W / GW, ch = H / GH;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#1e293b';
+  for (let i = 0; i <= GW; i++) { ctx.beginPath(); ctx.moveTo(i * cw, 0); ctx.lineTo(i * cw, H); ctx.stroke(); }
+  for (let j = 0; j <= GH; j++) { ctx.beginPath(); ctx.moveTo(0, j * ch); ctx.lineTo(W, j * ch); ctx.stroke(); }
+  tarefas.forEach(t => {
+    ctx.fillStyle = 'rgba(251,191,36,.9)';
+    ctx.fillRect(t[0] * cw + cw * 0.25, t[1] * ch + ch * 0.25, cw * 0.5, ch * 0.5);
+  });
+  robos.forEach(r => r.fila.forEach((t, k) => {
+    ctx.strokeStyle = r.cor; ctx.lineWidth = k === 0 ? 2 : 1; ctx.setLineDash(k === 0 ? [] : [4, 4]);
+    ctx.strokeRect(t[0] * cw + cw * 0.2, t[1] * ch + ch * 0.2, cw * 0.6, ch * 0.6);
+  }));
+  ctx.setLineDash([]);
+  robos.forEach((r, i) => {
+    ctx.fillStyle = r.cor;
+    ctx.beginPath(); ctx.arc(r.pos[0] * cw + cw / 2, r.pos[1] * ch + ch / 2, Math.min(cw, ch) * 0.32, 0, 6.29); ctx.fill();
+    ctx.fillStyle = '#020617'; ctx.font = 'bold 13px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), r.pos[0] * cw + cw / 2, r.pos[1] * ch + ch / 2);
+  });
+}
+
+function placarLeilao() {
+  el('l-placar').innerHTML = robos.map((r, i) =>
+    `<span style="color:${r.cor}">■</span> robô ${i + 1}: ${r.feitas} feitas · ${r.dist} passos · fila ${r.fila.length}`).join('<br>') +
+    `<br>Total: ${feitas} feitas · ${distTotal} passos · pendentes ${tarefas.length}`;
+}
+
+function comparar() {
+  const N = 40;
+  const seq = Array.from({ length: N }, () => [Math.floor(rnd(0, GW)), Math.floor(rnd(0, GH))]);
+  const posIniciais = [[0, 0], [GW - 1, 0], [0, GH - 1], [GW - 1, GH - 1]];
+  function simula(escolhe) {
+    const pos = posIniciais.map(p => p.slice());
+    let total = 0;
+    seq.forEach(t => {
+      const i = escolhe(pos, t);
+      total += dist(pos[i], t);
+      pos[i] = t.slice();
+    });
+    return total;
+  }
+  const leilao = simula((pos, t) => {
+    let melhor = 0;
+    pos.forEach((p, i) => { if (dist(p, t) < dist(pos[melhor], t)) melhor = i; });
+    return melhor;
+  });
+  const aleatorio = simula(() => Math.floor(Math.random() * 4));
+  el('l-comp').textContent =
+    `Leilão (menor lance vence):   ${leilao} passos no total\n` +
+    `Atribuição aleatória:         ${aleatorio} passos no total\n` +
+    `Economia: ${Math.round(100 * (aleatorio - leilao) / aleatorio)}%  (valores de uma execução; rode de novo para ver a variação)`;
+}
+
+el('l-nova').addEventListener('click', novaTarefa);
+el('l-leiloa').addEventListener('click', leiloa);
+el('l-mover').addEventListener('click', moveRobos);
+el('l-auto').addEventListener('click', function () {
+  if (timerL) { clearInterval(timerL); timerL = null; this.innerHTML = '<i class="fa-solid fa-play"></i> Automático'; return; }
+  this.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+  timerL = setInterval(() => { if (tarefas.length) leiloa(); moveRobos(); if (!tarefas.length && robos.every(r => !r.fila.length)) { clearInterval(timerL); timerL = null; } }, 350);
+});
+el('l-reset').addEventListener('click', () => { clearInterval(timerL); timerL = null; el('l-auto').innerHTML = '<i class="fa-solid fa-play"></i> Automático'; resetLeilao(); });
+el('l-comparar').addEventListener('click', comparar);
+el('cv-leilao').addEventListener('click', e => {
+  const cv = el('cv-leilao'), r = cv.getBoundingClientRect();
+  const p = [Math.floor((e.clientX - r.left) / r.width * GW), Math.floor((e.clientY - r.top) / r.height * GH)];
+  if (celulaLivre(p)) { tarefas.push(p); desenhaLeilao(); }
+});
+resetLeilao();
+
+/* ===================== 2. Boids ===================== */
+let boids = [], bTimer = null, bPausado = false, bIniciado = false;
+const BW = 560, BH = 400, NB = 60;
+
+function novoBando() {
+  boids = Array.from({ length: NB }, () => ({ x: rnd(0, BW), y: rnd(0, BH), vx: rnd(-2, 2), vy: rnd(-2, 2) }));
+}
+
+function passoBoids() {
+  const sep = +el('b-sep').value / 10, ali = +el('b-ali').value / 10, coe = +el('b-coe').value / 10;
+  const PERC = 70, SEP = 22, VMAX = 3;
+  boids.forEach(b => {
+    let sx = 0, sy = 0, ax = 0, ay = 0, cx = 0, cy = 0, n = 0;
+    boids.forEach(o => {
+      if (o === b) return;
+      // menor distância no toro: vizinhos do outro lado da tela também contam
+      let dx = o.x - b.x, dy = o.y - b.y;
+      if (dx > BW / 2) dx -= BW; else if (dx < -BW / 2) dx += BW;
+      if (dy > BH / 2) dy -= BH; else if (dy < -BH / 2) dy += BH;
+      const d = Math.hypot(dx, dy);
+      if (d < PERC) { ax += o.vx; ay += o.vy; cx += dx; cy += dy; n++; }
+      if (d < SEP && d > 0) { sx -= dx / d; sy -= dy / d; }
+    });
+    if (n) {
+      ax = ax / n - b.vx; ay = ay / n - b.vy;          // alinhamento: direção média dos vizinhos
+      cx = cx / n; cy = cy / n;                        // coesão: deslocamento até o centro dos vizinhos
+    }
+    b.vx += sep * sx * 0.05 + ali * ax * 0.05 + coe * cx * 0.002;
+    b.vy += sep * sy * 0.05 + ali * ay * 0.05 + coe * cy * 0.002;
+    const v = Math.hypot(b.vx, b.vy);
+    if (v > VMAX) { b.vx = b.vx / v * VMAX; b.vy = b.vy / v * VMAX; }
+    if (v < 1) { b.vx = b.vx / (v || 1) * 1; b.vy = b.vy / (v || 1) * 1; }
+  });
+  boids.forEach(b => {
+    b.x = (b.x + b.vx + BW) % BW;
+    b.y = (b.y + b.vy + BH) % BH;
+  });
+  desenhaBoids();
+}
+
+function desenhaBoids() {
+  const cv = el('cv-boids'), ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, BW, BH);
+  boids.forEach(b => {
+    const ang = Math.atan2(b.vy, b.vx);
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(ang);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-5, 3.5); ctx.lineTo(-5, -3.5); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
+  // ordem: comprimento da média dos vetores unitários
+  let sx = 0, sy = 0;
+  boids.forEach(b => { const v = Math.hypot(b.vx, b.vy) || 1; sx += b.vx / v; sy += b.vy / v; });
+  el('b-ordem').textContent = (Math.hypot(sx, sy) / boids.length).toFixed(2).replace('.', ',');
+  el('b-sep-v').textContent = (+el('b-sep').value / 10).toFixed(1).replace('.', ',');
+  el('b-ali-v').textContent = (+el('b-ali').value / 10).toFixed(1).replace('.', ',');
+  el('b-coe-v').textContent = (+el('b-coe').value / 10).toFixed(1).replace('.', ',');
+}
+
+function iniciaBoids() {
+  if (!bIniciado) { novoBando(); bIniciado = true; }
+  if (!bTimer) bTimer = setInterval(() => { if (!bPausado) passoBoids(); }, 30);
+  desenhaBoids();
+}
+el('b-pausa').addEventListener('click', function () {
+  bPausado = !bPausado;
+  this.innerHTML = bPausado ? '<i class="fa-solid fa-play"></i> Continuar' : '<i class="fa-solid fa-pause"></i> Pausar';
+});
+el('b-reset').addEventListener('click', () => { novoBando(); desenhaBoids(); });
+['b-sep', 'b-ali', 'b-coe'].forEach(id => el(id).addEventListener('input', desenhaBoids));
+
+/* ===================== 3. Dilema iterado ===================== */
+const PAG = { CC: [3, 3], CD: [0, 5], DC: [5, 0], DD: [1, 1] };
+const ESTRATEGIAS = {
+  'Sempre coopera': () => 'C',
+  'Sempre trai': () => 'D',
+  'Tit-for-tat': (eu, op) => op.length ? op[op.length - 1] : 'C',
+  'Gatilho': (eu, op) => op.includes('D') ? 'D' : 'C',
+  'Pavlov': (eu, op) => {
+    if (!eu.length) return 'C';
+    const meuUltimo = eu[eu.length - 1], opUltimo = op[op.length - 1];
+    return opUltimo === 'C' ? meuUltimo : (meuUltimo === 'C' ? 'D' : 'C');
+  },
+  'Aleatório': () => Math.random() < 0.5 ? 'C' : 'D'
+};
+
+function confronto(a, b, rodadas) {
+  const ha = [], hb = []; let pa = 0, pb = 0;
+  for (let r = 0; r < rodadas; r++) {
+    const ja = ESTRATEGIAS[a](ha, hb), jb = ESTRATEGIAS[b](hb, ha);
+    const [x, y] = PAG[ja + jb];
+    pa += x; pb += y; ha.push(ja); hb.push(jb);
+  }
+  return [pa, pb];
+}
+
+function torneio() {
+  const R = +el('d-r').value;
+  const nomes = Object.keys(ESTRATEGIAS);
+  const total = Object.fromEntries(nomes.map(n => [n, 0]));
+  nomes.forEach((a, i) => nomes.forEach((b, j) => {
+    if (j < i) return;
+    const [pa, pb] = confronto(a, b, R);
+    if (i === j) { total[a] += pa; return; }
+    total[a] += pa; total[b] += pb;
+  }));
+  const linhas = nomes.map(n => [n, total[n], total[n] / (R * nomes.length)])
+    .sort((x, y) => y[1] - x[1]);
+  el('d-tabela').innerHTML = linhas.map(([n, t, m]) =>
+    `<tr class="border-t border-slate-700"><td class="p-2">${n}</td><td class="p-2 font-mono">${t}</td><td class="p-2 font-mono">${m.toFixed(2).replace('.', ',')}</td></tr>`).join('');
+}
+el('d-r').addEventListener('input', () => { el('d-r-v').textContent = el('d-r').value; });
+el('d-rodar').addEventListener('click', torneio);
+</script>
+</body>
+</html>

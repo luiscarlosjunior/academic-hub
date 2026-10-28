@@ -288,6 +288,116 @@ Um esboço do ciclo de cada agente no modelo BDI (crença, desejo, intenção) �
   </div>
 </section>
 
+<!-- ============================ EXEMPLO 2 · CONTRACT NET EM PYTHON, COM SAÍDA REAL ============================ -->
+<section id="ma-exemplo-codigo" data-toc="Exemplo executável: Contract Net em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-indigo-400 mr-2"></i>Exemplo 2 · Contract Net em Python, com saída real</h2>
+  <p class="ah-lead text-sm mb-5">O protocolo cabe em poucas linhas de código. O programa abaixo distribui quatro tarefas entre quatro robôs. Cada lance é a distância até a tarefa somada a 1,5 por tarefa já assumida, para evitar concentrar tudo em um robô.</p>
+  <div class="ah-prose">
+    <p>Repare na última linha: cada robô recebeu exatamente uma tarefa. Sem a penalização pela carga, o robô R4 teria ficado com a tarefa (8, 6) e também com as seguintes, porque ele está mais perto da região de tarefas. O termo de carga é o que transforma o leilão em uma distribuição de trabalho.</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4"># Contract Net: gerente anuncia tarefas, robôs enviam lances, menor lance ganha.
+robos = {&quot;R1&quot;: (0, 0), &quot;R2&quot;: (9, 0), &quot;R3&quot;: (0, 7), &quot;R4&quot;: (9, 7)}
+tarefas = [(2, 3), (8, 6), (5, 1), (1, 5)]
+carga = {r: [] for r in robos}
+
+def distancia(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+for t in tarefas:
+    lances = {r: distancia(pos, t) + 1.5 * len(carga[r]) for r, pos in robos.items()}
+    vencedor = min(lances, key=lances.get)
+    carga[vencedor].append(t)
+    print(f&quot;tarefa {t}: &quot; + &quot;, &quot;.join(f&quot;{r}={lances[r]:.1f}&quot; for r in robos) + f&quot; -&gt; {vencedor}&quot;)
+
+total = sum(distancia(robos[r], t) for r, ts in carga.items() for t in ts)
+print(&quot;distancia total ate as tarefas:&quot;, total)
+for r, ts in carga.items():
+    print(r, ts)</pre>
+  <div class="ah-prose">
+    <p><strong>Saída real do programa</strong> (executado com Python 3):</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">tarefa (2, 3): R1=5.0, R2=10.0, R3=6.0, R4=11.0 -&gt; R1
+tarefa (8, 6): R1=15.5, R2=7.0, R3=9.0, R4=2.0 -&gt; R4
+tarefa (5, 1): R1=7.5, R2=5.0, R3=11.0, R4=11.5 -&gt; R2
+tarefa (1, 5): R1=7.5, R2=14.5, R3=3.0, R4=11.5 -&gt; R3
+distancia total ate as tarefas: 15
+R1 [(2, 3)]
+R2 [(5, 1)]
+R3 [(1, 5)]
+R4 [(8, 6)]</pre>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Troque a fórmula do lance e observe a saída. Se o lance for só a distância, o robô mais próximo de quase todas as tarefas leva o trabalho inteiro.</div>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO 3 · UM PÁSSARO, TRÊS REGRAS, UM VETOR ============================ -->
+<section id="ma-boids" data-toc="Exemplo: as três regras do bando em números" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-crow text-indigo-400 mr-2"></i>Exemplo 3 · Um pássaro, três regras, um vetor</h2>
+  <p class="ah-lead text-sm mb-5">O modelo de Reynolds (1987) calcula, para cada indivíduo, três vetores a partir só dos vizinhos próximos. A soma ponderada desses vetores dá a mudança de velocidade. Vamos fazer a conta para um pássaro.</p>
+  <div class="ah-prose">
+    <p>Pássaro <strong>b</strong> na posição (0, 0), com velocidade (1, 0). Dois vizinhos dentro do raio de percepção de 70 unidades:
+<strong>o₁</strong> em (4, 0), com velocidade (2, 0), e <strong>o₂</strong> em (0, 30), com velocidade (1, 1).</p><p><strong>Separação.</strong> Só o1 está mais perto do que o raio de separação (22). O vetor aponta para longe dele: direção (−1, 0). O2 está a 30 unidades, então não entra.<br>
+<strong>Alinhamento.</strong> Velocidade média dos vizinhos: ((2 + 1)/2, (0 + 1)/2) = (1,5; 0,5). Subtraindo a velocidade de b: (0,5; 0,5).<br>
+<strong>Coesão.</strong> Centro dos vizinhos: ((4 + 0)/2, (0 + 30)/2) = (2; 15). Vetor até o centro: (2; 15).</p><p>Com pesos 1 para separação, 1 para alinhamento e 0,1 para coesão, a mudança de velocidade é (−1; 0) + (0,5; 0,5) + (0,2; 1,5) = (−0,3; 2,0). O pássaro desvia de o1, acompanha a direção do grupo e se aproxima do centro, tudo com informação local.</p>
+  </div>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>Nenhuma das três regras conhece o bando inteiro. A forma do grupo surge da repetição dessas regras em cada indivíduo, por isso o comportamento é emergente.</div>
+  </div>
+</section>
+
+<!-- ============================ EXEMPLO 4 · COOPERAÇÃO EMERGE DE UM TORNEIO ============================ -->
+<section id="ma-dilema" data-toc="Exemplo: torneio de estratégias no dilema do prisioneiro" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-trophy text-indigo-400 mr-2"></i>Exemplo 4 · Cooperação emerge de um torneio</h2>
+  <p class="ah-lead text-sm mb-5">Axelrod (1984) convidou estratégias de vários pesquisadores para um torneio de dilema do prisioneiro iterado. A estratégia mais simples, tit-for-tat, esteve entre as melhores. A tabela abaixo foi gerada pelo laboratório desta página, com 100 rodadas por confronto e cada estratégia jogando contra todas, inclusive contra si mesma.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Estratégia</th><th>Pontos totais</th><th>Média por confronto</th></tr></thead>
+      <tbody><tr><td>Gatilho</td><td>1600</td><td>2,67</td></tr><tr><td>Tit-for-tat</td><td>1525</td><td>2,54</td></tr><tr><td>Pavlov</td><td>1485</td><td>2,48</td></tr><tr><td>Sempre trai</td><td>1420</td><td>2,37</td></tr><tr><td>Sempre coopera</td><td>1341</td><td>2,23</td></tr><tr><td>Aleatório</td><td>1160 (varia)</td><td>1,93 (varia)</td></tr></tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>Duas leituras importantes. Primeiro, <strong>“sempre trair” não vence</strong>: ele ganha de cada parceiro uma vez, mas perde a chance de cooperar com estratégias que cooperam de volta. Segundo, estratégias que retaliam ou retornam a cooperação, como tit-for-tat, tendem a se sair bem porque cooperam com quem coopera e punem quem trai. O resultado depende do conjunto de adversários: em uma população só de traidores, trair seria a melhor escolha.</p>
+  </div>
+  <div class="ah-callout ah-callout-warn my-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>A estratégia “Aleatório” usa sorteio, então seus números mudam a cada execução. Os demais valores são determinísticos.</div>
+  </div>
+</section>
+
+<!-- ============================ ONDE SISTEMAS MULTIAGENTES APARECEM NA PRÁTICA ============================ -->
+<section id="ma-aplicacoes" data-toc="Aplicações e mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-indigo-400 mr-2"></i>Onde sistemas multiagentes aparecem na prática</h2>
+  <p class="ah-lead text-sm mb-5">Sistemas multiagentes são usados quando o problema é distribuído, muda ao longo do tempo e não pode ser controlado por uma única entidade central. Os casos abaixo mostram os setores onde a área tem presença e as referências que sustentam cada solução.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Setor</th><th>Uso típico</th><th>Referência</th></tr></thead>
+      <tbody><tr><td>Logística e armazéns</td><td>robôs que buscam e levam prateleiras sem um controlador central, com coordenação de rotas</td><td>Wurman, D’Andrea e Mountz (2008), <em>AI Magazine</em>, sobre veículos cooperativos em armazéns</td></tr><tr><td>Leilões e alocação</td><td>leilões de frequências de rádio e de rotas de transporte, em que agentes oferecem lances</td><td>Milgrom (2004), <em>Putting Auction Theory to Work</em></td></tr><tr><td>Robótica e esportes</td><td>equipes de robôs que jogam futebol e coordenam papéis em campo</td><td>Kitano et al. (1997), desafio RoboCup, <em>AI Magazine</em></td></tr><tr><td>Simulação social e epidemias</td><td>modelos baseados em agentes para estudar epidemias, mercados e migração</td><td>Epstein e Axtell (1996), <em>Growing Artificial Societies</em></td></tr><tr><td>Sistemas com modelos de linguagem</td><td>vários agentes de IA conversando para dividir uma tarefa, como planejar, programar e revisar código</td><td>Wu et al. (2023), AutoGen, arXiv:2308.08155</td></tr></tbody>
+    </table>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-3">Como isso aparece no trabalho de um profissional</h3>
+  <div class="ah-prose">
+    <p>Engenheiros de software que constroem sistemas distribuídos com microsserviços e filas enfrentam problemas de coordenação semelhantes aos de um sistema multiagente: quem pega a tarefa, o que fazer quando um participante falha e como evitar que todos escolham a mesma opção. Em logística, times de otimização usam leilões e heurísticas de alocação para atribuir motoristas e entregas em tempo real. Em pesquisa e desenvolvimento de IA, aparecem frameworks em que um agente planeja, outro executa e um terceiro revisa.</p>
+  </div>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Para uma entrevista técnica, saiba explicar o trade-off entre coordenação centralizada (um gerente que decide tudo) e distribuída (agentes que negociam). Centralizada é simples e frágil; distribuída é robusta, mas mais difícil de depurar.</div>
+  </div>
+</section>
+
+<!-- ============================ LABORATÓRIO: LEILÃO, BANDO E DILEMA ============================ -->
+<section id="ma-lab" data-toc="Laboratório interativo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-indigo-400 mr-2"></i>Laboratório: leilão, bando e dilema</h2>
+  <p class="ah-lead text-sm mb-5">Este laboratório reúne os três experimentos desta aula. Crie tarefas e acompanhe os lances do leilão, ajuste os pesos do bando até ele se formar e rode o torneio de cooperação. A janela também pode ser aberta em tela cheia.</p>
+  <div class="ah-card overflow-hidden mb-3" style="height:720px">
+    <iframe src="../../../simuladores/multiagentes-visual.html" class="w-full h-full border-0" title="Laboratório de sistemas multiagentes" loading="lazy"></iframe>
+  </div>
+  <a href="../../../simuladores/multiagentes-visual.html" target="_blank" rel="noopener" class="ah-btn ah-btn-primary">
+    <i class="fa-solid fa-up-right-from-square"></i> Abrir em tela cheia
+  </a>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">
