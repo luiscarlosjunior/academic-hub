@@ -307,44 +307,417 @@ stateDiagram-v2
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- APROF2:INI -->
-<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: pedido de restaurante" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-utensils text-emerald-400 mr-2"></i>Exemplo passo a passo: o ciclo de vida de um pedido de restaurante</h2>
-  <p class="ah-lead text-sm mb-5">Um pedido passa por estados que determinam o que o cliente, a cozinha e o caixa podem fazer. Vamos modelar as transições e as ações de cada estado.</p>
+<section id="m-melodia" data-toc="Exemplos com o Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-music text-emerald-400 mr-2"></i>Exemplos com o Melodia</h2>
+  <div class="ah-prose">
 
-  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — listar estados e eventos</h3>
-  <div class="overflow-x-auto ah-card">
-    <table class="ah-table">
-      <thead><tr><th>Estado</th><th>Significado</th><th>Ação ao entrar (entry)</th></tr></thead>
-      <tbody>
-        <tr><td>Aberto</td><td>cliente montando o pedido</td><td>reservar mesa</td></tr>
-        <tr><td>NaCozinha</td><td>pedido enviado ao preparo</td><td>imprimir comanda</td></tr>
-        <tr><td>Pronto</td><td>aguardando retirada</td><td>avisar garçom</td></tr>
-        <tr><td>Fechado</td><td>pago e entregue</td><td>liberar mesa</td></tr>
-        <tr><td>Cancelado</td><td>encerrado sem cobrança</td><td>estornar reserva</td></tr>
-      </tbody>
-    </table>
-  </div>
+<p>Os quatro exemplos abaixo usam o domínio do curso. Leia cada diagrama e confira a tabela de transições que o sustenta. Diagramas de estado sem tabela escondem os casos que ninguém pensou.</p>
 
-  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o diagrama</h3>
-  <div class="ah-diagram">
-    <pre class="mermaid">
+<h3 class="ah-h3 mt-6 mb-2">Exemplo 1 — o player de música</h3>
+<p>O player é a máquina mais usada no dia a dia, e a mais instrutiva: ele precisa lidar com a rede, que cai sem aviso. Os estados são <code>PARADO</code>, <code>BUFFERIZANDO</code>, <code>TOCANDO</code> e <code>PAUSADO</code>.</p>
+<div class="ah-diagram"><pre class="mermaid">
 stateDiagram-v2
-    [*] --&gt; Aberto
-    Aberto --&gt; NaCozinha : enviarParaPreparo [itens &gt; 0]
-    Aberto --&gt; Cancelado : cancelar
-    NaCozinha --&gt; Pronto : preparoConcluido
-    NaCozinha --&gt; Cancelado : cancelar [ainda não preparado]
-    Pronto --&gt; Fechado : pagar
-    Fechado --&gt; [*]
-    Cancelado --&gt; [*]
-    </pre>
+    [*] --&gt; PARADO
+    PARADO --&gt; BUFFERIZANDO : PLAY
+    BUFFERIZANDO --&gt; TOCANDO : BUFFER_CHEIO (3 s ou mais)
+    BUFFERIZANDO --&gt; PARADO : STOP
+    TOCANDO --&gt; BUFFERIZANDO : BUFFER_VAZIO
+    TOCANDO --&gt; PAUSADO : PAUSE
+    TOCANDO --&gt; PARADO : FIM_DA_FAIXA
+    TOCANDO --&gt; PARADO : STOP
+    PAUSADO --&gt; TOCANDO : PLAY
+    PAUSADO --&gt; PARADO : STOP
+</pre></div>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Estado \ Evento</th><th>PLAY</th><th>PAUSE</th><th>BUFFER_CHEIO</th><th>BUFFER_VAZIO</th><th>FIM / STOP</th></tr></thead>
+<tbody>
+<tr><td><strong>PARADO</strong></td><td>→ BUFFERIZANDO</td><td>recusado</td><td>recusado</td><td>recusado</td><td>(já parado)</td></tr>
+<tr><td><strong>BUFFERIZANDO</strong></td><td>ignorado</td><td>recusado</td><td>→ TOCANDO, se o buffer tem 3 s ou mais</td><td>ignorado</td><td>→ PARADO</td></tr>
+<tr><td><strong>TOCANDO</strong></td><td>ignorado</td><td>→ PAUSADO</td><td>ignorado</td><td>→ BUFFERIZANDO</td><td>→ PARADO</td></tr>
+<tr><td><strong>PAUSADO</strong></td><td>→ TOCANDO</td><td>ignorado</td><td>recusado</td><td>recusado</td><td>→ PARADO</td></tr>
+</tbody></table></div>
+<p class="mt-3 text-sm">Repare que a tabela tem células como “ignorado” e “recusado”. São decisões diferentes: “ignorado” é uma escolha consciente (dar play numa faixa que já toca não faz nada útil); “recusado” é uma transição que não deveria existir, e o programa deve avisar. A tabela obriga você a decidir cada célula.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">Exemplo 2 — a assinatura e as regras R3 e R4</h3>
+<p>A assinatura do Melodia cobra R$ 19,90 todo mês. Sem saldo, ela não é cancelada: é <strong>suspensa</strong> (R3). Depois de cancelada, nunca mais é cobrada (R4). Esses dois requisitos viram um diagrama com um estado final.</p>
+<div class="ah-diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; ATIVA
+    ATIVA --&gt; SUSPENSA : cobrança sem saldo (R3)
+    SUSPENSA --&gt; ATIVA : depósito cobre o plano
+    ATIVA --&gt; CANCELADA : cancelar
+    SUSPENSA --&gt; CANCELADA : cancelar
+    CANCELADA --&gt; [*]
+</pre></div>
+<p class="mt-3">Note o que o diagrama <strong>proíbe</strong>: não existe seta saindo de <code>CANCELADA</code>. Essa ausência é o requisito R4, e deve ser lida como tal. Em revisões, procurar transições que não existem é tão importante quanto ler as que existem.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">Exemplo 3 — o download offline de um álbum</h3>
+<p>Assinantes Premium podem baixar álbuns para ouvir sem internet. O download pode falhar no meio (a rede cai, o celular entra em modo economia), e o ciclo de vida do álbum baixado depende do plano. Este caso tem <strong>evento de rede e evento de plano</strong>, que o diagrama precisa representar.</p>
+<div class="ah-diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; NAO_BAIXADO
+    NAO_BAIXADO --&gt; BAIXANDO : baixar (plano Premium)
+    BAIXANDO --&gt; BAIXADO : download completo
+    BAIXANDO --&gt; FALHOU : rede caiu
+    FALHOU --&gt; BAIXANDO : tentar de novo
+    BAIXADO --&gt; NAO_BAIXADO : remover ou plano expirou
+    BAIXADO --&gt; [*]
+</pre></div>
+<p class="mt-3">Pergunta de projeto: quando o plano expira, o álbum baixado <em>deve</em> ser apagado do aparelho, ou apenas bloqueado? A máquina obriga a responder: a transição <code>BAIXADO --&gt; NAO_BAIXADO</code> diz “apaga”. Se a decisão for “bloqueia”, o estado seria outro, <code>BLOQUEADO</code>, e a regra de reprodução mudaria.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">Exemplo 4 — o convite para o plano Família</h3>
+<p>O titular do plano Família convida outra pessoa. O convite tem prazo, e a pessoa pode aceitar, recusar ou deixar expirar. Este caso mostra <strong>vários estados finais</strong>: a máquina termina em três lugares diferentes, cada um com consequência própria.</p>
+<div class="ah-diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; PENDENTE
+    PENDENTE --&gt; ACEITO : aceitar (vaga no plano Família)
+    PENDENTE --&gt; RECUSADO : recusar
+    PENDENTE --&gt; EXPIRADO : 7 dias sem resposta
+    ACEITO --&gt; [*]
+    RECUSADO --&gt; [*]
+    EXPIRADO --&gt; [*]
+</pre></div>
+
   </div>
-  <p class="ah-diagram-cap">As guardas em colchetes são o que faz a máquina ser mais que um fluxo: não se envia para o preparo um pedido vazio, e não se cancela um prato já feito.</p>
+</section>
+<section id="m-executavel" data-toc="Implementação em Java: o player e a assinatura" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-emerald-400 mr-2"></i>Implementação em Java: o player e a assinatura</h2>
+  <div class="ah-prose">
 
-  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — testar a máquina</h3>
-  <p class="ah-prose text-sm">Teste as transições proibidas, não só as permitidas. Por exemplo: “um pedido Fechado não pode voltar a NaCozinha”, e “um pedido Cancelado não aceita pagamento”. Essas são as propriedades que o modelo deve garantir.</p>
+<p>Em Java, a forma mais direta de implementar uma máquina de estados é um <code>enum</code> para os estados, outro para os eventos, e um método que decide a transição com um <code>switch</code> sobre o estado atual. Cada célula da tabela vira uma linha de código. Isso faz do código uma cópia do diagrama: quem revisa um lado revisa o outro.</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>No diagrama</th><th>Em Java</th></tr></thead>
+<tbody>
+<tr><td>conjunto de estados</td><td><code>enum EstadoPlayer { PARADO, TOCANDO, PAUSADO, BUFFERIZANDO }</code></td></tr>
+<tr><td>evento</td><td><code>enum EventoPlayer</code> e o parâmetro de <code>disparar</code></td></tr>
+<tr><td>transição com guarda</td><td><code>if (evento == ... &amp;&amp; segundosNoBuffer &gt;= 3)</code></td></tr>
+<tr><td>transição recusada</td><td><code>destino == null</code>, registrado no log</td></tr>
+<tr><td>estado atual</td><td>campo <code>estado</code>, alterado em uma única linha</td></tr>
+<tr><td>estado final</td><td>nenhuma transição de saída, como <code>CANCELADA</code></td></tr>
+</tbody></table></div>
+<div class="ah-card p-5 mt-5">
+  <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Passo a passo animado: o método <code>disparar</code></div>
+  <p class="text-sm text-slate-300 mb-3">Use os botões. Cada passo mostra a linha executada, a guarda avaliada e a situação do player.</p>
+<div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>boolean disparar(EventoPlayer evento) {
+    EstadoPlayer anterior = estado;
+    EstadoPlayer destino = null;
+    switch (estado) {
+        case PARADO -&gt; {
+            if (evento == EventoPlayer.PLAY) destino = EstadoPlayer.BUFFERIZANDO;
+        }
+        case BUFFERIZANDO -&gt; {
+            // guarda: só toca se o buffer já tem pelo menos 3 segundos
+            if (evento == EventoPlayer.BUFFER_CHEIO &amp;&amp; segundosNoBuffer &gt;= 3) destino = EstadoPlayer.TOCANDO;
+            if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+        }
+        case TOCANDO -&gt; {
+            if (evento == EventoPlayer.PAUSE) destino = EstadoPlayer.PAUSADO;
+            if (evento == EventoPlayer.BUFFER_VAZIO) destino = EstadoPlayer.BUFFERIZANDO;
+            if (evento == EventoPlayer.FIM_DA_FAIXA) destino = EstadoPlayer.PARADO;
+            if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+        }
+        case PAUSADO -&gt; {
+            if (evento == EventoPlayer.PLAY) destino = EstadoPlayer.TOCANDO;
+            if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+        }
+    }
+    if (destino == null) {
+        log.add(String.format(&quot;  %-13s + %-14s -&gt; recusado (não existe transição)&quot;, anterior, evento));
+        return false;
+    }
+    // ação de saída do estado anterior e de entrada no novo
+    if (anterior == EstadoPlayer.BUFFERIZANDO) segundosNoBuffer = 0;
+    if (destino == EstadoPlayer.BUFFERIZANDO) segundosNoBuffer = 0;
+    estado = destino;
+    log.add(String.format(&quot;  %-13s + %-14s -&gt; %s&quot;, anterior, evento, destino));
+    return true;
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 0, "titulo": "Entrada: um evento chega", "texto": "O player recebe um evento (PLAY, PAUSE, BUFFER_CHEIO…). Ele ainda não sabe se a transição existe: isso depende do estado atual.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">PARADO</span><span class=\"ah-caixa \">BUFFERIZANDO</span><span class=\"ah-caixa \">TOCANDO</span><span class=\"ah-caixa \">PAUSADO</span></div>"}, {"linha": 7, "titulo": "Seleção pelo estado atual", "texto": "O <code>switch</code> sobre o estado escolhe as transições possíveis <em>a partir de onde estamos</em>. Um evento só é avaliado no estado em que faz sentido.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">PARADO</span><span class=\"ah-caixa on\">BUFFERIZANDO</span><span class=\"ah-caixa \">TOCANDO</span><span class=\"ah-caixa \">PAUSADO</span></div>"}, {"linha": 9, "titulo": "Guarda", "texto": "A condição <code>segundosNoBuffer &gt;= 3</code> é avaliada agora. Com 1 segundo carregado, a guarda é falsa e o destino continua <code>null</code>.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">BUFFER_CHEIO</span><span class=\"ah-caixa erro\">guarda: 1 s < 3 s</span><span class=\"ah-caixa \">sem destino</span></div>"}, {"linha": 23, "titulo": "Transição recusada", "texto": "Sem destino, o evento é registrado como recusado. Nada muda no estado: a máquina continua em <code>BUFFERIZANDO</code>.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">BUFFERIZANDO</span><span class=\"ah-caixa erro\">recusado</span></div>"}, {"linha": 28, "titulo": "Ações de saída e entrada", "texto": "Ao mudar de estado, a ação de saída do anterior roda (zerar o contador do buffer) antes de o novo estado começar.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">saída: zera buffer</span><span class=\"ah-caixa \">entrada: novo estado</span></div>"}, {"linha": 30, "titulo": "Mudança de estado", "texto": "Esta é a única linha que altera o estado. Se ela não é alcançada, o objeto não muda: esse é o ponto de controle da máquina.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">BUFFERIZANDO</span><span class=\"ah-caixa on\">TOCANDO</span></div>"}]</script>
+</div>
+</div>
+<h3 class="ah-h3 mt-6 mb-2">Programa completo</h3>
+<p>O programa roda quatro cenários: uma reprodução feliz, a rede caindo no meio da faixa, a guarda do buffer mínimo e o ciclo de vida da assinatura. A saída abaixo é a execução real.</p>
+<div class="ah-card p-5 mt-3">
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/maquina-estados
+javac -Xlint:all -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-4 mb-2">Saída real</div>
+<pre class="ah-code"><code>== 1. Player: uma reprodução feliz, com buffer e pausa
+  PARADO        + PLAY           -&gt; BUFFERIZANDO
+  BUFFERIZANDO  + BUFFER_CHEIO   -&gt; TOCANDO
+  TOCANDO       + PAUSE          -&gt; PAUSADO
+  PAUSADO       + PLAY           -&gt; TOCANDO
+  TOCANDO       + FIM_DA_FAIXA   -&gt; PARADO
+estado final: PARADO
 
-  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> deixar uma transição sem decisão explícita. Se o evento <code>cancelar</code> chega em <code>Pronto</code>, o modelo precisa dizer o que acontece: ignorar, recusar ou gerar reembolso. Um estado sem resposta para um evento é uma falha de projeto.</div></div>
+== 2. Player: a rede cai no meio da faixa e o buffer esvazia
+  PARADO        + PLAY           -&gt; BUFFERIZANDO
+  BUFFERIZANDO  + BUFFER_CHEIO   -&gt; TOCANDO
+  TOCANDO       + BUFFER_VAZIO   -&gt; BUFFERIZANDO
+  BUFFERIZANDO  + PAUSE          -&gt; recusado (não existe transição)
+  BUFFERIZANDO  + BUFFER_CHEIO   -&gt; TOCANDO
+estado final: TOCANDO
+
+== 3. Player: guarda do buffer mínimo (3 segundos)
+  PARADO        + PLAY           -&gt; BUFFERIZANDO
+  BUFFERIZANDO  + BUFFER_CHEIO   -&gt; recusado (não existe transição)
+estado final: BUFFERIZANDO
+
+== 4. Assinatura: cobrança, suspensão, regularização e cancelamento
+  cobrança mensal: debitado R$ 19,90, saldo R$ 10.20 -&gt; ATIVA
+  cobrança mensal: saldo R$ 10.20 insuficiente -&gt; SUSPENSA (R3)
+  depósito de R$ 15.00 regulariza a conta -&gt; ATIVA
+  cancelar -&gt; CANCELADA (estado final)
+  cobrança mensal recusada: assinatura cancelada (R4)
+  depósito de R$ 50.00, saldo R$ 75.20
+status final: CANCELADA</code></pre>
+  <details class="ah-card p-5 mt-4"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Máquina de estados em Java, com o domínio Melodia.
+ * Cada estado e cada transição é explícito: evento [guarda] / ação.
+ * Um evento sem transição válida é recusado: a máquina nunca fica em estado inventado.
+ */
+public class Main {
+
+    // ----------------------------------------------------------------
+    // 1. Player de música: estados e transições
+    // ----------------------------------------------------------------
+    enum EstadoPlayer { PARADO, TOCANDO, PAUSADO, BUFFERIZANDO }
+
+    enum EventoPlayer { PLAY, PAUSE, BUFFER_VAZIO, BUFFER_CHEIO, FIM_DA_FAIXA, STOP }
+
+    static final class Player {
+        private EstadoPlayer estado = EstadoPlayer.PARADO;
+        private final List&lt;String&gt; log = new ArrayList&lt;&gt;();
+        private int segundosNoBuffer;
+
+        /** Dispara um evento. Devolve false quando a transição não existe nesse estado. */
+        boolean disparar(EventoPlayer evento) {
+            EstadoPlayer anterior = estado;
+            EstadoPlayer destino = null;
+            switch (estado) {
+                case PARADO -&gt; {
+                    if (evento == EventoPlayer.PLAY) destino = EstadoPlayer.BUFFERIZANDO;
+                }
+                case BUFFERIZANDO -&gt; {
+                    // guarda: só toca se o buffer já tem pelo menos 3 segundos
+                    if (evento == EventoPlayer.BUFFER_CHEIO &amp;&amp; segundosNoBuffer &gt;= 3) destino = EstadoPlayer.TOCANDO;
+                    if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+                }
+                case TOCANDO -&gt; {
+                    if (evento == EventoPlayer.PAUSE) destino = EstadoPlayer.PAUSADO;
+                    if (evento == EventoPlayer.BUFFER_VAZIO) destino = EstadoPlayer.BUFFERIZANDO;
+                    if (evento == EventoPlayer.FIM_DA_FAIXA) destino = EstadoPlayer.PARADO;
+                    if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+                }
+                case PAUSADO -&gt; {
+                    if (evento == EventoPlayer.PLAY) destino = EstadoPlayer.TOCANDO;
+                    if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+                }
+            }
+            if (destino == null) {
+                log.add(String.format(&quot;  %-13s + %-14s -&gt; recusado (não existe transição)&quot;, anterior, evento));
+                return false;
+            }
+            // ação de saída do estado anterior e de entrada no novo
+            if (anterior == EstadoPlayer.BUFFERIZANDO) segundosNoBuffer = 0;
+            if (destino == EstadoPlayer.BUFFERIZANDO) segundosNoBuffer = 0;
+            estado = destino;
+            log.add(String.format(&quot;  %-13s + %-14s -&gt; %s&quot;, anterior, evento, destino));
+            return true;
+        }
+
+        /** Simula o carregamento do buffer (um segundo por chamada). */
+        void carregarSegundo() {
+            if (estado == EstadoPlayer.BUFFERIZANDO) {
+                segundosNoBuffer++;
+            }
+        }
+
+        EstadoPlayer getEstado() { return estado; }
+        List&lt;String&gt; getLog() { return log; }
+    }
+
+    // ----------------------------------------------------------------
+    // 2. Assinatura: o ciclo de vida que a regra R3 e a regra R4 descrevem
+    // ----------------------------------------------------------------
+    enum StatusAssinatura { ATIVA, SUSPENSA, CANCELADA }
+
+    static final class Assinatura {
+        private StatusAssinatura status = StatusAssinatura.ATIVA;
+        private final double saldoConta;
+        private double saldo;
+        private final List&lt;String&gt; log = new ArrayList&lt;&gt;();
+
+        Assinatura(double saldoInicial) {
+            this.saldo = saldoInicial;
+            this.saldoConta = saldoInicial;
+        }
+
+        /** Cobrança mensal de R$ 19,90, com a regra R3: sem saldo, suspende. */
+        void cobrancaMensal() {
+            if (status == StatusAssinatura.CANCELADA) {
+                log.add(&quot;  cobrança mensal recusada: assinatura cancelada (R4)&quot;);
+                return;
+            }
+            if (saldo &gt;= 19.90) {
+                saldo -= 19.90;
+                status = StatusAssinatura.ATIVA;
+                log.add(String.format(&quot;  cobrança mensal: debitado R$ 19,90, saldo R$ %.2f -&gt; ATIVA&quot;, saldo));
+            } else {
+                status = StatusAssinatura.SUSPENSA;
+                log.add(String.format(&quot;  cobrança mensal: saldo R$ %.2f insuficiente -&gt; SUSPENSA (R3)&quot;, saldo));
+            }
+        }
+
+        void depositar(double valor) {
+            saldo += valor;
+            if (status == StatusAssinatura.SUSPENSA &amp;&amp; saldo &gt;= 19.90) {
+                // transição de regularização, disparada pelo depósito
+                status = StatusAssinatura.ATIVA;
+                log.add(String.format(&quot;  depósito de R$ %.2f regulariza a conta -&gt; ATIVA&quot;, valor));
+            } else {
+                log.add(String.format(&quot;  depósito de R$ %.2f, saldo R$ %.2f&quot;, valor, saldo));
+            }
+        }
+
+        void cancelar() {
+            if (status == StatusAssinatura.CANCELADA) {
+                log.add(&quot;  cancelar: já cancelada, nada a fazer&quot;);
+                return;
+            }
+            status = StatusAssinatura.CANCELADA;
+            log.add(&quot;  cancelar -&gt; CANCELADA (estado final)&quot;);
+        }
+
+        StatusAssinatura getStatus() { return status; }
+        List&lt;String&gt; getLog() { return log; }
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);
+
+        System.out.println(&quot;== 1. Player: uma reprodução feliz, com buffer e pausa&quot;);
+        Player p = new Player();
+        p.disparar(EventoPlayer.PLAY);
+        p.carregarSegundo(); p.carregarSegundo(); p.carregarSegundo();
+        p.disparar(EventoPlayer.BUFFER_CHEIO);
+        p.disparar(EventoPlayer.PAUSE);
+        p.disparar(EventoPlayer.PLAY);
+        p.disparar(EventoPlayer.FIM_DA_FAIXA);
+        p.getLog().forEach(System.out::println);
+        System.out.println(&quot;estado final: &quot; + p.getEstado());
+
+        System.out.println(&quot;\n== 2. Player: a rede cai no meio da faixa e o buffer esvazia&quot;);
+        Player q = new Player();
+        q.disparar(EventoPlayer.PLAY);
+        q.carregarSegundo(); q.carregarSegundo(); q.carregarSegundo();
+        q.disparar(EventoPlayer.BUFFER_CHEIO);
+        q.disparar(EventoPlayer.BUFFER_VAZIO);
+        q.disparar(EventoPlayer.PAUSE);   // inválido: quem está em buffer não pausa
+        q.carregarSegundo(); q.carregarSegundo(); q.carregarSegundo();
+        q.disparar(EventoPlayer.BUFFER_CHEIO);
+        q.getLog().forEach(System.out::println);
+        System.out.println(&quot;estado final: &quot; + q.getEstado());
+
+        System.out.println(&quot;\n== 3. Player: guarda do buffer mínimo (3 segundos)&quot;);
+        Player r = new Player();
+        r.disparar(EventoPlayer.PLAY);
+        r.carregarSegundo();
+        r.disparar(EventoPlayer.BUFFER_CHEIO);   // guarda falsa: só 1 segundo
+        r.getLog().forEach(System.out::println);
+        System.out.println(&quot;estado final: &quot; + r.getEstado());
+
+        System.out.println(&quot;\n== 4. Assinatura: cobrança, suspensão, regularização e cancelamento&quot;);
+        Assinatura a = new Assinatura(30.10);
+        a.cobrancaMensal();      // R$ 30,10 -&gt; ATIVA, sobra R$ 10,20
+        a.cobrancaMensal();      // R$ 10,20 -&gt; SUSPENSA (R3)
+        a.depositar(15.00);      // regulariza
+        a.cancelar();
+        a.cobrancaMensal();      // recusada (R4)
+        a.depositar(50.00);      // continua cancelada
+        a.getLog().forEach(System.out::println);
+        System.out.println(&quot;status final: &quot; + a.getStatus());
+    }
+}
+</code></pre></details>
+</div>
+
+  </div>
+</section>
+<section id="m-praticas" data-toc="Boas práticas para modelar e implementar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-check text-emerald-400 mr-2"></i>Boas práticas para modelar e implementar</h2>
+  <div class="ah-prose">
+
+<ol class="list-decimal pl-5 space-y-3">
+<li><strong>Comece pela lista de estados e pela lista de eventos.</strong> Só depois desenhe as setas. Quem começa pelas setas costuma esquecer um estado e inventar outro para compensar.</li>
+<li><strong>Preencha a tabela de transições.</strong> Para cada par estado × evento, a célula diz “transição”, “ignorado” ou “recusado”. Nenhuma célula fica em branco.</li>
+<li><strong>Estados finais devem ser deliberados.</strong> Se um estado não tem saída, isso precisa ser uma decisão, como a R4 da assinatura. Um estado sem saída por esquecimento é um defeito de processo.</li>
+<li><strong>Nomeie estados como situação e eventos como fato.</strong> Estados em adjetivo ou particípio (ATIVA, CANCELADA, BAIXADO); eventos em verbo ou fato ocorrido (PLAY, FIM_DA_FAIXA, cobrancaFalhou). Assim quem lê distingue condição de ação.</li>
+<li><strong>Mantenha a mudança de estado em um único lugar.</strong> No código, um método só para mudar o estado é mais seguro do que atribuir o campo em cinco pontos diferentes.</li>
+<li><strong>Teste as transições proibidas.</strong> Um teste que tenta sair de <code>CANCELADA</code> e verifica que falha vale mais do que dez testes do caminho feliz.</li>
+<li><strong>Cuidado com a explosão de estados.</strong> Cada variável extra (saldo, tentativas, idioma) pode multiplicar os estados. Quando isso acontecer, use estados compostos ou separe a máquina em duas.</li>
+</ol>
+<div class="ah-callout ah-callout-tip mt-4"><i class="fa-solid fa-lightbulb"></i><div><strong>Um padrão de projeto para o mesmo problema:</strong> quando cada estado tem comportamento próprio e muito código, o padrão <em>State</em>, descrito por Gamma et al. (1994, <em>Padrões de Projeto</em>), cria uma classe por estado. Para máquinas pequenas, como as desta aula, o <code>enum</code> com <code>switch</code> é mais simples e basta.</div></div>
+
+  </div>
+</section>
+<section id="m-mercado" data-toc="No mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-emerald-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+
+<p>Máquinas de estados são uma das ferramentas mais usadas em produção, e aparecem sob nomes diferentes:</p>
+<ul class="list-disc pl-5 space-y-3">
+<li><strong>Ciclo de vida de pedidos e pagamentos.</strong> Praticamente todo sistema de pagamentos e de e-commerce tem uma máquina de estados para a transação (criada, autorizada, capturada, estornada). A aula de Event Sourcing (tópico avançado) mostra como guardar essas transições como eventos.</li>
+<li><strong>Bibliotecas de máquinas de estado.</strong> XState (documentação em stately.ai/docs) traz máquinas como dados e visualização de estados para aplicações JavaScript. O Spring State Machine (docs.spring.io/spring-statemachine) faz o mesmo no ecossistema Java, com estados, eventos, guardas e ações configurados em código.</li>
+<li><strong>Protocolos e dispositivos.</strong> Conexões de rede (TCP, por exemplo) são máquinas de estado com transições bem definidas, e a especificação do protocolo as descreve. Elevadores, catracas e semáforos também.</li>
+<li><strong>Verificação formal.</strong> Como a aula de verificação de modelos mostra, a máquina de estados é a entrada natural de um model checker: a propriedade “nunca cobrar um cancelado” vira uma verificação automática.</li>
+</ul>
+<div class="ah-callout ah-callout-info mt-4"><i class="fa-solid fa-circle-info"></i><div><strong>Atenção:</strong> os casos acima são práticas comuns da área, e não processos internos de empresas específicas.</div></div>
+
+  </div>
+</section>
+<section id="m-erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>Estado que não existe na prática.</strong> Um estado <code>EM_ANALISE</code> sem nenhuma transição de entrada nem de saída só existe no desenho.</li>
+<li><strong>Evento ignorado sem decisão.</strong> Uma célula em branco da tabela é o erro mais frequente. O player com <code>PLAY</code> em <code>TOCANDO</code> deve ser “ignorado”, e não omitido.</li>
+<li><strong>Guarda que depende de um valor que ninguém atualiza.</strong> A guarda <code>[buffer &gt;= 3 s]</code> precisa de um contador observável. Se ele não é atualizado, a máquina trava.</li>
+<li><strong>Transição que muda o estado sem passar pelo método.</strong> Quando o campo <code>estado</code> é alterado em outro lugar, a tabela deixa de valer.</li>
+</ul>
+
+  </div>
+</section>
+<section id="m-exercicios" data-toc="Exercícios práticos com o Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios práticos com o Melodia</h2>
+  <div class="ah-prose">
+
+<p>Os exercícios vão do mais simples ao mais difícil. Tente antes de abrir o gabarito: a justificativa vale mais do que a resposta.</p>
+<h3 class="ah-h3 mt-4 mb-2">Nível 1 — ler diagramas</h3>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. No diagrama do player, quantos caminhos diferentes levam de <code>PARADO</code> a <code>TOCANDO</code>? Liste-os.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> há um caminho mínimo: PARADO → BUFFERIZANDO → TOCANDO, com a guarda de 3 s satisfeita. O player não tem caminho direto, porque precisa encher o buffer antes de tocar. Se você contou um caminho sem o buffer, o modelo está errado.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">2. Na assinatura, um cliente com R$ 25,00 de saldo recebe a cobrança e depois um depósito de R$ 5,00. Diga o status em cada momento.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a cobrança debita R$ 19,90 e a assinatura fica ATIVA, com R$ 5,10 de saldo. O depósito de R$ 5,00 leva o saldo a R$ 10,10. Como a conta não estava suspensa, o status continua ATIVA. Se estivesse SUSPENSA, o depósito só regularizaria ao cobrir o plano (saldo de R$ 19,90 ou mais), como o código mostra.</p></div></details>
+
+<h3 class="ah-h3 mt-6 mb-2">Nível 2 — completar modelos</h3>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">3. Na tabela do player, encontre uma célula marcada como “ignorado” que você trocaria por “recusado”, e justifique.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a célula PARADO × STOP está como “(já parado)”, e a ideia é tratá-la como “ignorado”, e não como erro: parar algo que já está parado não é falha para o usuário. Uma troca possível seria BUFFERIZANDO × PLAY, se a aplicação quisesse avisar que o player já está carregando, mas a escolha deve ser documentada.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">4. Desenhe o download offline acrescentando o estado <code>PAUSADO</code>. Diga quais transições você criou e por quê.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> BAIXANDO → PAUSADO com o evento PAUSAR (o usuário pausa, ou o celular entra em economia de dados); PAUSADO → BAIXANDO com RETOMAR; PAUSADO → FALHOU se o arquivo expirar no servidor. A justificativa é o caso real: pausar não é falha e não deve apagar o progresso.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">5. No convite da família, qual a diferença entre RECUSADO e EXPIRADO para o titular e para a pessoa convidada?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> para o titular, ambos liberam a vaga; a diferença é informativa (recusado foi decisão, expirado foi falta de resposta). Para a pessoa convidada, RECUSADO impede aceitar depois, e EXPIRADO pode permitir um novo convite. Por isso são estados finais distintos, e não um só.</p></div></details>
+
+<h3 class="ah-h3 mt-6 mb-2">Nível 3 — implementar</h3>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">6. Implemente em Java a máquina do convite da família: um enum de estados, um método <code>responder(String resposta)</code> e um teste que tenta aceitar um convite já recusado.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> enum ConviteStatus { PENDENTE, ACEITO, RECUSADO, EXPIRADO }; o método confere o status atual antes de cada transição e lança <code>IllegalStateException</code> se o estado é final. O teste chama <code>responder("recusar")</code> e depois <code>responder("aceitar")</code>, e espera a exceção. Compare com o programa do player: a estrutura é a mesma.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">7. Sem usar o código, responda: existe alguma sequência de dois eventos que leve o player de PARADO a PAUSADO?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> não. PARADO só leva a BUFFERIZANDO (com PLAY); de BUFFERIZANDO, PAUSE é recusado. Com dois eventos, o player não chega a PAUSADO. São necessários pelo menos três: PLAY, BUFFER_CHEIO e PAUSE. Exercício de leitura de tabela: conte caminhos sem executar o programa.</p></div></details>
+
+<h3 class="ah-h3 mt-6 mb-2">Nível 4 — desafio</h3>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">8. (Desafio) Acrescente ao player o evento PROXIMA_FAIXA. Ele deve funcionar em TOCANDO e em PAUSADO, levando a BUFFERIZANDO. Em PARADO, deve ser recusado. Escreva o código e três testes.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> acrescente o evento ao enum; nos casos TOCANDO e PAUSADO, leve a BUFFERIZANDO; em PARADO, o evento cai no caso “recusado”. Os três testes: (1) TOCANDO + PROXIMA_FAIXA → BUFFERIZANDO; (2) PAUSADO + PROXIMA_FAIXA → BUFFERIZANDO; (3) PARADO + PROXIMA_FAIXA → recusado, com o estado inalterado.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">9. (Desafio) A assinatura pode mudar de plano (Free para Premium). O plano pode mudar em qualquer status, ou só em ATIVA? Desenhe a transição correspondente e justifique com as regras do projeto-base.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a regra de negócio decide. Se a troca é permitida só em ATIVA, ela é um laço em ATIVA com a ação “mudar plano”, e não existe em SUSPENSA nem em CANCELADA. Se a troca for permitida também em SUSPENSA, o laço existe ali, com a ação adicional de regularizar a cobrança. O diagrama é o lugar onde essa decisão fica registrada.</p></div></details>
+
+  </div>
 </section>
 <!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
