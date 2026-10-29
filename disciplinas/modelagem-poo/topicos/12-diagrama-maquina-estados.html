@@ -650,6 +650,323 @@ public class Main {
 
   </div>
 </section>
+<section id="m-java-estilos" data-toc="Três jeitos de escrever a mesma máquina em Java" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Três jeitos de escrever a mesma máquina em Java</h2>
+  <div class="ah-prose">
+
+<p>Uma máquina de estados pode ser escrita de três formas em Java. As três fazem o mesmo trabalho, e a escolha muda a clareza do código e o custo de manter a regra depois. Os três exemplos desta página mostram cada uma.</p>
+<h3 class="ah-h3 mt-6 mb-2">1. Switch sobre o estado (o player)</h3>
+<p>É a forma mais direta: um <code>switch</code> escolhe o caso pelo estado atual, e dentro dele as guardas decidem o destino. Serve bem quando há poucos estados e as regras são diferentes entre si.</p>
+<pre class="ah-code"><code>case BUFFERIZANDO -&gt; {
+    if (evento == EventoPlayer.BUFFER_CHEIO &amp;&amp; segundosNoBuffer &gt;= 3) destino = EstadoPlayer.TOCANDO;
+    if (evento == EventoPlayer.STOP) destino = EstadoPlayer.PARADO;
+}</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">2. Tabela de transições (o download)</h3>
+<p>Aqui a regra vira <strong>dado</strong>: cada seta do diagrama é uma linha de uma tabela. A máquina só consulta a tabela. Essa forma é a mais fácil de auditar, porque a tabela inteira cabe na tela, e pode até ser lida de um arquivo ou de um banco.</p>
+<pre class="ah-code"><code>adicionar(Estado.BAIXANDO, Evento.REDE_CAIU, Estado.FALHOU);</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">3. Enum com comportamento (o convite)</h3>
+<p>Cada estado vira uma constante do enum, e ela decide o que fazer com cada evento. É o padrão <em>State</em> na versão mais leve. Estados finais simplesmente não sobrescrevem os métodos, e por isso recusam qualquer evento com uma exceção.</p>
+<pre class="ah-code"><code>PENDENTE {
+    @Override Status aceitar() { return ACEITO; }
+    @Override Status recusar() { return RECUSADO; }
+}</code></pre>
+<div class="overflow-x-auto ah-card mt-4"><table class="ah-table">
+<thead><tr><th>Forma</th><th>Quando usar</th><th>Cuidado</th></tr></thead>
+<tbody>
+<tr><td>switch</td><td>poucos estados, regras diferentes entre si</td><td>cresce rápido; é fácil esquecer um <code>case</code></td></tr>
+<tr><td>tabela</td><td>muitas transições parecidas; regra que pode mudar sem recompilar</td><td>guardas não cabem bem na tabela e pedem código extra</td></tr>
+<tr><td>enum com comportamento</td><td>cada estado tem lógica própria e um pouco de código</td><td>muitos estados viram uma classe-enum enorme</td></tr>
+</tbody></table></div>
+<div class="ah-callout ah-callout-tip mt-4"><i class="fa-solid fa-lightbulb"></i><div><strong>Como ler o restante:</strong> para cada exemplo abaixo, primeiro veja o código Java completo, depois o diagrama que ele representa, e por fim a saída real da execução. Assim você vê a ligação entre o texto e o desenho.</div></div>
+
+  </div>
+</section>
+<section id="m-java-download" data-toc="Exemplo em Java: download offline com tabela de transições" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-download text-emerald-400 mr-2"></i>Exemplo em Java: download offline com tabela de transições</h2>
+  <div class="ah-prose">
+
+<p>O download de álbum é a forma 2: a tabela de transições fica no código, e o método <code>disparar</code> só consulta essa tabela. Leia o código de cima para baixo. Ele tem quatro partes:</p>
+<ol class="list-decimal pl-5 space-y-2">
+<li><strong>Os enums</strong>: os estados e os eventos, exatamente os nomes do diagrama.</li>
+<li><strong>A tabela</strong>: o bloco <code>static</code> chama <code>adicionar</code> uma vez por seta. São seis linhas, seis transições.</li>
+<li><strong>A guarda</strong>: o <code>if</code> de <code>BAIXAR</code> com plano Free. Ele roda <em>antes</em> da tabela, porque a tabela só guarda o destino, não a condição.</li>
+<li><strong>O <code>imprimirTabela</code></strong>: percorre a tabela e escreve cada seta. Esse texto é o diagrama em forma de lista, e serve para conferir se o código e o desenho dizem a mesma coisa.</li>
+</ol>
+<h3 class="ah-h3 mt-6 mb-2">Código: Download.java</h3>
+<pre class="ah-code"><code>import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Download offline de álbum no Melodia, com a tabela de transições escrita em código.
+ * Em vez de um switch gigante, a máquina é uma tabela: estado atual -&gt; evento -&gt; próximo estado.
+ * Quem lê a tabela enxerga o diagrama inteiro, e cada célula vazia é uma transição recusada.
+ */
+public class Download {
+
+    enum Estado { NAO_BAIXADO, BAIXANDO, BAIXADO, FALHOU }
+
+    enum Evento { BAIXAR, RECEBER_TUDO, REDE_CAIU, TENTAR_NOVAMENTE, REMOVER, PLANO_EXPIROU }
+
+    // A tabela de transições. Cada linha é uma seta do diagrama.
+    private static final Map&lt;Estado, Map&lt;Evento, Estado&gt;&gt; TABELA = new EnumMap&lt;&gt;(Estado.class);
+
+    static {
+        adicionar(Estado.NAO_BAIXADO, Evento.BAIXAR, Estado.BAIXANDO);
+        adicionar(Estado.BAIXANDO, Evento.RECEBER_TUDO, Estado.BAIXADO);
+        adicionar(Estado.BAIXANDO, Evento.REDE_CAIU, Estado.FALHOU);
+        adicionar(Estado.FALHOU, Evento.TENTAR_NOVAMENTE, Estado.BAIXANDO);
+        adicionar(Estado.BAIXADO, Evento.REMOVER, Estado.NAO_BAIXADO);
+        adicionar(Estado.BAIXADO, Evento.PLANO_EXPIROU, Estado.NAO_BAIXADO);
+    }
+
+    private static void adicionar(Estado de, Evento evento, Estado para) {
+        TABELA.computeIfAbsent(de, k -&gt; new EnumMap&lt;&gt;(Evento.class)).put(evento, para);
+    }
+
+    static final class Album {
+        private final String nome;
+        private final boolean premium;
+        private Estado estado = Estado.NAO_BAIXADO;
+        private final List&lt;String&gt; log = new ArrayList&lt;&gt;();
+
+        Album(String nome, boolean premium) {
+            this.nome = nome;
+            this.premium = premium;
+        }
+
+        /** Dispara um evento. Devolve false quando a transição não existe ou a guarda falha. */
+        boolean disparar(Evento evento) {
+            // guarda: só assinante Premium pode baixar
+            if (evento == Evento.BAIXAR &amp;&amp; !premium) {
+                log.add(String.format(&quot;  %-12s + %-16s -&gt; recusado [guarda: plano Free]&quot;, estado, evento));
+                return false;
+            }
+            Estado proximo = TABELA.getOrDefault(estado, Map.of()).get(evento);
+            if (proximo == null) {
+                log.add(String.format(&quot;  %-12s + %-16s -&gt; recusado (sem transição na tabela)&quot;, estado, evento));
+                return false;
+            }
+            log.add(String.format(&quot;  %-12s + %-16s -&gt; %s&quot;, estado, evento, proximo));
+            estado = proximo;
+            return true;
+        }
+
+        Estado getEstado() { return estado; }
+        List&lt;String&gt; getLog() { return log; }
+        String getNome() { return nome; }
+    }
+
+    static void imprimirTabela() {
+        System.out.println(&quot;Tabela de transições (estado -&gt; evento -&gt; próximo):&quot;);
+        for (Estado de : Estado.values()) {
+            Map&lt;Evento, Estado&gt; linha = TABELA.getOrDefault(de, Map.of());
+            for (Map.Entry&lt;Evento, Estado&gt; t : linha.entrySet()) {
+                System.out.printf(&quot;  %-12s --%s--&gt; %s%n&quot;, de, t.getKey(), t.getValue());
+            }
+        }
+    }
+
+    static void cenario(String titulo, Album album, Evento... eventos) {
+        System.out.println(&quot;\n== &quot; + titulo + &quot; (&quot; + album.getNome() + &quot;)&quot;);
+        for (Evento e : eventos) album.disparar(e);
+        album.getLog().forEach(System.out::println);
+        System.out.println(&quot;estado final: &quot; + album.getEstado());
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);
+        imprimirTabela();
+
+        cenario(&quot;1. Download completo&quot;, new Album(&quot;Abbey Road&quot;, true),
+                Evento.BAIXAR, Evento.RECEBER_TUDO);
+
+        cenario(&quot;2. Rede cai no meio e a pessoa tenta de novo&quot;, new Album(&quot;Rumours&quot;, true),
+                Evento.BAIXAR, Evento.REDE_CAIU, Evento.TENTAR_NOVAMENTE, Evento.RECEBER_TUDO);
+
+        cenario(&quot;3. Plano Free tenta baixar&quot;, new Album(&quot;Thriller&quot;, false),
+                Evento.BAIXAR);
+
+        cenario(&quot;4. Plano expira depois do download&quot;, new Album(&quot;Random Access Memories&quot;, true),
+                Evento.BAIXAR, Evento.RECEBER_TUDO, Evento.PLANO_EXPIROU);
+
+        cenario(&quot;5. Evento que não existe no estado&quot;, new Album(&quot;Dark Side&quot;, true),
+                Evento.RECEBER_TUDO);
+    }
+}</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">O diagrama que esse código representa</h3>
+<p>Cada linha de <code>TABELA</code> é uma seta. A guarda <code>[plano Premium]</code> aparece no desenho, mas no código ela é um <code>if</code> separado: o diagrama é mais completo do que a tabela, e isso é normal.</p>
+<div class="ah-diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; NAO_BAIXADO
+    NAO_BAIXADO --&gt; BAIXANDO : baixar (plano Premium)
+    BAIXANDO --&gt; BAIXADO : download completo
+    BAIXANDO --&gt; FALHOU : rede caiu
+    FALHOU --&gt; BAIXANDO : tentar de novo
+    BAIXADO --&gt; NAO_BAIXADO : remover ou plano expirou
+    BAIXADO --&gt; [*]
+</pre></div>
+<h3 class="ah-h3 mt-6 mb-2">Saída real</h3>
+<pre class="ah-code"><code>Tabela de transições (estado -&gt; evento -&gt; próximo):
+  NAO_BAIXADO  --BAIXAR--&gt; BAIXANDO
+  BAIXANDO     --RECEBER_TUDO--&gt; BAIXADO
+  BAIXANDO     --REDE_CAIU--&gt; FALHOU
+  BAIXADO      --REMOVER--&gt; NAO_BAIXADO
+  BAIXADO      --PLANO_EXPIROU--&gt; NAO_BAIXADO
+  FALHOU       --TENTAR_NOVAMENTE--&gt; BAIXANDO
+
+== 1. Download completo (Abbey Road)
+  NAO_BAIXADO  + BAIXAR           -&gt; BAIXANDO
+  BAIXANDO     + RECEBER_TUDO     -&gt; BAIXADO
+estado final: BAIXADO
+
+== 2. Rede cai no meio e a pessoa tenta de novo (Rumours)
+  NAO_BAIXADO  + BAIXAR           -&gt; BAIXANDO
+  BAIXANDO     + REDE_CAIU        -&gt; FALHOU
+  FALHOU       + TENTAR_NOVAMENTE -&gt; BAIXANDO
+  BAIXANDO     + RECEBER_TUDO     -&gt; BAIXADO
+estado final: BAIXADO
+
+== 3. Plano Free tenta baixar (Thriller)
+  NAO_BAIXADO  + BAIXAR           -&gt; recusado [guarda: plano Free]
+estado final: NAO_BAIXADO
+
+== 4. Plano expira depois do download (Random Access Memories)
+  NAO_BAIXADO  + BAIXAR           -&gt; BAIXANDO
+  BAIXANDO     + RECEBER_TUDO     -&gt; BAIXADO
+  BAIXADO      + PLANO_EXPIROU    -&gt; NAO_BAIXADO
+estado final: NAO_BAIXADO
+
+== 5. Evento que não existe no estado (Dark Side)
+  NAO_BAIXADO  + RECEBER_TUDO     -&gt; recusado (sem transição na tabela)
+estado final: NAO_BAIXADO</code></pre>
+<div class="ah-callout ah-callout-info mt-4"><i class="fa-solid fa-circle-info"></i><div><strong>Repare na tabela impressa:</strong> ela tem seis linhas e nenhuma linha para <code>RECEBER_TUDO</code> em <code>NAO_BAIXADO</code>. Esse evento é recusado no cenário 5 porque a célula não existe. Uma máquina bem feita trata a célula vazia como decisão, não como esquecimento.</div></div>
+<h3 class="ah-h3 mt-6 mb-2">Exercício rápido</h3>
+<p class="text-sm">Acrescente um estado <code>PAUSADO</code> (download pausado pelo celular em economia de dados), com as transições <code>BAIXANDO --PAUSAR--&gt; PAUSADO</code> e <code>PAUSADO --RETOMAR--&gt; BAIXANDO</code>. Diga quais linhas mudam em <code>TABELA</code> e confira se a saída do cenário 2 continua igual.</p>
+
+  </div>
+</section>
+<section id="m-java-convite" data-toc="Exemplo em Java: convite com enum que decide o próprio comportamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope-open-text text-emerald-400 mr-2"></i>Exemplo em Java: convite com enum que decide o próprio comportamento</h2>
+  <div class="ah-prose">
+
+<p>O convite é a forma 3. O enum <code>Status</code> define o que cada estado faz quando recebe um evento. O estado <code>PENDENTE</code> sobrescreve os três métodos. Os estados finais herdam o comportamento padrão, que lança <code>IllegalStateException</code>.</p>
+<p>Repare em dois detalhes que um desenho sozinho não mostra:</p>
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>Estado final com exceção:</strong> o diagrama diz que <code>ACEITO</code> não tem saída. O código diz mais: tentar aceitar de novo lança um erro, e o cenário 2 captura esse erro e o imprime.</li>
+<li><strong>Guarda fora do enum:</strong> a regra “só aceita se houver vaga” depende do plano, não só do estado. Por isso ela fica em <code>Convite.aceitar()</code>, e não dentro de <code>PENDENTE</code>.</li>
+</ul>
+<h3 class="ah-h3 mt-6 mb-2">Código: Convite.java</h3>
+<pre class="ah-code"><code>/**
+ * Convite para o plano Família, com o padrão State feito com enum.
+ * Cada estado sabe quais eventos aceita. Os estados finais recusam qualquer evento,
+ * e a exceção mostra o erro no lugar de deixar o convite mudar sem regra.
+ */
+public class Convite {
+
+    enum Status {
+        PENDENTE {
+            @Override Status aceitar() { return ACEITO; }
+            @Override Status recusar() { return RECUSADO; }
+            @Override Status expirar() { return EXPIRADO; }
+        },
+        ACEITO,
+        RECUSADO,
+        EXPIRADO;
+
+        // Comportamento padrão: estado final, nenhum evento é aceito.
+        Status aceitar() { throw new IllegalStateException(&quot;convite já está &quot; + this); }
+        Status recusar() { throw new IllegalStateException(&quot;convite já está &quot; + this); }
+        Status expirar() { throw new IllegalStateException(&quot;convite já está &quot; + this); }
+    }
+
+    private Status status = Status.PENDENTE;
+    private final String convidado;
+    private final int vagasLivres;
+
+    Convite(String convidado, int vagasLivres) {
+        this.convidado = convidado;
+        this.vagasLivres = vagasLivres;
+    }
+
+    /** Guarda: aceitar só se ainda houver vaga no plano. */
+    void aceitar() {
+        if (vagasLivres &lt;= 0) {
+            System.out.println(&quot;  &quot; + convidado + &quot;: aceitar recusado, plano sem vaga (guarda)&quot;);
+            return;
+        }
+        status = status.aceitar();
+        System.out.println(&quot;  &quot; + convidado + &quot;: aceitou -&gt; &quot; + status);
+    }
+
+    void recusar() {
+        status = status.recusar();
+        System.out.println(&quot;  &quot; + convidado + &quot;: recusou -&gt; &quot; + status);
+    }
+
+    void expirar() {
+        status = status.expirar();
+        System.out.println(&quot;  &quot; + convidado + &quot;: prazo de 7 dias -&gt; &quot; + status);
+    }
+
+    Status getStatus() { return status; }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);
+
+        System.out.println(&quot;== 1. Convite aceito dentro do prazo&quot;);
+        Convite ana = new Convite(&quot;Ana&quot;, 2);
+        ana.aceitar();
+
+        System.out.println(&quot;\n== 2. Convite recusado e depois aceito (estado final)&quot;);
+        Convite bruno = new Convite(&quot;Bruno&quot;, 2);
+        bruno.recusar();
+        try {
+            bruno.aceitar();
+        } catch (IllegalStateException erro) {
+            System.out.println(&quot;  erro capturado: &quot; + erro.getMessage());
+        }
+
+        System.out.println(&quot;\n== 3. Prazo vence sem resposta&quot;);
+        Convite carla = new Convite(&quot;Carla&quot;, 1);
+        carla.expirar();
+
+        System.out.println(&quot;\n== 4. Plano sem vaga&quot;);
+        Convite diego = new Convite(&quot;Diego&quot;, 0);
+        diego.aceitar();
+        System.out.println(&quot;  status final de Diego: &quot; + diego.getStatus());
+    }
+}</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">O diagrama que esse código representa</h3>
+<div class="ah-diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; PENDENTE
+    PENDENTE --&gt; ACEITO : aceitar (vaga no plano Família)
+    PENDENTE --&gt; RECUSADO : recusar
+    PENDENTE --&gt; EXPIRADO : 7 dias sem resposta
+    ACEITO --&gt; [*]
+    RECUSADO --&gt; [*]
+    EXPIRADO --&gt; [*]
+</pre></div>
+<h3 class="ah-h3 mt-6 mb-2">Saída real</h3>
+<pre class="ah-code"><code>== 1. Convite aceito dentro do prazo
+  Ana: aceitou -&gt; ACEITO
+
+== 2. Convite recusado e depois aceito (estado final)
+  Bruno: recusou -&gt; RECUSADO
+  erro capturado: convite já está RECUSADO
+
+== 3. Prazo vence sem resposta
+  Carla: prazo de 7 dias -&gt; EXPIRADO
+
+== 4. Plano sem vaga
+  Diego: aceitar recusado, plano sem vaga (guarda)
+  status final de Diego: PENDENTE</code></pre>
+<p class="mt-3 text-sm">No cenário 4, Diego não ganha vaga e o convite continua <code>PENDENTE</code>: a guarda cancelou o evento, e nenhuma transição aconteceu. Isso é diferente de expirar, que muda o estado para <code>EXPIRADO</code>.</p>
+
+  </div>
+</section>
 <section id="m-praticas" data-toc="Boas práticas para modelar e implementar" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-check text-emerald-400 mr-2"></i>Boas práticas para modelar e implementar</h2>
   <div class="ah-prose">
@@ -716,6 +1033,142 @@ public class Main {
 <h3 class="ah-h3 mt-6 mb-2">Nível 4 — desafio</h3>
 <details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">8. (Desafio) Acrescente ao player o evento PROXIMA_FAIXA. Ele deve funcionar em TOCANDO e em PAUSADO, levando a BUFFERIZANDO. Em PARADO, deve ser recusado. Escreva o código e três testes.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> acrescente o evento ao enum; nos casos TOCANDO e PAUSADO, leve a BUFFERIZANDO; em PARADO, o evento cai no caso “recusado”. Os três testes: (1) TOCANDO + PROXIMA_FAIXA → BUFFERIZANDO; (2) PAUSADO + PROXIMA_FAIXA → BUFFERIZANDO; (3) PARADO + PROXIMA_FAIXA → recusado, com o estado inalterado.</p></div></details>
 <details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">9. (Desafio) A assinatura pode mudar de plano (Free para Premium). O plano pode mudar em qualquer status, ou só em ATIVA? Desenhe a transição correspondente e justifique com as regras do projeto-base.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> a regra de negócio decide. Se a troca é permitida só em ATIVA, ela é um laço em ATIVA com a ação “mudar plano”, e não existe em SUSPENSA nem em CANCELADA. Se a troca for permitida também em SUSPENSA, o laço existe ali, com a ação adicional de regularizar a cobrança. O diagrama é o lugar onde essa decisão fica registrada.</p></div></details>
+
+  </div>
+</section>
+<section id="m-exercicio-login" data-toc="Exercício de desenho: o login em Java" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-emerald-400 mr-2"></i>Exercício de desenho: o login em Java</h2>
+  <div class="ah-prose">
+
+<p>Este é o exercício final. O código abaixo é uma máquina de estados completa, mas <strong>não há diagrama para ele</strong>. A tarefa é ler o código e desenhar a máquina. Só depois compare com o gabarito.</p>
+<h3 class="ah-h3 mt-4 mb-2">Passo a passo</h3>
+<ol class="list-decimal pl-5 space-y-2">
+<li><strong>Liste os estados</strong> a partir do enum <code>Estado</code>. Há quatro.</li>
+<li><strong>Liste os eventos</strong> a partir do enum <code>Evento</code>. Há seis.</li>
+<li><strong>Procure as transições</strong> no <code>switch</code>: para cada <code>case</code>, veja cada <code>if</code> e cada <code>yield</code>.</li>
+<li><strong>Encontre a guarda</strong>: o que muda quando <code>SENHA_ERRADA</code> acontece pela terceira vez?</li>
+<li><strong>Encontre as ações</strong>: o que o código altera além do estado (dica: o contador <code>falhas</code>)?</li>
+<li><strong>Decida o tratamento de eventos sem transição</strong>: se um evento não está no <code>case</code>, o estado muda? Como você mostraria isso no desenho?</li>
+</ol>
+<div class="ah-callout ah-callout-tip mt-4"><i class="fa-solid fa-lightbulb"></i><div><strong>Ferramenta:</strong> desenhe no papel, ou use o editor do Mermaid (mermaid.live) com a sintaxe <code>stateDiagram-v2</code>, como nos diagramas desta página.</div></div>
+<h3 class="ah-h3 mt-6 mb-2">Código: Login.java</h3>
+<pre class="ah-code"><code>import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Exercício: o login da conta Melodia.
+ * Leia o código, desenhe o diagrama de estados e só depois confira o gabarito da página.
+ * Não há diagrama aqui de propósito: o desenho é a tarefa.
+ */
+public class Login {
+
+    enum Estado { DESLOGADO, AGUARDANDO_CODIGO, LOGADO, BLOQUEADA }
+
+    enum Evento { SENHA_CORRETA, SENHA_ERRADA, CODIGO_CORRETO, CODIGO_ERRADO, TEMPO_ESGOTADO, LOGOUT }
+
+    static final class Conta {
+        private Estado estado = Estado.DESLOGADO;
+        private int falhas;
+        private final List&lt;String&gt; log = new ArrayList&lt;&gt;();
+
+        void disparar(Evento evento) {
+            Estado anterior = estado;
+            estado = switch (estado) {
+                case DESLOGADO -&gt; {
+                    if (evento == Evento.SENHA_CORRETA) yield Estado.AGUARDANDO_CODIGO;
+                    if (evento == Evento.SENHA_ERRADA) {
+                        falhas++;
+                        yield falhas &gt;= 3 ? Estado.BLOQUEADA : Estado.DESLOGADO;
+                    }
+                    yield Estado.DESLOGADO;
+                }
+                case AGUARDANDO_CODIGO -&gt; {
+                    if (evento == Evento.CODIGO_CORRETO) {
+                        falhas = 0;
+                        yield Estado.LOGADO;
+                    }
+                    if (evento == Evento.CODIGO_ERRADO || evento == Evento.TEMPO_ESGOTADO) yield Estado.DESLOGADO;
+                    yield Estado.AGUARDANDO_CODIGO;
+                }
+                case LOGADO -&gt; evento == Evento.LOGOUT ? Estado.DESLOGADO : Estado.LOGADO;
+                case BLOQUEADA -&gt; Estado.BLOQUEADA;
+            };
+            log.add(String.format(&quot;  %-18s + %-15s -&gt; %s&quot;, anterior, evento, estado));
+        }
+
+        Estado getEstado() { return estado; }
+        List&lt;String&gt; getLog() { return log; }
+    }
+
+    static void cenario(String titulo, Evento... eventos) {
+        Conta conta = new Conta();
+        System.out.println(&quot;== &quot; + titulo);
+        for (Evento e : eventos) conta.disparar(e);
+        conta.getLog().forEach(System.out::println);
+        System.out.println(&quot;estado final: &quot; + conta.getEstado());
+        System.out.println();
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);
+        cenario(&quot;1. Login feliz&quot;,
+                Evento.SENHA_CORRETA, Evento.CODIGO_CORRETO, Evento.LOGOUT);
+        cenario(&quot;2. Três senhas erradas&quot;,
+                Evento.SENHA_ERRADA, Evento.SENHA_ERRADA, Evento.SENHA_ERRADA, Evento.SENHA_CORRETA);
+        cenario(&quot;3. Código errado e tempo esgotado&quot;,
+                Evento.SENHA_CORRETA, Evento.CODIGO_ERRADO, Evento.SENHA_CORRETA, Evento.TEMPO_ESGOTADO);
+    }
+}</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">Saída real (para conferir o seu desenho)</h3>
+<p class="text-sm">Rode o programa e compare: cada linha da saída é uma transição que o seu diagrama deve conter.</p>
+<pre class="ah-code"><code>== 1. Login feliz
+  DESLOGADO          + SENHA_CORRETA   -&gt; AGUARDANDO_CODIGO
+  AGUARDANDO_CODIGO  + CODIGO_CORRETO  -&gt; LOGADO
+  LOGADO             + LOGOUT          -&gt; DESLOGADO
+estado final: DESLOGADO
+
+== 2. Três senhas erradas
+  DESLOGADO          + SENHA_ERRADA    -&gt; DESLOGADO
+  DESLOGADO          + SENHA_ERRADA    -&gt; DESLOGADO
+  DESLOGADO          + SENHA_ERRADA    -&gt; BLOQUEADA
+  BLOQUEADA          + SENHA_CORRETA   -&gt; BLOQUEADA
+estado final: BLOQUEADA
+
+== 3. Código errado e tempo esgotado
+  DESLOGADO          + SENHA_CORRETA   -&gt; AGUARDANDO_CODIGO
+  AGUARDANDO_CODIGO  + CODIGO_ERRADO   -&gt; DESLOGADO
+  DESLOGADO          + SENHA_CORRETA   -&gt; AGUARDANDO_CODIGO
+  AGUARDANDO_CODIGO  + TEMPO_ESGOTADO  -&gt; DESLOGADO
+estado final: DESLOGADO</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">Critério de correção</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li>Seu diagrama tem os quatro estados e nenhum estado a mais.</li>
+<li>A guarda de bloqueio aparece com a condição certa (três falhas, não duas).</li>
+<li>A ação <code>falhas = 0</code> aparece na transição de sucesso do código.</li>
+<li>Os eventos sem efeito estão explicados (desenhados ou em nota).</li>
+<li>O estado sem saída (<code>BLOQUEADA</code>) está identificado, e você diz por que ele é final.</li>
+</ul>
+<details class="ah-card p-5 mt-5"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o gabarito (diagrama de referência)</summary>
+<div class="mt-4">
+<p class="text-sm">Repare em três decisões:</p>
+<ul class="list-disc pl-5 space-y-2 text-sm">
+<li><strong>Guardas com a contagem antes da ação:</strong> como o código incrementa <code>falhas</code> e só depois compara, a guarda do diagrama usa <code>falhas + 1</code>. Esta é a forma correta de escrever a guarda quando a ação vem junto.</li>
+<li><strong>Auto-transição com ação:</strong> <code>DESLOGADO --SENHA_ERRADA--&gt; DESLOGADO</code> muda o contador, então é uma transição real, e não uma omissão.</li>
+<li><strong>Eventos sem efeito:</strong> o código devolve o mesmo estado para eventos não tratados (por exemplo, <code>LOGOUT</code> em <code>DESLOGADO</code>). A convenção UML é não desenhar essas setas, e dizer isso numa nota.</li>
+</ul>
+<div class="ah-diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; DESLOGADO
+    DESLOGADO --&gt; AGUARDANDO_CODIGO : SENHA_CORRETA
+    DESLOGADO --&gt; DESLOGADO : SENHA_ERRADA [falhas + 1 &lt; 3] / falhas++
+    DESLOGADO --&gt; BLOQUEADA : SENHA_ERRADA [falhas + 1 &gt;= 3] / falhas++
+    AGUARDANDO_CODIGO --&gt; LOGADO : CODIGO_CORRETO / falhas = 0
+    AGUARDANDO_CODIGO --&gt; DESLOGADO : CODIGO_ERRADO
+    AGUARDANDO_CODIGO --&gt; DESLOGADO : TEMPO_ESGOTADO
+    LOGADO --&gt; DESLOGADO : LOGOUT
+    BLOQUEADA --&gt; [*]
+</pre></div>
+</div></details>
 
   </div>
 </section>
