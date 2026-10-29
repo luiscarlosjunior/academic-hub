@@ -289,41 +289,6 @@ concluirAssinatura(ouvinte);</code></pre>
   </ul>
 </section>
 <!-- APROFUNDAMENTO:FIM -->
-<!-- APROF2:INI -->
-<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: reembolso de pedido" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate-left text-emerald-400 mr-2"></i>Exemplo passo a passo: reembolso de um pedido</h2>
-  <p class="ah-lead text-sm mb-5">Um processo com decisão, paralelismo e responsabilidades divididas entre três atores. Vamos construí-lo em quatro passos.</p>
-
-  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — o caminho feliz, em ordem</h3>
-  <p class="ah-prose text-sm">O cliente pede o reembolso. O sistema verifica o prazo de 7 dias. Se estiver no prazo, o financeiro estorna o valor no cartão. Ao final, o cliente é avisado.</p>
-
-  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — decisões e paralelismo</h3>
-  <div class="ah-diagram">
-    <pre class="mermaid">
-flowchart TD
-    I((" ")) --&gt; A["Cliente solicita reembolso"]
-    A --&gt; P{"Dentro de 7 dias?"}
-    P -- "não" --&gt; N["Recusar com justificativa"]
-    P -- "sim" --&gt; E["Registrar pedido de estorno"]
-    E --&gt; F1["Estornar no cartão"]
-    E --&gt; F2["Devolver item ao estoque"]
-    F1 --&gt; J["Sincronizar"]
-    F2 --&gt; J
-    J --&gt; C["Avisar cliente"]
-    N --&gt; Z(((" ")))
-    C --&gt; Z
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">O estorno e a devolução ao estoque são independentes: a barra de sincronização (join) só libera o aviso quando ambos terminam. A decisão tem duas saídas com guardas mutuamente exclusivas.</p>
-
-  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — raias para mostrar quem faz o quê</h3>
-  <p class="ah-lead text-sm mb-4">Cada ação vai para a coluna de quem a executa: cliente, sistema, gateway e estoque. Execute os dois cenários.</p>
-  <div data-raia-sim="reembolso"></div>
-  <p class="ah-diagram-cap">A mesma lógica do passo 2, agora com cada ação na coluna de quem a executa. Acompanhe o contador de trocas de raia: cada troca é uma integração (com o gateway, com o estoque) ou uma mensagem para o cliente.</p>
-
-  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> usar um losango (decisão) para unir o estorno e a devolução. Como ambos acontecem, o losango deixaria o aviso ser enviado duas vezes. Quem junta caminhos paralelos é a barra de join.</div></div>
-</section>
-<!-- APROF2:FIM -->
 <!-- MELODIA:INI -->
 <section id="melodia-mapa" data-toc="Melodia: mapa dos exemplos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-headphones text-emerald-400 mr-2"></i>Um streaming de música inteiro em diagramas de atividades</h2>
@@ -1215,6 +1180,279 @@ rede.<span class="fn">aoPerderConexao</span>(()      -&gt; { contagem.<span clas
   </div>
 </section>
 <!-- MELODIA:FIM -->
+<!-- APROF2:INI -->
+<section id="a-visao" data-toc="Visão geral: o que é um diagrama de atividades" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>Visão geral: o que é um diagrama de atividades</h2>
+  <div class="ah-prose">
+
+<p>Um <strong>diagrama de atividades</strong> descreve um <em>fluxo</em>: uma sequência de ações, com decisões, caminhos paralelos e responsáveis. Ele responde à pergunta “como esse processo acontece, passo a passo?”, sem se preocupar com quem chama quem (isso é o diagrama de sequência) nem com os estados que um objeto assume (isso é a máquina de estados).</p>
+<p>A notação vem da UML e foi formalizada na especificação da OMG (UML 2.5.1, 2017, capítulo <em>Activities</em>). Um ponto histórico importante: a notação de atividades se aproxima de redes de Petri, usadas desde os anos 1960 por Carl Adam Petri para modelar sistemas concorrentes. Essa origem explica a semântica de fichas (<em>tokens</em>), que veremos adiante.</p>
+<p>Para processos de negócio, o diagrama de atividades é o ancestral direto do <strong>BPMN</strong> (<em>Business Process Model and Notation</em>, OMG, versão 2.0). Dumas, La Rosa, Mendling e Reijers (2013, <em>Fundamentals of Business Process Management</em>, Springer) apresentam a gestão de processos com esses dois tipos de diagrama lado a lado, e Weske (2012, <em>Business Process Management: Concepts, Languages, Architectures</em>, Springer) aprofunda a semântica de execução.</p>
+
+  </div>
+</section>
+<section id="a-notacao" data-toc="Notação completa" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>Notação completa</h2>
+  <div class="ah-prose">
+
+<p>Os elementos de um diagrama de atividades, na notação UML, são os seguintes:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Elemento</th><th>Símbolo</th><th>O que faz</th><th>Exemplo</th></tr></thead>
+<tbody>
+<tr><td>Nó inicial</td><td>círculo cheio</td><td>gera a ficha que inicia o fluxo</td><td>o cliente clica em “reembolsar”</td></tr>
+<tr><td>Ação</td><td>retângulo arredondado</td><td>uma unidade de trabalho</td><td>registrar pedido de estorno</td></tr>
+<tr><td>Decisão</td><td>losango com guardas</td><td>envia a ficha para uma saída, conforme a condição</td><td>dentro do prazo de 7 dias?</td></tr>
+<tr><td>Junção (merge)</td><td>losango de entrada</td><td>passa a ficha que chegar, sem esperar as outras</td><td>juntar “aprovado” e “aprovado automaticamente”</td></tr>
+<tr><td>Fork</td><td>barra grossa, uma entrada</td><td>copia a ficha para caminhos paralelos</td><td>estornar e devolver item ao mesmo tempo</td></tr>
+<tr><td>Join</td><td>barra grossa, várias entradas</td><td>espera uma ficha de cada entrada</td><td>só avisar depois de estornar e devolver</td></tr>
+<tr><td>Fim de atividade</td><td>círculo com borda</td><td>encerra todo o fluxo</td><td>processo concluído</td></tr>
+<tr><td>Fim de fluxo</td><td>círculo com X</td><td>encerra só esta ficha</td><td>um ramo recusado, com o resto seguindo</td></tr>
+<tr><td>Raia (partição)</td><td>faixa vertical ou horizontal</td><td>indica quem executa cada ação</td><td>cliente, sistema, financeiro</td></tr>
+</tbody></table></div>
+<h3 class="ah-h3 mt-6 mb-2">A semântica de fichas (tokens)</h3>
+<p>Esta é a regra que faz o diagrama “rodar” na cabeça de quem lê: uma <strong>ficha</strong> começa no nó inicial e anda pelas setas. Uma ação só começa quando tem uma ficha em cada entrada. Um fork cria uma ficha por saída. Um join espera uma ficha de cada entrada e então emite uma só. Uma decisão emite a ficha para a única saída cuja guarda é verdadeira. Com essas quatro regras, você consegue simular qualquer diagrama no papel.</p>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro clássico:</strong> usar um losango de decisão para juntar dois caminhos paralelos. O losango não espera a outra ficha: a ação seguinte rodaria duas vezes. Quem junta caminhos paralelos é a barra de join.</div></div>
+
+  </div>
+</section>
+<section id="a-diaadia" data-toc="Exemplos do dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-emerald-400 mr-2"></i>Exemplos do dia a dia</h2>
+  <div class="ah-prose">
+
+<p>Fluxos aparecem em praticamente todo processo com etapas e decisões. Três exemplos, cada um com um detalhe de modelagem diferente:</p>
+<h3 class="ah-h3 mt-6 mb-2">1. Pedir um café num aplicativo de delivery</h3>
+<p>O cliente escolhe os itens, paga, e a cozinha prepara. Enquanto a cozinha prepara o café, a entrega é atribuída a um entregador, e as duas coisas são independentes: são um <strong>fork</strong>. O cliente só recebe “pedido a caminho” quando o preparo <em>e</em> a atribuição terminarem: é um <strong>join</strong>.</p>
+<div class="ah-diagram"><pre class="mermaid">
+flowchart TD
+    I((" ")) --&gt; A["Cliente escolhe itens"]
+    A --&gt; P["Pagamento aprovado?"]
+    P -- "não" --&gt; R["Pedir outro cartão"]
+    P -- "sim" --&gt; F{{"Fork"}}
+    F --&gt; C["Cozinha prepara"]
+    F --&gt; E["Sistema atribui entregador"]
+    C --&gt; J{{"Join"}}
+    E --&gt; J
+    J --&gt; N["Notificar: pedido a caminho"]
+    N --&gt; Z(((" ")))
+    R --&gt; Z
+</pre></div>
+<h3 class="ah-h3 mt-6 mb-2">2. Abertura de conta em um banco</h3>
+<p>Aqui o diagrama mostra <strong>raias</strong>. A análise de documentos é do time de compliance; a análise de crédito é de um motor automático; a assinatura do contrato é do cliente. Quando o diagrama tem raias, a pergunta “quem faz isso?” fica respondida na própria figura, e o processo ganha dono em cada etapa.</p>
+<h3 class="ah-h3 mt-6 mb-2">3. Uma receita de bolo</h3>
+<p>Parece simples, mas é um fluxo: bater os ovos enquanto o forno pré-aquece (paralelo), misturar os ingredientes secos e os molhados (join), e decidir se a massa está no ponto com um palito (decisão, com dois caminhos: “assar mais” ou “tirar do forno”). Mesmo a receita tem decisões e paralelismo; o diagrama torna isso explícito.</p>
+
+  </div>
+</section>
+<section id="a-java" data-toc="Implementação em Java: o fluxo como código" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-emerald-400 mr-2"></i>Implementação em Java: o fluxo como código</h2>
+  <div class="ah-prose">
+
+<p>Não existe uma “instrução de atividade” em Java. Cada elemento do diagrama vira uma construção que a linguagem já tem: a decisão é um <code>if</code>, o fork e o join são tarefas assíncronas com <code>CompletableFuture</code>, e as raias são registradas pelo próprio código (quem registra cada linha da trilha).</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>No diagrama</th><th>Em Java</th></tr></thead>
+<tbody>
+<tr><td>Nó inicial</td><td>a chamada de <code>processar(pedido, trilha)</code></td></tr>
+<tr><td>Ação</td><td>uma linha de código, ou um método</td></tr>
+<tr><td>Decisão com guardas</td><td><code>if (p.diasDesdeCompra() &gt; 7) ... return</code></td></tr>
+<tr><td>Fim de fluxo</td><td><code>return "RECUSADO"</code> antes do restante</td></tr>
+<tr><td>Fork</td><td><code>CompletableFuture.supplyAsync(...)</code> para cada ramo</td></tr>
+<tr><td>Join</td><td><code>CompletableFuture.allOf(...).join()</code></td></tr>
+<tr><td>Raia</td><td><code>enum Raia</code> escrito em cada registro da trilha</td></tr>
+</tbody></table></div>
+<p class="mt-4">Passo a passo animado sobre o método <code>processar</code>. Avance e veja, em cada etapa, a linha de código e a posição da ficha no diagrama.</p>
+
+  </div>
+</section>
+<section id="a-executavel" data-toc="Exemplo executável: dois pedidos, dois caminhos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: dois pedidos, dois caminhos</h2>
+  <div class="ah-prose">
+
+<p>O programa roda o mesmo fluxo para dois pedidos e imprime a trilha de cada um, com a raia que executou cada ação. Repare que o pedido recusado não passa pelo fork.</p>
+<div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>static String processar(Pedido p, Trilha t) {
+    t.registrar(Raia.CLIENTE, &quot;solicita reembolso do pedido &quot; + p.id());
+    t.registrar(Raia.SISTEMA, &quot;verifica prazo: &quot; + p.diasDesdeCompra() + &quot; dias desde a compra&quot;);
+
+    // Decisão: guarda [prazo &lt;= 7 dias]. Caminho falso leva a um fim de fluxo.
+    if (p.diasDesdeCompra() &gt; 7) {
+        t.registrar(Raia.SISTEMA, &quot;recusa com justificativa (prazo expirado)&quot;);
+        return &quot;RECUSADO&quot;;
+    }
+
+    t.registrar(Raia.SISTEMA, &quot;registra pedido de estorno&quot;);
+
+    // Fork: duas ações independentes em paralelo (o estorno e a devolução não dependem uma da outra).
+    CompletableFuture&lt;String&gt; estorno = CompletableFuture.supplyAsync(
+            () -&gt; String.format(&quot;estorno de R$ %.2f no cartão&quot;, p.valor()));
+    CompletableFuture&lt;String&gt; devolucao = CompletableFuture.supplyAsync(
+            () -&gt; p.itemDevolvido() ? &quot;item recebido e devolvido ao estoque&quot; : &quot;sem devolução física&quot;);
+
+    // Join: só segue quando as duas terminarem.
+    CompletableFuture.allOf(estorno, devolucao).join();
+
+    t.registrar(Raia.FINANCEIRO, estorno.join());
+    t.registrar(Raia.ESTOQUE, devolucao.join());
+    t.registrar(Raia.SISTEMA, &quot;sincroniza os resultados e avisa o cliente&quot;);
+    t.registrar(Raia.CLIENTE, &quot;recebe a confirmação do reembolso&quot;);
+    return &quot;CONCLUIDO&quot;;
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 0, "titulo": "Entrada: a ficha inicial", "texto": "O nó inicial gera a ficha. O fluxo começa com o cliente pedindo o reembolso.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">cliente pede</span><span class=\"ah-caixa \">verifica prazo</span><span class=\"ah-caixa \">estorno</span><span class=\"ah-caixa \">fim</span></div>"}, {"linha": 2, "titulo": "Ação na raia do sistema", "texto": "Cada <code>registrar</code> leva o nome da raia. A trilha mostra quem fez o quê, o que é exatamente a função de uma raia.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">cliente pede</span><span class=\"ah-caixa on\">verifica prazo</span><span class=\"ah-caixa \">estorno</span><span class=\"ah-caixa \">fim</span></div>"}, {"linha": 5, "titulo": "Decisão", "texto": "A guarda <code>[dias &gt; 7]</code> é avaliada. Se for verdadeira, a ficha segue para o fim de fluxo “recusado”.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">verifica prazo</span><span class=\"ah-caixa on\">dias > 7?</span><span class=\"ah-caixa \">não: segue</span><span class=\"ah-caixa \">recusado</span></div>"}, {"linha": 7, "titulo": "Fim de fluxo", "texto": "Este <code>return</code> é o fim de fluxo com X: encerra esta execução, sem tocar no resto do código.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">dias > 7: sim</span><span class=\"ah-caixa erro\">recusado</span></div>"}, {"linha": 13, "titulo": "Fork: dois ramos", "texto": "Duas tarefas começam ao mesmo tempo. Cada uma é uma ficha nova, e nenhuma depende da outra.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">estorno</span><span class=\"ah-caixa on\">devolução</span><span class=\"ah-caixa \">join</span></div>"}, {"linha": 19, "titulo": "Join: espera os dois", "texto": "<code>allOf(...).join()</code> bloqueia até os dois terminarem. Só então a ficha segue, e nunca antes.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">estorno</span><span class=\"ah-caixa ok\">devolução</span><span class=\"ah-caixa on\">join</span></div>"}, {"linha": 21, "titulo": "Raia financeiro", "texto": "O resultado do estorno é registrado na raia do financeiro, com o valor real do pedido.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">join</span><span class=\"ah-caixa on\">financeiro</span><span class=\"ah-caixa \">estoque</span></div>"}, {"linha": 25, "titulo": "Fim de atividade", "texto": "O fluxo principal termina. O retorno informa a situação final ao chamador.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">join</span><span class=\"ah-caixa ok\">financeiro</span><span class=\"ah-caixa ok\">estoque</span><span class=\"ah-caixa ok\">CONCLUÍDO</span></div>"}]</script>
+</div><div class="ah-card p-5 mt-5">
+  <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Programa completo: dois pedidos, dois caminhos</div>
+  <p class="text-sm text-slate-300 mb-3">O pedido P-1001 (3 dias) segue pelo caminho feliz, com fork e join. O pedido P-1002 (12 dias) é recusado na decisão. A trilha é preenchida pela thread principal, então a saída é sempre igual.</p>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/diagramas/atividades
+javac -Xlint:all -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-4 mb-2">Saída real</div>
+<pre class="ah-code"><code>=== fluxo do pedido P-1001
+CLIENTE    | solicita reembolso do pedido P-1001
+SISTEMA    | verifica prazo: 3 dias desde a compra
+SISTEMA    | registra pedido de estorno
+FINANCEIRO | estorno de R$ 149.80 no cartão
+ESTOQUE    | item recebido e devolvido ao estoque
+SISTEMA    | sincroniza os resultados e avisa o cliente
+CLIENTE    | recebe a confirmação do reembolso
+situação final: CONCLUIDO
+
+=== fluxo do pedido P-1002
+CLIENTE    | solicita reembolso do pedido P-1002
+SISTEMA    | verifica prazo: 12 dias desde a compra
+SISTEMA    | recusa com justificativa (prazo expirado)
+situação final: RECUSADO</code></pre>
+  <details class="ah-card p-5 mt-4"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (atividades/Main.java)</summary>
+<pre class="ah-code mt-3"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Diagrama de atividades em Java: o fluxo de reembolso de um pedido.
+ * Decisão = if. Fork/join = duas tarefas em paralelo e um join. Raias = quem registra cada ação.
+ */
+public class Main {
+
+    enum Raia { CLIENTE, SISTEMA, FINANCEIRO, ESTOQUE }
+
+    record Pedido(String id, int diasDesdeCompra, double valor, boolean itemDevolvido) {}
+
+    /** A trilha é preenchida só pela thread principal: a ordem da saída é sempre a mesma. */
+    static final class Trilha {
+        private final List&lt;String&gt; linhas = new ArrayList&lt;&gt;();
+        void registrar(Raia raia, String acao) {
+            linhas.add(String.format(&quot;%-10s | %s&quot;, raia, acao));
+        }
+        List&lt;String&gt; linhas() { return linhas; }
+    }
+
+    static String processar(Pedido p, Trilha t) {
+        t.registrar(Raia.CLIENTE, &quot;solicita reembolso do pedido &quot; + p.id());
+        t.registrar(Raia.SISTEMA, &quot;verifica prazo: &quot; + p.diasDesdeCompra() + &quot; dias desde a compra&quot;);
+
+        // Decisão: guarda [prazo &lt;= 7 dias]. Caminho falso leva a um fim de fluxo.
+        if (p.diasDesdeCompra() &gt; 7) {
+            t.registrar(Raia.SISTEMA, &quot;recusa com justificativa (prazo expirado)&quot;);
+            return &quot;RECUSADO&quot;;
+        }
+
+        t.registrar(Raia.SISTEMA, &quot;registra pedido de estorno&quot;);
+
+        // Fork: duas ações independentes em paralelo (o estorno e a devolução não dependem uma da outra).
+        CompletableFuture&lt;String&gt; estorno = CompletableFuture.supplyAsync(
+                () -&gt; String.format(&quot;estorno de R$ %.2f no cartão&quot;, p.valor()));
+        CompletableFuture&lt;String&gt; devolucao = CompletableFuture.supplyAsync(
+                () -&gt; p.itemDevolvido() ? &quot;item recebido e devolvido ao estoque&quot; : &quot;sem devolução física&quot;);
+
+        // Join: só segue quando as duas terminarem.
+        CompletableFuture.allOf(estorno, devolucao).join();
+
+        t.registrar(Raia.FINANCEIRO, estorno.join());
+        t.registrar(Raia.ESTOQUE, devolucao.join());
+        t.registrar(Raia.SISTEMA, &quot;sincroniza os resultados e avisa o cliente&quot;);
+        t.registrar(Raia.CLIENTE, &quot;recebe a confirmação do reembolso&quot;);
+        return &quot;CONCLUIDO&quot;;
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída igual em qualquer máquina
+        List&lt;Pedido&gt; pedidos = List.of(
+                new Pedido(&quot;P-1001&quot;, 3, 149.80, true),
+                new Pedido(&quot;P-1002&quot;, 12, 59.90, false));
+
+        for (Pedido p : pedidos) {
+            System.out.println(&quot;=== fluxo do pedido &quot; + p.id());
+            Trilha trilha = new Trilha();
+            String resultado = processar(p, trilha);
+            trilha.linhas().forEach(System.out::println);
+            System.out.println(&quot;situação final: &quot; + resultado + &quot;\n&quot;);
+        }
+    }
+}
+</code></pre></details>
+</div>
+  </div>
+</section>
+<section id="a-mercado" data-toc="No mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-emerald-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+
+<p>Diagramas de atividades e de processos são ferramentas de trabalho em áreas como banking, seguros, saúde e e-commerce. Alguns usos típicos, com referências para conhecer cada um:</p>
+<ul class="list-disc pl-5 space-y-3">
+<li><strong>Motores de processos (BPM).</strong> Plataformas como o Camunda (documentação em docs.camunda.org) e o Flowable (flowable.com) executam modelos BPMN diretamente: cada tarefa do diagrama vira uma tarefa com responsável, e as decisões viram condições avaliadas pela máquina. É a forma de “rodar o desenho”.</li>
+<li><strong>Automação de aprovações.</strong> Fluxos de aprovação de crédito, de compras e de reembolso seguem exatamente a lógica de decisão, fork e join. O que muda entre empresas são as regras e os responsáveis, não a estrutura.</li>
+<li><strong>Mineração de processos.</strong> Dumas et al. (2013) mostram como logs de sistemas reais podem ser transformados em diagramas de processo, para descobrir gargalos e caminhos que as pessoas não documentaram.</li>
+<li><strong>Concorrência explícita em código.</strong> O fork e o join do exemplo são a mesma ideia de <code>CompletableFuture</code> (documentação em docs.oracle.com) e de tarefas paralelas em qualquer linguagem moderna.</li>
+</ul>
+<div class="ah-callout ah-callout-info mt-4"><i class="fa-solid fa-circle-info"></i><div><strong>Atenção:</strong> os casos acima descrevem usos típicos da área, e não processos internos de empresas específicas.</div></div>
+
+  </div>
+</section>
+<section id="a-erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>Decisão para unir caminhos paralelos.</strong> Use join quando as duas fichas precisam chegar, e merge quando só uma passa.</li>
+<li><strong>Fluxo sem fim.</strong> Toda ficha deve terminar em um fim de atividade ou em um fim de fluxo. Uma ficha “presa” num ponto sem saída é um bug de processo.</li>
+<li><strong>Ação que não diz quem faz.</strong> Sem raias, a pergunta “quem executa isso?” fica sem resposta, e o processo ganha buracos de responsabilidade.</li>
+<li><strong>Guardas que não cobrem todos os casos.</strong> Se a decisão tem <code>[dias &lt;= 7]</code> e nenhuma guarda para <code>dias &gt; 7</code>, a ficha não tem para onde ir.</li>
+</ul>
+
+  </div>
+</section>
+<section id="a-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios com gabarito</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Desenhe o fluxo de um cadastro de usuário: preencher dados, validar e-mail (com decisão de e-mail já usado) e enviar confirmação. Indique as raias.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> ações: preencher dados (raia usuário), validar formato (sistema), decisão “e-mail já existe?” com saídas “sim” (fim de fluxo, com aviso) e “não” (segue), gravar conta (sistema), enviar confirmação (serviço de e-mail). Cada raia recebe as ações que executa.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">2. Em um fork de três ramos (pagamento, estoque e nota fiscal), o que acontece se um deles falhar?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o join precisa decidir. Se ele espera todas as fichas, um fracasso trava o fluxo; a modelagem deve prever um caminho de erro (ex.: compensar os outros ramos, como uma saga). Esse tipo de decisão é o que diferencia um diagrama correto de um diagrama feliz.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">3. Converta a decisão “dentro do prazo?” do exemplo em código, sem if, usando um valor de retorno que represente cada caminho.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> um <code>enum ResultadoPrazo { DENTRO, EXPIRADO }</code> devolvido por um método; o chamador usa <code>switch</code> sobre o enum. O diagrama continua o mesmo: só a forma de expressar a guarda mudou.</p></div></details>
+
+  </div>
+</section>
+<section id="a-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Referências acadêmicas</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li>DUMAS, M.; LA ROSA, M.; MENDLING, J.; REIJERS, H. A. <em>Fundamentals of Business Process Management</em>. Springer, 2013.</li>
+<li>WESKE, M. <em>Business Process Management: Concepts, Languages, Architectures</em>, 2ª edição. Springer, 2012.</li>
+<li>BOOCH, G.; RUMBAUGH, J.; JACOBSON, I. <em>The Unified Modeling Language User Guide</em>. Addison-Wesley, 1999.</li>
+<li>FOWLER, M. <em>UML Distilled</em>, 3ª edição. Addison-Wesley, 2004.</li>
+<li>OMG. <em>UML 2.5.1 Specification</em> (capítulo Activities): https://www.omg.org/spec/UML/2.5.1/</li>
+<li>OMG. <em>BPMN 2.0.2 Specification</em>: https://www.omg.org/spec/BPMN/2.0.2/</li>
+</ul>
+<h3 class="ah-h3 mt-4 mb-2">Mercado e documentação técnica</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li>Camunda. <em>Documentação do motor BPMN</em>: https://docs.camunda.org/</li>
+<li>Flowable. <em>Documentação</em>: https://www.flowable.com/</li>
+<li>Oracle. <em>CompletableFuture (Java 17)</em>: https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/CompletableFuture.html</li>
+<li>Mermaid. <em>Sintaxe de fluxogramas</em>: https://mermaid.js.org/syntax/flowchart.html</li>
+</ul>
+
+  </div>
+</section>
+<!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>

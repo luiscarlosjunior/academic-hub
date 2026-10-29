@@ -288,45 +288,355 @@ sequenceDiagram
 </section>
 <!-- APROFUNDAMENTO:FIM -->
 <!-- APROF2:INI -->
-<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: login e checkout" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-cart-arrow-down text-emerald-400 mr-2"></i>Exemplo passo a passo: checkout com autenticação</h2>
-  <p class="ah-lead text-sm mb-5">O cliente finaliza a compra. Há uma etapa obrigatória (autenticação), uma opcional (cupom) e uma alternativa (cartão recusado). A sequência mostra as três.</p>
+<section id="s-visao" data-toc="Visão geral: o que é um diagrama de sequência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-emerald-400 mr-2"></i>Visão geral: o que é um diagrama de sequência</h2>
+  <div class="ah-prose">
 
-  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — participantes e ordem</h3>
-  <p class="ah-prose text-sm">Participam o cliente, a interface, o serviço de checkout, o serviço de cupons e o gateway. A ordem é: autenticar, aplicar cupom (opcional), cobrar e confirmar.</p>
+<p>Um <strong>diagrama de sequência</strong> mostra uma <em>interação</em>: quais participantes trocam mensagens, em que ordem, e quem espera quem. O eixo vertical é o tempo (de cima para baixo) e cada participante tem uma <strong>linha de vida</strong>. Quando um participante executa uma operação, aparece uma <strong>barra de ativação</strong>, que é a representação visual da pilha de chamadas.</p>
+<p>A notação foi consolidada por Booch, Rumbaugh e Jacobson (1999, <em>The Unified Modeling Language User Guide</em>) e está formalizada na especificação da OMG (UML 2.5.1, 2017, capítulo <em>Interactions</em>). Larman (2004, <em>Utilizando UML e padrões</em>) usa diagramas de sequência do sistema para derivar os contratos das operações, uma das práticas mais difundidas de análise orientada a objetos.</p>
+<p>Um ponto que confunde: o diagrama de sequência não mostra o estado interno dos objetos (isso é a máquina de estados) nem o fluxo de decisões de um processo (isso é o diagrama de atividades). Ele mostra <strong>mensagens entre participantes</strong>, e nada além disso. Por isso é tão útil para revisar um desenho de integração entre sistemas.</p>
 
-  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — a sequência com fragmentos</h3>
-  <div class="ah-diagram">
-    <pre class="mermaid">
+  </div>
+</section>
+<section id="s-anatomia" data-toc="Anatomia: participantes, mensagens e ativações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-emerald-400 mr-2"></i>Anatomia: participantes, mensagens e ativações</h2>
+  <div class="ah-prose">
+
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Elemento</th><th>Notação</th><th>Significado</th></tr></thead>
+<tbody>
+<tr><td>Participante</td><td>retângulo no topo</td><td>um objeto, ator ou sistema</td></tr>
+<tr><td>Linha de vida</td><td>linha tracejada vertical</td><td>a existência do participante no tempo</td></tr>
+<tr><td>Mensagem síncrona</td><td>seta cheia</td><td>o emissor espera a resposta (chamada de operação)</td></tr>
+<tr><td>Mensagem de retorno</td><td>seta tracejada de volta</td><td>o valor devolvido pela chamada</td></tr>
+<tr><td>Mensagem assíncrona</td><td>seta de ponta aberta</td><td>o emissor segue sem esperar (evento, fila)</td></tr>
+<tr><td>Barra de ativação</td><td>retângulo estreito sobre a linha</td><td>o participante está executando</td></tr>
+<tr><td>Criação e destruição</td><td>mensagem para a caixa / X no fim</td><td>o objeto nasce ou deixa de existir</td></tr>
+</tbody></table></div>
+<p class="mt-4">Repare no que a barra de ativação diz: enquanto <code>Checkout</code> espera o <code>Gateway</code>, a barra dele continua aberta. Se a barra do gateway fosse longa demais, o problema estaria ali, e a sequência mostra isso sem nenhum número.</p>
+
+  </div>
+</section>
+<section id="s-fragmentos" data-toc="Fragmentos combinados: controle dentro da sequência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-object-group text-emerald-400 mr-2"></i>Fragmentos combinados: controle dentro da sequência</h2>
+  <div class="ah-prose">
+
+<p>Um <strong>fragmento combinado</strong> é uma moldura que controla as mensagens dentro dela. Os operadores mais usados:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Operador</th><th>Quando usar</th><th>Exemplo no checkout</th></tr></thead>
+<tbody>
+<tr><td><code>alt</code></td><td>caminhos alternativos com guardas</td><td>cartão aprovado ou recusado</td></tr>
+<tr><td><code>opt</code></td><td>passo que pode não acontecer</td><td>validar cupom, se o cliente informou um</td></tr>
+<tr><td><code>loop</code></td><td>repetição</td><td>reservar cada item do carrinho</td></tr>
+<tr><td><code>par</code></td><td>mensagens em paralelo</td><td>enviar recibo e atualizar histórico ao mesmo tempo</td></tr>
+<tr><td><code>break</code></td><td>interrompe a interação quando a guarda vale</td><td>sessão expirada encerra o checkout</td></tr>
+<tr><td><code>ref</code></td><td>reaproveita outra interação já modelada</td><td>autenticação, usada em vários diagramas</td></tr>
+<tr><td><code>neg</code></td><td>interação proibida, que nunca deve acontecer</td><td>cobrar um pedido cancelado</td></tr>
+</tbody></table></div>
+<div class="ah-callout ah-callout-warn mt-4"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Cuidado com <code>opt</code>:</strong> um passo obrigatório marcado como opcional esconde uma regra importante. Se a autenticação fosse <code>opt</code>, o diagrama estaria dizendo que o checkout pode acontecer sem login.</div></div>
+
+  </div>
+</section>
+<section id="s-diaadia" data-toc="Exemplos do dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-store text-emerald-400 mr-2"></i>Exemplos do dia a dia</h2>
+  <div class="ah-prose">
+
+<p>Sequências são o jeito natural de descrever uma conversa entre sistemas, e aparecem em qualquer integração:</p>
+<h3 class="ah-h3 mt-6 mb-2">1. Pedir um táxi por aplicativo</h3>
+<p>O passageiro pede a corrida, o aplicativo procura motoristas próximos (um <code>loop</code> sobre motoristas, até um aceitar), a corrida é confirmada e o passageiro recebe a placa. Se nenhum motorista aceitar em um tempo, um <code>alt</code> leva a “sem motoristas no momento”. A sequência mostra com clareza que a confirmação depende da aceitação do motorista.</p>
+<h3 class="ah-h3 mt-6 mb-2">2. Fazer uma transferência Pix</h3>
+<p>O aplicativo do banco envia o pedido ao serviço de pagamentos, que consulta o saldo, verifica limites e antifraude (em sequência), e só depois registra o débito. Se a verificação antifraude recusar, um <code>alt</code> impede o débito. A ordem importa: debitar antes de verificar seria um erro grave, e o diagrama torna essa ordem visível.</p>
+<h3 class="ah-h3 mt-6 mb-2">3. Uma consulta a um médico por videochamada</h3>
+<p>Paciente, plataforma de agendamento e prontuário trocam mensagens: agendar, confirmar, abrir a sala, registrar a consulta. Um <code>ref</code> reaproveita o “login do profissional”, que aparece em vários fluxos. Esse tipo de diagrama é usado para explicar a integração a equipes de negócio e de segurança.</p>
+
+  </div>
+</section>
+<section id="s-mermaid" data-toc="O mesmo checkout em Mermaid" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-emerald-400 mr-2"></i>O mesmo checkout em Mermaid</h2>
+  <div class="ah-prose">
+
+<p>O diagrama abaixo é o cenário A do programa, escrito na linguagem do Mermaid. Ele é renderizado diretamente nesta página, e é uma forma comum de documentar integrações em repositórios.</p>
+<div class="ah-diagram"><pre class="mermaid">
 sequenceDiagram
     participant C as Cliente
     participant UI as Interface
     participant CK as Checkout
+    participant S as Sessao
     participant CP as Cupons
-    participant GW as Gateway
+    participant E as Estoque
+    participant G as Gateway
+    participant P as Pedidos
     C-&gt;&gt;UI: finalizar compra
     UI-&gt;&gt;CK: iniciar(carrinho)
-    CK-&gt;&gt;CK: autenticar(sessao)
+    CK-&gt;&gt;S: autenticar() [ref]
+    S--&gt;&gt;CK: usuário válido
     opt cliente informou cupom
-        CK-&gt;&gt;CP: validar(codigo)
-        CP--&gt;&gt;CK: desconto
+        CK-&gt;&gt;CP: validar(BEMVINDO10)
+        CP--&gt;&gt;CK: desconto de 10%
     end
-    CK-&gt;&gt;GW: cobrar(total)
-    alt aprovado
-        GW--&gt;&gt;CK: confirmado
-        CK--&gt;&gt;UI: pedido criado
-    else recusado
-        GW--&gt;&gt;CK: recusado
-        CK--&gt;&gt;UI: oferecer outro cartão
+    loop para cada item
+        CK-&gt;&gt;E: reservar(item)
+        E--&gt;&gt;CK: reservado
     end
-    </pre>
+    alt cartão aprovado
+        CK-&gt;&gt;G: cobrar(total)
+        G--&gt;&gt;CK: aprovado
+        CK-&gt;&gt;P: criar(pedido)
+        P--&gt;&gt;CK: pedido P-2001
+    else cartão recusado
+        CK-&gt;&gt;G: cobrar(total)
+        G--&gt;&gt;CK: recusado
+        CK-&gt;&gt;P: cancelar(reservas)
+        P--&gt;&gt;CK: reservas liberadas
+    end
+    CK--&gt;&gt;UI: resultado
+    UI--&gt;&gt;C: confirmação na tela
+</pre></div>
   </div>
-  <p class="ah-diagram-cap">O <code>opt</code> marca o passo que pode não acontecer. O <code>alt</code> separa o caminho feliz da recusa. A autenticação não tem fragmento: é obrigatória e acontece sempre.</p>
+</section>
+<section id="s-java" data-toc="Implementação em Java: cada mensagem é uma chamada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-emerald-400 mr-2"></i>Implementação em Java: cada mensagem é uma chamada</h2>
+  <div class="ah-prose">
 
-  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — o que a sequência revela</h3>
-  <p class="ah-prose text-sm">A cobrança acontece <em>depois</em> da validação do cupom. Se a ordem estivesse invertida, o cliente poderia ser cobrado pelo valor sem desconto e receber o reembolso depois. A sequência torna essa dependência visível antes de qualquer código.</p>
+<p>Cada mensagem da sequência vira uma chamada de método. Cada barra de ativação vira o tempo em que o método está na pilha. Para tornar isso visível, o programa imprime a mensagem com recuo igual à profundidade da pilha: o que você vê na saída é uma barra de ativação em forma de texto.</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>No diagrama</th><th>Em Java</th></tr></thead>
+<tbody>
+<tr><td>mensagem síncrona</td><td><code>chamada(de, para, texto, () -&gt; { ... })</code>: o corpo roda antes de voltar</td></tr>
+<tr><td>mensagem de retorno</td><td><code>retorno(de, para, valor)</code></td></tr>
+<tr><td><code>opt</code></td><td><code>if (comCupom) { ... }</code></td></tr>
+<tr><td><code>loop</code></td><td><code>for (String item : itens) { ... }</code></td></tr>
+<tr><td><code>alt</code></td><td><code>if (aprovado) { ... } else { ... }</code></td></tr>
+<tr><td><code>ref</code></td><td>um rótulo <code>[ref: Autenticação]</code> numa chamada que representa outro cenário</td></tr>
+</tbody></table></div>
+<p class="mt-4">Passo a passo animado sobre o método <code>checkout</code>. Cada passo destaca o fragmento que está sendo executado e mostra quais participantes estão ativos.</p>
 
-  <div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro típico:</strong> usar <code>opt</code> para tudo. Se a autenticação fosse opcional, a sequência estaria escondendo uma falha de segurança. Fragmento opcional deve significar opcional de verdade.</div></div>
+  </div>
+</section>
+<section id="s-executavel" data-toc="Exemplo executável: a sequência em texto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-play text-emerald-400 mr-2"></i>Exemplo executável: a sequência em texto</h2>
+  <div class="ah-prose">
+
+<p>A saída é a sequência real de mensagens, numeradas, com o recuo mostrando quem chamou quem. Confira no cenário A que a validação do cupom aparece antes da reserva, porque é essa a ordem do código; e no cenário B que a recusa do cartão dispara o cancelamento das reservas.</p>
+<div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>static void checkout(boolean comCupom, boolean aprovado, List2 itens) {
+    chamada(&quot;Cliente&quot;, &quot;Interface&quot;, &quot;finalizar compra&quot;, () -&gt;
+    chamada(&quot;Interface&quot;, &quot;Checkout&quot;, &quot;iniciar(carrinho)&quot;, () -&gt; {
+
+        // ref: a autenticação é um cenário reaproveitado (aparece em outros diagramas)
+        chamada(&quot;Checkout&quot;, &quot;Sessao&quot;, &quot;autenticar()  [ref: Autenticação]&quot;, () -&gt;
+                retorno(&quot;Sessao&quot;, &quot;Checkout&quot;, &quot;usuário válido&quot;));
+
+        // opt: o cupom só é validado se o cliente informou um
+        if (comCupom) {
+            chamada(&quot;Checkout&quot;, &quot;Cupons&quot;, &quot;validar(BEMVINDO10)&quot;, () -&gt;
+                    retorno(&quot;Cupons&quot;, &quot;Checkout&quot;, &quot;desconto de 10%&quot;));
+        }
+
+        // loop: cada item é reservado no estoque
+        for (String item : itens.valores) {
+            chamada(&quot;Checkout&quot;, &quot;Estoque&quot;, &quot;reservar(&quot; + item + &quot;)&quot;, () -&gt;
+                    retorno(&quot;Estoque&quot;, &quot;Checkout&quot;, &quot;reservado&quot;));
+        }
+
+        // alt: caminho de sucesso ou de recusa do cartão
+        chamada(&quot;Checkout&quot;, &quot;Gateway&quot;, &quot;cobrar(total)&quot;, () -&gt; {
+            if (aprovado) {
+                retorno(&quot;Gateway&quot;, &quot;Checkout&quot;, &quot;aprovado&quot;);
+                chamada(&quot;Checkout&quot;, &quot;Pedidos&quot;, &quot;criar(pedido)&quot;, () -&gt;
+                        retorno(&quot;Pedidos&quot;, &quot;Checkout&quot;, &quot;pedido P-2001&quot;));
+            } else {
+                retorno(&quot;Gateway&quot;, &quot;Checkout&quot;, &quot;recusado&quot;);
+                chamada(&quot;Checkout&quot;, &quot;Pedidos&quot;, &quot;cancelar(reservas)&quot;, () -&gt;
+                        retorno(&quot;Pedidos&quot;, &quot;Checkout&quot;, &quot;reservas liberadas&quot;));
+            }
+        });
+        retorno(&quot;Checkout&quot;, &quot;Interface&quot;, aprovado ? &quot;pedido concluído&quot; : &quot;pagamento recusado&quot;);
+    }));
+    retorno(&quot;Interface&quot;, &quot;Cliente&quot;, aprovado ? &quot;confirmação na tela&quot; : &quot;tente outro cartão&quot;);
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 0, "titulo": "Entrada do cenário", "texto": "O método recebe duas escolhas (cupom e aprovação) e a lista de itens. As escolhas decidem quais fragmentos ativar.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa \">Cliente</span><span class=\"ah-caixa \">Interface</span><span class=\"ah-caixa \">Checkout</span><span class=\"ah-caixa \">Gateway</span></div>"}, {"linha": 1, "titulo": "Mensagem 1: o cliente finaliza", "texto": "A primeira chamada abre a barra de ativação da interface. Tudo que vier depois acontece dentro dela.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">Cliente</span><span class=\"ah-caixa on\">Interface</span><span class=\"ah-caixa \">Checkout</span><span class=\"ah-caixa \">Gateway</span></div>"}, {"linha": 5, "titulo": "Fragmento ref", "texto": "A autenticação é outra interação, reaproveitada. No código, é uma chamada com o rótulo <code>[ref]</code>.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">Interface</span><span class=\"ah-caixa on\">Checkout</span><span class=\"ah-caixa on\">Sessao</span></div>"}, {"linha": 9, "titulo": "Fragmento opt", "texto": "O cupom é validado só se o cliente informou um. Se não informou, a sequência pula este bloco inteiro.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">Checkout</span><span class=\"ah-caixa on\">Cupons</span><span class=\"ah-caixa \">ou pula</span></div>"}, {"linha": 15, "titulo": "Fragmento loop", "texto": "O mesmo bloco se repete para cada item. Com dois itens, o <code>Estoque</code> recebe duas mensagens.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">Checkout</span><span class=\"ah-caixa on\">Estoque</span><span class=\"ah-caixa \">× n itens</span></div>"}, {"linha": 22, "titulo": "Fragmento alt", "texto": "Aqui a sequência se divide. Cada ramo tem suas próprias mensagens, e só um deles acontece por execução.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">Gateway</span><span class=\"ah-caixa ok\">aprovado</span><span class=\"ah-caixa erro\">ou recusado</span></div>"}, {"linha": 34, "titulo": "Retorno final", "texto": "As barras de ativação se fecham de dentro para fora, como uma pilha. A última linha devolve a confirmação ao cliente.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">Interface</span><span class=\"ah-caixa ok\">Cliente</span></div>"}]</script>
+</div><div class="ah-card p-5 mt-5">
+  <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Programa completo: dois cenários do checkout</div>
+  <p class="text-sm text-slate-300 mb-3">Cenário A: com cupom, cartão aprovado, dois itens. Cenário B: sem cupom, cartão recusado, um item. A numeração é a ordem real das mensagens, e o recuo mostra a pilha de chamadas.</p>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">Como executar</div>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/diagramas/sequencia
+javac -Xlint:all -d out Main.java
+java -cp out Main</code></pre>
+  <div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-4 mb-2">Saída real</div>
+<pre class="ah-code"><code>== Cenário A: com cupom, cartão aprovado
+1: Cliente -&gt; Interface: finalizar compra
+  2: Interface -&gt; Checkout: iniciar(carrinho)
+    3: Checkout -&gt; Sessao: autenticar()  [ref: Autenticação]
+      4: Sessao --&gt; Checkout: usuário válido
+    5: Checkout -&gt; Cupons: validar(BEMVINDO10)
+      6: Cupons --&gt; Checkout: desconto de 10%
+    7: Checkout -&gt; Estoque: reservar(FONE-01)
+      8: Estoque --&gt; Checkout: reservado
+    9: Checkout -&gt; Estoque: reservar(CAPA-07)
+      10: Estoque --&gt; Checkout: reservado
+    11: Checkout -&gt; Gateway: cobrar(total)
+      12: Gateway --&gt; Checkout: aprovado
+      13: Checkout -&gt; Pedidos: criar(pedido)
+        14: Pedidos --&gt; Checkout: pedido P-2001
+    15: Checkout --&gt; Interface: pedido concluído
+16: Interface --&gt; Cliente: confirmação na tela
+
+== Cenário B: sem cupom, cartão recusado
+1: Cliente -&gt; Interface: finalizar compra
+  2: Interface -&gt; Checkout: iniciar(carrinho)
+    3: Checkout -&gt; Sessao: autenticar()  [ref: Autenticação]
+      4: Sessao --&gt; Checkout: usuário válido
+    5: Checkout -&gt; Estoque: reservar(CABO-02)
+      6: Estoque --&gt; Checkout: reservado
+    7: Checkout -&gt; Gateway: cobrar(total)
+      8: Gateway --&gt; Checkout: recusado
+      9: Checkout -&gt; Pedidos: cancelar(reservas)
+        10: Pedidos --&gt; Checkout: reservas liberadas
+    11: Checkout --&gt; Interface: pagamento recusado
+12: Interface --&gt; Cliente: tente outro cartão</code></pre>
+  <details class="ah-card p-5 mt-4"><summary class="cursor-pointer text-sm font-semibold text-white">Ver o código completo (sequencia/Main.java)</summary>
+<pre class="ah-code mt-3"><code>/**
+ * Diagrama de sequência em Java: o checkout de uma loja.
+ * Cada chamada vira uma mensagem numerada. O recuo mostra a barra de ativação (a pilha de chamadas).
+ * Fragmentos: opt (cupom opcional), alt (aprovado ou recusado), loop (reservar cada item), ref (autenticação).
+ */
+public class Main {
+
+    static int passo = 0;
+    static int profundidade = 0;
+
+    /** Mensagem síncrona: o emissor espera a execução do corpo (barra de ativação). */
+    static void chamada(String de, String para, String texto, Runnable corpo) {
+        passo++;
+        System.out.println(&quot;  &quot;.repeat(profundidade) + passo + &quot;: &quot; + de + &quot; -&gt; &quot; + para + &quot;: &quot; + texto);
+        profundidade++;
+        corpo.run();
+        profundidade--;
+    }
+
+    /** Mensagem de retorno: linha tracejada no diagrama. */
+    static void retorno(String de, String para, String valor) {
+        passo++;
+        System.out.println(&quot;  &quot;.repeat(profundidade) + passo + &quot;: &quot; + de + &quot; --&gt; &quot; + para + &quot;: &quot; + valor);
+    }
+
+    static void checkout(boolean comCupom, boolean aprovado, List2 itens) {
+        chamada(&quot;Cliente&quot;, &quot;Interface&quot;, &quot;finalizar compra&quot;, () -&gt;
+        chamada(&quot;Interface&quot;, &quot;Checkout&quot;, &quot;iniciar(carrinho)&quot;, () -&gt; {
+
+            // ref: a autenticação é um cenário reaproveitado (aparece em outros diagramas)
+            chamada(&quot;Checkout&quot;, &quot;Sessao&quot;, &quot;autenticar()  [ref: Autenticação]&quot;, () -&gt;
+                    retorno(&quot;Sessao&quot;, &quot;Checkout&quot;, &quot;usuário válido&quot;));
+
+            // opt: o cupom só é validado se o cliente informou um
+            if (comCupom) {
+                chamada(&quot;Checkout&quot;, &quot;Cupons&quot;, &quot;validar(BEMVINDO10)&quot;, () -&gt;
+                        retorno(&quot;Cupons&quot;, &quot;Checkout&quot;, &quot;desconto de 10%&quot;));
+            }
+
+            // loop: cada item é reservado no estoque
+            for (String item : itens.valores) {
+                chamada(&quot;Checkout&quot;, &quot;Estoque&quot;, &quot;reservar(&quot; + item + &quot;)&quot;, () -&gt;
+                        retorno(&quot;Estoque&quot;, &quot;Checkout&quot;, &quot;reservado&quot;));
+            }
+
+            // alt: caminho de sucesso ou de recusa do cartão
+            chamada(&quot;Checkout&quot;, &quot;Gateway&quot;, &quot;cobrar(total)&quot;, () -&gt; {
+                if (aprovado) {
+                    retorno(&quot;Gateway&quot;, &quot;Checkout&quot;, &quot;aprovado&quot;);
+                    chamada(&quot;Checkout&quot;, &quot;Pedidos&quot;, &quot;criar(pedido)&quot;, () -&gt;
+                            retorno(&quot;Pedidos&quot;, &quot;Checkout&quot;, &quot;pedido P-2001&quot;));
+                } else {
+                    retorno(&quot;Gateway&quot;, &quot;Checkout&quot;, &quot;recusado&quot;);
+                    chamada(&quot;Checkout&quot;, &quot;Pedidos&quot;, &quot;cancelar(reservas)&quot;, () -&gt;
+                            retorno(&quot;Pedidos&quot;, &quot;Checkout&quot;, &quot;reservas liberadas&quot;));
+                }
+            });
+            retorno(&quot;Checkout&quot;, &quot;Interface&quot;, aprovado ? &quot;pedido concluído&quot; : &quot;pagamento recusado&quot;);
+        }));
+        retorno(&quot;Interface&quot;, &quot;Cliente&quot;, aprovado ? &quot;confirmação na tela&quot; : &quot;tente outro cartão&quot;);
+    }
+
+    /** Pequeno invólucro para passar a lista de itens como um valor simples. */
+    static final class List2 {
+        final java.util.List&lt;String&gt; valores;
+        List2(String... v) { valores = java.util.List.of(v); }
+    }
+
+    public static void main(String[] args) {
+        java.util.Locale.setDefault(java.util.Locale.ROOT);   // saída igual em qualquer máquina
+        System.out.println(&quot;== Cenário A: com cupom, cartão aprovado&quot;);
+        passo = 0; profundidade = 0;
+        checkout(true, true, new List2(&quot;FONE-01&quot;, &quot;CAPA-07&quot;));
+
+        System.out.println(&quot;\n== Cenário B: sem cupom, cartão recusado&quot;);
+        passo = 0; profundidade = 0;
+        checkout(false, false, new List2(&quot;CABO-02&quot;));
+    }
+}
+</code></pre></details>
+</div>
+  </div>
+</section>
+<section id="s-mercado" data-toc="No mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-emerald-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+
+<p>Diagramas de sequência estão no centro de duas práticas que as equipes de software usam todos os dias:</p>
+<ul class="list-disc pl-5 space-y-3">
+<li><strong>Rastreamento distribuído.</strong> Em sistemas com vários serviços, uma requisição passa por muitos componentes. O OpenTelemetry (documentação em opentelemetry.io, seção de <em>traces</em>) registra cada chamada como um <em>span</em>, com início, fim e relação de pai e filho. Um trace visualizado numa ferramenta de observabilidade é, na prática, um diagrama de sequência real, medido em milissegundos.</li>
+<li><strong>Contratos de integração.</strong> Quando dois times precisam combinar uma API, a sequência esperada (quem chama, o que espera de volta, o que acontece em caso de erro) é uma das formas mais claras de registrar o acordo. Hohpe e Woolf (2003, <em>Enterprise Integration Patterns</em>, Addison-Wesley) catalogam padrões de mensagens que aparecem exatamente nessas sequências.</li>
+<li><strong>Revisões de arquitetura.</strong> Em design reviews, a sequência do caminho feliz e dos caminhos de erro é desenhada antes do código. Quem revisa procura, principalmente, mensagens sem resposta, chamadas que se repetem sem limite e ordens que causam inconsistência.</li>
+<li><strong>Testes de interação.</strong> Fowler (2007, <em>Mocks Aren't Stubs</em>) discute testes que verificam a <em>sequência de chamadas</em> e não só o resultado final. É a versão em código do diagrama de sequência.</li>
+</ul>
+<div class="ah-callout ah-callout-info mt-4"><i class="fa-solid fa-circle-info"></i><div><strong>Atenção:</strong> os usos descritos são práticas comuns da área, e não processos internos de empresas específicas.</div></div>
+
+  </div>
+</section>
+<section id="s-erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-emerald-400 mr-2"></i>Erros comuns</h2>
+  <div class="ah-prose">
+
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>Mensagem sem retorno quando há resposta.</strong> Se o método devolve um valor usado depois, o retorno deve aparecer, ou o leitor não sabe de onde veio o dado.</li>
+<li><strong>Ordem invertida entre verificação e ação.</strong> Debitar antes de verificar o saldo é o erro mais grave que a sequência pode esconder se for desenhada sem cuidado.</li>
+<li><strong><code>opt</code> para tudo.</strong> Fragmento opcional deve ser opcional de verdade.</li>
+<li><strong>Diagrama com todos os caminhos misturados.</strong> Um <code>alt</code> com cinco ramos costuma indicar que a interação deveria ser dividida em duas, com um <code>ref</code> entre elas.</li>
+</ul>
+
+  </div>
+</section>
+<section id="s-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios com gabarito</h2>
+  <div class="ah-prose">
+
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. Desenhe a sequência de um login com senha errada seguida de senha certa, com bloqueio após três tentativas.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> use um <code>loop</code> com limite de três tentativas; dentro dele, um <code>alt</code> (senha certa: sessão criada; senha errada: contador incrementado). Se o contador chegar a três, um <code>alt</code> externo leva a “conta bloqueada”. Mostre a mensagem de retorno de cada tentativa.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">2. No checkout, a reserva de estoque acontece antes da cobrança. Qual o risco se o cartão for recusado, e como a sequência deve tratá-lo?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> o estoque fica reservado sem venda. A sequência precisa de um caminho de compensação (<code>cancelar(reservas)</code> no ramo recusado), como o programa mostra no cenário B.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">3. Por que o retorno “pedido criado” aparece depois do retorno do gateway, e não antes?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Gabarito:</strong> porque a criação do pedido depende da aprovação. A ordem das mensagens é a ordem de dependência: uma mensagem que precisa de um resultado só pode vir depois dele.</p></div></details>
+
+  </div>
+</section>
+<section id="s-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Referências acadêmicas</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li>BOOCH, G.; RUMBAUGH, J.; JACOBSON, I. <em>The Unified Modeling Language User Guide</em>. Addison-Wesley, 1999.</li>
+<li>LARMAN, C. <em>Utilizando UML e padrões</em>, 3ª edição. Bookman, 2007.</li>
+<li>FOWLER, M. <em>UML Distilled</em>, 3ª edição. Addison-Wesley, 2004.</li>
+<li>HOHPE, G.; WOOLF, B. <em>Enterprise Integration Patterns</em>. Addison-Wesley, 2003.</li>
+<li>OMG. <em>UML 2.5.1 Specification</em> (capítulo Interactions): https://www.omg.org/spec/UML/2.5.1/</li>
+</ul>
+<h3 class="ah-h3 mt-4 mb-2">Mercado e documentação técnica</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li>OpenTelemetry. <em>Traces</em>: https://opentelemetry.io/docs/concepts/signals/traces/</li>
+<li>Mermaid. <em>Sintaxe de diagramas de sequência</em>: https://mermaid.js.org/syntax/sequenceDiagram.html</li>
+<li>Fowler, M. <em>Mocks Aren't Stubs</em> (2007): https://martinfowler.com/articles/mocksArentStubs.html</li>
+</ul>
+
+  </div>
 </section>
 <!-- APROF2:FIM -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
