@@ -1,5 +1,6 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>IA no Ciclo Inteiro</title>
+<link rel="stylesheet" href="../../../assets/css/ia-software.css">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -472,27 +473,16 @@ html{scroll-behavior:smooth}
       <li><strong>É otimizado para plausibilidade, não para verdade.</strong> Quando falta informação, o caminho mais provável é preencher a lacuna com algo que parece certo: uma API inexistente, um parâmetro inventado, um preço desatualizado. É a <em>alucinação</em>, e ela só se combate com verificação externa.</li>
     </ol>
 
+    <h3>Veja por dentro: escolhendo a próxima palavra</h3><p>A ideia de prever a próxima palavra é antiga. Shannon (1948), no artigo que fundou a teoria da informação, já mostrava que é possível gerar texto parecido com o inglês sorteando cada letra a partir das anteriores. Bengio et al. (2003) usaram redes neurais para isso, e os LLMs atuais levam a mesma ideia a uma escala enorme (BROWN et al., 2020).</p><p>O ponto que mais importa para nós é o <strong>sorteio</strong>. O modelo não escolhe sempre a palavra mais provável: ele sorteia de acordo com as probabilidades, e um parâmetro chamado <strong>temperatura</strong> controla o quanto arrisca. Holtzman et al. (2020) mostraram que esse sorteio é necessário para o texto não ficar repetitivo, e é também por isso que a mesma pergunta pode ter respostas diferentes.</p></div>
+<div class="ias" data-ias="token"><div class="ias-hd"><b>Escolha da próxima palavra</b><span class="tag">Interativo</span><small>O modelo precisa completar um comando da AWS CLI. Mude a temperatura e sorteie: repare quantas vezes ele escolhe um comando que parece certo, mas não existe.</small></div><script type="application/json">{"prompt": "Para listar os buckets com a AWS CLI, use o comando: aws s3", "cands": [{"t": "ls", "l": 3.0, "nota": "Correto: <code>aws s3 ls<\/code> lista os buckets."}, {"t": "list-buckets", "l": 2.1, "errado": true, "nota": "Plausível, mas errado: <code>list-buckets<\/code> existe em <code>aws s3api<\/code>, não em <code>aws s3<\/code>. É uma alucinação típica."}, {"t": "list", "l": 1.2, "errado": true, "nota": "Não existe. Soa natural, por isso tem probabilidade."}, {"t": "show-buckets", "l": 0.5, "errado": true, "nota": "Não existe. Só um sorteio com temperatura alta chega aqui."}, {"t": "buckets", "l": 0.2, "errado": true, "nota": "Não existe."}]}</script></div>
+<div class="read">
     <h3>Do modelo ao agente</h3>
     <p>Um <strong>assistente</strong> devolve texto, e uma pessoa decide o que fazer com ele. Um <strong>agente</strong> é o mesmo modelo colocado num laço com ferramentas: lê o contexto, planeja, chama uma ferramenta (terminal, git, API da AWS), observa o resultado e decide o próximo passo. Mais autonomia significa também mais alcance: o agente pode fazer tudo o que as credenciais dele permitirem.</p>
   </div>
 
-  <figure class="fig">
-    <svg viewBox="0 0 760 196" role="img" aria-label="Laço de um agente: contexto, modelo, ferramenta e verificação, com o resultado voltando como contexto">
-      <style>.bx{fill:var(--sunk);stroke:var(--line);stroke-width:1.2}.bx.v{fill:var(--accent-soft);stroke:var(--accent)}.bx.t{fill:var(--amber-soft);stroke:var(--amber)}.t1{fill:var(--fg);font:700 15px var(--display)}.t2{fill:var(--muted);font:12.5px var(--body)}.ar{stroke:var(--muted);stroke-width:1.6;fill:none}.ah{fill:var(--muted)}</style>
-      <defs><marker id="ahd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs>
-      <rect class="bx" x="10" y="20" width="170" height="72" rx="10"/><text class="t1" x="26" y="50">1. Contexto</text><text class="t2" x="26" y="72">pedido, código, regras</text>
-      <rect class="bx" x="200" y="20" width="170" height="72" rx="10"/><text class="t1" x="216" y="50">2. Modelo</text><text class="t2" x="216" y="72">planeja o próximo passo</text>
-      <rect class="bx t" x="390" y="20" width="170" height="72" rx="10"/><text class="t1" x="406" y="50">3. Ferramenta</text><text class="t2" x="406" y="72">terminal, git, AWS</text>
-      <rect class="bx v" x="580" y="20" width="170" height="72" rx="10"/><text class="t1" x="596" y="50">4. Verificação</text><text class="t2" x="596" y="72">teste, lint, pessoa</text>
-      <path class="ar" d="M180,56H197" marker-end="url(#ahd)"/>
-      <path class="ar" d="M370,56H387" marker-end="url(#ahd)"/>
-      <path class="ar" d="M560,56H577" marker-end="url(#ahd)"/>
-      <path class="ar" d="M665,92V140H95V95" marker-end="url(#ahd)"/>
-      <text class="t2" x="380" y="164" text-anchor="middle">o resultado (ou o erro) volta para o contexto e o laço recomeça</text>
-      <text class="t2" x="380" y="184" text-anchor="middle">o alcance da etapa 3 é definido pelas credenciais, não pelo prompt</text>
-    </svg>
-    <figcaption>O laço de um agente. Na migração da Airbnb, o erro de teste e de compilação voltava ao modelo a cada volta. No acidente da Replit, a etapa 3 alcançava o banco de produção. A diferença entre os dois casos está nas etapas 3 e 4, não no modelo.</figcaption>
-  </figure>
+  
+<div class="ias ias-show" data-ias="show"><div class="ias-hd"><b>O laço de um agente, passo a passo</b><span class="tag">Apresentação animada</span><small>Avance pelos passos ou clique em "Apresentar" para ver o laço animado.</small></div><div class="ias-stage"><svg viewBox="0 0 760 196" role="img" aria-label="Laço de um agente: contexto, modelo, ferramenta e verificação"><style>.bx{fill:var(--sunk);stroke:var(--line);stroke-width:1.2}.bx.h{fill:var(--accent-soft);stroke:var(--accent)}.bx.g{fill:var(--amber-soft);stroke:var(--amber)}.t1{fill:var(--fg);font:700 14px var(--display)}.t2{fill:var(--muted);font:12px var(--body)}.ar{stroke:var(--muted);stroke-width:1.6;fill:none}.ah{fill:var(--muted)}.ar.r{stroke:var(--red);stroke-dasharray:5 4}</style><defs><marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs><g data-k="ctx"><rect class="bx " x="10" y="20" width="170" height="72" rx="10"/><text class="t1" x="24" y="47">1. Contexto</text><text class="t2" x="24" y="68">pedido, código, regras</text></g><g data-k="mod"><rect class="bx " x="200" y="20" width="170" height="72" rx="10"/><text class="t1" x="214" y="47">2. Modelo</text><text class="t2" x="214" y="68">planeja o próximo passo</text></g><g data-k="fer"><rect class="bx g" x="390" y="20" width="170" height="72" rx="10"/><text class="t1" x="404" y="47">3. Ferramenta</text><text class="t2" x="404" y="68">terminal, git, AWS</text></g><g data-k="ver"><rect class="bx h" x="580" y="20" width="170" height="72" rx="10"/><text class="t1" x="594" y="47">4. Verificação</text><text class="t2" x="594" y="68">teste, lint, pessoa</text></g><path class="ar" d="M180,56H197" marker-end="url(#aha)"/><path class="ar" d="M370,56H387" marker-end="url(#aha)"/><path class="ar" d="M560,56H577" marker-end="url(#aha)"/><g data-k="loop"><path class="ar" d="M665,92V140H95V95" marker-end="url(#aha)"/><text class="t2" x="380" y="164" text-anchor="middle">o resultado (ou o erro) volta para o contexto e o laço recomeça</text></g><text class="t2" x="380" y="186" text-anchor="middle">o alcance da etapa 3 é definido pelas credenciais, não pelo prompt</text></svg></div><p class="ias-note">Na migração da Airbnb, o laço funcionou porque a etapa 4 era forte. No acidente da Replit, falhou porque a etapa 3 alcançava demais.</p><script type="application/json">{"passos": [{"t": "1. Contexto", "d": "O agente recebe o pedido e tudo o que estiver no contexto: arquivos abertos, regras do projeto, resultados anteriores. O que não está aqui não existe para ele.", "on": ["ctx"]}, {"t": "2. O modelo planeja", "d": "O LLM decide o próximo passo, por exemplo \"rodar os testes para ver o que falha\". Ele escolhe o caminho mais provável, não o comprovadamente certo.", "on": ["mod"]}, {"t": "3. A ferramenta age", "d": "O agente executa: roda um comando, edita um arquivo, chama uma API da AWS (YAO et al., 2023). O que ele consegue fazer aqui depende só das credenciais que tem.", "on": ["fer"]}, {"t": "4. Verificação", "d": "Testes, lint, compilador ou uma pessoa conferem o resultado. É o passo que transforma um palpite em algo confiável.", "on": ["ver"]}, {"t": "5. O laço recomeça", "d": "O resultado, inclusive o erro, volta para o contexto. Foi assim que a Airbnb migrou 3.500 arquivos de teste: o erro voltava ao modelo até o teste passar.", "on": ["loop", "ctx"]}, {"t": "Onde mora o risco", "d": "No caso Replit, a etapa 3 alcançava o banco de produção. Nenhuma instrução no prompt impede o que a credencial permite. Guarde: <strong>o controle está nas etapas 3 e 4</strong>.", "on": ["fer", "ver"]}]}</script></div>
+
 
   <div class="read"><h3>Das propriedades às práticas</h3></div>
   <div class="tw"><table>
@@ -565,6 +555,10 @@ html{scroll-behavior:smooth}
       <p>Vários desses estudos têm amostras pequenas ou autodeclaradas, e as ferramentas evoluem a cada trimestre. Use os números para mostrar a <strong>direção</strong> (ganho real, perdido no sistema) e não como verdade fixa. Reconhecer essas limitações em voz alta, numa aula ou numa reunião, é sinal de quem entende do assunto, não de quem duvida dele.</p>
     </div>
   </div>
+<div class="read"><h3>A fronteira irregular</h3><p>Outras áreas já mediram o efeito da IA generativa com experimentos sérios, e os resultados ajudam a entender o nosso. Noy e Zhang (2023), na revista <em>Science</em>, observaram profissionais escrevendo textos de trabalho: com IA, o tempo caiu cerca de 40% e a qualidade subiu. Brynjolfsson, Li e Raymond (2025), com mais de 5 mil atendentes de suporte, mediram 14% mais casos resolvidos por hora, com ganho muito maior para os iniciantes.</p><p>O estudo mais útil para nós é o de Dell'Acqua et al. (2023), com 758 consultores do BCG. Em tarefas <strong>dentro</strong> do que a IA sabe fazer bem, quem usou IA terminou mais tarefas, mais rápido e com mais qualidade. Numa tarefa que parecia igual, mas estava <strong>fora</strong> dessa fronteira, quem usou IA acertou bem <em>menos</em> do que quem trabalhou sozinho. Os autores chamaram isso de <strong>fronteira tecnológica irregular</strong>: ela não é uma linha reta, e tarefas parecidas podem estar em lados diferentes.</p></div>
+<div class="ias" data-ias="classify"><div class="ias-hd"><b>Dentro ou fora da fronteira?</b><span class="tag">Interativo</span><small>Para cada tarefa de engenharia, decida se ela está dentro da fronteira (a IA ajuda) ou fora (sem verificação forte, a IA tende a atrapalhar).</small></div><script type="application/json">{"cats": [{"id": "d", "nome": "Dentro: a IA ajuda"}, {"id": "f", "nome": "Fora: risco de piorar"}], "itens": [{"t": "Migrar 300 arquivos de teste de uma biblioteca para outra, com os testes rodando a cada passo.", "c": "d", "e": "Trabalho mecânico com juiz automático: o caso clássico dos ganhos documentados."}, {"t": "Decidir se o sistema deve sair de EC2 para ECS, considerando custo, equipe e prazo.", "c": "f", "e": "Decisão com contexto que o modelo não vê (pessoas, orçamento, histórico). A IA pode listar opções; decidir fica fora da fronteira."}, {"t": "Escrever o resumo de um incidente a partir dos logs e do chat da equipe.", "c": "d", "e": "Resumir texto que está no contexto é um ponto forte, e a equipe confere o resultado."}, {"t": "Diagnosticar sozinha um bug de concorrência que só aparece com duas instâncias em produção.", "c": "f", "e": "Parece \"só depurar\", mas depende de comportamento que não está no código lido. É o tipo de tarefa em que a IA soa segura e erra."}, {"t": "Gerar a massa de dados de teste para o módulo de reservas.", "c": "d", "e": "Tarefa delimitada e fácil de conferir."}, {"t": "Informar o preço atual de um serviço da AWS sem consultar a página de preços.", "c": "f", "e": "Preços mudam depois da data de corte do modelo. Sem a fonte no contexto, é palpite."}]}</script></div>
+<div class="read"><h3>O ciclo de expectativas</h3><p>Fenn e Raskino (2008), analistas do Gartner, descreveram o padrão que quase toda tecnologia nova percorre: um gatilho, um pico de expectativas exageradas, uma queda para o "vale da desilusão" e, só então, uma rampa até a produtividade real. Use o gráfico para ver onde a IA generativa esteve em cada ano. As posições são aproximadas e didáticas.</p></div>
+<div class="ias" data-ias="hype"><div class="ias-hd"><b>A IA generativa no ciclo de expectativas</b><span class="tag">Interativo</span><small>Clique nos anos ou em "Animar".</small></div><script type="application/json">{"anos": [{"a": "2022", "f": 0.06, "txt": "O ChatGPT é lançado em novembro. É o gatilho: em poucas semanas, milhões de pessoas experimentam."}, {"a": "2023", "f": 0.25, "txt": "Pico das expectativas: promessas de que a IA vai escrever todo o software, empresas correndo para \"fazer algo com IA\"."}, {"a": "2024", "f": 0.42, "txt": "Começa a queda: os primeiros pilotos não mostram retorno, e aparecem os problemas de segurança e de qualidade."}, {"a": "2025", "f": 0.53, "txt": "Vale da desilusão para a IA generativa, segundo o próprio Gartner. Ao mesmo tempo, as práticas de engenharia de IA começam a subir."}, {"a": "2026", "f": 0.68, "txt": "Rampa: quem entrou com método começa a colher ganhos medidos. É o momento em que critério vale mais do que entusiasmo."}]}</script></div>
 <div class="read"><div class="fixar"><span class="lbl">Para fixar</span><ul><li>Quase todos os profissionais já usam IA, mas a confiança no código gerado está caindo.</li><li>O ganho aparece na tarefa individual e se perde no resto do processo (revisão, testes, operação).</li><li>Código gerado tem problemas de segurança com frequência, e delegar tudo prejudica o aprendizado.</li><li>Use os números para entender a direção, não como verdade definitiva.</li></ul></div></div>
 </section>
 
@@ -585,6 +579,9 @@ html{scroll-behavior:smooth}
     <h3>3. Lei de Little</h3>
     <p>Em qualquer fila estável, <code>tempo de espera = itens em andamento ÷ vazão</code>. Se o número de PRs abertos dobra e a capacidade de revisão continua igual, o tempo que cada PR espera também dobra. Por isso limitar o tamanho e a quantidade de trabalho em andamento (WIP) também é prática de IA, não só de Kanban.</p>
 
+    <h3>Veja a fila se formar</h3><p>A Lei de Little foi provada por John Little (1961) para qualquer fila estável. Reinertsen (2009) mostrou que filas invisíveis de trabalho em andamento são a maior causa de atraso no desenvolvimento de produtos. A simulação abaixo deixa a fila visível: quatro pessoas programam, cada PR espera na fila e depois é revisado.</p><p>Experimente: com dois revisores, aumente a aceleração da IA para 2× e depois para 3×. Em seguida marque "PRs ficam maiores" (o que a Faros observou na prática).</p></div>
+<div class="ias" data-ias="flow"><div class="ias-hd"><b>Simulação: o gargalo da revisão</b><span class="tag">Interativo</span><small>Cada bolinha é um PR. Mude os controles e observe a fila e a espera.</small></div><script type="application/json">{}</script></div>
+<div class="read">
     <h3>Calculadora: quanto o ciclo ganha de verdade?</h3>
     <p>Ajuste a participação de cada etapa no lead time e veja o efeito. Experimente o cenário "Paradoxo da Faros".</p>
   </div>
@@ -1208,7 +1205,9 @@ html{scroll-behavior:smooth}
     <div class="explica"><span class="lbl">Explicando com calma</span><p>Diante de uma mudança grande, as pessoas reagem de formas diferentes, e isso é normal. Não existe o perfil "certo". O entusiasta traz energia, o cético traz cuidado, o silencioso traz observações que ninguém fez. O trabalho de quem lidera é aproveitar o melhor de cada um.</p><p>William Bridges, estudioso de transições, lembra que toda mudança passa por uma fase de desconforto, a "zona neutra", em que o jeito antigo já não serve e o novo ainda não está claro. Saber disso de antemão ajuda a equipe a atravessar essa fase sem pânico.</p></div>
   </div>
 
-  <div class="people">
+  <div class="read"><h3>A curva de adoção</h3><p>Everett Rogers (2003) estudou por décadas como inovações se espalham, de sementes agrícolas a telefones. Ele mostrou que as pessoas adotam em momentos diferentes, numa curva previsível. Davis (1989) e Venkatesh et al. (2003) mostraram que o que mais pesa na decisão de adotar uma tecnologia é a <strong>utilidade percebida</strong> e a <strong>facilidade de uso</strong>, além da influência dos colegas. Isso explica por que uma vitória pessoal pequena convence mais do que qualquer apresentação.</p></div>
+<div class="ias" data-ias="rogers"><div class="ias-hd"><b>Quem adota quando</b><span class="tag">Interativo</span><small>Clique em cada grupo da curva.</small></div><script type="application/json">{"grupos": [{"nome": "Inovadores", "pct": "2,5%", "txt": "Testam tudo assim que sai. Na equipe, é o entusiasta. Dê a ele o papel de \"batedor\": tempo para explorar e o compromisso de trazer prós, contras e números."}, {"nome": "Adotantes iniciais", "pct": "13,5%", "txt": "Adotam cedo, mas com critério, e são respeitados pelos colegas. São os melhores aliados para os primeiros pilotos e para mostrar resultados nas demos."}, {"nome": "Maioria inicial", "pct": "34%", "txt": "Adotam quando veem que funciona com gente parecida com eles. Precisam de exemplos concretos do próprio projeto, não de promessas."}, {"nome": "Maioria tardia", "pct": "34%", "txt": "Céticos, adotam quando a prática já virou norma. Muitas vezes são os experientes que já viram outras ondas. Peça que desenhem as guardas e os critérios de parada."}, {"nome": "Retardatários", "pct": "16%", "txt": "Resistem até o fim, às vezes por medo pela carreira. Precisam de conversa individual e honesta, nunca de exposição pública ou ameaça."}]}</script></div>
+<div class="people">
     <div class="person"><h4>O entusiasta <span class="tag t-strong">aliado</span></h4><dl>
       <dt>O que sente</dt><dd>Quer testar tudo agora, vê cada ferramenta nova como solução.</dd>
       <dt>Risco</dt><dd>Abrir 10 frentes, nenhuma medida; agente com permissão demais.</dd>
@@ -1382,7 +1381,9 @@ html{scroll-behavior:smooth}
     <div class="rung top"><div class="lv">4</div><div class="tx"><b>Executa sozinho, dentro de limites.</b> Só para ações reversíveis, de baixo impacto, com trilha de auditoria e alarme (ex.: reiniciar um worker travado). Revisão mensal.</div></div>
   </div>
 
-  <div class="read">
+  
+<div class="ias" data-ias="classify"><div class="ias-hd"><b>Pratique: em que degrau fica cada ação?</b><span class="tag">Interativo</span><small>Escolha o nível da escada de autonomia adequado para cada situação.</small></div><script type="application/json">{"cats": [{"id": "0", "nome": "Nível 0"}, {"id": "1", "nome": "Nível 1"}, {"id": "2", "nome": "Nível 2"}, {"id": "3", "nome": "Nível 3"}, {"id": "4", "nome": "Nível 4"}], "itens": [{"t": "O agente lê e resume os logs de um incidente, sem alterar nada.", "c": "0", "e": "Só consulta. Pode ser livre para todos."}, {"t": "A IA propõe a correção de uma query; a pessoa revisa e aplica no PR.", "c": "1", "e": "A IA sugere, a pessoa aplica: o padrão para a maioria dos casos."}, {"t": "O agente roda testes e abre PR num ambiente sem credencial de produção.", "c": "2", "e": "Executa, mas num ambiente isolado. O pior erro possível fica contido."}, {"t": "O agente prepara o change set de produção e espera a aprovação de alguém.", "c": "3", "e": "Prepara em produção; uma pessoa aprova cada execução."}, {"t": "Um runbook automático reinicia um worker travado e registra a ação.", "c": "4", "e": "Ação reversível, de baixo impacto, com trilha de auditoria: o caso típico do nível 4."}, {"t": "O agente quer alterar sozinho a configuração de rede de produção.", "c": "3", "e": "No máximo nível 3. Mudança de rede afeta tudo e não é facilmente reversível; precisa de aprovação humana."}]}</script></div>
+<div class="read">
     <h3>Proposta de política (rascunho para o time)</h3>
     <div class="tw"><table style="min-width:520px">
       <thead><tr><th>Tema</th><th>Regra</th></tr></thead>
@@ -1700,7 +1701,7 @@ html{scroll-behavior:smooth}
 <section id="fontes">
   <div class="read">
     <span class="eyebrow">Referências</span>
-    <h2>Fontes consultadas</h2>
+    <h2>Fontes e referências</h2>
     <p>Pesquisa feita em outubro de 2026. Alguns números vêm de resumos de imprensa especializada; antes de usar um número em apresentação formal, confira no relatório original.</p>
   </div>
   <ul class="src-list">
@@ -1762,7 +1763,30 @@ html{scroll-behavior:smooth}
     <li><a href="https://infoq.com/news/2026/03/ai-dora-report/" target="_blank" rel="noopener">InfoQ · DORA e comunidades de prática</a></li>
     <li><a href="https://tech.autoscout24.com/blog/posts/the-ai-champions-network/" target="_blank" rel="noopener">AutoScout24 · Rede de AI Champions</a></li>
   </ul>
-  <footer>Material de aula magna sobre adoção de IA em engenharia, DevOps e FinOps. Os quadros "No caso-guia" usam situações típicas de um SaaS de gestão de condomínios como exemplo didático.<a class="nextl" href="02-engenharia-software-ia-juntas.html">Próxima aula: Engenharia de Software e IA trabalhando juntas →</a></footer>
+  <div class="read"><h3>Referências acadêmicas citadas nesta aula</h3><ul class="refs">
+<li>AMDAHL, G. M. Validity of the Single Processor Approach to Achieving Large Scale Computing Capabilities. In: <em>AFIPS Spring Joint Computer Conference</em>, 1967. p. 483-485.</li>
+<li>BENGIO, Y. et al. A Neural Probabilistic Language Model. <em>Journal of Machine Learning Research</em>, v. 3, p. 1137-1155, 2003.</li>
+<li>BROWN, T. B. et al. Language Models are Few-Shot Learners. In: <em>NeurIPS</em>, 2020. <a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">arXiv:2005.14165</a>.</li>
+<li>BRYNJOLFSSON, E.; LI, D.; RAYMOND, L. Generative AI at Work. <em>The Quarterly Journal of Economics</em>, v. 140, n. 2, 2025.</li>
+<li>DAVIS, F. D. Perceived Usefulness, Perceived Ease of Use, and User Acceptance of Information Technology. <em>MIS Quarterly</em>, v. 13, n. 3, p. 319-340, 1989.</li>
+<li>DELL'ACQUA, F. et al. Navigating the Jagged Technological Frontier: Field Experimental Evidence of the Effects of AI on Knowledge Worker Productivity and Quality. <em>Harvard Business School Working Paper</em>, n. 24-013, 2023.</li>
+<li>EDMONDSON, A. Psychological Safety and Learning Behavior in Work Teams. <em>Administrative Science Quarterly</em>, v. 44, n. 2, p. 350-383, 1999.</li>
+<li>FENN, J.; RASKINO, M. <em>Mastering the Hype Cycle</em>: How to Choose the Right Innovation at the Right Time. Boston: Harvard Business Press, 2008.</li>
+<li>GOLDRATT, E. M.; COX, J. <em>The Goal</em>: A Process of Ongoing Improvement. Great Barrington: North River Press, 1984.</li>
+<li>HOLTZMAN, A. et al. The Curious Case of Neural Text Degeneration. In: <em>ICLR</em>, 2020. <a href="https://arxiv.org/abs/1904.09751" target="_blank" rel="noopener">arXiv:1904.09751</a>.</li>
+<li>KOTTER, J. P. <em>Leading Change</em>. Boston: Harvard Business School Press, 1996.</li>
+<li>LITTLE, J. D. C. A Proof for the Queuing Formula: L = λW. <em>Operations Research</em>, v. 9, n. 3, p. 383-387, 1961.</li>
+<li>NOY, S.; ZHANG, W. Experimental Evidence on the Productivity Effects of Generative Artificial Intelligence. <em>Science</em>, v. 381, n. 6654, p. 187-192, 2023.</li>
+<li>REINERTSEN, D. G. <em>The Principles of Product Development Flow</em>. Redondo Beach: Celeritas, 2009.</li>
+<li>ROGERS, E. M. <em>Diffusion of Innovations</em>. 5. ed. New York: Free Press, 2003.</li>
+<li>SCHEIN, E. H.; SCHEIN, P. <em>Organizational Culture and Leadership</em>. 5. ed. Hoboken: Wiley, 2017.</li>
+<li>SHANNON, C. E. A Mathematical Theory of Communication. <em>Bell System Technical Journal</em>, v. 27, n. 3, p. 379-423, 1948.</li>
+<li>STRATHERN, M. "Improving Ratings": Audit in the British University System. <em>European Review</em>, v. 5, n. 3, p. 305-321, 1997.</li>
+<li>VENKATESH, V. et al. User Acceptance of Information Technology: Toward a Unified View. <em>MIS Quarterly</em>, v. 27, n. 3, p. 425-478, 2003.</li>
+<li>WESTRUM, R. A Typology of Organisational Cultures. <em>Quality and Safety in Health Care</em>, v. 13, supl. 2, p. ii22-ii27, 2004.</li>
+<li>YAO, S. et al. ReAct: Synergizing Reasoning and Acting in Language Models. In: <em>ICLR</em>, 2023. <a href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noopener">arXiv:2210.03629</a>.</li>
+</ul></div>
+<footer>Material de aula magna sobre adoção de IA em engenharia, DevOps e FinOps. Os quadros "No caso-guia" usam situações típicas de um SaaS de gestão de condomínios como exemplo didático.<a class="nextl" href="02-engenharia-software-ia-juntas.html">Próxima aula: Engenharia de Software e IA trabalhando juntas →</a></footer>
 </section>
 
 </main>
@@ -1893,3 +1917,4 @@ html{scroll-behavior:smooth}
 </script>
 
 </body></html>
+<script src="../../../assets/js/ia-software.js"></script>
