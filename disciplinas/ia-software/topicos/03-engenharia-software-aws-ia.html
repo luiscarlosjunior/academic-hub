@@ -1,5 +1,6 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Engenharia de Software na AWS</title>
+<link rel="stylesheet" href="../../../assets/css/ia-software.css">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -439,6 +440,9 @@ pre code{font-size:inherit}
       <tr><td>Disponibilidade da infraestrutura global</td><td>O código da aplicação, as dependências e o que se envia para modelos de IA</td></tr>
     </tbody>
   </table></div>
+  
+<div class="ias" data-ias="classify"><div class="ias-hd"><b>Pratique: de quem é a responsabilidade?</b><span class="tag">Interativo</span><small>Para cada situação, decida se a responsabilidade é da AWS ou de quem usa a conta.</small></div><script type="application/json">{"cats": [{"id": "aws", "nome": "Da AWS"}, {"id": "voce", "nome": "De quem usa"}], "itens": [{"t": "O disco físico de um servidor no data center falhou.", "c": "aws", "e": "Hardware é segurança da nuvem."}, {"t": "Um bucket com fotos de encomendas ficou público por um erro de configuração.", "c": "voce", "e": "Configuração de acesso aos dados é sempre de quem usa, mesmo que gerada por IA."}, {"t": "A senha do banco foi escrita no código e publicada no repositório.", "c": "voce", "e": "Segredos e código da aplicação são do seu lado."}, {"t": "Um data center ficou sem energia.", "c": "aws", "e": "Infraestrutura física é da AWS. Desenhar o sistema para sobreviver à falha de uma zona, porém, é seu."}, {"t": "Um agente de IA com credencial de administrador apagou uma tabela.", "c": "voce", "e": "Quem tem acesso e com quais permissões é decisão de quem usa a conta."}, {"t": "O assistente respondeu a um morador com o regimento de outro condomínio.", "c": "voce", "e": "O isolamento entre clientes é lógica da sua aplicação."}]}</script></div>
+
   <div class="read">
     <div class="call warn">
       <span class="lbl">Por que isso importa para a IA</span>
@@ -575,6 +579,9 @@ pre code{font-size:inherit}
   <div class="read">
     <h3>A verificação própria da infraestrutura</h3>
     <p>A grande vantagem da IaC é que existe um oráculo forte, antes de qualquer mudança acontecer: o <strong>plano de mudança</strong>. O <code>cdk diff</code>, o <em>change set</em> do CloudFormation e o <code>terraform plan</code> mostram exatamente o que será criado, alterado ou <strong>destruído</strong>. Ler esse plano é a revisão mais importante de toda mudança de infraestrutura, e é exatamente onde a pessoa precisa estar atenta quando a IA escreveu o código.</p>
+    </div>
+<div class="ias" data-ias="diff"><div class="ias-hd"><b>Simulador: o que o plano de mudança mostra</b><span class="tag">Interativo</span><small>Marque as mudanças que a IA fez no código CDK e leia o plano antes de aplicar.</small></div><script type="application/json">{"mudancas": [{"id": "tag", "nome": "Adicionou uma tag de custo no bucket de fotos", "linha": "AWS::S3::Bucket FotosEncomendas · Tags (sem interrupção)", "efeito": "mod"}, {"id": "to", "nome": "Aumentou o timeout da Lambda para 30 s", "linha": "AWS::Lambda::Function ProcessaEtiqueta · Timeout (sem interrupção)", "efeito": "mod"}, {"id": "dlq", "nome": "Criou a fila de erro das encomendas", "linha": "AWS::SQS::Queue FilaEncomendasErro", "efeito": "add"}, {"id": "cls", "nome": "Trocou a classe da instância do banco", "linha": "AWS::RDS::DBInstance BancoReservas · DBInstanceClass (pode haver interrupção)", "efeito": "int", "nota": "Trocar a classe da instância pode reiniciar o banco: faça na janela de manutenção."}, {"id": "dbn", "nome": "Renomeou o banco (propriedade DBName)", "linha": "AWS::RDS::DBInstance BancoReservas · DBName (requires replacement)", "efeito": "rep", "dados": true, "nota": "Mudar o DBName recria a instância: o banco atual seria trocado por um novo, vazio."}, {"id": "bkt", "nome": "Mudou o nome do bucket de fotos", "linha": "AWS::S3::Bucket FotosEncomendas · BucketName (requires replacement)", "efeito": "rep", "dados": true, "nota": "Renomear o bucket cria um bucket novo; as fotos não migram sozinhas."}, {"id": "q", "nome": "Removeu do código uma fila antiga", "linha": "AWS::SQS::Queue FilaAvisosAntiga", "efeito": "del", "nota": "Remover a fila do código apaga a fila e as mensagens pendentes: confirme que está vazia e sem consumidores."}]}</script></div>
+<div class="read">
     <div class="call stop"><span class="lbl">A palavra que exige parar</span>
       <p>Se o plano de mudança mostrar <strong>replace</strong> ou <strong>delete</strong> num banco de dados, num bucket com dados ou numa rede, pare. Muitas propriedades, quando alteradas, fazem a AWS destruir o recurso e criar outro no lugar, com perda dos dados. A IA nem sempre sabe quais propriedades fazem isso; o plano sabe.</p>
     </div>
@@ -610,6 +617,9 @@ pre code{font-size:inherit}
 
     <h3>Deploy seguro: por que publicar aos poucos</h3>
     <p>Nygard (2018) lembra que sistemas em produção falham de formas que nenhum ambiente de teste reproduz. Por isso a publicação deve limitar o estrago possível: <strong>canário</strong> (uma pequena porcentagem dos usuários recebe a nova versão primeiro), <strong>blue/green</strong> (duas versões lado a lado, com troca instantânea) e <strong>reversão automática</strong> por alarme. Serviços como o CodeDeploy fazem isso para EC2, ECS e Lambda.</p>
+    <p>A expressão "canário" vem das minas de carvão, onde um passarinho avisava os mineiros do gás antes que fosse tarde. Sato (2014) popularizou o termo para a publicação de software, e Schermann et al. (2018) mostraram, estudando empresas, que esse tipo de liberação gradual faz parte da experimentação contínua em produção. Experimente abaixo: inicie o deploy e, no meio, injete um defeito.</p></div>
+<div class="ias" data-ias="canary"><div class="ias-hd"><b>Simulação: deploy canário com reversão automática</b><span class="tag">Interativo</span><small>O tráfego passa para a nova versão em etapas. Se a taxa de erro passar de 2%, o alarme dispara e o tráfego volta para a versão anterior.</small></div><script type="application/json">{}</script></div>
+<div class="read">
     <div class="ours"><b>No caso-guia</b>O runner de CI com 1 GiB de memória, em que uma formatação de código levou mais de três horas por falta de memória, e o disco cheio nos deploys foram diagnosticados rápido com IA lendo os logs. A correção, porém, passou pela esteira normal e pela revisão de uma pessoa: diagnosticar é nível baixo de risco; mudar a infraestrutura de produção, não.</div>
     <div class="fixar"><span class="lbl">Para fixar</span><ul>
       <li>Toda mudança, de pessoa ou de IA, passa pela mesma esteira: testes, segurança, plano de mudança, deploy gradual.</li>
@@ -675,6 +685,9 @@ pre code{font-size:inherit}
       <li><strong>CloudTrail:</strong> registro de toda ação na conta. Responde "quem fez isso?", inclusive quando foi um agente.</li>
       <li><strong>Proteções de recurso:</strong> proteção contra exclusão em bancos, versionamento e bloqueio de objetos em buckets críticos, backups em outra conta.</li>
     </ul>
+    <p>O princípio do menor privilégio não nasceu na nuvem. Saltzer e Schroeder (1975), num artigo clássico sobre proteção de informação, já o listavam entre os princípios de projeto de sistemas seguros: cada programa e cada usuário deve operar com o mínimo de privilégio necessário. A AWS aplica uma regra de avaliação simples: uma negação explícita sempre vence; depois, só é permitido o que foi permitido; todo o resto é negado. Veja no simulador.</p></div>
+<div class="ias" data-ias="iam"><div class="ias-hd"><b>Simulador: o crachá do agente</b><span class="tag">Interativo</span><small>Escolha a política do agente, ative ou não a SCP da organização e veja o que ele consegue fazer.</small></div><script type="application/json">{"politicas": [{"id": "adm", "nome": "Administrador", "allow": ["*"]}, {"id": "ro", "nome": "Somente leitura (ampla)", "allow": ["logs:*Get*", "logs:FilterLogEvents", "cloudwatch:Get*", "ce:Get*", "s3:Get*", "s3:List*", "rds:Describe*", "lambda:Get*"]}, {"id": "mp", "nome": "Menor privilégio (diagnóstico)", "allow": ["logs:FilterLogEvents", "cloudwatch:GetMetricData", "ce:GetCostAndUsage"]}], "scp": ["*:Delete*", "iam:CreateAccessKey"], "acoes": [{"a": "logs:FilterLogEvents", "desc": "procurar um erro nos logs"}, {"a": "cloudwatch:GetMetricData", "desc": "ler a métrica de latência"}, {"a": "ce:GetCostAndUsage", "desc": "ler o custo do mês"}, {"a": "s3:GetObject", "desc": "abrir a foto de uma encomenda (dado pessoal)", "perigo": true}, {"a": "lambda:UpdateFunctionCode", "desc": "trocar o código da função em produção", "perigo": true}, {"a": "rds:DeleteDBInstance", "desc": "apagar o banco de produção", "perigo": true}, {"a": "iam:CreateAccessKey", "desc": "criar uma chave de acesso permanente", "perigo": true}]}</script></div>
+<div class="read">
     <div class="call warn"><span class="lbl">Um teste simples para fazer hoje</span>
       <p>Abra o terminal onde você usa um agente de IA e rode <code>aws sts get-caller-identity</code>. A resposta diz com que identidade o agente está agindo. Se for um usuário administrador de uma conta de produção, você acabou de encontrar o maior risco do seu ambiente.</p>
     </div>
@@ -797,23 +810,9 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
       <p>É como uma prova com consulta: o aluno não precisa ter decorado o livro, mas precisa encontrar a página certa e responder com base nela.</p>
     </div>
   </div>
-  <figure class="fig">
-    <svg viewBox="0 0 760 210" role="img" aria-label="Fluxo do assistente: o morador pergunta pelo app, a API identifica o condomínio, o Guardrails filtra a entrada, a Knowledge Base busca trechos do regimento filtrando pelo condomínio, o modelo responde com citação, o Guardrails filtra a saída e a resposta volta ao app">
-      <style>.bx{fill:var(--sunk);stroke:var(--line);stroke-width:1.2}.bx.ai{fill:var(--amber-soft);stroke:var(--amber)}.bx.g{fill:var(--accent-soft);stroke:var(--accent)}.t1{fill:var(--fg);font:700 13.5px var(--display)}.t2{fill:var(--muted);font:11.5px var(--body)}.ar{stroke:var(--muted);stroke-width:1.5;fill:none}.ah{fill:var(--muted)}</style>
-      <defs><marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs>
-      <rect class="bx" x="10" y="20" width="120" height="60" rx="9"/><text class="t1" x="22" y="45">1 App</text><text class="t2" x="22" y="64">morador pergunta</text>
-      <rect class="bx" x="160" y="20" width="130" height="60" rx="9"/><text class="t1" x="172" y="45">2 API</text><text class="t2" x="172" y="64">sabe o condomínio</text>
-      <rect class="bx g" x="320" y="20" width="130" height="60" rx="9"/><text class="t1" x="332" y="45">3 Guardrails</text><text class="t2" x="332" y="64">filtra a entrada</text>
-      <rect class="bx ai" x="480" y="20" width="130" height="60" rx="9"/><text class="t1" x="492" y="45">4 Knowledge Base</text><text class="t2" x="492" y="64">busca no regimento</text>
-      <rect class="bx ai" x="630" y="20" width="120" height="60" rx="9"/><text class="t1" x="642" y="45">5 Modelo</text><text class="t2" x="642" y="64">responde e cita</text>
-      <rect class="bx g" x="480" y="120" width="130" height="60" rx="9"/><text class="t1" x="492" y="145">6 Guardrails</text><text class="t2" x="492" y="164">filtra a saída</text>
-      <rect class="bx" x="160" y="120" width="290" height="60" rx="9"/><text class="t1" x="172" y="145">7 Resposta com a fonte</text><text class="t2" x="172" y="164">"Art. 12 do regimento: obras até 12h aos sábados"</text>
-      <path class="ar" d="M130,50H157" marker-end="url(#ah4)"/><path class="ar" d="M290,50H317" marker-end="url(#ah4)"/><path class="ar" d="M450,50H477" marker-end="url(#ah4)"/><path class="ar" d="M610,50H627" marker-end="url(#ah4)"/>
-      <path class="ar" d="M690,80V150H613" marker-end="url(#ah4)"/><path class="ar" d="M480,150H453" marker-end="url(#ah4)"/>
-      <text class="t2" x="545" y="100" text-anchor="middle">filtro: condominioId</text>
-    </svg>
-    <figcaption>O fluxo do assistente. Em verde, as guardas; em âmbar, onde a IA trabalha. O filtro por condomínio na busca é o que impede que um morador receba o regimento de outro prédio.</figcaption>
-  </figure>
+  
+<div class="ias ias-show" data-ias="show"><div class="ias-hd"><b>O caminho de uma pergunta</b><span class="tag">Apresentação animada</span><small>Siga a pergunta do morador por cada peça da arquitetura.</small></div><div class="ias-stage"><svg viewBox="0 0 760 210" role="img" aria-label="Fluxo do assistente com RAG"><style>.bx{fill:var(--sunk);stroke:var(--line);stroke-width:1.2}.bx.h{fill:var(--accent-soft);stroke:var(--accent)}.bx.g{fill:var(--amber-soft);stroke:var(--amber)}.t1{fill:var(--fg);font:700 14px var(--display)}.t2{fill:var(--muted);font:12px var(--body)}.ar{stroke:var(--muted);stroke-width:1.6;fill:none}.ah{fill:var(--muted)}.ar.r{stroke:var(--red);stroke-dasharray:5 4}</style><defs><marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs><g data-k="r1"><rect class="bx " x="10" y="20" width="120" height="60" rx="10"/><text class="t1" x="24" y="47">1 App</text><text class="t2" x="24" y="68">morador pergunta</text></g><g data-k="r2"><rect class="bx " x="160" y="20" width="130" height="60" rx="10"/><text class="t1" x="174" y="47">2 API</text><text class="t2" x="174" y="68">sabe o condomínio</text></g><g data-k="r3"><rect class="bx h" x="320" y="20" width="130" height="60" rx="10"/><text class="t1" x="334" y="47">3 Guardrails</text><text class="t2" x="334" y="68">filtra a entrada</text></g><g data-k="r4"><rect class="bx g" x="480" y="20" width="130" height="60" rx="10"/><text class="t1" x="494" y="47">4 Knowledge Base</text><text class="t2" x="494" y="68">busca no regimento</text></g><g data-k="r5"><rect class="bx g" x="630" y="20" width="120" height="60" rx="10"/><text class="t1" x="644" y="47">5 Modelo</text><text class="t2" x="644" y="68">responde e cita</text></g><g data-k="r6"><rect class="bx h" x="480" y="120" width="130" height="60" rx="10"/><text class="t1" x="494" y="147">6 Guardrails</text><text class="t2" x="494" y="168">filtra a saída</text></g><g data-k="r7"><rect class="bx " x="160" y="120" width="290" height="60" rx="10"/><text class="t1" x="174" y="147">7 Resposta com a fonte</text><text class="t2" x="174" y="168">Art. 12: obras até 12h aos sábados</text></g><path class="ar" d="M130,50H157" marker-end="url(#ahr)"/><path class="ar" d="M290,50H317" marker-end="url(#ahr)"/><path class="ar" d="M450,50H477" marker-end="url(#ahr)"/><path class="ar" d="M610,50H627" marker-end="url(#ahr)"/><path class="ar" d="M690,80V150H613" marker-end="url(#ahr)"/><path class="ar" d="M480,150H453" marker-end="url(#ahr)"/><g data-k="flt"><text class="t2" x="545" y="100" text-anchor="middle" style="fill:var(--accent);font-weight:700">filtro: condominioId</text></g></svg></div><script type="application/json">{"passos": [{"t": "1. O morador pergunta", "d": "\"Posso fazer obra no sábado?\", pelo app do condomínio.", "on": ["r1"]}, {"t": "2. A API identifica o cliente", "d": "A API sabe, pelo login, que o morador é do Jardim das Flores. É ela, e não o modelo, que guarda essa informação.", "on": ["r2"]}, {"t": "3. Guardas na entrada", "d": "O Guardrails bloqueia assuntos fora do escopo e mascara dados pessoais antes de qualquer coisa chegar ao modelo.", "on": ["r3"]}, {"t": "4. A busca, com filtro", "d": "A Knowledge Base procura os trechos mais parecidos com a pergunta, <strong>somente</strong> entre os documentos do condomínio do morador.", "on": ["r4", "flt"]}, {"t": "5. O modelo responde", "d": "O modelo recebe a pergunta e os trechos e responde com base neles, citando o artigo do regimento (LEWIS et al., 2020).", "on": ["r5"]}, {"t": "6. Guardas na saída", "d": "O Guardrails confere se a resposta está fundamentada nos trechos e se não vaza dado sensível.", "on": ["r6"]}, {"t": "7. A resposta chega", "d": "O morador recebe a resposta com a fonte. Se nada foi encontrado, o assistente diz \"não encontrei no regimento\" em vez de inventar.", "on": ["r7"]}]}</script></div>
+
   <div class="read">
     <h3>As peças no Bedrock</h3>
     <ul>
@@ -822,6 +821,9 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
       <li><strong>O modelo:</strong> escolhido entre os disponíveis no Bedrock. Para responder perguntas curtas com base em trechos, um modelo menor e mais barato costuma bastar.</li>
     </ul>
 
+    <h3>Laboratório: o filtro que impede o vazamento</h3><p>Gao et al. (2023) revisaram dezenas de variações de RAG e mostraram que a qualidade da <strong>recuperação</strong> pesa tanto quanto o modelo. No sistema de condomínios, há um detalhe a mais: o trecho mais parecido com a pergunta pode ser de <em>outro</em> cliente. Execute a busca com e sem o filtro.</p></div>
+<div class="ias" data-ias="rag"><div class="ias-hd"><b>Busca no regimento com e sem filtro por condomínio</b><span class="tag">Interativo</span><small>Rode com o filtro, depois desmarque e rode de novo.</small></div><script type="application/json">{"pergunta": "Posso fazer obra no sábado?", "condo": "Jardim das Flores", "resposta": "Sim, aos sábados das 8h às 12h. Fonte: Art. 12 do regimento do Jardim das Flores.", "chunks": [{"condo": "Jardim das Flores", "txt": "Art. 12: obras são permitidas aos sábados, das 8h às 12h.", "sc": 0.86}, {"condo": "Jardim das Flores", "txt": "Art. 30: o salão de festas deve ser liberado até as 23h.", "sc": 0.41}, {"condo": "Residencial Aurora", "txt": "Art. 9: obras são proibidas aos sábados, domingos e feriados.", "sc": 0.91}, {"condo": "Residencial Aurora", "txt": "Art. 15: a piscina funciona a partir das 7h.", "sc": 0.22}, {"condo": "Edifício Mirante", "txt": "Art. 4: obras de segunda a sábado, das 9h às 17h.", "sc": 0.83}]}</script></div>
+<div class="read"><p>Para medir a qualidade de um RAG, Es et al. (2024) propuseram o RAGAS, que avalia separadamente se os trechos recuperados são relevantes e se a resposta é fiel a eles. Essa separação ajuda a descobrir onde está o problema: na busca ou na geração.</p>
     <h3>As perguntas de engenharia que a demonstração não responde</h3>
     <p>Montar uma demonstração que funciona leva uma tarde. Colocar em produção exige responder às perguntas abaixo. Huyen (2025) dedica boa parte do seu livro a elas.</p>
   </div>
@@ -889,6 +891,7 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
     </div>
   </div>
   <div class="read">
+    <p>Experimente o cenário "Contexto exagerado": o custo quase triplica. E não é só dinheiro: Liu et al. (2024) mostraram que modelos usam pior a informação que fica no meio de contextos longos. Mandar mais trechos pode deixar a resposta mais cara <em>e</em> pior.</p>
     <h3>As ferramentas de FinOps da AWS</h3>
     <ul>
       <li><strong>Cost Explorer e exportações de custo:</strong> ver o gasto por serviço, conta e tag. A IA é ótima para ler esses relatórios e explicar o que mudou no mês, desde que cite de onde veio cada número.</li>
@@ -1113,6 +1116,16 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
       <li>NIST. <em>Artificial Intelligence Risk Management Framework (AI RMF 1.0)</em>. NIST AI 100-1. Gaithersburg, 2023.</li>
       <li>OWASP. <em>Top 10 for Large Language Model Applications</em>. Versão 2025.</li>
     </ul>
+  <h3>Referências acrescentadas nesta revisão</h3>
+    <ul class="refs">
+      <li>AMAZON WEB SERVICES. <em>Policy Evaluation Logic</em>. AWS Identity and Access Management User Guide. Documentação on-line.</li>
+      <li>ES, S. et al. RAGAS: Automated Evaluation of Retrieval Augmented Generation. In: <em>EACL: System Demonstrations</em>, 2024. <a href="https://arxiv.org/abs/2309.15217" target="_blank" rel="noopener">arXiv:2309.15217</a>.</li>
+      <li>GAO, Y. et al. Retrieval-Augmented Generation for Large Language Models: A Survey. <em>arXiv</em>, 2023. <a href="https://arxiv.org/abs/2312.10997" target="_blank" rel="noopener">arXiv:2312.10997</a>.</li>
+      <li>LIU, N. F. et al. Lost in the Middle: How Language Models Use Long Contexts. <em>Transactions of the ACL</em>, v. 12, p. 157-173, 2024. <a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">arXiv:2307.03172</a>.</li>
+      <li>SALTZER, J. H.; SCHROEDER, M. D. The Protection of Information in Computer Systems. <em>Proceedings of the IEEE</em>, v. 63, n. 9, p. 1278-1308, 1975.</li>
+      <li>SATO, D. CanaryRelease. <em>martinfowler.com</em>, 2014. Disponível em: <a href="https://martinfowler.com/bliki/CanaryRelease.html" target="_blank" rel="noopener">martinfowler.com/bliki/CanaryRelease.html</a>.</li>
+      <li>SCHERMANN, G. et al. We're Doing It Live: A Multi-Method Empirical Study on Continuous Experimentation. <em>Information and Software Technology</em>, v. 99, p. 41-57, 2018.</li>
+    </ul>
   </div>
   <footer>Aula magna 3 da disciplina Engenharia de Software com IA. O caso-guia é um SaaS de gestão de condomínios usado como exemplo didático. Preços e nomes de serviços citados são ilustrativos e podem mudar.<a class="nextl" href="02-engenharia-software-ia-juntas.html">← Aula anterior: Engenharia de software e IA trabalhando juntas</a><a class="nextl" href="../index.html">Voltar à disciplina</a></footer>
 </section>
@@ -1197,3 +1210,4 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
   build();
 })();
 </script>
+<script src="../../../assets/js/ia-software.js"></script>
