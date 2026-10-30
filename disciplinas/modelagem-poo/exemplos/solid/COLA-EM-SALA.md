@@ -83,6 +83,27 @@ Os números são de um modelo simples. Use para discutir a ordem de grandeza, e 
 
 ---
 
+## Cola de consulta: uma letra por vez
+
+Use esta seção durante a aula, quando precisar lembrar o princípio. Cada letra tem a definição, a pergunta para checar um código, o sinal de que o princípio foi violado, a correção e uma frase curta para a turma levar para casa.
+
+| Letra | Definição em uma frase | Pergunta para checar | Sinal de violação | Correção típica | Frase para levar |
+|---|---|---|---|---|---|
+| **S** · Responsabilidade única | Uma classe tem um motivo para mudar, que é um grupo de interessados. | Quem pode pedir uma mudança nesta classe? | A mesma classe muda por pedidos de áreas diferentes. | Separar em classes com um motivo cada, e um orquestrador que só chama. | Um motivo de mudança, uma classe. |
+| **O** · Aberto–fechado | Novo comportamento entra por extensão, sem editar código testado. | Para incluir um tipo novo, preciso editar um método antigo? | if/else ou switch que cresce a cada novo caso. | Interface com uma implementação por regra. | Estender, não editar. |
+| **L** · Substituição de Liskov | Um subtipo deve poder ocupar o lugar do tipo base sem surpresa. | O cliente que conhece só o tipo base continua correto com o subtipo? | Subclasse que sobrescreve para quebrar a regra, ou lança exceção onde o pai não lança. | Trocar herança por interface comum e implementações independentes. | O contrato vem antes da herança. |
+| **I** · Segregação de interfaces | Nenhum cliente depende de métodos que não usa. | Alguma implementação tem método vazio, que lança exceção ou retorna nada? | Interface com muitos métodos e classes que lançam UnsupportedOperationException. | Interfaces pequenas, uma por capacidade. | Interface pequena, cliente livre. |
+| **D** · Inversão de dependência | Regra de negócio depende de abstrações; quem monta o objeto escolhe a tecnologia. | Esta classe usa new em banco, rede ou arquivo? | new de classes concretas dentro de serviços; teste impossível sem infraestrutura. | Receber as dependências pelo construtor e montar no ponto de entrada. | A regra não sabe qual é o banco. |
+
+### Como usar na aula
+
+- **Antes de cada princípio:** leia a definição em voz alta e faça a pergunta para a turma. Espere uma resposta antes de mostrar o código.
+- **No código ruim:** procure o sinal de violação com a turma. Peça para apontar a linha.
+- **No código bom:** mostre a correção e confirme que a saída é a mesma. Esse é o critério de uma refatoração.
+- **Ao final:** repita as cinco frases. Elas são o que deve sobrar na cabeça dos alunos.
+
+---
+
 ## S · Responsabilidade única
 
 **Conceito.** Uma classe deve ter um, e apenas um, motivo para mudar.
