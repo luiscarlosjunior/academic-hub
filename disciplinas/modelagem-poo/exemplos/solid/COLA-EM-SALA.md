@@ -329,6 +329,179 @@ enviando e-mail para ana@exemplo.com: pedido P-1001 confirmado, total R$ 513.00
 
 **Exercício para a turma.** Adicione o requisito “frete de R$ 15,00 abaixo de R$ 200,00”. Em qual classe entra? Quantas classes precisa abrir?
 
+### Exercício rápido: S no streaming
+
+**Contexto.** Um player de streaming toca a música, conta quantas vezes ela foi ouvida, avisa o usuário por e-mail e gera um relatório. No código ruim, tudo isso está na mesma classe.
+
+**Diagrama de classes (ruim)**
+
+```mermaid
+classDiagram
+    class Player {
+        +tocar(usuario, musica)
+        -contarReproducao()
+        -enviarEmail()
+        -gerarRelatorio()
+    }
+    class Musica {
+        +String titulo
+        +int reproducoes
+    }
+    Player ..> Musica : usa
+```
+
+<details><summary>Código: versão ruim</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * S ruim: Player toca, conta reproduções, envia e-mail e gera relatório.
+ * Qualquer mudança em contagem, aviso ou relatório mexe na mesma classe.
+ */
+public class Main {
+
+    static final class Musica {
+        final String titulo;
+        int reproducoes;
+
+        Musica(String titulo) { this.titulo = titulo; }
+    }
+
+    static final class Player {
+        void tocar(String usuario, Musica musica) {
+            System.out.println("tocando " + musica.titulo + " para " + usuario);
+            // contagem de reproduções
+            musica.reproducoes++;
+            // aviso por e-mail
+            System.out.println("enviando e-mail para " + usuario + ": você ouviu " + musica.titulo);
+            // relatório
+            System.out.println("relatório: " + musica.titulo + " tem " + musica.reproducoes + " reprodução(ões)");
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Player player = new Player();
+        Musica aquarela = new Musica("Aquarela");
+        player.tocar("Ana", aquarela);
+        player.tocar("Bruno", aquarela);
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+tocando Aquarela para Ana
+enviando e-mail para Ana: você ouviu Aquarela
+relatório: Aquarela tem 1 reprodução(ões)
+tocando Aquarela para Bruno
+enviando e-mail para Bruno: você ouviu Aquarela
+relatório: Aquarela tem 2 reprodução(ões)
+```
+
+**Correção.** Separe cada motivo de mudança em uma classe. O Player só chama as outras.
+
+**Diagrama de classes (correção)**
+
+```mermaid
+classDiagram
+    class Player {
+        +tocar(usuario, musica)
+    }
+    class ContadorReproducoes {
+        +registrar(musica)
+    }
+    class NotificadorEmail {
+        +avisar(usuario, musica)
+    }
+    class Relatorio {
+        +gerar(musica)
+    }
+    Player --> ContadorReproducoes
+    Player --> NotificadorEmail
+    Player --> Relatorio
+```
+
+<details><summary>Código: versão corrigida</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * S bom: cada classe tem um motivo para mudar.
+ * Player só toca e liga as peças; contagem, aviso e relatório ficam separados.
+ */
+public class Main {
+
+    static final class Musica {
+        final String titulo;
+        int reproducoes;
+
+        Musica(String titulo) { this.titulo = titulo; }
+    }
+
+    // Motivo para mudar: regra de contagem
+    static final class ContadorReproducoes {
+        void registrar(Musica musica) { musica.reproducoes++; }
+    }
+
+    // Motivo para mudar: canal de aviso ao usuário
+    static final class NotificadorEmail {
+        void avisar(String usuario, Musica musica) {
+            System.out.println("enviando e-mail para " + usuario + ": você ouviu " + musica.titulo);
+        }
+    }
+
+    // Motivo para mudar: formato do relatório
+    static final class Relatorio {
+        void gerar(Musica musica) {
+            System.out.println("relatório: " + musica.titulo + " tem " + musica.reproducoes + " reprodução(ões)");
+        }
+    }
+
+    // Orquestrador: só chama as partes
+    static final class Player {
+        private final ContadorReproducoes contador = new ContadorReproducoes();
+        private final NotificadorEmail notificador = new NotificadorEmail();
+        private final Relatorio relatorio = new Relatorio();
+
+        void tocar(String usuario, Musica musica) {
+            System.out.println("tocando " + musica.titulo + " para " + usuario);
+            contador.registrar(musica);
+            notificador.avisar(usuario, musica);
+            relatorio.gerar(musica);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Player player = new Player();
+        Musica aquarela = new Musica("Aquarela");
+        player.tocar("Ana", aquarela);
+        player.tocar("Bruno", aquarela);
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+tocando Aquarela para Ana
+enviando e-mail para Ana: você ouviu Aquarela
+relatório: Aquarela tem 1 reprodução(ões)
+tocando Aquarela para Bruno
+enviando e-mail para Bruno: você ouviu Aquarela
+relatório: Aquarela tem 2 reprodução(ões)
+```
+
+**O que mudou.** Contagem, aviso e relatório estão em classes diferentes. Um pedido de relatório não encosta na contagem, e a saída continua igual.
+
 ---
 
 
@@ -490,6 +663,155 @@ ESTUDANTE: 170.00
 
 **Exercício para a turma.** Crie DescontoBlackFriday (30%) na versão boa. Liste as classes existentes que você precisou alterar: resposta esperada, nenhuma.
 
+### Exercício rápido: O no streaming
+
+**Contexto.** A assinatura tem preço por plano. O método de preço é um switch que cresce a cada plano novo, e o plano UNIVERSITARIO ainda não existe.
+
+**Diagrama de classes (ruim)**
+
+```mermaid
+classDiagram
+    class Assinatura {
+        +mensal(plano) double
+    }
+    note for Assinatura "switch com um case por plano"
+```
+
+<details><summary>Código: versão ruim</summary>
+
+```java
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * O ruim: o preço da assinatura é um switch que cresce a cada plano novo.
+ * Incluir um plano obriga a abrir e retestar o método existente.
+ */
+public class Main {
+
+    static final class Assinatura {
+        double mensal(String plano) {
+            switch (plano) {
+                case "BASICO": return 19.90;
+                case "PADRAO": return 29.90;
+                case "PREMIUM": return 39.90;
+                // para incluir UNIVERSITARIO, é preciso editar este switch
+                default: throw new IllegalArgumentException("plano desconhecido: " + plano);
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Assinatura assinatura = new Assinatura();
+        for (String plano : List.of("BASICO", "PADRAO", "PREMIUM")) {
+            System.out.printf("%s: R$ %.2f%n", plano, assinatura.mensal(plano));
+        }
+        try {
+            assinatura.mensal("UNIVERSITARIO");
+        } catch (IllegalArgumentException e) {
+            System.out.println("erro: " + e.getMessage());
+        }
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+BASICO: R$ 19.90
+PADRAO: R$ 29.90
+PREMIUM: R$ 39.90
+erro: plano desconhecido: UNIVERSITARIO
+```
+
+**Correção.** Cada plano vira uma classe que implementa Plano. O preço é responsabilidade do próprio plano.
+
+**Diagrama de classes (correção)**
+
+```mermaid
+classDiagram
+    class Plano {
+        <<interface>>
+        +nome() String
+        +mensal() double
+    }
+    class PlanoBasico
+    class PlanoPadrao
+    class PlanoPremium
+    class PlanoUniversitario
+    Plano <|.. PlanoBasico
+    Plano <|.. PlanoPadrao
+    Plano <|.. PlanoPremium
+    Plano <|.. PlanoUniversitario
+```
+
+<details><summary>Código: versão corrigida</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * O bom: cada plano é uma classe que implementa Plano.
+ * Um plano novo entra por extensão; nenhuma classe antiga é editada.
+ */
+public class Main {
+
+    interface Plano {
+        String nome();
+        double mensal();
+    }
+
+    static final class PlanoBasico implements Plano {
+        public String nome() { return "BASICO"; }
+        public double mensal() { return 19.90; }
+    }
+
+    static final class PlanoPadrao implements Plano {
+        public String nome() { return "PADRAO"; }
+        public double mensal() { return 29.90; }
+    }
+
+    static final class PlanoPremium implements Plano {
+        public String nome() { return "PREMIUM"; }
+        public double mensal() { return 39.90; }
+    }
+
+    // Adicionado depois, sem tocar nas classes acima
+    static final class PlanoUniversitario implements Plano {
+        public String nome() { return "UNIVERSITARIO"; }
+        public double mensal() { return 14.90; }
+    }
+
+    static void mostrar(Plano plano) {
+        System.out.printf("%s: R$ %.2f%n", plano.nome(), plano.mensal());
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        mostrar(new PlanoBasico());
+        mostrar(new PlanoPadrao());
+        mostrar(new PlanoPremium());
+        mostrar(new PlanoUniversitario());
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+BASICO: R$ 19.90
+PADRAO: R$ 29.90
+PREMIUM: R$ 39.90
+UNIVERSITARIO: R$ 14.90
+```
+
+**O que mudou.** Na versão ruim, o plano novo exigiu editar o switch. Na versão boa, UNIVERSITARIO entrou como classe nova, e nenhuma classe antiga foi editada.
+
 ---
 
 
@@ -646,6 +968,168 @@ quadrado 4: esperado 16, obtido 16 (ok)
 
 **Exercício para a turma.** Crie um Triangulo que implemente Forma. Escreva um teste de contrato que qualquer Forma deva passar.
 
+### Exercício rápido: L no streaming
+
+**Contexto.** A fila de reprodução pula cada item com pular(). Anúncio herda de Musica, mas não pode ser pulado, então quebra a promessa da classe base.
+
+**Diagrama de classes (ruim)**
+
+```mermaid
+classDiagram
+    class Musica {
+        +pular()
+    }
+    class Anuncio {
+        +pular() lança exceção
+    }
+    Musica <|-- Anuncio
+```
+
+<details><summary>Código: versão ruim</summary>
+
+```java
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * L ruim: Anuncio herda de Musica e sobrescreve pular para lançar exceção.
+ * Quem recebe uma Musica espera poder pulá-la; o erro só aparece em execução.
+ */
+public class Main {
+
+    static class Musica {
+        final String titulo;
+        Musica(String titulo) { this.titulo = titulo; }
+        void pular() { System.out.println("pulou " + titulo); }
+    }
+
+    static final class Anuncio extends Musica {
+        Anuncio(String titulo) { super(titulo); }
+
+        @Override
+        void pular() { throw new UnsupportedOperationException("anúncio não pode ser pulado"); }
+    }
+
+    // cliente: pula cada item da fila
+    static void pularFila(List<Musica> fila) {
+        for (Musica m : fila) {
+            m.pular();
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        pularFila(List.of(new Musica("Aquarela"), new Musica("Garota")));
+        try {
+            pularFila(List.of(new Musica("Samba"), new Anuncio("Promo X")));
+        } catch (UnsupportedOperationException e) {
+            System.out.println("erro: " + e.getMessage());
+        }
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+pulou Aquarela
+pulou Garota
+pulou Samba
+erro: anúncio não pode ser pulado
+```
+
+**Correção.** Anúncio deixa de herdar de Musica e implementa só o contrato comum Faixa. Só quem pode ser pulado implementa Pulavel, e a fila de pulo aceita apenas esse tipo.
+
+**Diagrama de classes (correção)**
+
+```mermaid
+classDiagram
+    class Faixa {
+        <<interface>>
+        +tocar()
+    }
+    class Pulavel {
+        <<interface>>
+        +pular()
+    }
+    class Musica
+    class Anuncio
+    Faixa <|.. Musica
+    Faixa <|.. Anuncio
+    Pulavel <|.. Musica
+```
+
+<details><summary>Código: versão corrigida</summary>
+
+```java
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * L bom: Musica e Anuncio são faixas independentes, ambas tocam.
+ * Só Musica pode ser pulada, e a fila de pulo aceita só o que de fato pula.
+ */
+public class Main {
+
+    // contrato comum: toda faixa toca
+    interface Faixa {
+        void tocar();
+    }
+
+    // capacidade extra: só música pode ser pulada
+    interface Pulavel {
+        void pular();
+    }
+
+    static final class Musica implements Faixa, Pulavel {
+        private final String titulo;
+        Musica(String titulo) { this.titulo = titulo; }
+        public void tocar() { System.out.println("tocando " + titulo); }
+        public void pular() { System.out.println("pulou " + titulo); }
+    }
+
+    static final class Anuncio implements Faixa {
+        private final String titulo;
+        Anuncio(String titulo) { this.titulo = titulo; }
+        public void tocar() { System.out.println("tocando anúncio " + titulo); }
+    }
+
+    static void tocarFila(List<Faixa> fila) {
+        for (Faixa f : fila) {
+            f.tocar();
+        }
+    }
+
+    static void pularFila(List<Pulavel> fila) {
+        for (Pulavel p : fila) {
+            p.pular();
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        tocarFila(List.of(new Musica("Aquarela"), new Anuncio("Promo X")));
+        pularFila(List.of(new Musica("Samba"), new Musica("Garota")));
+        // pularFila(List.of(new Anuncio("Promo X"))); // não compila: anúncio não é Pulavel
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+tocando Aquarela
+tocando anúncio Promo X
+pulou Samba
+pulou Garota
+```
+
+**O que mudou.** Passar um anúncio para a fila de pulo virou erro de compilação, e não surpresa em execução. O anúncio continua tocando normalmente.
+
 ---
 
 
@@ -801,6 +1285,151 @@ enviando fax para 1199999-0000
 ```
 
 **Exercício para a turma.** Crie uma impressora duplex (frente e verso). Ela precisa implementar Escaneavel? Justifique com o princípio.
+
+### Exercício rápido: I no streaming
+
+**Contexto.** A interface Reprodutor exige tocar, pausar e baixarOffline. Uma rádio online não baixa músicas, mas é obrigada a implementar o método.
+
+**Diagrama de classes (ruim)**
+
+```mermaid
+classDiagram
+    class Reprodutor {
+        <<interface>>
+        +tocar(musica)
+        +pausar()
+        +baixarOffline(musica)
+    }
+    class RadioOnline {
+        +baixarOffline(musica) lança exceção
+    }
+    Reprodutor <|.. RadioOnline
+```
+
+<details><summary>Código: versão ruim</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * I ruim: a interface Reprodutor obriga toda implementação a baixar músicas.
+ * RadioOnline não baixa nada, e lança exceção no método que não faz sentido para ela.
+ */
+public class Main {
+
+    interface Reprodutor {
+        void tocar(String musica);
+        void pausar();
+        void baixarOffline(String musica);
+    }
+
+    static final class RadioOnline implements Reprodutor {
+        public void tocar(String musica) { System.out.println("rádio tocando " + musica); }
+        public void pausar() { System.out.println("rádio pausada"); }
+        public void baixarOffline(String musica) { throw new UnsupportedOperationException("rádio não baixa músicas"); }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Reprodutor radio = new RadioOnline();
+        radio.tocar("Garota");
+        try {
+            radio.baixarOffline("Garota");
+        } catch (UnsupportedOperationException e) {
+            System.out.println("erro em tempo de execução: " + e.getMessage());
+        }
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+rádio tocando Garota
+erro em tempo de execução: rádio não baixa músicas
+```
+
+**Correção.** A interface grande é dividida em Tocavel e Baixavel. A rádio implementa só Tocavel; o player premium implementa as duas.
+
+**Diagrama de classes (correção)**
+
+```mermaid
+classDiagram
+    class Tocavel {
+        <<interface>>
+        +tocar(musica)
+        +pausar()
+    }
+    class Baixavel {
+        <<interface>>
+        +baixarOffline(musica)
+    }
+    class RadioOnline
+    class PlayerPremium
+    Tocavel <|.. RadioOnline
+    Tocavel <|.. PlayerPremium
+    Baixavel <|.. PlayerPremium
+```
+
+<details><summary>Código: versão corrigida</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * I bom: interfaces pequenas, uma por capacidade.
+ * RadioOnline implementa só Tocavel; quem precisa baixar depende só de Baixavel.
+ */
+public class Main {
+
+    interface Tocavel {
+        void tocar(String musica);
+        void pausar();
+    }
+
+    interface Baixavel {
+        void baixarOffline(String musica);
+    }
+
+    static final class RadioOnline implements Tocavel {
+        public void tocar(String musica) { System.out.println("rádio tocando " + musica); }
+        public void pausar() { System.out.println("rádio pausada"); }
+    }
+
+    static final class PlayerPremium implements Tocavel, Baixavel {
+        public void tocar(String musica) { System.out.println("tocando " + musica); }
+        public void pausar() { System.out.println("pausado"); }
+        public void baixarOffline(String musica) { System.out.println("baixado para ouvir offline: " + musica); }
+    }
+
+    // depende só do que usa: não precisa saber que existe tocar
+    static void prepararViagem(Baixavel reprodutor, String musica) {
+        reprodutor.baixarOffline(musica);
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        new RadioOnline().tocar("Garota");
+        PlayerPremium premium = new PlayerPremium();
+        premium.tocar("Samba");
+        prepararViagem(premium, "Samba");
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+rádio tocando Garota
+tocando Samba
+baixado para ouvir offline: Samba
+```
+
+**O que mudou.** A rádio não tem mais método que lança exceção. Quem precisa baixar depende só de Baixavel, e a saída do que toca não mudou.
 
 ---
 
@@ -996,6 +1625,152 @@ gravados em memória: [P-T1]
 ```
 
 **Exercício para a turma.** Crie RepositorioArquivo (grava em texto) e rode o serviço com ele. Quantas linhas mudam em ServicoPedido?
+
+### Exercício rápido: D no streaming
+
+**Contexto.** ReprodutorMusica cria por conta própria o servidor S3 que entrega o áudio. Para testar sem rede, seria preciso editar a classe do reprodutor.
+
+**Diagrama de classes (ruim)**
+
+```mermaid
+classDiagram
+    class ReprodutorMusica {
+        +tocar(musica)
+        -ServidorAudioS3 servidor
+    }
+    class ServidorAudioS3 {
+        +buscarAudio(musica) String
+    }
+    ReprodutorMusica --> ServidorAudioS3 : new dentro
+```
+
+<details><summary>Código: versão ruim</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * D ruim: ReprodutorMusica cria o servidor de áudio por conta própria (new).
+ * Para testar sem rede, seria preciso editar a classe do reprodutor.
+ */
+public class Main {
+
+    static final class ServidorAudioS3 {
+        String buscarAudio(String musica) {
+            System.out.println("S3: buscando " + musica);
+            return "audio-" + musica;
+        }
+    }
+
+    static final class ReprodutorMusica {
+        // dependência concreta, criada aqui dentro
+        private final ServidorAudioS3 servidor = new ServidorAudioS3();
+
+        void tocar(String musica) {
+            String audio = servidor.buscarAudio(musica);
+            System.out.println("tocando " + audio);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        new ReprodutorMusica().tocar("Garota");
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+S3: buscando Garota
+tocando audio-Garota
+```
+
+**Correção.** O reprodutor passa a depender de FonteAudio, e quem monta o objeto escolhe a fonte. Em produção entra o S3; no teste, a versão em memória.
+
+**Diagrama de classes (correção)**
+
+```mermaid
+classDiagram
+    class ReprodutorMusica {
+        -FonteAudio fonte
+        +tocar(musica)
+    }
+    class FonteAudio {
+        <<interface>>
+        +buscarAudio(musica) String
+    }
+    class FonteAudioS3
+    class FonteAudioMemoria
+    ReprodutorMusica --> FonteAudio
+    FonteAudio <|.. FonteAudioS3
+    FonteAudio <|.. FonteAudioMemoria
+```
+
+<details><summary>Código: versão corrigida</summary>
+
+```java
+import java.util.Locale;
+
+/**
+ * D bom: ReprodutorMusica depende da abstração FonteAudio.
+ * Quem monta o objeto escolhe a fonte: produção usa S3; o teste usa uma versão em memória.
+ */
+public class Main {
+
+    interface FonteAudio {
+        String buscarAudio(String musica);
+    }
+
+    static final class FonteAudioS3 implements FonteAudio {
+        public String buscarAudio(String musica) {
+            System.out.println("S3: buscando " + musica);
+            return "audio-" + musica;
+        }
+    }
+
+    // detalhe para teste: não toca em rede
+    static final class FonteAudioMemoria implements FonteAudio {
+        public String buscarAudio(String musica) { return "audio-em-memoria-" + musica; }
+    }
+
+    static final class ReprodutorMusica {
+        private final FonteAudio fonte;
+
+        // dependência chega pelo construtor
+        ReprodutorMusica(FonteAudio fonte) { this.fonte = fonte; }
+
+        void tocar(String musica) {
+            String audio = fonte.buscarAudio(musica);
+            System.out.println("tocando " + audio);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        System.out.println("== produção");
+        new ReprodutorMusica(new FonteAudioS3()).tocar("Garota");
+        System.out.println("== teste");
+        new ReprodutorMusica(new FonteAudioMemoria()).tocar("Garota");
+    }
+}
+```
+
+</details>
+
+Saída real:
+
+```text
+== produção
+S3: buscando Garota
+tocando audio-Garota
+== teste
+tocando audio-em-memoria-Garota
+```
+
+**O que mudou.** O reprodutor não tem new de servidor. Trocar a fonte de áudio é uma linha no ponto de montagem, e o teste roda sem rede.
 
 ---
 
