@@ -9,6 +9,30 @@ Cola para a aula. Para cada princípio: o conceito, por que ele existe, o diagra
 3. Os cinco, em ordem S, O, L, I, D (35 min): para cada um, diagrama ruim, rodar, diagrama bom, rodar.
 4. Quando não aplicar (5 min): um programa de 50 linhas com um tipo de desconto não precisa de interface.
 
+## Monólogo de abertura (fala do professor, cerca de 5 minutos)
+
+> Vou começar com uma pergunta: quantos arquivos vocês abriram na última vez que alguém pediu uma mudança em um sistema? Guardem esse número. No fim da aula, a resposta de vocês deve ser menor.
+>
+> Esses cinco princípios não surgiram juntos. Em 1988, Bertrand Meyer escreveu no livro *Object-Oriented Software Construction* que um módulo deve estar aberto para extensão e fechado para modificação. Em 1987, Barbara Liskov apresentou a ideia de que um subtipo deve poder substituir o tipo base, e em 1994 ela e Jeannette Wing formalizaram isso. No começo dos anos 2000, Robert C. Martin reuniu princípios de design e de desenvolvimento ágil. E por volta de 2004, Michael Feathers juntou as iniciais na sigla SOLID. São cinco pessoas, duas décadas, e um problema só.
+>
+> Qual é o problema? Software muda. Quem não projeta para mudar paga juros: cada alteração custa um pouco mais que a anterior, até que ninguém mais ousa mexer no sistema.
+>
+> **S: uma classe, um motivo para mudar.** Imaginem um sistema de pedidos. Um dia o financeiro pede outro arredondamento no total. Vocês abrem a classe que também envia e-mail e grava em arquivo. Na mesma semana, o marketing pede um texto novo no e-mail, e outra pessoa mexe na mesma classe. Uma mudança quebra a outra. Martin, no livro *Clean Architecture* (2017), descreve exatamente esse problema com uma classe Employee que atende áreas diferentes: uma alteração pedida por uma área quebra o cálculo usado por outra.
+>
+> **O: aberto para extensão, fechado para modificação.** Uma loja começa aceitando só cartão. Depois entra boleto, depois Pix. Se cada forma de pagamento é um if dentro do método que finaliza a compra, toda nova forma reabre um fluxo que já funciona e já foi testado. Com uma interface de pagamento, o Pix vira uma classe nova, e o fluxo de finalizar compra não muda. Esse é o cenário típico da integração de meios de pagamento.
+>
+> **L: o subtipo precisa honrar o contrato.** Vocês já usaram a biblioteca padrão do Java. A classe Stack estende Vector, então uma pilha herda métodos de lista, como inserir no meio, e quem a usa como pilha pode quebrar a regra sem perceber. Outro caso: Arrays.asList e List.of são ambas List, mas o método add lança UnsupportedOperationException. O subtipo não aceita o que o contrato de List promete, e o erro só aparece em execução.
+>
+> **I: nenhum cliente depende do que não usa.** A interface Iterator tem o método remove. Desde o Java 8, ele tem uma implementação padrão que lança UnsupportedOperationException. Quem implementa um iterador só de leitura fica com um método que não faz sentido para ele. Uma interface grande demais força todo mundo a conviver com isso.
+>
+> **D: quem decide a tecnologia não é a regra de negócio.** Um serviço de pedidos cria diretamente a conexão com o banco. Os testes precisam do banco de verdade, e trocar de banco ou migrar para a nuvem significa editar cada serviço. Com inversão de dependência, o serviço recebe uma interface pelo construtor, e o teste recebe uma versão em memória. Frameworks como o Spring fazem exatamente essa montagem, e vocês vão encontrar isso em projetos reais.
+>
+> Para fechar: os cinco princípios são critérios, e não leis. Antes de aplicar, perguntem se a mudança já aconteceu ou é previsível. Três casos parecidos pedem abstração; um caso só, não. Agora vamos ver como fica cada um no código.
+
+**Notas para o professor.** Os cenários de pagamento, de Employee e de e-mail são situações típicas descritas na literatura e na prática, e não casos de empresas específicas. Os fatos sobre o JDK (Stack, Vector, Arrays.asList, List.of, Iterator.remove) podem ser conferidos na documentação oficial da versão que a turma usa. O caso de Employee está em Martin (2017); o da Xerox citado no slide sobre I está em Martin (2003), e vale conferir o trecho antes de citá-lo em voz alta.
+
+---
+
 ## Como rodar cada projeto
 
 Entre na pasta da versão e rode:
