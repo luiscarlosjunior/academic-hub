@@ -341,6 +341,737 @@ flowchart LR
   <div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Leitura de SOLID como ferramenta:</strong> cada princípio responde a uma dor concreta. Se você não consegue apontar a dor, o princípio ainda não é necessário.</div></div>
 </section>
 <!-- APROF2:FIM -->
+<section id="solid-porque" data-toc="Por que o SOLID existe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clock-rotate-left text-emerald-400 mr-2"></i>Por que o SOLID existe</h2>
+  <div class="ah-prose">
+
+<p>Os princípios não nasceram como lista. Eles surgiram de um problema que se repetia em projetos grandes: uma mudança pequena, como incluir um tipo de desconto, quebrava partes que não tinham nada a ver com ela. O custo de manter o software crescia mais rápido que o software.</p>
+<p>A história, em poucas datas:</p>
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>1988.</strong> Bertrand Meyer, em <em>Object-Oriented Software Construction</em>, formula a ideia de módulos abertos para extensão e fechados para modificação. É a origem do “O”.</li>
+<li><strong>1987–1994.</strong> Barbara Liskov apresenta, em palestra de 1987, a ideia de que um subtipo deve poder substituir o tipo base sem que o programa perceba. Liskov e Wing formalizam isso em 1994. É a origem do “L”.</li>
+<li><strong>Final dos anos 1990 a 2003.</strong> Robert C. Martin reúne princípios de design orientado a objetos e de desenvolvimento ágil. Em <em>Agile Software Development</em> (2002/2003), define o critério de responsabilidade e a inversão de dependência. Origem de “S” e “D”, e de parte do “I”.</li>
+<li><strong>Por volta de 2004.</strong> Michael Feathers reúne as cinco iniciais na sigla SOLID, que se espalha pela comunidade.</li>
+</ul>
+<p>Por que isso importa para quem está aprendendo? Porque os cinco princípios descrevem o mesmo problema visto de cinco ângulos: <strong>acoplamento</strong>. Quanto mais partes de um sistema dependem umas das outras de forma concreta, mais caro fica mudar qualquer uma delas. As animações abaixo mostram esse custo com contas.</p>
+
+  </div>
+</section>
+<section id="solid-visao" data-toc="Visão geral: o que é o SOLID, em um parágrafo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-emerald-400 mr-2"></i>Visão geral: o que é o SOLID, em um parágrafo</h2>
+  <div class="ah-prose">
+
+<p>SOLID é um conjunto de cinco princípios de projeto orientado a objetos. Cada um responde a uma pergunta sobre mudanças: quem deve mudar (S), o que pode ser estendido sem mudar (O), o que pode substituir o quê (L), quem depende do quê (I e D). Eles não são regras absolutas: são critérios para estimar o custo de mudança de um sistema.</p>
+
+<p>Os projetos desta aula seguem o mesmo roteiro para cada princípio: conceito, origem, o problema na versão ruim, a versão boa com a mesma saída e um exercício. Você pode usar os dez programas em sala, na ordem S, O, L, I, D, ou na ordem que for mais útil para a turma.</p>
+
+  </div>
+</section>
+<section id="solid-calculo" data-toc="Animação: quanto custa a complexidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-calculator text-emerald-400 mr-2"></i>Animação: quanto custa a complexidade</h2>
+  <div class="ah-prose">
+
+<p>O argumento a favor dos princípios é quantitativo. Vamos contar: quantas linhas são editadas e quantos testes precisam ser repetidos quando o sistema cresce. Use os botões da animação para ver cada passo.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">Cálculo 1: novos descontos (princípio O)</h3>
+<p>Modelo usado: cada tipo novo de desconto custa 3 linhas. Na versão ruim, ele é um ramo do if/else, então os tipos antigos precisam ser testados de novo. Na versão boa, ele é uma classe nova, e só o novo é testado.</p>
+<div class="ah-card p-5 mt-4">
+  <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Animação: a calculadora de descontos</div>
+<div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>import java.util.Locale;
+
+/**
+ * O ruim: cada novo tipo de desconto obriga a editar o método existente.
+ * O if/else cresce, e cada teste antigo precisa ser refeito.
+ */
+public class Main {
+
+    static final class CalculadoraDesconto {
+        double calcular(double total, String tipoCliente) {
+            if (tipoCliente.equals(&quot;VIP&quot;)) {
+                return total * 0.80;
+            } else if (tipoCliente.equals(&quot;FUNCIONARIO&quot;)) {
+                return total * 0.70;
+            } else if (tipoCliente.equals(&quot;NORMAL&quot;)) {
+                return total;
+            }
+            // para incluir ESTUDANTE, é preciso abrir esta classe e mudar a lógica
+            throw new IllegalArgumentException(&quot;tipo desconhecido: &quot; + tipoCliente);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        CalculadoraDesconto calc = new CalculadoraDesconto();
+        System.out.printf(&quot;VIP: %.2f%n&quot;, calc.calcular(200, &quot;VIP&quot;));
+        System.out.printf(&quot;FUNCIONARIO: %.2f%n&quot;, calc.calcular(200, &quot;FUNCIONARIO&quot;));
+        System.out.printf(&quot;NORMAL: %.2f%n&quot;, calc.calcular(200, &quot;NORMAL&quot;));
+        try {
+            calc.calcular(200, &quot;ESTUDANTE&quot;);
+        } catch (IllegalArgumentException e) {
+            System.out.println(&quot;erro: &quot; + e.getMessage());
+        }
+    }
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 8, "titulo": "Estado inicial: 3 tipos", "texto": "A calculadora conhece VIP, FUNCIONARIO e NORMAL. Cada tipo é um ramo do if/else. Custo de mudança hoje: zero.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">VIP</span><span class=\"ah-caixa ok\">FUNCIONARIO</span><span class=\"ah-caixa ok\">NORMAL</span></div>"}, {"linha": 10, "titulo": "Chega o 1º tipo novo: ESTUDANTE", "texto": "Para incluir ESTUDANTE, a classe existente precisa ser aberta. O if/else ganha um ramo: 3 linhas editadas.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">linhas editadas: 3</span><span class=\"ah-caixa on\">testes a repetir: 3</span></div>"}, {"linha": 18, "titulo": "Cálculo com 2 tipos novos", "texto": "Com k = 2, são 6 linhas editadas (3 por tipo). Os 3 tipos antigos precisam ser testados de novo, e o primeiro novo também: 3 + 4 = 7 testes.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">linhas editadas: 6</span><span class=\"ah-caixa erro\">testes a repetir: 7</span></div>"}, {"linha": 18, "titulo": "Cálculo com 5 tipos novos", "texto": "Com k = 5, são 15 linhas editadas e 25 testes repetidos (3+4+5+6+7). A classe central cresce a cada tipo, e o risco de regressão cresce junto.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">linhas editadas: 15</span><span class=\"ah-caixa erro\">testes a repetir: 25</span></div>"}]</script>
+</div>
+</div>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table"><thead><tr><th>Novos tipos (k)</th><th>Versão ruim: linhas editadas</th><th>Versão ruim: testes repetidos</th><th>Versão boa: linhas editadas</th><th>Versão boa: testes novos</th></tr></thead><tbody><tr><td>1</td><td>3</td><td>3</td><td>0</td><td>1</td></tr><tr><td>2</td><td>6</td><td>7</td><td>0</td><td>2</td></tr><tr><td>3</td><td>9</td><td>12</td><td>0</td><td>3</td></tr><tr><td>4</td><td>12</td><td>18</td><td>0</td><td>4</td></tr><tr><td>5</td><td>15</td><td>25</td><td>0</td><td>5</td></tr></tbody></table></div>
+<div class="ah-callout ah-callout-tip mt-4"><i class="fa-solid fa-lightbulb"></i><div><strong>Leitura da tabela:</strong> na versão ruim, a quantidade de testes repetidos cresce mais rápido que o número de tipos: é uma soma (3 + 4 + 5 + …). Na versão boa, o custo de mudança em código antigo continua zero, independentemente de k.</div></div>
+
+<h3 class="ah-h3 mt-6 mb-2">Cálculo 2: trocar o banco de dados (princípio D)</h3>
+<p>Modelo usado: cada serviço que faz <code>new BancoMySql()</code> precisa ser editado para trocar de banco. Na versão boa, a troca acontece em um único ponto de montagem.</p>
+<div class="ah-card p-5 mt-4">
+  <div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Animação: a troca de banco</div>
+<div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * D ruim: ServicoPedido cria o banco e o e-mail por conta própria (new).
+ * Não dá para testar sem banco real e sem enviar e-mail de verdade.
+ */
+public class Main {
+
+    static final class BancoMySql {
+        private final List&lt;String&gt; tabela = new ArrayList&lt;&gt;();
+        void inserir(String pedido) {
+            tabela.add(pedido);
+            System.out.println(&quot;INSERT INTO pedidos (dados) VALUES (&#x27;&quot; + pedido + &quot;&#x27;) -- servidor MySQL&quot;);
+        }
+    }
+
+    static final class ServidorSmtp {
+        void enviar(String para, String texto) {
+            System.out.println(&quot;SMTP -&gt; &quot; + para + &quot;: &quot; + texto);
+        }
+    }
+
+    static final class ServicoPedido {
+        // dependências concretas, criadas aqui dentro
+        private final BancoMySql banco = new BancoMySql();
+        private final ServidorSmtp smtp = new ServidorSmtp();
+
+        void finalizar(String id, String email) {
+            banco.inserir(id);
+            smtp.enviar(email, &quot;pedido &quot; + id + &quot; confirmado&quot;);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        new ServicoPedido().finalizar(&quot;P-1001&quot;, &quot;ana@exemplo.com&quot;);
+    }
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 24, "titulo": "Estado inicial: 1 serviço", "texto": "ServicoPedido cria o banco com new. Trocar o banco mexe nesta classe. Um teste unitário precisa de um MySQL de verdade.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">ServicoPedido</span><span class=\"ah-caixa erro\">BancoMySql fixo</span></div>"}, {"linha": 26, "titulo": "Crescem os serviços: m = 5", "texto": "Cada serviço novo repete o new do banco. Com 5 serviços, trocar o banco exige editar 5 classes.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">edições para trocar o banco: 5</span></div>"}, {"linha": 26, "titulo": "Com m = 20 serviços", "texto": "Com 20 serviços, são 20 edições para uma troca de banco, e cada uma pode esquecer um detalhe. Nenhum serviço pode ser testado sem o MySQL.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">edições para trocar o banco: 20</span><span class=\"ah-caixa erro\">testes sem banco: 0</span></div>"}, {"linha": 37, "titulo": "Versão boa: a montagem fica num lugar", "texto": "Com injeção de dependência, os serviços recebem as dependências. A troca de banco vira 1 linha no ponto de montagem (main), e cada serviço pode ser testado com uma versão falsa.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">edições para trocar o banco: 1</span><span class=\"ah-caixa ok\">testes sem banco: todos</span></div>"}]</script>
+</div>
+</div>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table"><thead><tr><th>Serviços que criam o banco (m)</th><th>Versão ruim: edições para trocar o banco</th><th>Versão boa: edições</th><th>Versão ruim: testes sem banco</th></tr></thead><tbody><tr><td>2</td><td>2</td><td>1</td><td>0</td></tr><tr><td>5</td><td>5</td><td>1</td><td>0</td></tr><tr><td>10</td><td>10</td><td>1</td><td>0</td></tr><tr><td>20</td><td>20</td><td>1</td><td>0</td></tr></tbody></table></div>
+
+  </div>
+</section>
+<section id="solid-projetos" data-toc="Projetos da aula: ruim e bom, lado a lado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-folder-tree text-emerald-400 mr-2"></i>Projetos da aula: ruim e bom, lado a lado</h2>
+  <div class="ah-prose">
+
+<p>Os dez programas estão em <code>exemplos/solid/</code>. Cada princípio tem duas versões do mesmo problema. A ideia é ler a versão ruim, rodar, depois ler a boa e rodar de novo: a saída pode ser igual, e é isso que mostra o princípio. Uma refatoração bem feita muda a estrutura, e não o comportamento.</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table"><thead><tr><th>Princípio</th><th>Versão ruim (jeito errado)</th><th>Versão boa (como deveria ser)</th></tr></thead><tbody><tr><td>S · Responsabilidade única</td><td><code>exemplos/solid/S-responsabilidade/ruim</code></td><td><code>exemplos/solid/S-responsabilidade/bom</code></td></tr><tr><td>O · Aberto–fechado</td><td><code>exemplos/solid/O-aberto-fechado/ruim</code></td><td><code>exemplos/solid/O-aberto-fechado/bom</code></td></tr><tr><td>L · Substituição de Liskov</td><td><code>exemplos/solid/L-liskov/ruim</code></td><td><code>exemplos/solid/L-liskov/bom</code></td></tr><tr><td>I · Segregação de interfaces</td><td><code>exemplos/solid/I-segregacao/ruim</code></td><td><code>exemplos/solid/I-segregacao/bom</code></td></tr><tr><td>D · Inversão de dependência</td><td><code>exemplos/solid/D-inversao/ruim</code></td><td><code>exemplos/solid/D-inversao/bom</code></td></tr></tbody></table></div><div class="ah-callout ah-callout-info mt-4"><i class="fa-solid fa-circle-info"></i><div><strong>Como rodar cada projeto:</strong> entre na pasta da versão e compile com <code>javac -Xlint:all -d out Main.java</code>, depois rode com <code>java -cp out Main</code>. Todas as versões usam o mesmo domínio (pedidos de loja), para que a comparação seja direta.</div></div>
+  </div>
+</section>
+<section id="solid-s" data-toc="S — Responsabilidade única" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-1 text-emerald-400 mr-2"></i>S — Responsabilidade única</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Conceito</h3>
+<p>Uma classe deve ter um, e apenas um, motivo para mudar. Um motivo é um grupo de interessados que pode pedir alterações (Martin, 2003).</p>
+<h3 class="ah-h3 mt-4 mb-2">Por que existe</h3>
+<p>O critério nasce da manutenção: quando uma classe tem dois motivos para mudar, cada mudança de um lado arrisca quebrar o outro. Responsabilidade é o motivo, e não a quantidade de métodos.</p>
+<h3 class="ah-h3 mt-4 mb-2">O problema, na prática</h3>
+<p>Na versão ruim, ProcessadorPedido valida, calcula o total, aplica desconto, grava em arquivo e envia e-mail. Quando o formato do arquivo muda, o cálculo é retestado; quando a regra de desconto muda, o e-mail também precisa ser verificado.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">S — Responsabilidade única: versão ruim</h3>
+<pre class="ah-code"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * S ruim: ProcessadorPedido valida, calcula, grava em arquivo e envia e-mail.
+ * Qualquer mudança em uma dessas regras obriga a abrir e testar a mesma classe.
+ */
+public class Main {
+
+    record Item(String nome, double preco, int quantidade) {}
+
+    static final class Pedido {
+        final String id;
+        final String emailCliente;
+        final List&lt;Item&gt; itens = new ArrayList&lt;&gt;();
+
+        Pedido(String id, String emailCliente) {
+            this.id = id;
+            this.emailCliente = emailCliente;
+        }
+    }
+
+    static final class ProcessadorPedido {
+        double processar(Pedido pedido) {
+            // validação
+            if (pedido.itens.isEmpty()) {
+                throw new IllegalArgumentException(&quot;pedido vazio: &quot; + pedido.id);
+            }
+            // cálculo do total e regra de desconto
+            double total = 0;
+            for (Item item : pedido.itens) {
+                total += item.preco() * item.quantidade();
+            }
+            if (total &gt; 500) {
+                total *= 0.95;
+            }
+            // formatação e persistência (arquivo)
+            String linha = pedido.id + &quot;;&quot; + String.format(&quot;%.2f&quot;, total);
+            System.out.println(&quot;gravando em pedidos.csv: &quot; + linha);
+            // notificação por e-mail
+            System.out.println(&quot;enviando e-mail para &quot; + pedido.emailCliente
+                    + &quot;: pedido &quot; + pedido.id + &quot; confirmado, total R$ &quot; + String.format(&quot;%.2f&quot;, total));
+            return total;
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Pedido pedido = new Pedido(&quot;P-1001&quot;, &quot;ana@exemplo.com&quot;);
+        pedido.itens.add(new Item(&quot;teclado&quot;, 150.00, 2));
+        pedido.itens.add(new Item(&quot;mouse&quot;, 80.00, 3));
+        new ProcessadorPedido().processar(pedido);
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>gravando em pedidos.csv: P-1001;513.00
+enviando e-mail para ana@exemplo.com: pedido P-1001 confirmado, total R$ 513.00</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">S — Responsabilidade única: versão boa</h3>
+<pre class="ah-code"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * S bom: cada classe tem um motivo para mudar.
+ * Validação, cálculo, persistência e notificação ficam separados; o orquestrador só chama as partes.
+ */
+public class Main {
+
+    record Item(String nome, double preco, int quantidade) {}
+
+    static final class Pedido {
+        final String id;
+        final String emailCliente;
+        final List&lt;Item&gt; itens = new ArrayList&lt;&gt;();
+
+        Pedido(String id, String emailCliente) {
+            this.id = id;
+            this.emailCliente = emailCliente;
+        }
+    }
+
+    // Motivo para mudar: regras de validação
+    static final class ValidadorPedido {
+        void validar(Pedido pedido) {
+            if (pedido.itens.isEmpty()) {
+                throw new IllegalArgumentException(&quot;pedido vazio: &quot; + pedido.id);
+            }
+        }
+    }
+
+    // Motivo para mudar: regras de preço e desconto
+    static final class CalculadoraTotal {
+        double calcular(Pedido pedido) {
+            double total = 0;
+            for (Item item : pedido.itens) {
+                total += item.preco() * item.quantidade();
+            }
+            return total &gt; 500 ? total * 0.95 : total;
+        }
+    }
+
+    // Motivo para mudar: formato ou local de gravação
+    static final class RepositorioPedidos {
+        void salvar(Pedido pedido, double total) {
+            System.out.println(&quot;gravando em pedidos.csv: &quot; + pedido.id + &quot;;&quot; + String.format(&quot;%.2f&quot;, total));
+        }
+    }
+
+    // Motivo para mudar: canal de notificação
+    static final class Notificador {
+        void confirmar(Pedido pedido, double total) {
+            System.out.println(&quot;enviando e-mail para &quot; + pedido.emailCliente
+                    + &quot;: pedido &quot; + pedido.id + &quot; confirmado, total R$ &quot; + String.format(&quot;%.2f&quot;, total));
+        }
+    }
+
+    // Orquestrador: só coordena, não decide regra alguma
+    static final class ProcessadorPedido {
+        private final ValidadorPedido validador = new ValidadorPedido();
+        private final CalculadoraTotal calculadora = new CalculadoraTotal();
+        private final RepositorioPedidos repositorio = new RepositorioPedidos();
+        private final Notificador notificador = new Notificador();
+
+        double processar(Pedido pedido) {
+            validador.validar(pedido);
+            double total = calculadora.calcular(pedido);
+            repositorio.salvar(pedido, total);
+            notificador.confirmar(pedido, total);
+            return total;
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Pedido pedido = new Pedido(&quot;P-1001&quot;, &quot;ana@exemplo.com&quot;);
+        pedido.itens.add(new Item(&quot;teclado&quot;, 150.00, 2));
+        pedido.itens.add(new Item(&quot;mouse&quot;, 80.00, 3));
+        new ProcessadorPedido().processar(pedido);
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>gravando em pedidos.csv: P-1001;513.00
+enviando e-mail para ana@exemplo.com: pedido P-1001 confirmado, total R$ 513.00</code></pre>
+
+
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>O que mudou:</strong> O orquestrador (ProcessadorPedido) só chama as partes. Cada regra virou uma classe com um motivo para mudar: ValidadorPedido, CalculadoraTotal, RepositorioPedidos, Notificador. O comportamento impresso é o mesmo, e isso é o critério de uma refatoração.</div></div>
+<div class="ah-card p-5 mt-5"><div class="text-xs uppercase tracking-wide text-amber-300 font-bold mb-2">Exercício para a turma</div><p class="text-sm">Crie um requisito novo: “o total deve incluir frete de R$ 15,00 para pedidos abaixo de R$ 200”. Em qual classe da versão boa a mudança entra? Quantas outras classes você precisa abrir?</p></div>
+
+  </div>
+</section>
+<section id="solid-o" data-toc="O — Aberto para extensão, fechado para modificação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-door-open text-emerald-400 mr-2"></i>O — Aberto para extensão, fechado para modificação</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Conceito</h3>
+<p>Um módulo deve poder ser estendido sem que seu código existente seja alterado (Meyer, 1988).</p>
+<h3 class="ah-h3 mt-4 mb-2">Por que existe</h3>
+<p>Meyer propôs a ideia em 1988: código já testado é ativo caro. Se uma nova regra exige editar um método que já funciona, todo o teste anterior volta a valer como dúvida.</p>
+<h3 class="ah-h3 mt-4 mb-2">O problema, na prática</h3>
+<p>CalculadoraDesconto tem um if/else por tipo de cliente. Cada tipo novo edita o método, que já tinha testes. A tabela de animação mostra que o número de testes a repetir cresce como uma soma.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">O — Aberto para extensão, fechado para modificação: versão ruim</h3>
+<pre class="ah-code"><code>import java.util.Locale;
+
+/**
+ * O ruim: cada novo tipo de desconto obriga a editar o método existente.
+ * O if/else cresce, e cada teste antigo precisa ser refeito.
+ */
+public class Main {
+
+    static final class CalculadoraDesconto {
+        double calcular(double total, String tipoCliente) {
+            if (tipoCliente.equals(&quot;VIP&quot;)) {
+                return total * 0.80;
+            } else if (tipoCliente.equals(&quot;FUNCIONARIO&quot;)) {
+                return total * 0.70;
+            } else if (tipoCliente.equals(&quot;NORMAL&quot;)) {
+                return total;
+            }
+            // para incluir ESTUDANTE, é preciso abrir esta classe e mudar a lógica
+            throw new IllegalArgumentException(&quot;tipo desconhecido: &quot; + tipoCliente);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        CalculadoraDesconto calc = new CalculadoraDesconto();
+        System.out.printf(&quot;VIP: %.2f%n&quot;, calc.calcular(200, &quot;VIP&quot;));
+        System.out.printf(&quot;FUNCIONARIO: %.2f%n&quot;, calc.calcular(200, &quot;FUNCIONARIO&quot;));
+        System.out.printf(&quot;NORMAL: %.2f%n&quot;, calc.calcular(200, &quot;NORMAL&quot;));
+        try {
+            calc.calcular(200, &quot;ESTUDANTE&quot;);
+        } catch (IllegalArgumentException e) {
+            System.out.println(&quot;erro: &quot; + e.getMessage());
+        }
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>VIP: 160.00
+FUNCIONARIO: 140.00
+NORMAL: 200.00
+erro: tipo desconhecido: ESTUDANTE</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">O — Aberto para extensão, fechado para modificação: versão boa</h3>
+<pre class="ah-code"><code>import java.util.Locale;
+
+/**
+ * O bom: a calculadora é fechada para mudança e aberta para extensão.
+ * Um novo desconto é uma nova classe que implementa a interface; nenhuma linha antiga muda.
+ */
+public class Main {
+
+    interface Desconto {
+        double aplicar(double total);
+    }
+
+    static final class SemDesconto implements Desconto {
+        public double aplicar(double total) { return total; }
+    }
+
+    static final class DescontoVip implements Desconto {
+        public double aplicar(double total) { return total * 0.80; }
+    }
+
+    static final class DescontoFuncionario implements Desconto {
+        public double aplicar(double total) { return total * 0.70; }
+    }
+
+    // Adicionado depois, sem tocar nas classes acima
+    static final class DescontoEstudante implements Desconto {
+        public double aplicar(double total) { return total * 0.85; }
+    }
+
+    static final class CalculadoraDesconto {
+        double calcular(double total, Desconto desconto) {
+            return desconto.aplicar(total);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        CalculadoraDesconto calc = new CalculadoraDesconto();
+        System.out.printf(&quot;VIP: %.2f%n&quot;, calc.calcular(200, new DescontoVip()));
+        System.out.printf(&quot;FUNCIONARIO: %.2f%n&quot;, calc.calcular(200, new DescontoFuncionario()));
+        System.out.printf(&quot;NORMAL: %.2f%n&quot;, calc.calcular(200, new SemDesconto()));
+        System.out.printf(&quot;ESTUDANTE: %.2f%n&quot;, calc.calcular(200, new DescontoEstudante()));
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>VIP: 160.00
+FUNCIONARIO: 140.00
+NORMAL: 200.00
+ESTUDANTE: 170.00</code></pre>
+
+
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>O que mudou:</strong> A calculadora passou a receber um objeto Desconto. Cada regra é uma classe nova que implementa a interface. Adicionar ESTUDANTE é criar uma classe; nenhuma linha antiga muda.</div></div>
+<div class="ah-card p-5 mt-5"><div class="text-xs uppercase tracking-wide text-amber-300 font-bold mb-2">Exercício para a turma</div><p class="text-sm">Adicione DescontoBlackFriday (30% de desconto) na versão boa, sem alterar nenhuma classe existente. Depois escreva o mesmo teste na versão ruim: o que você teve de editar?</p></div>
+
+  </div>
+</section>
+<section id="solid-l" data-toc="L — Substituição de Liskov" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-right-left text-emerald-400 mr-2"></i>L — Substituição de Liskov</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Conceito</h3>
+<p>Objetos de um subtipo devem poder substituir objetos do tipo base sem que o programa deixe de funcionar corretamente (Liskov, 1987; Liskov e Wing, 1994).</p>
+<h3 class="ah-h3 mt-4 mb-2">Por que existe</h3>
+<p>Herança é reuso de comportamento, mas herança mal feita quebra o contrato. A regra de Liskov é: o subtipo não pode enfraquecer garantias nem exigir mais do que o tipo base exige.</p>
+<h3 class="ah-h3 mt-4 mb-2">O problema, na prática</h3>
+<p>Quadrado herda de Retangulo e sobrescreve setLargura e setAltura para manter os lados iguais. Quem usou Retangulo espera que largura e altura mudem de forma independente. O teste de área com 5 e 4 dá 16, e não 20.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">L — Substituição de Liskov: versão ruim</h3>
+<pre class="ah-code"><code>import java.util.Locale;
+
+/**
+ * L ruim: Quadrado herda de Retangulo e quebra o contrato de setLargura/setAltura.
+ * Código que usa Retangulo espera que largura e altura mudem de forma independente.
+ */
+public class Main {
+
+    static class Retangulo {
+        protected int largura;
+        protected int altura;
+
+        void setLargura(int largura) { this.largura = largura; }
+        void setAltura(int altura) { this.altura = altura; }
+        int area() { return largura * altura; }
+    }
+
+    static final class Quadrado extends Retangulo {
+        @Override void setLargura(int valor) { largura = valor; altura = valor; }
+        @Override void setAltura(int valor) { largura = valor; altura = valor; }
+    }
+
+    static void testarArea(Retangulo r) {
+        r.setLargura(5);
+        r.setAltura(4);
+        int esperado = 20;
+        System.out.println(&quot;esperado &quot; + esperado + &quot;, obtido &quot; + r.area()
+                + (r.area() == esperado ? &quot; (ok)&quot; : &quot; (FALHOU)&quot;));
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        testarArea(new Retangulo());
+        testarArea(new Quadrado());
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>esperado 20, obtido 20 (ok)
+esperado 20, obtido 16 (FALHOU)</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">L — Substituição de Liskov: versão boa</h3>
+<pre class="ah-code"><code>import java.util.Locale;
+
+/**
+ * L bom: a forma é um contrato comum (área), sem herança que quebre o comportamento.
+ * Retangulo e Quadrado são implementações independentes, e o teste de área vale para os dois.
+ */
+public class Main {
+
+    interface Forma {
+        int area();
+    }
+
+    // imutável: não há setters, então nenhuma substituição pode quebrar o contrato
+    record Retangulo(int largura, int altura) implements Forma {
+        public int area() { return largura * altura; }
+    }
+
+    record Quadrado(int lado) implements Forma {
+        public int area() { return lado * lado; }
+    }
+
+    static void testarArea(String nome, Forma forma, int esperado) {
+        System.out.println(nome + &quot;: esperado &quot; + esperado + &quot;, obtido &quot; + forma.area()
+                + (forma.area() == esperado ? &quot; (ok)&quot; : &quot; (FALHOU)&quot;));
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        testarArea(&quot;retangulo 5x4&quot;, new Retangulo(5, 4), 20);
+        testarArea(&quot;quadrado 4&quot;, new Quadrado(4), 16);
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>retangulo 5x4: esperado 20, obtido 20 (ok)
+quadrado 4: esperado 16, obtido 16 (ok)</code></pre>
+
+
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>O que mudou:</strong> A forma virou um contrato (interface Forma) com área. Retangulo e Quadrado são registros imutáveis e independentes. Não há setter para quebrar, e o teste de área vale para os dois.</div></div>
+<div class="ah-card p-5 mt-5"><div class="text-xs uppercase tracking-wide text-amber-300 font-bold mb-2">Exercício para a turma</div><p class="text-sm">Escreva um teste de contrato para Forma que qualquer implementação precisa passar. Depois crie um Triangulo que passe no teste. O que o teste tem de verificar, além da área?</p></div>
+
+  </div>
+</section>
+<section id="solid-i" data-toc="I — Segregação de interfaces" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug text-emerald-400 mr-2"></i>I — Segregação de interfaces</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Conceito</h3>
+<p>Um cliente não deve ser obrigado a depender de métodos que não usa. É melhor várias interfaces pequenas do que uma grande.</p>
+<h3 class="ah-h3 mt-4 mb-2">Por que existe</h3>
+<p>Martin descreve o princípio a partir de um projeto de software para impressoras, em que a mesma interface obrigava classes simples a implementar funções de fax e escaneamento.</p>
+<h3 class="ah-h3 mt-4 mb-2">O problema, na prática</h3>
+<p>Equipamento obriga toda impressora a ter escanear e enviarFax. ImpressoraSimples lança UnsupportedOperationException. O erro só aparece em tempo de execução, quando alguém chama o método.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">I — Segregação de interfaces: versão ruim</h3>
+<pre class="ah-code"><code>import java.util.Locale;
+
+/**
+ * I ruim: uma interface gorda obriga a implementação a ter métodos que ela não usa.
+ * ImpressoraSimples precisa &quot;implementar&quot; escanear e fax, e lança exceção.
+ */
+public class Main {
+
+    interface Equipamento {
+        void imprimir(String texto);
+        void escanear();
+        void enviarFax(String numero);
+    }
+
+    static final class ImpressoraSimples implements Equipamento {
+        public void imprimir(String texto) { System.out.println(&quot;imprimindo: &quot; + texto); }
+        public void escanear() { throw new UnsupportedOperationException(&quot;não escaneia&quot;); }
+        public void enviarFax(String numero) { throw new UnsupportedOperationException(&quot;não envia fax&quot;); }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Equipamento eq = new ImpressoraSimples();
+        eq.imprimir(&quot;relatório de vendas&quot;);
+        try {
+            eq.escanear();
+        } catch (UnsupportedOperationException e) {
+            System.out.println(&quot;erro em tempo de execução: &quot; + e.getMessage());
+        }
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>imprimindo: relatório de vendas
+erro em tempo de execução: não escaneia</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">I — Segregação de interfaces: versão boa</h3>
+<pre class="ah-code"><code>import java.util.Locale;
+
+/**
+ * I bom: interfaces pequenas, uma por capacidade.
+ * Cada classe implementa só o que de fato faz; quem precisa de escanear depende só de Escaneavel.
+ */
+public class Main {
+
+    interface Imprimivel { void imprimir(String texto); }
+    interface Escaneavel { void escanear(); }
+    interface Fax { void enviarFax(String numero); }
+
+    static final class ImpressoraSimples implements Imprimivel {
+        public void imprimir(String texto) { System.out.println(&quot;imprimindo: &quot; + texto); }
+    }
+
+    static final class MultifuncionalCompleta implements Imprimivel, Escaneavel, Fax {
+        public void imprimir(String texto) { System.out.println(&quot;imprimindo: &quot; + texto); }
+        public void escanear() { System.out.println(&quot;escaneando documento&quot;); }
+        public void enviarFax(String numero) { System.out.println(&quot;enviando fax para &quot; + numero); }
+    }
+
+    // depende só do que usa: não precisa saber que existe fax
+    static void digitalizar(Escaneavel equipamento) {
+        equipamento.escanear();
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        new ImpressoraSimples().imprimir(&quot;relatório de vendas&quot;);
+        MultifuncionalCompleta mf = new MultifuncionalCompleta();
+        digitalizar(mf);
+        mf.enviarFax(&quot;1199999-0000&quot;);
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>imprimindo: relatório de vendas
+escaneando documento
+enviando fax para 1199999-0000</code></pre>
+
+
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>O que mudou:</strong> As capacidades viraram interfaces separadas: Imprimivel, Escaneavel e Fax. A impressora simples implementa só uma. Quem precisa de escanear depende só de Escaneavel, e o compilador acusa qualquer uso errado.</div></div>
+<div class="ah-card p-5 mt-5"><div class="text-xs uppercase tracking-wide text-amber-300 font-bold mb-2">Exercício para a turma</div><p class="text-sm">Crie a interface Frente e Verso (duplex) e uma impressora que a implemente. Ela precisa implementar Escaneavel? Justifique com o princípio.</p></div>
+
+  </div>
+</section>
+<section id="solid-d" data-toc="D — Inversão de dependência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-turn-to-dots text-emerald-400 mr-2"></i>D — Inversão de dependência</h2>
+  <div class="ah-prose">
+
+<h3 class="ah-h3 mt-2 mb-2">Conceito</h3>
+<p>Módulos de alto nível não devem depender de módulos de baixo nível: ambos devem depender de abstrações. Abstrações não devem depender de detalhes (Martin, 2003).</p>
+<h3 class="ah-h3 mt-4 mb-2">Por que existe</h3>
+<p>Sem essa regra, a regra de negócio (pedido) fica presa à tecnologia (MySQL, SMTP). Fowler (2004) descreve a injeção de dependência como a forma prática de inverter essa seta: as dependências chegam de fora.</p>
+<h3 class="ah-h3 mt-4 mb-2">O problema, na prática</h3>
+<p>ServicoPedido cria BancoMySql e ServidorSmtp com new. Não há como testar o serviço sem banco e sem enviar e-mail de verdade. Trocar o banco exige editar cada serviço que o usa.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">D — Inversão de dependência: versão ruim</h3>
+<pre class="ah-code"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * D ruim: ServicoPedido cria o banco e o e-mail por conta própria (new).
+ * Não dá para testar sem banco real e sem enviar e-mail de verdade.
+ */
+public class Main {
+
+    static final class BancoMySql {
+        private final List&lt;String&gt; tabela = new ArrayList&lt;&gt;();
+        void inserir(String pedido) {
+            tabela.add(pedido);
+            System.out.println(&quot;INSERT INTO pedidos (dados) VALUES (&#x27;&quot; + pedido + &quot;&#x27;) -- servidor MySQL&quot;);
+        }
+    }
+
+    static final class ServidorSmtp {
+        void enviar(String para, String texto) {
+            System.out.println(&quot;SMTP -&gt; &quot; + para + &quot;: &quot; + texto);
+        }
+    }
+
+    static final class ServicoPedido {
+        // dependências concretas, criadas aqui dentro
+        private final BancoMySql banco = new BancoMySql();
+        private final ServidorSmtp smtp = new ServidorSmtp();
+
+        void finalizar(String id, String email) {
+            banco.inserir(id);
+            smtp.enviar(email, &quot;pedido &quot; + id + &quot; confirmado&quot;);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        new ServicoPedido().finalizar(&quot;P-1001&quot;, &quot;ana@exemplo.com&quot;);
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>INSERT INTO pedidos (dados) VALUES (&#x27;P-1001&#x27;) -- servidor MySQL
+SMTP -&gt; ana@exemplo.com: pedido P-1001 confirmado</code></pre>
+<h3 class="ah-h3 mt-6 mb-2">D — Inversão de dependência: versão boa</h3>
+<pre class="ah-code"><code>import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * D bom: ServicoPedido depende de abstrações (RepositorioPedidos, Notificador).
+ * Quem monta o objeto decide a implementação: produção usa MySQL e SMTP; o teste usa versões falsas.
+ */
+public class Main {
+
+    // abstrações de alto nível
+    interface RepositorioPedidos { void salvar(String id); }
+    interface Notificador { void notificar(String destino, String mensagem); }
+
+    // detalhes de baixo nível: produção
+    static final class RepositorioMySql implements RepositorioPedidos {
+        public void salvar(String id) { System.out.println(&quot;MySQL: pedido &quot; + id + &quot; gravado&quot;); }
+    }
+
+    static final class NotificadorSmtp implements Notificador {
+        public void notificar(String destino, String mensagem) {
+            System.out.println(&quot;SMTP -&gt; &quot; + destino + &quot;: &quot; + mensagem);
+        }
+    }
+
+    // detalhe para teste: não toca em rede nem em disco
+    static final class RepositorioEmMemoria implements RepositorioPedidos {
+        final List&lt;String&gt; gravados = new ArrayList&lt;&gt;();
+        public void salvar(String id) { gravados.add(id); }
+    }
+
+    static final class NotificadorFalso implements Notificador {
+        public void notificar(String destino, String mensagem) {
+            System.out.println(&quot;(teste) notificação para &quot; + destino + &quot;: &quot; + mensagem);
+        }
+    }
+
+    static final class ServicoPedido {
+        private final RepositorioPedidos repositorio;
+        private final Notificador notificador;
+
+        // dependências chegam pelo construtor (injeção de dependência)
+        ServicoPedido(RepositorioPedidos repositorio, Notificador notificador) {
+            this.repositorio = repositorio;
+            this.notificador = notificador;
+        }
+
+        void finalizar(String id, String email) {
+            repositorio.salvar(id);
+            notificador.notificar(email, &quot;pedido &quot; + id + &quot; confirmado&quot;);
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        System.out.println(&quot;== produção&quot;);
+        new ServicoPedido(new RepositorioMySql(), new NotificadorSmtp()).finalizar(&quot;P-1001&quot;, &quot;ana@exemplo.com&quot;);
+
+        System.out.println(&quot;== teste&quot;);
+        RepositorioEmMemoria memoria = new RepositorioEmMemoria();
+        new ServicoPedido(memoria, new NotificadorFalso()).finalizar(&quot;P-T1&quot;, &quot;teste@exemplo.com&quot;);
+        System.out.println(&quot;gravados em memória: &quot; + memoria.gravados);
+    }
+}</code></pre>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div>
+<pre class="ah-code"><code>== produção
+MySQL: pedido P-1001 gravado
+SMTP -&gt; ana@exemplo.com: pedido P-1001 confirmado
+== teste
+(teste) notificação para teste@exemplo.com: pedido P-T1 confirmado
+gravados em memória: [P-T1]</code></pre>
+
+
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>O que mudou:</strong> ServicoPedido depende de RepositorioPedidos e Notificador, que são interfaces. O main decide qual implementação usar: MySQL e SMTP em produção, versões em memória no teste. A regra de negócio não sabe qual tecnologia está por trás.</div></div>
+<div class="ah-card p-5 mt-5"><div class="text-xs uppercase tracking-wide text-amber-300 font-bold mb-2">Exercício para a turma</div><p class="text-sm">Crie uma implementação RepositorioArquivo (grava em lista de texto) e rode o ServicoPedido com ela. Quantas linhas mudam em ServicoPedido? Quantas linhas mudam no main?</p></div>
+
+  </div>
+</section>
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
