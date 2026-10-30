@@ -999,6 +999,332 @@ gravados em memória: [P-T1]
 
 ---
 
+## Exercício prático de 30 minutos: o Melodia
+
+**Enunciado.** O Melodia começa como um arquivo só. Ele toca músicas, aplica o limite de cada plano, grava o histórico e calcula royalties. Corrija o código para que cumpra S, O, L, I e D, um princípio por vez, sem mudar a reprodução. Ao final, a saída do player deve ser a mesma; a diferença esperada está no histórico e na playlist pública.
+
+**Tempo.** Cinco minutos por princípio, e cinco para verificar a saída.
+
+| Passo | Letra | Tempo | Tarefa | Critério de pronto |
+|---|---|---|---|---|
+| 1 | S | 5 min | Separe o que toca, o que grava histórico e o que calcula royalties. | O método `tocar` não decide sozinho a regra do plano. |
+| 2 | O | 5 min | Acrescente o plano FAMILIA sem editar o código de FREE e PREMIUM. | Nenhum `if` novo dentro do player. |
+| 3 | L | 5 min | A playlist pública não pode lançar exceção no `adicionar`. | Quem usa a playlist pública nunca recebe surpresa. |
+| 4 | I | 5 min | Separe a interface `Biblioteca` em consulta e edição. | Nenhuma classe implementa método que não usa. |
+| 5 | D | 5 min | O player recebe o histórico pelo construtor, e o teste usa a versão em memória. | O player não tem `new` de histórico. |
+| - | - | 5 min | Rode as duas versões e compare a saída. | As linhas de reprodução e de royalties são iguais. |
+
+### Desenho ruim (ponto de partida)
+
+```mermaid
+classDiagram
+    class Player {
+        +tocar(usuario, musica)
+    }
+    class HistoricoArquivo {
+        +registrar(linha)
+    }
+    class Biblioteca {
+        <<interface>>
+        +musicas()
+        +adicionar(musica)
+    }
+    class Playlist
+    class PlaylistPublica {
+        +adicionar(musica) lança exceção
+    }
+    Player --> HistoricoArquivo : new dentro
+    Biblioteca <|.. Playlist
+    Biblioteca <|.. PlaylistPublica
+```
+
+<details><summary>Código inicial: <code>exemplos/solid/exercicio-streaming/inicial/Main.java</code></summary>
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Exercício de SOLID, versão inicial (ruim). Escopo: streaming de música (Melodia).
+ * Tarefa: corrigir S, O, L, I e D, um de cada vez, sem mudar a saída.
+ */
+public class Main {
+
+    static class Musica {
+        final String titulo;
+        final int segundos;
+        Musica(String titulo, int segundos) { this.titulo = titulo; this.segundos = segundos; }
+    }
+
+    static class Usuario {
+        final String nome;
+        final String plano;   // "FREE", "PREMIUM" ou "FAMILIA"
+        Usuario(String nome, String plano) { this.nome = nome; this.plano = plano; }
+    }
+
+    static class HistoricoArquivo {
+        void registrar(String linha) { System.out.println("gravando em historico.txt: " + linha); }
+    }
+
+    // S: este método faz tudo. O: um plano novo exige editar os ifs.
+    static class Player {
+        private final HistoricoArquivo historico = new HistoricoArquivo();   // D: dependência fixa
+
+        void tocar(Usuario u, Musica m) {
+            int segundos = m.segundos;
+            if (u.plano.equals("FREE") && segundos > 30) {
+                segundos = 30;
+                System.out.println("[" + u.nome + "] limite do plano: 30 s de " + m.titulo);
+            }
+            System.out.println("tocando " + m.titulo + " para " + u.nome);
+            historico.registrar(u.nome + ": " + m.titulo);
+            double royalties;
+            if (u.plano.equals("PREMIUM") || u.plano.equals("FAMILIA")) {
+                royalties = segundos * 0.002;
+            } else {
+                royalties = segundos * 0.001;
+            }
+            System.out.printf("royalties: R$ %.3f%n", royalties);
+        }
+    }
+
+    // I: interface gorda, com um método que nem toda classe pode cumprir
+    interface Biblioteca {
+        List<Musica> musicas();
+        void adicionar(Musica m);
+    }
+
+    static class Playlist implements Biblioteca {
+        private final List<Musica> musicas = new ArrayList<>();
+        public List<Musica> musicas() { return musicas; }
+        public void adicionar(Musica m) { musicas.add(m); }
+    }
+
+    // I e L: não aceita adicionar; quem usa Biblioteca espera que adicionar funcione
+    static class PlaylistPublica implements Biblioteca {
+        private final List<Musica> musicas;
+        PlaylistPublica(List<Musica> musicas) { this.musicas = musicas; }
+        public List<Musica> musicas() { return musicas; }
+        public void adicionar(Musica m) {
+            throw new UnsupportedOperationException("playlist pública é só leitura");
+        }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        Player player = new Player();
+        player.tocar(new Usuario("Ana", "FREE"), new Musica("Aquarela", 200));
+        player.tocar(new Usuario("Bruno", "PREMIUM"), new Musica("Garota", 180));
+        player.tocar(new Usuario("Carla", "FAMILIA"), new Musica("Samba", 240));
+
+        Biblioteca publica = new PlaylistPublica(new ArrayList<>(List.of(new Musica("Garota", 180))));
+        try {
+            publica.adicionar(new Musica("Samba", 240));
+        } catch (UnsupportedOperationException e) {
+            System.out.println("erro: " + e.getMessage());
+        }
+        System.out.println("playlist pública tem " + publica.musicas().size() + " música(s)");
+    }
+}
+```
+
+</details>
+
+Saída real da versão inicial:
+
+```text
+[Ana] limite do plano: 30 s de Aquarela
+tocando Aquarela para Ana
+gravando em historico.txt: Ana: Aquarela
+royalties: R$ 0.030
+tocando Garota para Bruno
+gravando em historico.txt: Bruno: Garota
+royalties: R$ 0.360
+tocando Samba para Carla
+gravando em historico.txt: Carla: Samba
+royalties: R$ 0.480
+erro: playlist pública é só leitura
+playlist pública tem 1 música(s)
+```
+
+### Solução: o que muda em cada letra
+
+- **S.** `Player` apenas coordena. A regra de limite e de royalty foi para os planos, e o histórico para uma abstração.
+- **O.** Cada plano é uma classe nova que implementa `Plano`. Acrescentar FAMILIA não exige editar Free nem Premium.
+- **L.** `PlaylistPublica` não promete `adicionar`: implementa só `Consulta`. Nenhum subtipo lança exceção onde o contrato não permite.
+- **I.** `Biblioteca` virou `Consulta` (ler) e `Edicao` (adicionar). Cada classe implementa só o que faz.
+- **D.** `Player` recebe `Historico` pelo construtor. O `main` escolhe `HistoricoMemoria`, e um arquivo ou banco poderia entrar no lugar sem mudar o player.
+
+### Desenho da solução
+
+```mermaid
+classDiagram
+    class Player {
+        -Historico historico
+        +tocar(usuario, musica)
+    }
+    class Historico {
+        <<interface>>
+        +registrar(linha)
+    }
+    class HistoricoMemoria
+    class Plano {
+        <<interface>>
+        +limiteSegundos() int
+        +royaltyPorSegundo() double
+    }
+    class PlanoFree
+    class PlanoPremium
+    class PlanoFamilia
+    class Consulta {
+        <<interface>>
+        +musicas()
+    }
+    class Edicao {
+        <<interface>>
+        +adicionar(musica)
+    }
+    class Playlist
+    class PlaylistPublica
+    Player --> Historico
+    Player --> Plano
+    Historico <|.. HistoricoMemoria
+    Plano <|.. PlanoFree
+    Plano <|.. PlanoPremium
+    Plano <|.. PlanoFamilia
+    Consulta <|.. Playlist
+    Edicao <|.. Playlist
+    Consulta <|.. PlaylistPublica
+```
+
+<details><summary>Solução: <code>exemplos/solid/exercicio-streaming/solucao/Main.java</code></summary>
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Exercício de SOLID, solução. Mesma saída da versão inicial, na parte do player e da playlist,
+ * com o histórico em memória e a playlist pública só de leitura.
+ */
+public class Main {
+
+    // S e imutabilidade: dados sem comportamento de negócio
+    record Musica(String titulo, int segundos) {}
+
+    // O: cada plano é uma classe nova; o player não muda ao criar um plano
+    interface Plano {
+        int limiteSegundos();
+        double royaltyPorSegundo();
+    }
+
+    static class PlanoFree implements Plano {
+        public int limiteSegundos() { return 30; }
+        public double royaltyPorSegundo() { return 0.001; }
+    }
+
+    static class PlanoPremium implements Plano {
+        public int limiteSegundos() { return Integer.MAX_VALUE; }
+        public double royaltyPorSegundo() { return 0.002; }
+    }
+
+    static class PlanoFamilia implements Plano {
+        public int limiteSegundos() { return Integer.MAX_VALUE; }
+        public double royaltyPorSegundo() { return 0.002; }
+    }
+
+    record Usuario(String nome, Plano plano) {}
+
+    // D: o player depende da abstração Historico; quem monta escolhe a implementação
+    interface Historico {
+        void registrar(String linha);
+    }
+
+    static class HistoricoMemoria implements Historico {
+        final List<String> linhas = new ArrayList<>();
+        public void registrar(String linha) { linhas.add(linha); }
+    }
+
+    // S: o player só coordena; cada regra vive em um lugar
+    static class Player {
+        private final Historico historico;
+
+        Player(Historico historico) { this.historico = historico; }
+
+        void tocar(Usuario u, Musica m) {
+            int segundos = Math.min(m.segundos(), u.plano().limiteSegundos());
+            if (segundos < m.segundos()) {
+                System.out.println("[" + u.nome() + "] limite do plano: " + segundos + " s de " + m.titulo());
+            }
+            System.out.println("tocando " + m.titulo() + " para " + u.nome());
+            historico.registrar(u.nome() + ": " + m.titulo());
+            double royalties = segundos * u.plano().royaltyPorSegundo();
+            System.out.printf("royalties: R$ %.3f%n", royalties);
+        }
+    }
+
+    // I e L: consulta e edição são contratos separados; quem só lê não promete edição
+    interface Consulta {
+        List<Musica> musicas();
+    }
+
+    interface Edicao {
+        void adicionar(Musica m);
+    }
+
+    static class Playlist implements Consulta, Edicao {
+        private final List<Musica> musicas = new ArrayList<>();
+        public List<Musica> musicas() { return musicas; }
+        public void adicionar(Musica m) { musicas.add(m); }
+    }
+
+    static class PlaylistPublica implements Consulta {
+        private final List<Musica> musicas;
+        PlaylistPublica(List<Musica> musicas) { this.musicas = musicas; }
+        public List<Musica> musicas() { return musicas; }
+    }
+
+    public static void main(String[] args) {
+        Locale.setDefault(Locale.ROOT);
+        HistoricoMemoria historico = new HistoricoMemoria();
+        Player player = new Player(historico);
+        player.tocar(new Usuario("Ana", new PlanoFree()), new Musica("Aquarela", 200));
+        player.tocar(new Usuario("Bruno", new PlanoPremium()), new Musica("Garota", 180));
+        player.tocar(new Usuario("Carla", new PlanoFamilia()), new Musica("Samba", 240));
+        System.out.println("histórico: " + historico.linhas);
+
+        Edicao minha = new Playlist();
+        minha.adicionar(new Musica("Aquarela", 200));
+        Consulta publica = new PlaylistPublica(List.of(new Musica("Garota", 180)));
+        System.out.println("playlist pública tem " + publica.musicas().size() + " música(s)");
+    }
+}
+```
+
+</details>
+
+Saída real da solução:
+
+```text
+[Ana] limite do plano: 30 s de Aquarela
+tocando Aquarela para Ana
+royalties: R$ 0.030
+tocando Garota para Bruno
+royalties: R$ 0.360
+tocando Samba para Carla
+royalties: R$ 0.480
+histórico: [Ana: Aquarela, Bruno: Garota, Carla: Samba]
+playlist pública tem 1 música(s)
+```
+
+**Verificação.** Compare as duas saídas linha por linha. As linhas de reprodução e de royalties são as mesmas. A diferença esperada: o histórico sai como lista no fim, e a playlist pública não lança exceção.
+
+**Para discutir em sala.** Se o plano FAMILIA tivesse royalty de 0,003, quantas classes mudariam? E se o histórico passasse a ser um banco de dados: quantas linhas do player mudariam?
+
+---
+
 ## Exercício final: um requisito novo no pedido
 
 Requisito: o total deve incluir frete de R$ 15,00 para pedidos abaixo de R$ 200,00. Depois, o e-mail deve ser enviado também por SMS.
