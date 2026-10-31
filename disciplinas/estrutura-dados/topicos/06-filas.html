@@ -541,6 +541,13 @@ os 10 primeiros binários (escritos como decimais): 1 10 11 100 101 110 111 1000
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i>Tipos de fila e quando usar cada um</h2>
 <div class="ah-prose mt-4"><p>Filas aparecem em formas diferentes. A escolha depende de onde os elementos entram e saem, do limite de tamanho e de quem os consome.</p></div><div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Tipo</th><th>Ideia</th><th>Custo das operações</th><th>Uso típico</th></tr></thead><tbody><tr><td>Fila simples (linear)</td><td>FIFO em vetor, com a frente fixa no início</td><td><code>dequeue</code> é O(n) por causa dos deslocamentos</td><td>Didático; pouco usado em produção</td></tr><tr><td>Circular</td><td>Vetor de capacidade fixa com índices que dão a volta</td><td>O(1) nas duas pontas</td><td>Buffers de áudio, vídeo e rede</td></tr><tr><td>Encadeada</td><td>Nós alocados um a um, sem limite fixo</td><td>O(1), com uma alocação por elemento</td><td>Tarefas com volume imprevisível</td></tr><tr><td>Dupla (<em>deque</em>)</td><td>Entra e sai pelos dois lados</td><td>O(1) nas duas pontas</td><td>Janela deslizante; roubo de tarefas em escalonadores</td></tr><tr><td>Prioridade</td><td>Sai o elemento de maior prioridade, não o mais antigo</td><td>O(log n) com heap</td><td>Escalonadores, Dijkstra, compressão (Huffman)</td></tr><tr><td>Bloqueante (produtor-consumidor)</td><td>Quem produz espera se a fila está cheia; quem consome espera se está vazia</td><td>Depende da sincronização</td><td>Mensageria, pools de threads, filas de trabalho</td></tr></tbody></table></div><h3 class="ah-h3 mt-8 mb-2">Erros comuns com filas em C</h3><ul class="ah-prose space-y-2"><li><strong>Remover sem checar vazia</strong>: lê lixo ou corrompe a fila. Sempre verifique o retorno de <code>dequeue</code>.</li><li><strong>Inserir sem checar cheia</strong>: no buffer circular, sobrescreve dados ainda não consumidos.</li><li><strong>Esquecer de zerar o fim</strong> quando a fila encadeada esvazia: deixa um ponteiro pendurado.</li><li><strong>Esquecer o <code>free</code></strong> no dequeue da fila encadeada: vazamento de memória, que cresce com o tempo de execução.</li><li><strong>Calcular a posição errada</strong> no buffer circular: usar <code>frente + tam</code> sem o módulo faz o índice sair do vetor.</li><li><strong>Usar fila onde precisa de busca</strong>: buscar um elemento numa fila é O(n). Se a consulta por chave é o que importa, use hash ou árvore.</li></ul><div class="ah-prose mt-4"><p>Regra prática: quando a ordem de chegada é a regra, use fila; quando a ordem é outra, ou quando você precisa acessar um elemento pelo valor, escolha outra estrutura.</p></div>
 </section>
+<section id="conc-deque" data-toc="deque, fila de duas pontas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-left-right text-amber-400 mr-2"></i>Animação: deque, fila de duas pontas</h2>
+  <p class="ah-lead text-sm mb-4">Um deque insere e remove pelos dois lados. Veja cada operação mudar as duas pontas.</p>
+  <div class="ah-stage" style="height:200px"><canvas id="cvDeque" style="height:200px"></canvas></div>
+  <div id="ctl-cvDeque" class="mt-4"></div>
+  <div id="cap-cvDeque" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
   <div class="space-y-4">
@@ -610,6 +617,7 @@ os 10 primeiros binários (escritos como decimais): 1 10 11 100 101 110 111 1000
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js?v=tema3"></script>
 <script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/conceitos.js?v=conc1"></script>
 <script>
 (function () {
   'use strict';
@@ -621,6 +629,11 @@ os 10 primeiros binários (escritos como decimais): 1 10 11 100 101 110 111 1000
   ED.criaAnimacao({
     canvas: 'cvFila', ctl: 'ctlFila', cap: 'capFila',
     desenha: ED.desenhaFila, gera: ED.geraFila, velocidade: 1300
+  });
+
+  ED.criaAnimacao({
+    canvas: 'cvDeque', ctl: 'ctl-cvDeque', cap: 'cap-cvDeque',
+    desenha: CONC.desenhaDeque, gera: CONC.geraDeque, velocidade: 1300
   });
 
 })();
