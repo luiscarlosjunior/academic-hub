@@ -505,7 +505,9 @@ pre code{font-size:inherit}
       <p>Um serviço gerenciado é aquele em que a AWS cuida da parte chata de operar: instalar atualizações, fazer backup, substituir máquinas com defeito. No RDS, por exemplo, você usa o banco de dados, mas não instala nem atualiza o PostgreSQL. Quanto mais gerenciado o serviço, menos trabalho de operação e menos controle fino você tem. É uma troca, e escolher entre elas é uma decisão de arquitetura.</p>
     </div>
   </div>
-  <div class="read"><div class="fixar"><span class="lbl">Para fixar</span><ul>
+  <div class="read"><h3>Veja a diferença: servidor que escala × função que escala</h3><p>Jonas et al. (2019) descrevem a principal promessa do serverless: a capacidade acompanha a demanda, requisição por requisição. Wang et al. (2018), medindo plataformas reais, mostraram o outro lado: as primeiras execuções podem demorar mais (a "partida a frio"). Rode o mesmo pico de acessos nos três cenários.</p></div>
+<div class="ias" data-ias="scale"><div class="ias-hd"><b>Um pico de acessos às 19h na portaria</b><span class="tag">Animação</span><small>Escolha o modelo de computação e rode o pico. A área vermelha são requisições perdidas.</small></div><script type="application/json">{}</script></div>
+<div class="read"><div class="fixar"><span class="lbl">Para fixar</span><ul>
     <li>Um sistema típico combina computação, armazenamento, banco, integração, rede, identidade e observação.</li>
     <li>Serviços gerenciados trocam controle por menos trabalho de operação.</li>
     <li>A IA aparece de dois jeitos: ajudando quem constrói (Q Developer) e como parte do produto (Textract, Bedrock).</li>
@@ -533,6 +535,9 @@ pre code{font-size:inherit}
     </tbody>
   </table></div>
   <div class="read">
+    </div>
+<div class="ias" data-ias="radar"><div class="ias-hd"><b>Os seis pilares para quatro versões do assistente</b><span class="tag">Animação</span><small>Escolha uma versão do assistente do morador e veja como cada pilar muda.</small></div><script type="application/json">{"eixos": ["Operação", "Segurança", "Confiabilidade", "Desempenho", "Custos", "Sustentabilidade"], "opcoes": [{"nome": "Demonstração da tarde", "v": [1, 1, 1, 3, 3, 3], "txt": "Funciona na apresentação: sem eval, sem guardas, sem alarmes. Ótima para aprender, perigosa em produção."}, {"nome": "Maior modelo em tudo", "v": [3, 3, 3, 2, 1, 1], "txt": "Respostas boas, mas custo, latência e consumo de energia altos. Custos, desempenho e sustentabilidade pagam a conta."}, {"nome": "Menor modelo que passa no eval", "v": [4, 4, 4, 4, 4, 4], "txt": "O eval define a qualidade mínima; o menor modelo que a atinge equilibra custo, latência e consumo. Guardrails e alarmes completam. É o equilíbrio que buscamos."}, {"nome": "Guardas máximas em tudo", "v": [3, 5, 4, 2, 2, 3], "txt": "Várias camadas de filtro e revisão humana em cada resposta: muito seguro, mas lento e caro. Segurança também tem custo."}]}</script></div>
+<div class="read">
     <div class="call info"><span class="lbl">Pergunta para a turma</span>
       <p>Uma funcionalidade com IA generativa responde com qualidade excelente, mas cada resposta custa caro e demora quatro segundos. Quais pilares estão em tensão? Como você decidiria o equilíbrio?</p>
     </div>
@@ -615,6 +620,9 @@ pre code{font-size:inherit}
     <h3>Credenciais da esteira: nada de chave fixa</h3>
     <p>Um erro antigo e ainda comum é guardar uma chave de acesso da AWS (access key) como segredo na ferramenta de CI. Se essa chave vazar, quem a tiver acessa a conta até alguém perceber. A prática recomendada hoje é usar <strong>federação por OIDC</strong>: a esteira (por exemplo, o GitHub Actions) prova sua identidade para a AWS a cada execução e recebe uma credencial <strong>temporária</strong>, válida por minutos, com permissões só para aquele repositório e aquela tarefa. Foi justamente um token de longa duração vazado numa automação de CI que abriu caminho para o ataque ao Nx, visto na aula 1.</p>
 
+    <h3>Veja a credencial temporária sendo emitida</h3><p>O fluxo usa o OpenID Connect (SAKIMURA et al., 2014), construído sobre o OAuth 2.0 (HARDT, 2012). O ponto central: nada fica guardado no CI. Cada execução prova quem é e recebe uma credencial que expira sozinha.</p></div>
+<div class="ias" data-ias="seq"><div class="ias-hd"><b>Da esteira à conta AWS sem chave fixa</b><span class="tag">Animação</span><small>Avance para ver cada mensagem do fluxo OIDC.</small></div><script type="application/json">{"atores": ["GitHub Actions", "OIDC do GitHub", "AWS STS", "Conta AWS"], "msgs": [{"de": 0, "para": 1, "txt": "pede um token de identidade", "d": "Cada execução da esteira pede um token assinado que diz: \"sou o repositório X, na branch main, neste workflow\"."}, {"de": 1, "para": 0, "txt": "token assinado (vale minutos)", "volta": true, "d": "O token é curto e específico daquela execução."}, {"de": 0, "para": 2, "txt": "AssumeRoleWithWebIdentity", "d": "A esteira apresenta o token à AWS e pede para assumir um papel IAM de deploy."}, {"de": 2, "para": 2, "txt": "confere assinatura e condições", "d": "A AWS confere a assinatura e a política de confiança do papel: só aceita aquele repositório e aquela branch."}, {"de": 2, "para": 0, "txt": "credencial temporária", "volta": true, "d": "A esteira recebe chaves temporárias. Se vazarem, expiram sozinhas em pouco tempo."}, {"de": 0, "para": 3, "txt": "cdk deploy com o papel", "d": "A esteira só consegue fazer o que o papel de deploy permite."}, {"de": 3, "para": 0, "txt": "deploy feito; CloudTrail registra", "volta": true, "d": "Toda ação fica registrada com a identidade do papel e da execução: dá para saber quem fez o quê."}]}</script></div>
+<div class="read">
     <h3>Deploy seguro: por que publicar aos poucos</h3>
     <p>Nygard (2018) lembra que sistemas em produção falham de formas que nenhum ambiente de teste reproduz. Por isso a publicação deve limitar o estrago possível: <strong>canário</strong> (uma pequena porcentagem dos usuários recebe a nova versão primeiro), <strong>blue/green</strong> (duas versões lado a lado, com troca instantânea) e <strong>reversão automática</strong> por alarme. Serviços como o CodeDeploy fazem isso para EC2, ECS e Lambda.</p>
     <p>A expressão "canário" vem das minas de carvão, onde um passarinho avisava os mineiros do gás antes que fosse tarde. Sato (2014) popularizou o termo para a publicação de software, e Schermann et al. (2018) mostraram, estudando empresas, que esse tipo de liberação gradual faz parte da experimentação contínua em produção. Experimente abaixo: inicie o deploy e, no meio, injete um defeito.</p></div>
@@ -708,6 +716,9 @@ pre code{font-size:inherit}
       <p>Imagine a portaria recebendo cinquenta encomendas de uma vez num fim de tarde. Se cada foto chamasse o Textract diretamente, um pico poderia sobrecarregar o sistema ou estourar limites. A <strong>fila</strong> funciona como a senha de atendimento de um banco: as fotos entram na fila e são processadas no ritmo que o sistema aguenta. Se uma falhar, ela volta para a fila e é tentada de novo; se falhar várias vezes, vai para uma <strong>fila de erro</strong> (dead-letter queue) para alguém olhar. Hohpe e Woolf (2003) catalogaram esses padrões de integração há mais de vinte anos.</p>
     </div>
 
+    </div>
+<div class="ias" data-ias="queue"><div class="ias-hd"><b>A fila em funcionamento</b><span class="tag">Animação</span><small>Mande fotos para a fila e depois uma foto ilegível. Compare com e sem a fila de erro.</small></div><script type="application/json">{}</script></div>
+<div class="read">
     <h3>Passo 1 · Especificar</h3>
     <ul>
       <li>Cada foto nova em <code>encomendas/</code> no bucket gera uma mensagem na fila.</li>
@@ -916,6 +927,9 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
     <div class="explica"><span class="lbl">Explicando com calma: os três sinais</span>
       <p><strong>Métricas</strong> são números ao longo do tempo (quantas requisições, quanto tempo cada uma levou). <strong>Logs</strong> são o diário do sistema, linha a linha. <strong>Rastros</strong> (traces) seguem uma única requisição pelo caminho inteiro, de serviço em serviço. É como investigar um atraso de entrega: as métricas dizem que as entregas atrasaram, os logs contam o que cada pessoa anotou e o rastro mostra por onde aquele pacote passou.</p>
     </div>
+    </div>
+<div class="ias" data-ias="tail"><div class="ias-hd"><b>Latência de cauda: por que um serviço lento atrasa todos</b><span class="tag">Animação</span><small>Mude o número de serviços chamados e a chance de cada um estar lento. Rode uma requisição e depois mil.</small></div><script type="application/json">{}</script></div>
+<div class="read">
     <h3>Onde a IA ajuda na operação</h3>
     <ul>
       <li><strong>Ler e resumir:</strong> consultas em linguagem natural nos logs (CloudWatch Logs Insights), resumo de um incidente a partir de logs e do chat da equipe.</li>
@@ -1124,6 +1138,10 @@ new cloudwatch.Alarm(this, 'AlarmeFilaErro', {
       <li>LIU, N. F. et al. Lost in the Middle: How Language Models Use Long Contexts. <em>Transactions of the ACL</em>, v. 12, p. 157-173, 2024. <a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">arXiv:2307.03172</a>.</li>
       <li>SALTZER, J. H.; SCHROEDER, M. D. The Protection of Information in Computer Systems. <em>Proceedings of the IEEE</em>, v. 63, n. 9, p. 1278-1308, 1975.</li>
       <li>SATO, D. CanaryRelease. <em>martinfowler.com</em>, 2014. Disponível em: <a href="https://martinfowler.com/bliki/CanaryRelease.html" target="_blank" rel="noopener">martinfowler.com/bliki/CanaryRelease.html</a>.</li>
+      <li>DEAN, J.; BARROSO, L. A. The Tail at Scale. <em>Communications of the ACM</em>, v. 56, n. 2, p. 74-80, 2013.</li>
+      <li>HARDT, D. (ed.). <em>The OAuth 2.0 Authorization Framework</em>. RFC 6749. IETF, 2012.</li>
+      <li>SAKIMURA, N. et al. <em>OpenID Connect Core 1.0</em>. OpenID Foundation, 2014.</li>
+      <li>WANG, L. et al. Peeking Behind the Curtains of Serverless Platforms. In: <em>USENIX Annual Technical Conference</em>, 2018. p. 133-146.</li>
       <li>SCHERMANN, G. et al. We're Doing It Live: A Multi-Method Empirical Study on Continuous Experimentation. <em>Information and Software Technology</em>, v. 99, p. 41-57, 2018.</li>
     </ul>
   </div>

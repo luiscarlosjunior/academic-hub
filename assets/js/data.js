@@ -1026,6 +1026,43 @@ const AH_DATA = {
           resumo: 'Conectar ao SQLite com JDBC, PreparedStatement, ResultSet, geração de chaves, transações com rollback e tratamento de SQLException.',
           tags: ['Java', 'JDBC', 'PreparedStatement'], nivel: 'Intermediário', minutos: 36 }
       ]
+    },
+    {
+      id: 'arq',
+      slug: 'arquitetura-sistemas',
+      nome: 'Arquitetura de Sistemas',
+      curto: 'Arquitetura',
+      icone: 'fa-sitemap',
+      cor: 'violet',
+      corHex: '#8b5cf6',
+      descricao:
+        'Os conceitos que sustentam sistemas de grande escala: mensageria e streaming (Kafka e Kinesis), modelagem relacional e normalização, armazenamento por linhas e por colunas, NoSQL, o teorema CAP, escalabilidade, event sourcing e CQRS.',
+      topicos: [
+        { id: '01-mensageria-filas', titulo: 'Mensageria: filas, publicação e assinatura, entrega garantida', icone: 'fa-envelope',
+          resumo: 'Por que sistemas se comunicam por mensagens, a diferença entre fila e tópico, e o que significa entrega pelo menos uma vez.',
+          tags: ['Mensageria', 'Filas', 'Pub/Sub'], nivel: 'Introdutório', minutos: 45 },
+        { id: '02-streaming-kafka-kinesis', titulo: 'Streaming com Kafka e Kinesis: logs distribuídos', icone: 'fa-water',
+          resumo: 'Tópicos particionados, offsets, grupos de consumidores e retenção, com exemplos em Apache Kafka e Amazon Kinesis Data Streams.',
+          tags: ['Kafka', 'Kinesis', 'Streaming'], nivel: 'Avançado', minutos: 55 },
+        { id: '03-modelo-relacional-normalizacao', titulo: 'Modelo relacional e normalização', icone: 'fa-table',
+          resumo: 'Relações, chaves e as formas normais (1FN, 2FN e 3FN): por que a redundância causa anomalias e como eliminá-las.',
+          tags: ['Relacional', 'Normalização', 'SQL'], nivel: 'Intermediário', minutos: 50 },
+        { id: '04-armazenamento-linhas-colunas', titulo: 'Armazenamento por linhas e por colunas', icone: 'fa-table-columns',
+          resumo: 'Por que bancos OLTP guardam linhas e bancos analíticos guardam colunas, e como isso afeta leitura, escrita e compressão.',
+          tags: ['Colunar', 'OLTP', 'OLAP'], nivel: 'Intermediário', minutos: 45 },
+        { id: '05-modelos-nosql', titulo: 'Modelos NoSQL: chave-valor, documento, colunar e grafo', icone: 'fa-diagram-project',
+          resumo: 'As quatro famílias de bancos NoSQL, o modelo de acesso que cada uma favorece e os cenários em que cada uma é a escolha certa.',
+          tags: ['NoSQL', 'Chave-valor', 'Documento', 'Grafo'], nivel: 'Intermediário', minutos: 50 },
+        { id: '06-teorema-cap-pacelc', titulo: 'Teorema CAP e PACELC: consistência sob falhas', icone: 'fa-scale-balanced',
+          resumo: 'Consistência, disponibilidade e tolerância a partições; por que a escolha ocorre apenas durante falhas, e a extensão PACELC.',
+          tags: ['CAP', 'PACELC', 'Consistência'], nivel: 'Avançado', minutos: 45 },
+        { id: '07-escalabilidade-balanceamento', titulo: 'Escalabilidade, particionamento e balanceamento de carga', icone: 'fa-server',
+          resumo: 'Escala vertical e horizontal, algoritmos de balanceamento, particionamento por chave e consistent hashing.',
+          tags: ['Escalabilidade', 'Balanceamento', 'Sharding'], nivel: 'Intermediário', minutos: 45 },
+        { id: '08-event-sourcing-cqrs', titulo: 'Event sourcing e CQRS', icone: 'fa-clock-rotate-left',
+          resumo: 'Guardar o histórico de eventos em vez do estado atual, separar leitura de escrita e reconstruir visões a partir do log.',
+          tags: ['Event sourcing', 'CQRS', 'Projeções'], nivel: 'Avançado', minutos: 50 }
+      ]
     }
   ]
 };

@@ -853,11 +853,268 @@
     }
   });
 
+  /* ===================================================================
+     9. ANIMAÇÕES DE CONCEITO (uma por tópico, na seção de teoria).
+     Um renderizador genérico desenha rótulos, setas e destaques. Cada
+     quadro informa quais rótulos estão em destaque, o texto explicativo
+     e, opcionalmente, o rótulo que representa um erro.
+     =================================================================== */
+  const CONCEITOS = {
+    '01': { titulo: 'Como as camadas de um design system se relacionam',
+      rotulos: ['Princípios', 'Fundamentos', 'Componentes', 'Padrões', 'Documentação'],
+      con: [[0, 1], [1, 2], [2, 3], [3, 4]],
+      quadros: [
+        [[0], 'Os princípios orientam todas as decisões. Sem eles, cada componente vira uma escolha isolada.'],
+        [[1], 'Os fundamentos (cores, tipografia e espaçamento) formam a base visual, traduzida em tokens.'],
+        [[2], 'Os componentes combinam fundamentos em peças reutilizáveis, com API e estados definidos.'],
+        [[3], 'Os padrões compõem componentes para resolver tarefas do usuário, como um formulário de cadastro.'],
+        [[4], 'A documentação ensina o uso correto de cada camada. Sem ela, o sistema só existe para quem o criou.']
+      ] },
+    '02': { titulo: 'Como um token propaga uma mudança',
+      rotulos: ['blue.600 (primitivo)', 'action.primary (semântico)', 'Botão (componente)', 'Tema escuro (semântico)'],
+      con: [[0, 1], [1, 2], [1, 3]],
+      quadros: [
+        [[0], 'O primitivo guarda o valor bruto: o azul de referência da marca.'],
+        [[1], 'O semântico dá intenção: "ação principal" aponta para o primitivo.'],
+        [[2], 'O componente pede apenas o semântico, nunca o valor literal.'],
+        [[1, 3], 'Para o tema escuro, o semântico aponta para outro primitivo. O componente não precisa mudar.']
+      ] },
+    '03': { titulo: 'Os princípios POUR da WCAG 2.2',
+      rotulos: ['Perceptível', 'Operável', 'Compreensível', 'Robusto'],
+      con: [],
+      quadros: [
+        [[0], 'Perceptível: a informação chega por mais de um canal, e o texto mantém contraste de pelo menos 4,5:1.'],
+        [[1], 'Operável: tudo funciona com teclado, com foco visível e alvos de pelo menos 24 px.'],
+        [[2], 'Compreensível: o texto é claro, e as mensagens de erro indicam como corrigir.'],
+        [[3], 'Robusto: o componente é interpretado de forma consistente por tecnologias assistivas, graças ao HTML semântico e ao ARIA.']
+      ] },
+    '04': { titulo: 'Por que o nome com hash permite cache longo',
+      rotulos: ['index.html (sem hash)', 'app.3f9c1a.js', 'app.7b21d0.js (nova versão)'],
+      con: [[0, 1]],
+      quadros: [
+        [[0], 'O index.html tem sempre o mesmo nome. Por isso precisa ser revalidado a cada visita.'],
+        [[1], 'Após um build, o script recebe um hash no nome. Enquanto o conteúdo não muda, o nome não muda.'],
+        [[2], 'Uma nova versão tem outro nome. A borda não entrega o arquivo antigo, e o cache pode durar um ano.']
+      ] },
+    '05': { titulo: 'O que cada número de versão comunica',
+      rotulos: ['1.4.2 (atual)', '1.4.3 (patch)', '1.5.0 (minor)', '2.0.0 (major)'],
+      con: [[0, 1], [0, 2], [0, 3]],
+      quadros: [
+        [[0], 'Ponto de partida: a versão 1.4.2, usada por produtos com o intervalo ^1.4.2.'],
+        [[1], 'Patch: correção sem mudança de API. O consumidor recebe a versão automaticamente.'],
+        [[2], 'Minor: funcionalidade nova e compatível. Também entra no intervalo ^1.4.2.'],
+        [[3], 'Major: quebra de compatibilidade. Fica fora do intervalo ^1.4.2 e exige migração.', 3]
+      ] },
+    '06': { titulo: 'Por que o pipeline começa pelo mais barato',
+      rotulos: ['Lint (segundos)', 'Testes (minutos)', 'Teste visual (minutos)', 'Deploy (minutos)'],
+      con: [[0, 1], [1, 2], [2, 3]],
+      quadros: [
+        [[0], 'O lint é o passo mais barato. Se ele falha, nenhum outro passo é executado.'],
+        [[0, 1], 'Os testes unitários só rodam quando o lint passa, economizando tempo de execução.'],
+        [[0, 1, 2], 'O teste visual é mais lento, por isso vem depois dos testes rápidos.'],
+        [[1], 'Os testes falham: o pipeline para aqui e nada chega ao deploy.', 1]
+      ] },
+    '07': { titulo: 'A árvore de construtos em CDK',
+      rotulos: ['App (raiz)', 'Stack (pilha)', 'Bucket (L2)', 'Distribution (L2)', 'CfnBucket (L1)'],
+      con: [[0, 1], [1, 2], [1, 3], [2, 4]],
+      quadros: [
+        [[0], 'O App é a raiz do programa. Ele pode conter várias stacks.'],
+        [[1], 'A Stack é a unidade de deploy. Ela vira uma pilha do CloudFormation.'],
+        [[2, 3], 'Os constructos L2 trazem padrões seguros, como o OAC já configurado.'],
+        [[4], 'O L1 é a tradução direta do recurso do CloudFormation, sem padrões adicionais.']
+      ] },
+    '08': { titulo: 'Quem protege o quê na responsabilidade compartilhada',
+      rotulos: ['Hardware e data centers (AWS)', 'Rede física (AWS)', 'Serviços gerenciados (AWS)', 'Identidade e acesso (cliente)', 'Dados e criptografia (cliente)', 'Configuração de acesso (cliente)'],
+      con: [],
+      quadros: [
+        [[0, 1, 2], 'Segurança DA nuvem: a AWS protege a infraestrutura e os serviços gerenciados.'],
+        [[3, 4, 5], 'Segurança NA nuvem: o cliente configura identidades, dados e opções de acesso.'],
+        [[5], 'Um bucket público é um erro de configuração, portanto responsabilidade do cliente.', 5]
+      ] },
+    '09': { titulo: 'Como distribuir o estudo em quatro semanas',
+      rotulos: ['Semana 1: base', 'Semana 2: arquitetura', 'Semana 3: automação', 'Semana 4: simulado'],
+      con: [[0, 1], [1, 2], [2, 3]],
+      quadros: [
+        [[0], 'A semana 1 cria o vocabulário: serviços, responsabilidade compartilhada e custos.'],
+        [[1], 'A semana 2 aprofunda a arquitetura: rede, dados e escalabilidade.'],
+        [[2], 'A semana 3 cobre automação: pipelines, infraestrutura como código e implantação.'],
+        [[3], 'A semana 4 consolida o conteúdo com simulados e com a revisão de cada erro.']
+      ] },
+    '10': { titulo: 'O que cada tipo de sub-rede permite',
+      rotulos: ['Internet', 'Sub-rede pública (IGW)', 'Sub-rede privada (NAT)', 'Sub-rede isolada (sem saída)'],
+      con: [[0, 1], [2, 0]],
+      quadros: [
+        [[1], 'A sub-rede pública tem rota para o Internet Gateway, e por isso recursos podem receber tráfego de fora.'],
+        [[2], 'A sub-rede privada sai para a internet pelo NAT. Ela inicia conexões, mas não recebe conexões iniciadas de fora.'],
+        [[3], 'A sub-rede isolada não tem rota para a internet. É o lugar adequado para o banco de dados.'],
+        [[1], 'Erro comum: um banco numa sub-rede pública fica exposto, mesmo com senha forte.', 1]
+      ] },
+    '11': { titulo: 'Classes de armazenamento: custo de guardar versus custo de acesso',
+      rotulos: ['S3 Standard (acesso frequente)', 'Standard-IA (acesso raro)', 'Glacier Instant (arquivo)', 'Deep Archive (arquivo raro)'],
+      con: [],
+      quadros: [
+        [[0], 'A classe Standard tem o maior custo de guarda e o menor custo de leitura.'],
+        [[1], 'A Standard-IA é mais barata para guardar, mas cobra por recuperação.'],
+        [[2], 'As classes de arquivo custam menos por GB, com recuperação em minutos.'],
+        [[3], 'O Deep Archive guarda ao menor custo, com recuperação mais lenta. Cada classe troca um custo pelo outro.']
+      ] },
+    '12': { titulo: 'O ciclo de vida de um ambiente Lambda',
+      rotulos: ['Evento chega', 'Ambiente criado (cold start)', 'Handler executa', 'Ambiente reutilizado (warm)'],
+      con: [[0, 1], [1, 2], [2, 3]],
+      quadros: [
+        [[0], 'Um evento chega. Se não há ambiente disponível, a plataforma precisa criar um.'],
+        [[1], 'A criação do ambiente é o cold start. Essa espera aparece na primeira chamada.'],
+        [[2], 'O handler executa. O código carregado fora do handler já fica pronto para as chamadas seguintes.'],
+        [[3], 'As chamadas seguintes reutilizam o ambiente quente, com latência menor.']
+      ] },
+    '13': { titulo: 'SLI, SLO e orçamento de erro',
+      rotulos: ['SLI: 99,95% medido', 'SLO: meta de 99,9%', 'Orçamento: 43,2 min/mês', 'Consumido: 30 min'],
+      con: [[0, 1], [1, 2], [2, 3]],
+      quadros: [
+        [[0], 'O SLI é a medida observada: a fração de requisições bem-sucedidas no período.'],
+        [[1], 'O SLO é a meta acordada para o SLI, por exemplo 99,9% em 30 dias.'],
+        [[2], 'O orçamento de erro é a diferença: 0,1% de 43.200 minutos, ou 43,2 minutos.'],
+        [[3], 'Consumidos 30 minutos, restam 13,2. Quando o orçamento acaba, a prioridade passa a ser a estabilidade.']
+      ] },
+    '14': { titulo: 'Os três Core Web Vitals',
+      rotulos: ['LCP (carregamento)', 'INP (interação)', 'CLS (estabilidade)'],
+      con: [],
+      quadros: [
+        [[0], 'O LCP mede quando o maior elemento da tela aparece. Bom até 2,5 s.'],
+        [[1], 'O INP mede a latência de uma interação até a próxima pintura. Bom até 200 ms.'],
+        [[2], 'O CLS mede deslocamentos inesperados de elementos. Bom até 0,1.'],
+        [[0, 1, 2], 'As três são medidas juntas: melhorar uma pode piorar outra, como o carregamento antecipado de scripts pesados.']
+      ] },
+    '15': { titulo: 'O ciclo de governança de um design system',
+      rotulos: ['Proposta (RFC)', 'Revisão pelo core team', 'Decisão registrada', 'Release com changelog', 'Adoção pelos produtos'],
+      con: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]],
+      quadros: [
+        [[0], 'Uma proposta nasce de um problema real enfrentado por um produto.'],
+        [[1], 'O core team avalia as alternativas e o impacto sobre quem usa.'],
+        [[2], 'A decisão fica registrada, com o motivo e as alternativas recusadas.'],
+        [[3], 'A mudança sai numa versão, com changelog que explica o que fazer.'],
+        [[4], 'A adoção revela novos problemas e gera novas propostas. O ciclo se repete.']
+      ] },
+    '16': { titulo: 'Como a rubrica distribui os pontos',
+      rotulos: ['Tokens (15)', 'Componentes e a11y (20)', 'Hospedagem e IaC (15)', 'Pipeline e segurança (20)', 'Operação (15)', 'Documentação e governança (15)'],
+      con: [],
+      quadros: [
+        [[0, 1, 2, 3, 4, 5], 'Os seis pesos somam 100 pontos. Cada área exige uma evidência verificável.'],
+        [[1, 3], 'Componentes e pipeline pesam mais, porque são as áreas de maior risco quando mal feitas.'],
+        [[4, 5], 'Operação e documentação mostram se outra pessoa consegue manter o projeto.'],
+        [[0], 'Nenhuma área pode ficar sem evidência: sem evidência, o nível cai, por melhor que o trabalho pareça.']
+      ] },
+    '17': { titulo: 'Um trade-off em movimento',
+      rotulos: ['Criptografia (+ segurança)', 'Custo (+ gasto)', 'Latência (+ tempo)'],
+      con: [[0, 1], [0, 2]],
+      quadros: [
+        [[0], 'Aumentar a criptografia melhora a segurança dos dados.'],
+        [[0, 1], 'Mas a criptografia de todos os dados aumenta o custo de chaves e de processamento.'],
+        [[0, 2], 'E introduz uma pequena latência adicional. A decisão é um trade-off explícito, não uma regra fixa.']
+      ] },
+    '18': { titulo: 'Como a idempotência neutraliza mensagens repetidas',
+      rotulos: ['Evento recebido', 'Já processado? (consulta)', 'Processa e registra', 'Ignora repetição'],
+      con: [[0, 1], [1, 2], [1, 3]],
+      quadros: [
+        [[0], 'Um evento pode chegar mais de uma vez, por exemplo após um tempo limite.'],
+        [[1], 'O consumidor verifica o identificador do evento num registro de processados.'],
+        [[2], 'Se o evento é novo, ele é processado e o identificador é registrado.'],
+        [[3], 'Se já foi processado, o evento é ignorado. O resultado final é o mesmo de uma única entrega.']
+      ] }
+  };
+
+  function quebraTexto(texto, max) {
+    const palavras = texto.split(' ');
+    const linhas = [];
+    let atual = '';
+    palavras.forEach(p => {
+      const teste = atual ? atual + ' ' + p : p;
+      if (teste.length > max && atual) { linhas.push(atual); atual = p; }
+      else atual = teste;
+    });
+    if (atual) linhas.push(atual);
+    return linhas;
+  }
+
+  function saidaCaixa(dx, dy, bw, bh) {
+    const fx = Math.abs(dx) > 1e-6 ? (bw / 2) / Math.abs(dx) : Infinity;
+    const fy = Math.abs(dy) > 1e-6 ? (bh / 2) / Math.abs(dy) : Infinity;
+    return Math.min(fx, fy);
+  }
+
+  function desenhaConceito(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const n = q.rotulos.length;
+    const cols = n <= 3 ? n : (n === 4 ? 4 : 3);
+    const rows = Math.ceil(n / cols);
+    const celW = (w - 40) / cols, celH = (h - 24) / rows;
+    const bw = Math.min(170, celW - 24), bh = Math.min(72, celH - 24);
+    const pos = q.rotulos.map((_, i) => ({
+      x: 20 + (i % cols) * celW + (celW - bw) / 2,
+      y: 12 + Math.floor(i / cols) * celH + (celH - bh) / 2
+    }));
+    const destaque = q.d || [];
+
+    (q.con || []).forEach(([a, b]) => {
+      const A = pos[a], B = pos[b];
+      const ax = A.x + bw / 2, ay = A.y + bh / 2, bx = B.x + bw / 2, by = B.y + bh / 2;
+      const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L;
+      const sa = saidaCaixa(ux, uy, bw, bh) + 3;
+      seta(ctx, ax + ux * sa, ay + uy * sa, bx - ux * sa, by - uy * sa,
+        destaque.includes(b) ? CORES.verde : CORES.mudo);
+    });
+
+    q.rotulos.forEach((r, i) => {
+      const s = i === q.erro ? ESTILO.erro : (destaque.includes(i) ? ESTILO.ativo : ESTILO.normal);
+      const p = pos[i];
+      AH.roundRect(ctx, p.x, p.y, bw, bh, 8);
+      ctx.fillStyle = s.fill; ctx.fill();
+      ctx.strokeStyle = s.borda; ctx.lineWidth = s.lw; ctx.stroke();
+      const linhas = quebraTexto(r, 20);
+      const lh = 15, y0 = p.y + bh / 2 - ((linhas.length - 1) * lh) / 2;
+      ctx.fillStyle = s.txt;
+      ctx.font = '600 12px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      linhas.forEach((l, k) => ctx.fillText(l, p.x + bw / 2, y0 + k * lh));
+    });
+  }
+
+  function geraConceito(chave) {
+    const c = CONCEITOS[chave];
+    return c.quadros.map(([d, t, erro]) => ({
+      rotulos: c.rotulos, con: c.con, d, t, erro
+    }));
+  }
+
+  Object.keys(CONCEITOS).forEach(chave => {
+    const n = chave;
+    ANIMACOES['con' + n] = {
+      canvas: 'cvCon' + n, ctl: 'ctlCon' + n, cap: 'capCon' + n,
+      desenha: desenhaConceito, gera: () => geraConceito(n), velocidade: 2400
+    };
+  });
+
   function monta(nome) {
     const cfg = ANIMACOES[nome];
     if (!cfg || !document.getElementById(cfg.canvas)) return;
     ED.criaAnimacao(cfg);
   }
 
-  global.DSA = { monta };
+  /* Permite que outras disciplinas registrem animações de conceito sem
+     copiar o renderizador. spec: { canvas, rotulos, con, quadros }, onde
+     canvas é o id do elemento e os controles seguem o prefixo ctl/cap. */
+  function criaConceito(nome, spec) {
+    CONCEITOS[nome] = spec;
+    ANIMACOES[nome] = {
+      canvas: spec.canvas,
+      ctl: spec.canvas.replace('cv', 'ctl'),
+      cap: spec.canvas.replace('cv', 'cap'),
+      desenha: desenhaConceito,
+      gera: () => geraConceito(nome),
+      velocidade: 2400
+    };
+  }
+
+  global.DSA = { monta, criaConceito };
 })(window);

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teorema CAP e PACELC: consistência sob falhas · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Consistência, disponibilidade e tolerância a partições; por que o trade-off ocorre durante falhas; e a extensão PACELC, com quóruns e animações de partição de rede.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/06-teorema-cap-pacelc">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-violet-400 mr-2"></i>Tópico 6 · Teorema CAP e PACELC</h2>
+  <div class="ah-prose">
+    <p>O <strong>teorema CAP</strong> afirma que um sistema distribuído não pode garantir, ao mesmo tempo, consistência, disponibilidade e tolerância a partições, quando uma partição de rede ocorre. A <strong>extensão PACELC</strong> acrescenta o que acontece na ausência de falhas, onde existe outro trade-off: latência versus consistência.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>definir consistência, disponibilidade e tolerância a partições com precisão;</li>
+      <li>explicar por que o trade-off do CAP ocorre apenas durante uma partição;</li>
+      <li>descrever o compromisso PACELC em operação normal;</li>
+      <li>calcular se um quórum garante que uma leitura veja a escrita mais recente.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: o que acontece quando a rede se parte" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-network-wired text-violet-400 mr-2"></i>Motivação · partições</h2>
+  <div class="ah-prose">
+    <p>Um serviço replicado em dois data centers precisa aceitar pedidos mesmo quando o enlace entre eles cai. Se os dois lados continuarem aceitando escritas, os dados divergem. Se um deles recusar escritas até a reconciliação, o usuário perde disponibilidade. Não há como evitar essa escolha quando a rede falha: é isso que o teorema formaliza.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: as três propriedades e o trade-off" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · CAP e PACELC</h2>
+  <div class="ah-prose">
+    <p>Brewer (2000) apresentou a conjectura, e Gilbert e Lynch (2002) a demonstraram formalmente no modelo assíncrono. Em termos precisos, <strong>consistência</strong> significa que toda leitura devolve a escrita mais recente ou um erro (linearizabilidade, no sentido do artigo); <strong>disponibilidade</strong> significa que todo nó não falho responde a toda requisição; e <strong>tolerância a partições</strong> significa que o sistema continua operando quando mensagens entre nós são perdidas.</p>
+    <p>Como partições são inevitáveis em redes reais, a escolha prática é entre <strong>CP</strong> (preservar consistência, sacrificar disponibilidade durante a partição) e <strong>AP</strong> (preservar disponibilidade, aceitando dados desatualizados até a reconciliação). Abadi (2012), ao propor o PACELC, observou que o CAP descreve apenas o comportamento durante falhas. Na operação normal, o trade-off que resta é entre <strong>latência</strong> e <strong>consistência</strong>: esperar confirmação de réplicas aumenta a consistência e a latência.</p>
+    <p>Quóruns oferecem um controle intermediário. Com N réplicas, uma escrita confirmada por W réplicas e uma leitura consultando R réplicas se sobrepõem quando W + R &gt; N, o que garante que a leitura encontre ao menos uma cópia atualizada. Essa propriedade é usada, por exemplo, por sistemas inspirados no Dynamo.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Consistência, disponibilidade e partição</h3>
+  <p class="ah-lead text-sm mb-4">As três propriedades são definidas de forma independente. O teorema afirma que não é possível garantir as três simultaneamente quando há partição.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq06a" style="height:280px"></canvas></div>
+  <div id="ctlArq06a" class="mt-4"></div>
+  <div id="capArq06a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Partição de rede e a escolha durante a falha</h3>
+  <p class="ah-lead text-sm mb-4">A mesma partição leva a duas respostas diferentes, conforme o sistema privilegie consistência ou disponibilidade.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq06b" style="height:280px"></canvas></div>
+  <div id="ctlArq06b" class="mt-4"></div>
+  <div id="capArq06b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo: verificando um quórum" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · a condição W + R &gt; N</h2>
+  <div class="ah-prose">
+    <p>A função abaixo verifica se um par de valores de escrita e leitura garante sobreposição com a réplica mais recente. A saída foi obtida executando o código.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · condição de quórum</p>
+<pre class="ah-code"><code>// N = réplicas; W = confirmações para escrita; R = leituras
+const quorumGarantido = (n, w, r) =&gt; w + r &gt; n;
+
+console.log('N=3 W=2 R=2 garante interseção:', quorumGarantido(3, 2, 2));
+console.log('N=3 W=1 R=1 garante interseção:', quorumGarantido(3, 1, 1));
+console.log('N=5 W=3 R=3 garante interseção:', quorumGarantido(5, 3, 3));</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · execução em Node</p>
+<pre class="ah-code"><code>N=3 W=2 R=2 garante interseção: true
+N=3 W=1 R=1 garante interseção: false
+N=5 W=3 R=3 garante interseção: true</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> se a escrita chegou a W réplicas e a leitura consulta R réplicas, em N réplicas, a soma W + R maior que N força pelo menos uma réplica em comum. Essa réplica tem a escrita mais recente. Com W = R = 1, a leitura pode consultar uma réplica que nunca recebeu a escrita. O quórum é um controle, não uma garantia absoluta: ele não cobre todos os casos de falha simultânea.</p>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Bancos de dados distribuídos documentam explicitamente suas escolhas: sistemas como Cassandra e DynamoDB permitem escolher o nível de consistência por operação, e bancos com consenso (como os que usam Raft ou Paxos) priorizam consistência durante partições. Em entrevistas de arquitetura, pedir que o candidato justifique o modelo de consistência de um serviço é um sinal de maturidade técnica.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem:</strong> o CAP obriga a tornar explícita uma escolha que, de outra forma, seria feita por acidente.</li>
+      <li><strong>Vantagem:</strong> o PACELC acrescenta a dimensão de latência, presente na maior parte do tempo.</li>
+      <li><strong>Limitação:</strong> as três propriedades são definidas de forma estreita; “disponibilidade” no CAP não equivale à disponibilidade de um serviço medido por SLO.</li>
+      <li><strong>Limitação:</strong> o teorema não indica quanto consistência custa; a medição do sistema real é necessária para decidir.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um sistema de saldo bancário sob partição deve recusar uma transferência ou aceitá-la com saldo possivelmente divergente? Qual propriedade ele privilegia?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> em um saldo, divergência é inaceitável; o sistema deve privilegiar consistência (CP), recusando a operação até a reconciliação, mesmo perdendo disponibilidade.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Com N = 5 réplicas, qual é o menor par (W, R) que garante sobreposição com a escrita mais recente, se W = 3?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> R = 3, porque W + R = 6 &gt; 5; com R = 2, a soma seria 5, e a sobreposição não seria garantida.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O teorema CAP descreve o trade-off:</p>
+      <button class="ah-quiz-opt">Em todo momento da operação</button>
+      <button class="ah-quiz-opt">Apenas durante uma partição de rede</button>
+      <button class="ah-quiz-opt">Apenas em bancos relacionais</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Sem partição, é possível ter consistência e disponibilidade; a escolha surge quando a rede falha.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com N = 3, qual par (W, R) garante sobreposição com a escrita mais recente?</p>
+      <button class="ah-quiz-opt">W = 1, R = 1</button>
+      <button class="ah-quiz-opt">W = 2, R = 2</button>
+      <button class="ah-quiz-opt">W = 1, R = 2</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. W + R = 4 &gt; 3, o que força pelo menos uma réplica em comum.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que a extensão PACELC acrescenta ao CAP?</p>
+      <button class="ah-quiz-opt">A análise de custos</button>
+      <button class="ah-quiz-opt">O trade-off entre latência e consistência na operação normal</button>
+      <button class="ah-quiz-opt">A tolerância a falhas bizantinas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Na ausência de partição, o compromisso restante é entre latência e consistência.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Em partição de rede, um sistema escolhe entre consistência e disponibilidade.</li>
+      <li>Sem partição, o trade-off é entre latência e consistência (PACELC).</li>
+      <li>Quóruns ajustam o compromisso quando W + R &gt; N.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BREWER, Eric. Towards robust distributed systems. Keynote no <em>ACM PODC</em>, 2000.</li>
+    <li>GILBERT, Seth; LYNCH, Nancy. Brewer's conjecture and the feasibility of consistent, available, partition-tolerant web services. <em>ACM SIGACT News</em>, v. 33, n. 2, 2002.</li>
+    <li>ABADI, Daniel. Consistency tradeoffs in modern distributed database system design. <em>IEEE Computer</em>, v. 45, n. 2, 2012.</li>
+    <li>DECANDIA, Giuseppe et al. Dynamo: Amazon's highly available key-value store. In: <em>Proceedings of SOSP</em>, 2007.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq06a');
+  DSA.monta('arq06b');
+})();
+</script>
+</body>
+</html>

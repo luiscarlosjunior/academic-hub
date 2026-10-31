@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelos NoSQL: chave-valor, documento, colunar e grafo · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="As quatro famílias de bancos NoSQL, o padrão de acesso que cada uma favorece e os cenários em que cada uma é a escolha adequada, com animações e exemplos de consulta.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/05-modelos-nosql">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-violet-400 mr-2"></i>Tópico 5 · Modelos NoSQL</h2>
+  <div class="ah-prose">
+    <p>Bancos <strong>NoSQL</strong> abandonam em parte o modelo relacional em favor de escala horizontal, flexibilidade de esquema e modelos de dados adaptados a padrões específicos de acesso. O termo agrupa famílias muito diferentes, e a escolha correta depende de como os dados serão lidos, e não apenas do volume.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>descrever as quatro famílias: chave-valor, documento, colunar (wide-column) e grafo;</li>
+      <li>associar cada família ao padrão de acesso que ela favorece;</li>
+      <li>reconhecer os custos de cada escolha, como a ausência de junções gerais;</li>
+      <li>justificar a escolha com base em consultas previstas, e não em moda.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: consultas que o modelo relacional faz mal" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-violet-400 mr-2"></i>Motivação · quando o padrão de acesso manda</h2>
+  <div class="ah-prose">
+    <p>Uma loja que precisa recuperar o carrinho de um usuário pelo identificador, em microssegundos, não precisa de junções. Uma plataforma de sensores que registra leituras por segundo precisa ler intervalos de tempo de um sensor. Uma rede social precisa responder “quem são os amigos dos meus amigos”. Cada um desses padrões tem um modelo que o atende melhor.</p>
+    <p>DeCandia et al. (2007), ao descreverem o Dynamo, da Amazon, justificam a família chave-valor com a necessidade de disponibilidade e latência previsíveis em serviços de comércio. Kleppmann (2017) organiza essas famílias em torno do modelo de dados e do padrão de consulta.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: as quatro famílias" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · modelos de dados</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Chave-valor:</strong> acesso por uma chave a um valor opaco. Simples e muito rápido; não permite consultas por conteúdo do valor. Exemplos: Redis, DynamoDB em uso básico.</li>
+      <li><strong>Documento:</strong> o valor é uma estrutura (por exemplo, JSON) que pode ser consultada por campos, inclusive aninhados. Exemplos: MongoDB, Couchbase.</li>
+      <li><strong>Colunar (wide-column):</strong> linhas identificadas por uma chave de partição e uma de ordenação, com colunas esparsas. Otimizado para leituras de intervalos dentro de uma partição. Exemplos: Apache Cassandra, Bigtable.</li>
+      <li><strong>Grafo:</strong> nós e arestas com propriedades, pensado para percorrer relações de vários saltos. Exemplos: Neo4j, Amazon Neptune.</li>
+    </ul>
+    <p>Em todas as famílias, a regra prática é a mesma: a modelagem começa pelas consultas. Kleppmann (2017) mostra que o particionamento e a escolha da chave definem o custo de cada leitura, o que faz a modelagem em NoSQL ser mais próxima de projetar índices do que de normalizar entidades.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: As quatro famílias</h3>
+  <p class="ah-lead text-sm mb-4">Cada família organiza o mesmo tipo de informação de forma diferente. O quadro mostra a unidade básica de cada uma.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq05a" style="height:280px"></canvas></div>
+  <div id="ctlArq05a" class="mt-4"></div>
+  <div id="capArq05a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Escolha pela forma do acesso</h3>
+  <p class="ah-lead text-sm mb-4">A pergunta feita aos dados é o critério principal. Cada quadro associa um padrão de consulta à família que o favorece.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq05b" style="height:280px"></canvas></div>
+  <div id="ctlArq05b" class="mt-4"></div>
+  <div id="capArq05b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo: a mesma informação, quatro consultas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · consultas típicas de cada família</h2>
+  <div class="ah-prose">
+    <p>Os exemplos abaixo mostram a forma de consulta típica de cada família. Eles são ilustrativos: não foram executados, porque dependem de instâncias de cada banco.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Exemplo ilustrativo (não executado) · chave-valor (Redis)</p>
+<pre class="ah-code"><code>SET sessao:42 "{\"usuario\":17}" EX 3600
+GET sessao:42</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Exemplo ilustrativo (não executado) · documento (MongoDB)</p>
+<pre class="ah-code"><code>db.produtos.find({ "especificacoes.cor": "preto", "estoque": { $gt: 0 } })</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Exemplo ilustrativo (não executado) · colunar (Cassandra, CQL)</p>
+<pre class="ah-code"><code>SELECT valor FROM leituras
+WHERE sensor_id = 'sensor-7' AND ts &gt;= '2026-10-01' AND ts &lt; '2026-10-02';</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Exemplo ilustrativo (não executado) · grafo (Cypher)</p>
+<pre class="ah-code"><code>MATCH (a:Pessoa {nome: 'Ana'})-[:AMIGO*2]-&gt;(b:Pessoa)
+WHERE b &lt;&gt; a
+RETURN DISTINCT b.nome;</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> cada consulta é atendida por uma estrutura desenhada para ela. A leitura por chave acessa um único item; a consulta colunar lê uma faixa contígua dentro de uma partição; a consulta de grafo segue ponteiros entre nós, em vez de executar junções em massa. Quando a consulta muda, o modelo precisa mudar junto.</p>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Empresas de comércio usam chave-valor para sessões e carrinhos, e documentos para catálogos com atributos variáveis. Plataformas de telemetria usam colunar para séries temporais. Detecção de fraude e recomendação em redes de relações usam grafos. Em projetos reais, é comum combinar famílias: um banco relacional para transações, um documento para catálogo e um chave-valor para cache.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem:</strong> escala horizontal e latência previsível para o padrão de acesso previsto.</li>
+      <li><strong>Vantagem:</strong> flexibilidade de esquema, útil quando os atributos variam entre registros.</li>
+      <li><strong>Limitação:</strong> consultas não previstas no modelo podem ser caras ou impossíveis sem reescrita dos dados.</li>
+      <li><strong>Limitação:</strong> transações entre entidades e integridade referencial são mais limitadas do que no relacional.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Uma aplicação precisa armazenar o carrinho de cada usuário e recuperá-lo pelo identificador do usuário em menos de 10 ms. Qual família é a mais adequada?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> chave-valor, porque o acesso é sempre por uma chave, sem consultas por conteúdo.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Uma análise precisa encontrar caminhos de transferências suspeitas entre contas, com até quatro saltos. Por que um grafo é mais adequado do que um relacional?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> porque a consulta percorre relações de vários saltos; em SQL, cada salto adicional seria uma junção, e o custo cresce rapidamente, enquanto o grafo segue as arestas diretamente.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual família é mais adequada para consultas por campos aninhados de um objeto?</p>
+      <button class="ah-quiz-opt">Chave-valor</button>
+      <button class="ah-quiz-opt">Documento</button>
+      <button class="ah-quiz-opt">Grafo</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O modelo documento permite consultar a estrutura do objeto, inclusive campos aninhados.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que a família colunar otimiza?</p>
+      <button class="ah-quiz-opt">Consultas de caminhos entre entidades</button>
+      <button class="ah-quiz-opt">Leituras de intervalos dentro de uma partição</button>
+      <button class="ah-quiz-opt">Transações entre tabelas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Os dados ficam agrupados por partição e ordenados, favorecendo leituras de faixas.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é o principal risco de escolher um NoSQL sem conhecer as consultas?</p>
+      <button class="ah-quiz-opt">Consumir mais energia</button>
+      <button class="ah-quiz-opt">Consultas não previstas se tornarem caras ou impossíveis</button>
+      <button class="ah-quiz-opt">Não suportar índices</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O modelo é desenhado para padrões previstos; consultas novas podem exigir reescrita dos dados.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>NoSQL é um conjunto de famílias, não um único modelo.</li>
+      <li>Cada família favorece um padrão de acesso.</li>
+      <li>Modelar em NoSQL começa pelas consultas.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>DECANDIA, Giuseppe et al. Dynamo: Amazon's highly available key-value store. In: <em>Proceedings of SOSP</em>, 2007.</li>
+    <li>CHANG, Fay et al. Bigtable: a distributed storage system for structured data. <em>ACM Transactions on Computer Systems</em>, v. 26, n. 2, 2008.</li>
+    <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly Media, 2017.</li>
+    <li>AWS. <em>Amazon DynamoDB Developer Guide</em>. docs.aws.amazon.com/amazondynamodb.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq05a');
+  DSA.monta('arq05b');
+})();
+</script>
+</body>
+</html>

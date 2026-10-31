@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event sourcing e CQRS · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Guardar o histórico de eventos em vez do estado atual, separar a escrita da leitura com CQRS e construir projeções, com um exemplo executado e animações de conceito.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/08-event-sourcing-cqrs">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clock-rotate-left text-violet-400 mr-2"></i>Tópico 8 · Event sourcing e CQRS</h2>
+  <div class="ah-prose">
+    <p><strong>Event sourcing</strong> é a prática de registrar cada mudança de estado como um evento imutável, e derivar o estado atual reproduzindo esses eventos. <strong>CQRS</strong> (Command Query Responsibility Segregation) separa o modelo que recebe comandos de escrita do modelo otimizado para consultas. Os dois padrões costumam aparecer juntos, mas são independentes.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>explicar a diferença entre armazenar o estado atual e armazenar o histórico de eventos;</li>
+      <li>derivar um estado a partir de um log de eventos;</li>
+      <li>descrever a separação entre comandos, eventos, projeções e consultas no CQRS;</li>
+      <li>identificar os custos de consistência eventual e de reconstrução de projeções.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: perguntas que o estado atual não responde" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Motivação · o que se perde ao sobrescrever</h2>
+  <div class="ah-prose">
+    <p>Um sistema que guarda apenas o saldo de uma conta responde “qual é o saldo?”, mas não responde “quando o saldo caiu abaixo de 50?” nem “por que o saldo é 70?”. Quando o estado é sobrescrito, a história se perde. Em sistemas financeiros, regulatórios e de auditoria, essa perda é inaceitável. Event sourcing preserva a história por construção.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: eventos, projeções e separação de responsabilidades" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · event sourcing e CQRS</h2>
+  <div class="ah-prose">
+    <p>Fowler (2005) descreveu o event sourcing como o registro de cada mudança de estado de uma aplicação em uma sequência de eventos, a partir da qual o estado pode ser reconstruído. O evento é um fato já ocorrido, nomeado no passado (“Depositado”, “Sacado”), e por isso não é alterado. Um <strong>comando</strong> é uma intenção, que pode ser recusada por regras de negócio antes de gerar eventos.</p>
+    <p>Uma <strong>projeção</strong> consome o log e mantém uma visão otimizada para leitura. O CQRS separa essas visões: o lado de escrita valida comandos e grava eventos; o lado de leitura consulta projeções. Como a projeção é derivada do log, ela pode ficar um pouco atrás, o que caracteriza consistência eventual. Young, em suas apresentações sobre CQRS, enfatiza que a separação é útil quando as cargas de leitura e de escrita têm requisitos muito diferentes.</p>
+    <p>Os custos são reais. Reconstruir o estado a partir de milhões de eventos é caro, e por isso se usam <em>snapshots</em>. Mudanças no formato dos eventos exigem versionamento. E a consistência eventual exige que a interface trate o intervalo em que a leitura ainda não reflete a escrita.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Estado derivado do histórico</h3>
+  <p class="ah-lead text-sm mb-4">O saldo não é armazenado: ele é calculado a partir dos fatos registrados, na ordem em que ocorreram.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq08a" style="height:280px"></canvas></div>
+  <div id="ctlArq08a" class="mt-4"></div>
+  <div id="capArq08a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: CQRS: escrita e leitura separadas</h3>
+  <p class="ah-lead text-sm mb-4">O comando gera eventos; a projeção transforma eventos em uma visão para consulta. A leitura é feita apenas na projeção.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq08b" style="height:280px"></canvas></div>
+  <div id="ctlArq08b" class="mt-4"></div>
+  <div id="capArq08b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo: reconstruindo o saldo a partir do log" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · derivando o estado do log</h2>
+  <div class="ah-prose">
+    <p>O código abaixo registra dois eventos e não armazena o saldo em nenhum lugar. O saldo é calculado sempre que é necessário, reproduzindo o log. A saída foi obtida executando o código.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · reconstrução do estado</p>
+<pre class="ah-code"><code>// O registro guarda fatos imutáveis: eventos, e não o saldo.
+const eventos = [
+  { tipo: 'Depositado', valor: 100 },
+  { tipo: 'Sacado', valor: 30 },
+];
+
+// O estado atual é derivado pela reprodução do log.
+const saldo = es =&gt; es.reduce((s, e) =&gt; (e.tipo === 'Depositado' ? s + e.valor : s - e.valor), 0);
+
+console.log('saldo reconstruído a partir do log:', saldo(eventos));</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · execução em Node</p>
+<pre class="ah-code"><code>saldo reconstruído a partir do log: 70</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> o estado final é uma função pura dos eventos. Se a regra de cálculo mudar, basta reproduzir o log com a nova regra para obter o saldo corrigido, sem perder a história. Esse é o ganho de auditoria e de reprocessamento. Em produção, com muitos eventos, a reprodução é feita a partir de snapshots, e não do início do log.</p>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Event sourcing aparece em sistemas de pagamentos, de reservas e de gestão de contratos, nos quais a trilha de auditoria é requisito de negócio. Plataformas de streaming de eventos, como o Kafka ou o Kinesis, costumam servir de log de eventos. Projeções são comuns em painéis de leitura alimentados por esses fluxos (tópico 2). O tema é recorrente em entrevistas de arquitetura, geralmente pela pergunta sobre como tratar uma correção de regra de negócio aplicada a dados antigos.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem:</strong> auditoria completa, reprocessamento de regras e possibilidade de criar novas projeções a partir do histórico.</li>
+      <li><strong>Vantagem (CQRS):</strong> modelos de leitura e de escrita podem ser otimizados separadamente.</li>
+      <li><strong>Limitação:</strong> complexidade de implementação, de versionamento de eventos e de depuração.</li>
+      <li><strong>Limitação:</strong> consistência eventual entre escrita e leitura, que precisa ser tratada na interface.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um saque foi aplicado com regra antiga que permitia saldo negativo. Como corrigir o histórico sem apagá-lo?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não se altera o evento antigo. Reproduz-se o log com a regra corrigida, ou registra-se um evento compensatório com justificativa. O histórico permanece íntegro e auditável.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Uma projeção de leitura ficou desatualizada por uma falha no consumidor. O que fazer?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> reprocessar o log a partir do último offset confirmado, ou reconstruir a projeção desde o início. Como a projeção é derivada, pode ser descartada e recriada sem perda de dados.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">No event sourcing, qual é a fonte da verdade?</p>
+      <button class="ah-quiz-opt">A projeção de leitura</button>
+      <button class="ah-quiz-opt">O log de eventos imutáveis</button>
+      <button class="ah-quiz-opt">O cache</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O estado é derivado do log; as projeções são visões que podem ser recriadas.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um evento não é alterado após ser registrado?</p>
+      <button class="ah-quiz-opt">Porque é mais rápido</button>
+      <button class="ah-quiz-opt">Porque ele representa um fato já ocorrido, e a história deve ser preservada</button>
+      <button class="ah-quiz-opt">Porque o CQRS proíbe</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O evento é um registro histórico; corrigir um erro exige um novo evento ou reprocessamento.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é o principal custo de separar leitura e escrita no CQRS?</p>
+      <button class="ah-quiz-opt">Aumento do tamanho dos comandos</button>
+      <button class="ah-quiz-opt">Consistência eventual entre o lado de escrita e o de leitura</button>
+      <button class="ah-quiz-opt">Impossibilidade de consultas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A projeção é derivada do log e pode estar um pouco atrás da escrita.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Event sourcing guarda fatos imutáveis e deriva o estado do log.</li>
+      <li>CQRS separa comandos de escrita das projeções de leitura.</li>
+      <li>Os custos são complexidade e consistência eventual.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>FOWLER, Martin. Event Sourcing. martinfowler.com, 2005.</li>
+    <li>YOUNG, Greg. CQRS Documents. 2010. Disponível em cqrs.files.wordpress.com.</li>
+    <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly Media, 2017. Capítulo sobre derivação de dados a partir de logs.</li>
+    <li>AWS. <em>Prescriptive Guidance</em>, seções sobre padrões de dados orientados a eventos. docs.aws.amazon.com/prescriptive-guidance.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq08a');
+  DSA.monta('arq08b');
+})();
+</script>
+</body>
+</html>

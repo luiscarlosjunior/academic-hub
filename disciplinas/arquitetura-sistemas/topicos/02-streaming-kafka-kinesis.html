@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streaming com Kafka e Kinesis: logs distribuídos · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Tópicos particionados, offsets, grupos de consumidores e retenção, com exemplos em Apache Kafka e Amazon Kinesis Data Streams e animações de conceito.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/02-streaming-kafka-kinesis">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-water text-violet-400 mr-2"></i>Tópico 2 · Streaming com Kafka e Kinesis</h2>
+  <div class="ah-prose">
+    <p>Um <strong>sistema de streaming</strong> armazena eventos como um <strong>log</strong> distribuído e ordenado, que pode ser lido por muitos consumidores, em ritmos diferentes e mais de uma vez. Apache Kafka e Amazon Kinesis Data Streams são as implementações mais usadas desse modelo.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>diferenciar um log de streaming de uma fila tradicional;</li>
+      <li>explicar partições, offsets e grupos de consumidores;</li>
+      <li>justificar a escolha de uma chave de partição a partir da ordem exigida;</li>
+      <li>comparar Kafka e Kinesis em termos de operação, retenção e paralelismo.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: eventos que precisam ser lidos mais de uma vez" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bolt text-violet-400 mr-2"></i>Motivação · quando uma fila não basta</h2>
+  <div class="ah-prose">
+    <p>Em uma fila tradicional, a mensagem sai ao ser consumida. Isso é adequado para tarefas, mas não para casos em que o mesmo histórico serve a vários propósitos: um sistema de recomendação, um painel de métricas e um módulo de auditoria precisam ler os mesmos eventos, cada um a seu tempo, e um deles pode precisar reprocessar o passado depois de uma correção.</p>
+    <p>Kreps, Narkhede e Rao (2011), ao descreverem o Kafka na LinkedIn, justificam o log como estrutura central: ele é barato de gravar, sequencial no disco e permite que cada consumidor controle sua própria posição. Esse desenho sustenta o processamento de grandes volumes com baixa latência.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: log, partições e offsets" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · o log como estrutura</h2>
+  <div class="ah-prose">
+    <p>Um <strong>tópico</strong> é dividido em <strong>partições</strong>. Dentro de cada partição, as mensagens formam uma sequência ordenada, e cada uma recebe um <strong>offset</strong>, que é a sua posição. A ordem é garantida apenas dentro de uma partição: entre partições diferentes não há ordem global. Por isso, a escolha da <strong>chave de partição</strong> é uma decisão de projeto: eventos com a mesma chave caem na mesma partição e mantêm sua ordem relativa.</p>
+    <p>Um <strong>grupo de consumidores</strong> divide as partições entre seus membros. Cada partição é atribuída a no máximo um consumidor do grupo, o que paraleliza o processamento sem duplicar trabalho. Grupos diferentes leem o mesmo tópico de forma independente. O progresso de leitura é o offset guardado por grupo, e não é removido ao ser lido: a <strong>retenção</strong> define por quanto tempo o log é mantido, e por isso um consumidor pode voltar atrás e reprocessar eventos (<em>replay</em>).</p>
+    <p>Kleppmann (2017), em <em>Designing Data-Intensive Applications</em>, compara esse modelo ao de filas e mostra que a diferença central é a permanência do registro: o log é um histórico, e a fila é um canal de trabalho pendente.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Partição, offset e retenção</h3>
+  <p class="ah-lead text-sm mb-4">Cada quadro mostra uma propriedade do log: a numeração das mensagens, a posição salva pelo consumidor e a releitura permitida pela retenção.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq02a" style="height:280px"></canvas></div>
+  <div id="ctlArq02a" class="mt-4"></div>
+  <div id="capArq02a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Grupo de consumidores e divisão de partições</h3>
+  <p class="ah-lead text-sm mb-4">Observe que, com mais consumidores que partições, alguns ficam ociosos: o paralelismo é limitado pelo número de partições.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq02b" style="height:280px"></canvas></div>
+  <div id="ctlArq02b" class="mt-4"></div>
+  <div id="capArq02b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo prático: produtor e consumidor em Kafka" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · Apache Kafka com a biblioteca kafkajs</h2>
+  <div class="ah-prose">
+    <p>O exemplo usa a biblioteca <code>kafkajs</code>. A mensagem é enviada com a chave <code>cliente-17</code>, o que garante que todos os eventos desse cliente caiam na mesma partição e sejam lidos em ordem.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · produtor e consumidor</p>
+<pre class="ah-code"><code>const { Kafka } = require('kafkajs');
+
+const kafka = new Kafka({ clientId: 'loja', brokers: ['broker:9092'] });
+
+// Produtor: a chave decide a partição
+const producer = kafka.producer();
+await producer.connect();
+await producer.send({
+  topic: 'pedidos',
+  messages: [{ key: 'cliente-17', value: JSON.stringify({ pedidoId: 8842 }) }],
+});
+
+// Consumidor: integrado a um grupo, recebe partições atribuídas
+const consumer = kafka.consumer({ groupId: 'faturamento' });
+await consumer.connect();
+await consumer.subscribe({ topic: 'pedidos', fromBeginning: false });
+await consumer.run({
+  eachMessage: async ({ partition, message }) =&gt; {
+    console.log(partition, message.offset, message.value.toString());
+  },
+});</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a chave é o que liga um evento a uma partição. Trocar a chave por um valor aleatório distribui a carga, mas perde a ordem por cliente. Esse é o compromisso central do particionamento, e ele aparece em quase todos os projetos que usam streaming.</p>
+  </div>
+
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">TypeScript · leitura com Amazon Kinesis Data Streams</p>
+<pre class="ah-code"><code>import { KinesisClient, PutRecordCommand } from '@aws-sdk/client-kinesis';
+
+const kinesis = new KinesisClient({ region: 'sa-east-1' });
+
+// PartitionKey tem o mesmo papel da chave no Kafka: define o shard
+await kinesis.send(new PutRecordCommand({
+  StreamName: 'pedidos',
+  PartitionKey: 'cliente-17',
+  Data: Buffer.from(JSON.stringify({ pedidoId: 8842 })),
+}));</code></pre>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Aspecto</th><th>Apache Kafka</th><th>Amazon Kinesis Data Streams</th></tr></thead>
+      <tbody>
+        <tr><td>Unidade de paralelismo</td><td>Partição</td><td>Shard</td></tr>
+        <tr><td>Chave de particionamento</td><td>Chave da mensagem</td><td>PartitionKey</td></tr>
+        <tr><td>Posição do consumidor</td><td>Offset guardado por grupo no broker</td><td>Checkpoint, normalmente no DynamoDB via biblioteca cliente</td></tr>
+        <tr><td>Retenção</td><td>Configurável por tópico</td><td>De 24 horas a 365 dias</td></tr>
+        <tr><td>Operação</td><td>Autogerenciado ou Amazon MSK</td><td>Totalmente gerenciado</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>O Kafka é usado por empresas de comércio eletrônico, financeiras e de mídia para alimentar pipelines de dados, detecção de fraude e sincronização entre serviços. O Kinesis é a alternativa gerenciada dentro da AWS, comum em ingestão de cliques, logs e telemetria. Em entrevistas, perguntas sobre chave de partição e reprocessamento costumam indicar o nível de domínio do candidato.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem:</strong> alta taxa de escrita, leitura independente por grupo e possibilidade de reprocessamento.</li>
+      <li><strong>Limitação:</strong> a ordem vale apenas dentro da partição; eventos de chaves diferentes não têm ordem entre si.</li>
+      <li><strong>Limitação:</strong> o número de partições limita o paralelismo, e aumentá-lo depois pode alterar a distribuição das chaves.</li>
+      <li><strong>Limitação:</strong> operar um cluster Kafka exige conhecimento de replicação, retenção e dimensionamento.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Eventos de um mesmo pedido precisam ser processados na ordem em que ocorreram. Qual deve ser a chave de partição?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o identificador do pedido. Todos os eventos desse pedido caem na mesma partição e mantêm a ordem; eventos de pedidos diferentes podem ser processados em paralelo.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Um consumidor de um painel precisa reconstruir métricas de ontem após um erro de cálculo. Um sistema de filas tradicional permitiria isso?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não de forma natural, porque a mensagem sai ao ser consumida. Com um log retido, o consumidor reposiciona o offset para o início do período e reprocessa os eventos.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">A ordem de mensagens em Kafka é garantida:</p>
+      <button class="ah-quiz-opt">Em todo o tópico</button>
+      <button class="ah-quiz-opt">Dentro de uma partição</button>
+      <button class="ah-quiz-opt">Entre grupos de consumidores</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A ordem é garantida dentro da partição; entre partições não há ordem global.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que um consumidor pode reprocessar eventos antigos em um log retido?</p>
+      <button class="ah-quiz-opt">Porque o log copia as mensagens a cada leitura</button>
+      <button class="ah-quiz-opt">Porque as mensagens não são removidas ao serem lidas, apenas expiram pela retenção</button>
+      <button class="ah-quiz-opt">Porque o offset não é salvo</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A leitura não apaga o registro; a retenção é que define quando ele expira.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com 4 partições e 6 consumidores no mesmo grupo, quantos consumidores ficam ociosos?</p>
+      <button class="ah-quiz-opt">Nenhum</button>
+      <button class="ah-quiz-opt">2</button>
+      <button class="ah-quiz-opt">4</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada partição é atribuída a no máximo um consumidor do grupo; os 2 excedentes ficam ociosos.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Streaming armazena eventos como um log ordenado por partição, lido por grupos independentes.</li>
+      <li>A chave de partição define a ordem e a distribuição de carga.</li>
+      <li>A retenção torna o reprocessamento possível.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KREPS, Jay; NARKHEDE, Neha; RAO, Jun. Kafka: a distributed messaging system for log processing. In: <em>Proceedings of the NetDB Workshop</em>, 2011.</li>
+    <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly Media, 2017. Capítulo sobre logs e streams.</li>
+    <li>APACHE KAFKA. <em>Documentation</em>. kafka.apache.org/documentation.</li>
+    <li>AWS. <em>Amazon Kinesis Data Streams Developer Guide</em>. docs.aws.amazon.com/streams.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq02a');
+  DSA.monta('arq02b');
+})();
+</script>
+</body>
+</html>

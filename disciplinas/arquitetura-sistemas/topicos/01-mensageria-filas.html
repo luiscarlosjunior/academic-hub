@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mensageria: filas, publicação e assinatura, entrega garantida · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Por que sistemas se comunicam por mensagens, a diferença entre fila e tópico, e o significado de entrega pelo menos uma vez, com animações e exemplos em Amazon SQS.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/01-mensageria-filas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-envelope text-violet-400 mr-2"></i>Tópico 1 · Mensageria: filas, publicação e assinatura</h2>
+  <div class="ah-prose">
+    <p>A <strong>mensageria</strong> é a comunicação entre componentes de software por meio de mensagens enviadas a um intermediário, em vez de chamadas diretas. Ela é uma das técnicas centrais para desacoplar sistemas, reduzir falhas em cascata e absorver picos de carga.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>explicar por que a comunicação assíncrona reduz o acoplamento temporal entre serviços;</li>
+      <li>distinguir fila (um consumidor por mensagem) de tópico (vários assinantes);</li>
+      <li>descrever as garantias de entrega: no máximo uma vez, pelo menos uma vez e efeito exatamente uma vez;</li>
+      <li>implementar o ciclo de envio, recebimento e confirmação em Amazon SQS.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: o problema do acoplamento síncrono" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-link-slash text-violet-400 mr-2"></i>Motivação · por que enviar mensagens</h2>
+  <div class="ah-prose">
+    <p>Imagine uma loja em que a API de pedidos chama, em sequência, o serviço de estoque, o de faturamento e o de e-mail. Se o serviço de e-mail estiver lento, a resposta ao cliente demora. Se o faturamento estiver fora do ar, o pedido inteiro falha, mesmo que o estoque e o pagamento já tenham sido concluídos.</p>
+    <p>Esse é o <strong>acoplamento síncrono</strong>: o emissor depende da disponibilidade e da velocidade do receptor no mesmo instante. A mensageria troca essa dependência por um intermediário que guarda a mensagem até que o receptor a processe. O emissor termina sua tarefa ao entregar a mensagem, e não ao concluir o trabalho de todos os demais serviços.</p>
+    <p>Há três ganhos centrais: <strong>desacoplamento</strong> (os serviços não precisam conhecer a disponibilidade uns dos outros), <strong>absorção de picos</strong> (a fila acumula o excesso e o consumidor processa no seu ritmo) e <strong>tolerância a falhas</strong> (uma mensagem não se perde enquanto estiver armazenada).</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: fila, tópico e garantias de entrega" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · modelos e garantias</h2>
+  <div class="ah-prose">
+    <p>Hohpe e Woolf (2003), em <em>Enterprise Integration Patterns</em>, sistematizaram os mecanismos de mensageria em canais, mensagens e roteadores. Dois modelos básicos aparecem em quase todas as implementações. No <strong>canal ponto a ponto</strong> (fila), cada mensagem é consumida por um único receptor, e isso permite dividir o trabalho entre consumidores concorrentes. No <strong>canal de publicação e assinatura</strong> (tópico), cada mensagem é copiada para todos os assinantes.</p>
+    <p>A confirmação (<em>acknowledgement</em>) é o mecanismo que decide se uma mensagem pode ser removida. Enquanto o consumidor não confirma, a mensagem permanece invisível para os outros consumidores por um tempo limite, e volta à fila se a confirmação não chegar. Isso produz três garantias possíveis: <strong>no máximo uma vez</strong> (a mensagem pode ser perdida, mas nunca repetida), <strong>pelo menos uma vez</strong> (nunca perdida, mas pode repetir) e <strong>exatamente uma vez como efeito</strong> (obtida pela combinação de entrega pelo menos uma vez com idempotência no consumidor).</p>
+    <p>Tanenbaum e Van Steen (2017), em <em>Distributed Systems</em>, discutem por que garantias de entrega fortes têm custo de latência e de coordenação, e por isso a maioria dos sistemas escolhe a entrega pelo menos uma vez. A consequência prática é que o consumidor precisa ser idempotente, tema que retomamos no tópico 18.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Fila: uma mensagem, um consumidor</h3>
+  <p class="ah-lead text-sm mb-4">A animação mostra o caminho de uma mensagem em um canal ponto a ponto. Observe que o consumidor B não recebe a mensagem.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq01a" style="height:280px"></canvas></div>
+  <div id="ctlArq01a" class="mt-4"></div>
+  <div id="capArq01a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Publicação e assinatura: uma mensagem, vários assinantes</h3>
+  <p class="ah-lead text-sm mb-4">No quadro final, a falha de um assinante não altera a entrega para os demais.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq01b" style="height:280px"></canvas></div>
+  <div id="ctlArq01b" class="mt-4"></div>
+  <div id="capArq01b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo prático: enviar e confirmar em Amazon SQS" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · ciclo de envio, recebimento e confirmação</h2>
+  <div class="ah-prose">
+    <p>O exemplo abaixo usa o SDK v3 da AWS. O produtor envia um pedido e encerra. O consumidor recebe a mensagem, processa e só então a apaga da fila. Se o processamento falhar, a mensagem não é apagada e volta a ficar disponível.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">TypeScript · produtor e consumidor</p>
+<pre class="ah-code"><code>import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+
+const sqs = new SQSClient({ region: 'sa-east-1' });
+const url = process.env.FILA_URL!;
+
+// Produtor: envia e segue, sem esperar o processamento
+await sqs.send(new SendMessageCommand({
+  QueueUrl: url,
+  MessageBody: JSON.stringify({ pedidoId: '8842', total: 129.9 }),
+}));
+
+// Consumidor: recebe, processa e só depois confirma (apaga)
+const { Messages = [] } = await sqs.send(new ReceiveMessageCommand({
+  QueueUrl: url,
+  MaxNumberOfMessages: 5,
+  WaitTimeSeconds: 10,
+}));
+
+for (const m of Messages) {
+  const pedido = JSON.parse(m.Body!);
+  await processar(pedido);   // se lançar exceção, a mensagem não é apagada
+  await sqs.send(new DeleteMessageCommand({
+    QueueUrl: url,
+    ReceiptHandle: m.ReceiptHandle!,
+  }));
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a confirmação ocorre depois do processamento, e não antes. Essa ordem é o que transforma a entrega em “pelo menos uma vez”. A contrapartida é que o mesmo pedido pode ser processado duas vezes se o consumidor falhar depois de concluir o trabalho e antes de apagar a mensagem. Por isso, o processamento deve ser idempotente.</p>
+  </div>
+
+  <div class="ah-prose">
+    <p><strong>Tabela de decisão.</strong> A escolha entre os modelos depende do número de destinatários e do tipo de processamento:</p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Necessidade</th><th>Modelo</th><th>Exemplo na AWS</th></tr></thead>
+      <tbody>
+        <tr><td>Dividir o trabalho entre consumidores concorrentes</td><td>Fila</td><td>Amazon SQS</td></tr>
+        <tr><td>Entregar o mesmo evento a vários sistemas</td><td>Tópico com assinantes</td><td>Amazon SNS com filas SQS</td></tr>
+        <tr><td>Rotear eventos por conteúdo ou por regras</td><td>Barramento de eventos</td><td>Amazon EventBridge</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Sistemas de mensageria estão presentes em comércio eletrônico, bancos, telecomunicações e plataformas de mídia. Entre as tecnologias mais usadas estão o <strong>RabbitMQ</strong> (filas com roteamento flexível), o <strong>Apache ActiveMQ</strong>, o <strong>Google Cloud Pub/Sub</strong> e o <strong>Azure Service Bus</strong>, além dos serviços gerenciados da AWS (SQS, SNS e EventBridge).</p>
+    <p>Em entrevistas técnicas e em revisões de arquitetura, a pergunta recorrente é: <em>o que acontece se o consumidor processar a mesma mensagem duas vezes?</em> Quem responde com idempotência e identificadores de evento demonstra domínio do tema.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem:</strong> desacoplamento temporal e espacial, absorção de picos e isolamento de falhas.</li>
+      <li><strong>Limitação:</strong> a comunicação passa a ser assíncrona, e a resposta imediata a uma operação exige mecanismos adicionais, como uma consulta posterior.</li>
+      <li><strong>Limitação:</strong> a ordem das mensagens pode não ser preservada em filas padrão; quando a ordem importa, é preciso uma fila com ordenação por grupo.</li>
+      <li><strong>Limitação:</strong> depuração mais difícil, porque a execução se espalha por produtores, filas e consumidores (ver tópico 13).</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um sistema de e-mail é lento. Por que colocar uma fila entre a API e o serviço de e-mail ajuda?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a API apenas registra a mensagem na fila e responde ao cliente. O serviço de e-mail consome no seu ritmo, e a lentidão deixa de afetar o tempo de resposta da API. As mensagens se acumulam na fila enquanto o serviço está lento, sem serem perdidas.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Um consumidor processa a mensagem, mas falha antes de confirmá-la. O que acontece e como evitar o efeito duplicado?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a mensagem não é removida e volta a ficar disponível após o tempo de visibilidade. Outro consumidor a processará novamente, e o efeito pode ser duplicado. A solução é tornar o processamento idempotente, por exemplo registrando o identificador do pedido antes de agir.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual modelo entrega cada mensagem a um único consumidor entre os concorrentes?</p>
+      <button class="ah-quiz-opt">Tópico de publicação e assinatura</button>
+      <button class="ah-quiz-opt">Fila ponto a ponto</button>
+      <button class="ah-quiz-opt">Log de broadcast</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Em uma fila, a mensagem é consumida uma vez, e os consumidores concorrentes dividem o trabalho.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que o consumidor confirma a mensagem após o processamento e não antes?</p>
+      <button class="ah-quiz-opt">Para ser mais rápido</button>
+      <button class="ah-quiz-opt">Para que a mensagem não seja perdida se o processamento falhar</button>
+      <button class="ah-quiz-opt">Porque o SQS exige</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A confirmação tardia garante a entrega pelo menos uma vez; o custo é a possibilidade de repetição.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">O que torna a entrega pelo menos uma vez segura na prática?</p>
+      <button class="ah-quiz-opt">Aumentar a memória do consumidor</button>
+      <button class="ah-quiz-opt">Processamento idempotente</button>
+      <button class="ah-quiz-opt">Desligar as retentativas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Com idempotência, repetir a mensagem não altera o resultado final.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Mensageria desacopla emissor e receptor no tempo e absorve picos de carga.</li>
+      <li>Fila entrega cada mensagem a um consumidor; tópico entrega uma cópia a cada assinante.</li>
+      <li>A confirmação posterior ao processamento dá a garantia de pelo menos uma vez.</li>
+      <li>Repetições exigem consumidores idempotentes.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>HOHPE, Gregor; WOOLF, Bobby. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003.</li>
+    <li>TANENBAUM, Andrew S.; VAN STEEN, Maarten. <em>Distributed Systems</em>. 3. ed. Pearson, 2017.</li>
+    <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly Media, 2017. Capítulo sobre sistemas de mensagens.</li>
+    <li>AWS. <em>Amazon SQS Developer Guide</em>. docs.aws.amazon.com/sqs.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq01a');
+  DSA.monta('arq01b');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escalabilidade, particionamento e balanceamento de carga · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Escala vertical e horizontal, algoritmos de balanceamento de carga, particionamento por chave e consistent hashing, com um experimento executado que compara a migração de chaves.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/07-escalabilidade-balanceamento">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-server text-violet-400 mr-2"></i>Tópico 7 · Escalabilidade, particionamento e balanceamento</h2>
+  <div class="ah-prose">
+    <p><strong>Escalabilidade</strong> é a capacidade de um sistema absorver aumento de carga mantendo desempenho aceitável. Ela se obtém por duas vias: aumentar a capacidade de uma máquina (escala vertical) ou distribuir a carga entre várias máquinas (escala horizontal). Este tópico examina essas vias, os mecanismos que distribuem a carga e a forma de particionar os dados.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>comparar escala vertical e horizontal quanto a limites, custos e pontos de falha;</li>
+      <li>descrever algoritmos de balanceamento de carga e quando cada um é adequado;</li>
+      <li>explicar particionamento por chave e os problemas de redistribuição;</li>
+      <li>justificar o uso de consistent hashing a partir de um experimento.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: o servidor que não aguenta a demanda" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge-high text-violet-400 mr-2"></i>Motivação · o limite de uma máquina</h2>
+  <div class="ah-prose">
+    <p>Uma aplicação que funciona bem com cem usuários pode degradar com dez mil. A resposta mais imediata é comprar uma máquina maior. Isso tem limite físico, custo que cresce mais rápido que a capacidade e um único ponto de falha. Distribuir a carga entre máquinas menores é mais difícil de programar, mas oferece crescimento contínuo e tolerância a falhas.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: escala, balanceamento e particionamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · escalar um sistema</h2>
+  <div class="ah-prose">
+    <p>A escala vertical é simples e não exige mudanças no software, mas esbarra em limites de hardware e mantém um único ponto de falha. A escala horizontal exige que o estado seja distribuído ou que a aplicação seja <em>sem estado</em> (<em>stateless</em>), de modo que qualquer réplica atenda qualquer requisição. Dean e Barroso (2013), em “The Tail at Scale”, mostram que, em sistemas com muitas réplicas, a latência de cauda (as requisições mais lentas) domina a experiência, e que a distribuição de carga precisa considerar essa cauda.</p>
+    <p>O <strong>balanceador de carga</strong> escolhe a réplica que atenderá cada requisição. Os algoritmos mais usados são o <em>round robin</em> (ordem cíclica, simples e justo quando as requisições têm custo parecido), o <em>menos conexões</em> (adequado a requisições de duração variável) e o <em>hash por chave</em> (mantém cada chave na mesma réplica, favorecendo cache local e sessões).</p>
+    <p>O <strong>particionamento</strong> divide os dados entre nós por uma chave. Com hash modular (hash(chave) mod N), adicionar um nó muda a posição de quase todas as chaves, o que gera uma migração massiva. O <strong>consistent hashing</strong>, proposto por Karger et al. (1997), posiciona nós e chaves em um anel, de modo que cada chave pertence ao primeiro nó no sentido horário. Ao adicionar um nó, apenas as chaves entre ele e seu antecessor mudam de dono. DeCandia et al. (2007) popularizaram o uso de nós virtuais nesse anel para equilibrar a carga.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Escala vertical versus horizontal</h3>
+  <p class="ah-lead text-sm mb-4">A escala vertical concentra a carga numa máquina maior; a horizontal a distribui entre várias.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq07a" style="height:280px"></canvas></div>
+  <div id="ctlArq07a" class="mt-4"></div>
+  <div id="capArq07a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Balanceador distribuindo requisições</h3>
+  <p class="ah-lead text-sm mb-4">Cada quadro mostra um algoritmo: a mesma entrada é atendida por servidores diferentes conforme a regra.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq07b" style="height:280px"></canvas></div>
+  <div id="ctlArq07b" class="mt-4"></div>
+  <div id="capArq07b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo: quantas chaves mudam ao crescer o cluster?" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · consistent hashing contra hash modular</h2>
+  <div class="ah-prose">
+    <p>O código a seguir distribui 1.000 chaves entre três servidores e, depois, entre quatro. Ele compara duas estratégias: o anel de consistent hashing, com 100 nós virtuais por servidor, e o hash modular. O resultado foi obtido executando o próprio código.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · anel de hashing e migração de chaves</p>
+<pre class="ah-code"><code>const crypto = require('crypto');
+
+const hash = s =&gt; parseInt(crypto.createHash('md5').update(s).digest('hex').slice(0, 8), 16);
+
+class AnelHash {
+  constructor(servidores, virtuais = 100) {
+    this.anel = [];
+    for (const s of servidores)
+      for (let i = 0; i &lt; virtuais; i++) this.anel.push([hash(s + '#' + i), s]);
+    this.anel.sort((a, b) =&gt; a[0] - b[0]);
+  }
+  servidorPara(chave) {
+    const h = hash(chave);
+    const item = this.anel.find(([p]) =&gt; p &gt;= h) || this.anel[0];
+    return item[1];
+  }
+}
+
+const antes = new AnelHash(['s1', 's2', 's3']);
+const depois = new AnelHash(['s1', 's2', 's3', 's4']);
+const chaves = Array.from({ length: 1000 }, (_, i) =&gt; 'chave-' + i);
+
+const mudancas = chaves.filter(c =&gt; antes.servidorPara(c) !== depois.servidorPara(c)).length;
+console.log('chaves que mudaram de servidor ao adicionar s4 (consistent hashing):', mudancas, 'de', chaves.length);
+
+const simples = chaves.filter(c =&gt; (hash(c) % 3) !== (hash(c) % 4)).length;
+console.log('chaves que mudariam com hash modular (hash % N), de 3 para 4 servidores:', simples, 'de', chaves.length);</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · execução em Node</p>
+<pre class="ah-code"><code>chaves que mudaram de servidor ao adicionar s4 (consistent hashing): 255 de 1000
+chaves que mudariam com hash modular (hash % N), de 3 para 4 servidores: 762 de 1000</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> ao adicionar o quarto servidor, o anel transfere aproximadamente a fatia que o novo nó passa a ocupar, perto de um quarto das chaves, que foi o resultado observado (255 de 1000). O hash modular recalcula o resto da divisão para quase todas as chaves: a migração chega a 762 de 1000. Em um cache ou em uma tabela com milhões de linhas, essa diferença determina se a expansão é um evento tranquilo ou uma interrupção.</p>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Balanceadores como o Elastic Load Balancing da AWS, o NGINX e o HAProxy são usados em praticamente todos os serviços web. Consistent hashing aparece em caches distribuídos (como o Memcached com clientes de hashing consistente), em bancos como o Cassandra e em sistemas de armazenamento de objetos. Em entrevistas de design de sistemas, a pergunta “o que acontece com as chaves quando um servidor entra ou sai?” é clássica.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem (horizontal):</strong> crescimento contínuo e tolerância a falhas de réplicas individuais.</li>
+      <li><strong>Limitação (horizontal):</strong> exige estado distribuído, consistência entre réplicas e operação mais complexa.</li>
+      <li><strong>Limitação (particionamento):</strong> chaves com muito tráfego (hot keys) concentram carga, mesmo com boa distribuição.</li>
+      <li><strong>Limitação (consistent hashing):</strong> sem nós virtuais, a distribuição pode ficar desbalanceada.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um serviço com estado de sessão em memória local é colocado atrás de um balanceador com round robin. O que pode acontecer com o usuário?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a requisição seguinte pode cair em outro servidor, que não tem a sessão, e o usuário parecerá desconectado. As soluções são sessões externas compartilhadas, ou um balanceamento com afinidade (hash por usuário).</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Por que o consistent hashing com nós virtuais distribui melhor a carga do que um único ponto por servidor?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> porque cada servidor ocupa muitas posições no anel, o que reduz a variância da fatia de chaves que cada um recebe.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é o principal limite da escala vertical?</p>
+      <button class="ah-quiz-opt">O custo de software</button>
+      <button class="ah-quiz-opt">O limite físico da máquina e o ponto único de falha</button>
+      <button class="ah-quiz-opt">A necessidade de balanceador</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Uma máquina tem capacidade finita e, se cair, o serviço inteiro cai.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Com hash modular, ao passar de 3 para 4 servidores, o que ocorre com a maioria das chaves?</p>
+      <button class="ah-quiz-opt">Nada muda</button>
+      <button class="ah-quiz-opt">A maioria muda de servidor</button>
+      <button class="ah-quiz-opt">Apenas as chaves de um servidor mudam</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O resto da divisão muda para quase todas as chaves, o que causa migração massiva.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual algoritmo mantém a mesma chave sempre no mesmo servidor?</p>
+      <button class="ah-quiz-opt">Round robin</button>
+      <button class="ah-quiz-opt">Hash por chave</button>
+      <button class="ah-quiz-opt">Menos conexões</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. O hash da chave determina o servidor, o que favorece cache local e sessões.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Escala horizontal exige que o estado seja distribuído ou que a aplicação seja sem estado.</li>
+      <li>O balanceador escolhe a réplica por regra: ciclo, menor carga ou chave.</li>
+      <li>Consistent hashing limita a migração de chaves quando o cluster muda.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>KARGER, David et al. Consistent hashing and random trees: distributed caching protocols for relieving hot spots on the World Wide Web. In: <em>Proceedings of STOC</em>, 1997.</li>
+    <li>DEAN, Jeffrey; BARROSO, Luiz André. The tail at scale. <em>Communications of the ACM</em>, v. 56, n. 2, 2013.</li>
+    <li>DECANDIA, Giuseppe et al. Dynamo: Amazon's highly available key-value store. In: <em>Proceedings of SOSP</em>, 2007.</li>
+    <li>AWS. <em>Elastic Load Balancing User Guide</em>. docs.aws.amazon.com/elasticloadbalancing.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq07a');
+  DSA.monta('arq07b');
+})();
+</script>
+</body>
+</html>

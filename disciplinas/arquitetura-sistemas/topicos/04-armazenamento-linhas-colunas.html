@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armazenamento por linhas e por colunas · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Por que bancos transacionais guardam linhas e bancos analíticos guardam colunas, e como o layout de armazenamento afeta leitura, escrita, projeção e compressão.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/04-armazenamento-linhas-colunas">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-columns text-violet-400 mr-2"></i>Tópico 4 · Armazenamento por linhas e por colunas</h2>
+  <div class="ah-prose">
+    <p>Os dados de uma tabela podem ser gravados em disco de duas formas: <strong>por linhas</strong> (todos os campos de um registro ficam juntos) ou <strong>por colunas</strong> (todos os valores de um campo ficam juntos). A escolha não é um detalhe técnico: ela determina quais operações são rápidas e quais são caras.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>descrever o layout por linhas e o layout por colunas;</li>
+      <li>relacionar cada layout a cargas OLTP e OLAP;</li>
+      <li>explicar a projeção de colunas e a compressão como fontes de ganho em análises;</li>
+      <li>escolher o armazenamento a partir do padrão de acesso, e não do hábito.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: a mesma tabela, dois tipos de pergunta" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Motivação · transações e análises</h2>
+  <div class="ah-prose">
+    <p>Um sistema de vendas recebe, a cada segundo, pedidos novos que precisam ser gravados por completo. Ao mesmo tempo, o time comercial faz perguntas como “qual foi a soma das vendas por região no último ano?”, que percorrem milhões de linhas, mas usam apenas duas colunas. A primeira carga é <strong>transacional</strong> (OLTP); a segunda é <strong>analítica</strong> (OLAP). Um mesmo layout dificilmente serve bem às duas.</p>
+    <p>Stonebraker et al. (2005), ao apresentarem o C-Store, argumentam que bancos orientados a colunas reduzem drasticamente o volume lido em consultas analíticas. Abadi, Boncz e Harizopoulos (2013) sistematizam as técnicas dessa família de sistemas.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: layout, projeção e compressão" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · layout físico</h2>
+  <div class="ah-prose">
+    <p>No <strong>layout por linhas</strong>, um registro é gravado contiguamente. Ler ou gravar um registro inteiro é uma operação de pouco acesso ao disco, o que favorece transações que tocam poucas linhas, mas muitos campos. No <strong>layout por colunas</strong>, cada coluna é gravada em sequência. Uma consulta que precisa de duas colunas lê apenas essas duas, o que se chama <strong>projeção</strong> física.</p>
+    <p>Como os valores de uma mesma coluna são do mesmo tipo e frequentemente se repetem, a <strong>compressão</strong> é mais eficiente por coluna do que por linha. Técnicas como codificação de dicionário e codificação por execução (run-length) reduzem o volume lido. Esse ganho combina-se à projeção: menos bytes lidos significam menos tempo de consulta.</p>
+    <p>O custo está na escrita. Inserir uma linha em um layout colunar exige tocar em todas as colunas, por isso bancos colunares costumam ser otimizados para cargas em lote e não para inserções unitárias frequentes.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Layout por linhas versus por colunas</h3>
+  <p class="ah-lead text-sm mb-4">Os dois layouts guardam as mesmas informações. A diferença está na ordem em que os valores são gravados no disco.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq04a" style="height:280px"></canvas></div>
+  <div id="ctlArq04a" class="mt-4"></div>
+  <div id="capArq04a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Por que consultas analíticas leem menos</h3>
+  <p class="ah-lead text-sm mb-4">A consulta de soma toca uma única coluna. A compressão por coluna reduz ainda mais o volume transferido.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq04b" style="height:280px"></canvas></div>
+  <div id="ctlArq04b" class="mt-4"></div>
+  <div id="capArq04b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo: a mesma consulta, duas cargas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · consulta analítica e transação</h2>
+  <div class="ah-prose">
+    <p>A consulta a seguir agrega uma coluna de milhões de linhas. Em um banco colunar, o motor lê apenas <code>valor</code>, <code>regiao</code> e <code>data</code>. Em um banco orientado a linhas, o mesmo resultado exige ler o registro completo de cada venda.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Exemplo ilustrativo (não executado) · consulta analítica</p>
+<pre class="ah-code"><code>-- analítica: lê poucas colunas de muitas linhas
+SELECT regiao, SUM(valor) AS total
+FROM vendas
+WHERE data &gt;= DATE '2026-01-01'
+GROUP BY regiao;</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Exemplo ilustrativo (não executado) · transação</p>
+<pre class="ah-code"><code>-- transacional: lê e grava um registro inteiro
+INSERT INTO vendas (id, cliente_id, regiao, data, valor)
+VALUES (8842, 17, 'Sul', DATE '2026-10-31', 129.90);</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a consulta analítica se beneficia da projeção e da compressão porque toca apenas algumas colunas; a inserção se beneficia do layout por linhas porque grava um registro contíguo. Sistemas híbridos (HTAP) tentam combinar as duas, mas com custos de manutenção que precisam ser avaliados.</p>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>O <strong>PostgreSQL</strong> e o <strong>MySQL</strong> (InnoDB) são orientados a linhas e dominam transações. O <strong>Amazon Redshift</strong> é um data warehouse colunar, e o <strong>Amazon Athena</strong> consulta arquivos colunares como Parquet e ORC diretamente no S3. Em entrevistas de engenharia de dados, é comum perguntar por que um formato colunar acelera uma soma e por que ele é lento para inserir uma linha.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem (colunar):</strong> leitura de poucas colunas em grandes volumes, com alta compressão.</li>
+      <li><strong>Vantagem (linhas):</strong> escrita e leitura eficientes de registros completos, adequadas a transações.</li>
+      <li><strong>Limitação (colunar):</strong> inserções e atualizações unitárias são custosas e exigem carga em lote.</li>
+      <li><strong>Limitação (linhas):</strong> análises que tocam poucas colunas leem dados desnecessários.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. Um painel mostra a média de tempo de entrega por cidade, sobre 500 milhões de linhas com 30 colunas. Qual layout favorece a consulta?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o colunar, porque a consulta usa apenas duas ou três colunas e a compressão reduz o volume lido.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Um sistema de pagamentos grava milhares de transações por segundo e consulta cada uma por identificador. Qual layout é mais adequado?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> o orientado a linhas, porque cada transação é gravada e lida como um registro completo, com poucos acessos ao disco.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a principal vantagem do armazenamento colunar para análises?</p>
+      <button class="ah-quiz-opt">Inserções rápidas</button>
+      <button class="ah-quiz-opt">Leitura apenas das colunas necessárias, com compressão eficiente</button>
+      <button class="ah-quiz-opt">Ausência de chaves</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A projeção física e a compressão por coluna reduzem o volume lido.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que bancos colunares são lentos para inserir uma linha isolada?</p>
+      <button class="ah-quiz-opt">Porque não suportam SQL</button>
+      <button class="ah-quiz-opt">Porque a linha precisa ser distribuída por todas as colunas</button>
+      <button class="ah-quiz-opt">Porque não têm índice</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Cada coluna é gravada separadamente, o que torna a inserção unitária custosa.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual carga tende a favorecer o layout por linhas?</p>
+      <button class="ah-quiz-opt">Agregações sobre milhões de registros</button>
+      <button class="ah-quiz-opt">Transações que leem e gravam registros completos</button>
+      <button class="ah-quiz-opt">Relatórios de colunas esparsas</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Transações tocam poucos registros completos, e o layout por linhas os mantém contíguos.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Linhas favorecem transações; colunas favorecem análises.</li>
+      <li>A projeção e a compressão por coluna explicam o ganho analítico.</li>
+      <li>A escolha do layout deve seguir o padrão de acesso.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>STONEBRAKER, Michael et al. C-Store: a column-oriented DBMS. In: <em>Proceedings of the 31st VLDB Conference</em>, 2005.</li>
+    <li>ABADI, Daniel; BONCZ, Peter; HARIZOPOULOS, Stavros. The design and implementation of modern column-oriented database systems. <em>Foundations and Trends in Databases</em>, v. 5, n. 3, 2013.</li>
+    <li>AWS. <em>Amazon Redshift Database Developer Guide</em>. docs.aws.amazon.com/redshift.</li>
+    <li>AWS. <em>Amazon Athena User Guide</em>, seção sobre formatos colunares. docs.aws.amazon.com/athena.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq04a');
+  DSA.monta('arq04b');
+})();
+</script>
+</body>
+</html>

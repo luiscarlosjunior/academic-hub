@@ -572,6 +572,509 @@
     };
   };
 
+  /* ==================================================================== */
+  /* Componentes acrescentados na segunda rodada de animações             */
+  /* ==================================================================== */
+
+  /* controles comuns de passo a passo: legenda + anterior/próximo/apresentar */
+  function passoAPasso(box, total, mostra, intervalo) {
+    const cap = h('div', 'ias-cap', '<div class="t"><span></span><small></small></div><p></p>');
+    const ctl = h('div', 'ias-row',
+      '<button type="button" class="ias-btn" data-a="ant">← Anterior</button>' +
+      '<button type="button" class="ias-btn pri" data-a="prox">Próximo →</button>' +
+      '<button type="button" class="ias-btn" data-a="play">▶ Apresentar</button>' +
+      '<button type="button" class="ias-btn" data-a="zero">↺ Recomeçar</button>');
+    box.append(cap, ctl);
+    let i = -1, timer = null;
+    const pare = () => { clearInterval(timer); timer = null; ctl.querySelector('[data-a=play]').textContent = '▶ Apresentar'; };
+    function ir(n) {
+      i = Math.max(0, Math.min(total - 1, n));
+      const r = mostra(i) || {};
+      cap.querySelector('.t span').innerHTML = r.t || '';
+      cap.querySelector('.t small').textContent = 'passo ' + (i + 1) + ' de ' + total;
+      cap.querySelector('p').innerHTML = r.d || '';
+      ctl.querySelector('[data-a=ant]').disabled = i <= 0;
+      ctl.querySelector('[data-a=prox]').disabled = i >= total - 1;
+    }
+    ctl.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      if (a.dataset.a === 'play') {
+        if (timer) { pare(); return; }
+        ir(i >= total - 1 ? 0 : i + 1); a.textContent = '❚❚ Pausar';
+        timer = setInterval(() => { if (i >= total - 1) pare(); else ir(i + 1); }, intervalo || 3200);
+        return;
+      }
+      pare();
+      if (a.dataset.a === 'ant') ir(i - 1);
+      if (a.dataset.a === 'prox') ir(i + 1);
+      if (a.dataset.a === 'zero') ir(0);
+    });
+    cap.querySelector('.t span').textContent = 'Clique em "Próximo" ou "Apresentar" para começar';
+    cap.querySelector('.t small').textContent = total + ' passos';
+    ctl.querySelector('[data-a=ant]').disabled = true;
+    return { ir };
+  }
+  const COR = { accent: '--accent', blue: '--blue', amber: '--amber', red: '--red', muted: '--muted' };
+  // anima um número de a até b chamando f(valor) a cada quadro
+  function tween(a, b, dur, f) {
+    if (reduz() || document.hidden) { f(b); return; }
+    const t0 = performance.now();
+    let fim = false;
+    const step = now => { if (fim) return; const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3); f(a + (b - a) * e); if (k < 1) requestAnimationFrame(step); else fim = true; };
+    requestAnimationFrame(step);
+    setTimeout(() => { if (!fim) { fim = true; f(b); } }, dur + 80);   // garantia se o navegador pausar os quadros
+  }
+  // só começa a animar quando o bloco aparece na tela
+  function quandoVisivel(el, f) {
+    if (!('IntersectionObserver' in window)) { f(); return; }
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.disconnect(); f(); } }));
+    io.observe(el);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* bars: barras comparativas que mudam a cada passo (aceita negativos) */
+  /* {unidade, min, max, quadros:[{t, d, itens:[{l, v, cor}]}]}          */
+  /* ------------------------------------------------------------------ */
+  IAS.bars = function (box) {
+    const D = dados(box), Q = D.quadros || [];
+    const todos = Q.flatMap(q => q.itens.map(x => x.v));
+    const mn = D.min !== undefined ? D.min : Math.min(0, ...todos), mx = D.max !== undefined ? D.max : Math.max(0, ...todos);
+    const zero = (0 - mn) / (mx - mn) * 100;
+    const area = h('div', 'ias-hbars');
+    box.appendChild(area);
+    const linhas = {};
+    const fmt = v => (D.sinal && v > 0 ? '+' : '') + dec(v, D.dec || 0) + (D.unidade || '');
+    passoAPasso(box, Q.length, i => {
+      Q[i].itens.forEach(x => {
+        let ln = linhas[x.l];
+        if (!ln) {
+          ln = linhas[x.l] = h('div', 'ias-hbar', '<span class="lb"></span><span class="tr"><span class="z"></span><i></i></span><span class="vl"></span>');
+          ln.querySelector('.lb').textContent = x.l; ln.querySelector('.z').style.left = zero + '%';
+          ln.dataset.v = 0; area.appendChild(ln);
+        }
+        const bar = ln.querySelector('i'), de = +ln.dataset.v;
+        bar.style.background = 'var(' + (COR[x.cor] || '--accent') + ')';
+        ln.dataset.v = x.v; ln.classList.add('vis');
+        tween(de, x.v, 800, v => {
+          const p = (v - mn) / (mx - mn) * 100;
+          bar.style.left = Math.min(p, zero) + '%'; bar.style.width = Math.abs(p - zero) + '%';
+          ln.querySelector('.vl').textContent = fmt(v);
+        });
+      });
+      const nomes = Q[i].itens.map(x => x.l);
+      Object.keys(linhas).forEach(k => linhas[k].classList.toggle('vis', nomes.includes(k)));
+      return Q[i];
+    }, 3600);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* seq: diagrama de sequência animado                                  */
+  /* {atores:[nome], msgs:[{de, para, txt, d, volta}]}                   */
+  /* ------------------------------------------------------------------ */
+  IAS.seq = function (box) {
+    const D = dados(box), A = D.atores || [], M = D.msgs || [];
+    const W = 760, top = 46, dy = 40, H = top + M.length * dy + 24, col = W / A.length;
+    const X = i => col * i + col / 2;
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Diagrama de sequência"><defs><marker id="sq' + (box.dataset.n = Math.random().toString(36).slice(2, 7)) + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--accent)"/></marker></defs>';
+    A.forEach((a, i) => {
+      s += '<rect x="' + (X(i) - col / 2 + 8) + '" y="4" width="' + (col - 16) + '" height="30" rx="8" style="fill:var(--sunk);stroke:var(--line)"/>' +
+        '<text x="' + X(i) + '" y="24" text-anchor="middle" style="fill:var(--fg);font:700 12.5px var(--display)">' + a + '</text>' +
+        '<line x1="' + X(i) + '" y1="34" x2="' + X(i) + '" y2="' + (H - 6) + '" style="stroke:var(--line);stroke-dasharray:4 4"/>';
+    });
+    M.forEach((m, k) => {
+      const y = top + k * dy + 16, x1 = X(m.de), x2 = X(m.para), self = m.de === m.para;
+      const d = self ? 'M' + x1 + ',' + (y - 6) + ' h40 v12 h-36' : 'M' + (x1 + (x2 > x1 ? 6 : -6)) + ',' + y + ' L' + (x2 + (x2 > x1 ? -8 : 8)) + ',' + y;
+      s += '<g class="msg" data-m="' + k + '" style="opacity:0"><path d="' + d + '" style="fill:none;stroke:var(--accent);stroke-width:2' + (m.volta ? ';stroke-dasharray:6 4' : '') + '" marker-end="url(#sq' + box.dataset.n + ')"/>' +
+        '<text x="' + (self ? x1 + 48 : (x1 + x2) / 2) + '" y="' + (y - 7) + '" text-anchor="' + (self ? 'start' : 'middle') + '" style="fill:var(--fg);font:12px var(--body)">' + (k + 1) + '. ' + m.txt + '</text></g>';
+    });
+    s += '</svg>';
+    const st = h('div', 'ias-stage', s); box.appendChild(st);
+    const gs = [...st.querySelectorAll('.msg')];
+    passoAPasso(box, M.length, i => {
+      gs.forEach((g, k) => {
+        g.style.transition = 'opacity .4s'; g.style.opacity = k < i ? .45 : k === i ? 1 : 0;
+        const p = g.querySelector('path');
+        if (k === i && !reduz()) { const L = p.getTotalLength(); p.style.transition = 'none'; p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.getBoundingClientRect(); p.style.transition = 'stroke-dashoffset .7s ease'; p.style.strokeDashoffset = 0; setTimeout(() => { p.style.strokeDasharray = M[k].volta ? '6 4' : ''; }, 750); }
+      });
+      return { t: (i + 1) + '. ' + M[i].txt, d: M[i].d };
+    }, 3400);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* swiss: modelo do queijo suíço de Reason aplicado aos oráculos       */
+  /* {camadas:[{nome, pega}]}  pega = probabilidade de deter um defeito  */
+  /* ------------------------------------------------------------------ */
+  IAS.swiss = function (box) {
+    const C = dados(box).camadas || [];
+    const ui = h('div', '',
+      '<div class="ias-chk cam" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>' +
+      '<canvas width="760" height="300" role="img" aria-label="Defeitos caindo através de camadas de verificação; alguns passam pelos furos"></canvas>' +
+      '<div class="ias-kpis"><div class="ias-kpi"><span>Defeitos soltos</span><b class="k-n">0</b></div><div class="ias-kpi bad"><span>Chegaram à produção</span><b class="k-p">0</b></div><div class="ias-kpi"><span>Esperado (teoria)</span><b class="k-t"></b></div></div>' +
+      '<div class="ias-row"><button type="button" class="ias-btn pri" data-a="go">Soltar 40 defeitos</button><button type="button" class="ias-btn" data-a="z">↺ Zerar</button></div><p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    C.forEach((c, k) => { const l = h('label', '', '<input type="checkbox" checked> <span></span>'); l.querySelector('input').dataset.k = k; l.querySelector('span').textContent = c.nome + ' (pega ' + pct(c.pega) + ')'; ui.querySelector('.cam').appendChild(l); });
+    const cv = ui.querySelector('canvas'), ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height, y0 = 30, yF = H - 30, gap = (yF - y0) / (C.length + 1);
+    const furos = C.map(() => Array.from({ length: 4 }, () => 60 + Math.random() * (W - 220)));
+    let gotas = [], soltos = 0, prod = 0, anim = false;
+    const ativa = k => ui.querySelector('[data-k="' + k + '"]').checked;
+    function teoria() {
+      let p = 1; C.forEach((c, k) => { if (ativa(k)) p *= 1 - c.pega; });
+      ui.querySelector('.k-t').textContent = pct(p, 1);
+      ui.querySelector('.nt').innerHTML = 'Cada camada tem furos: nenhuma pega tudo. A chance de um defeito atravessar todas é o produto das chances de passar por cada uma: <strong>' + pct(p, 1) + '</strong>. Desligue uma camada e veja quanto isso muda.';
+    }
+    function desenha() {
+      const fg = css('--fg'), mu = css('--muted'), ac = css('--accent'), rd = css('--red'), ln = css('--line'), am = css('--amber');
+      ctx.clearRect(0, 0, W, H); ctx.textBaseline = 'middle';
+      C.forEach((c, k) => {
+        const y = y0 + gap * (k + 1);
+        ctx.globalAlpha = ativa(k) ? 1 : .25;
+        ctx.fillStyle = am; ctx.fillRect(40, y - 7, W - 200, 14);
+        ctx.fillStyle = css('--sunk'); furos[k].forEach(x => { ctx.beginPath(); ctx.ellipse(x, y, 16, 6, 0, 0, 7); ctx.fill(); });
+        ctx.fillStyle = fg; ctx.font = '600 12px system-ui'; ctx.fillText(c.nome, W - 150, y);
+        ctx.globalAlpha = 1;
+      });
+      ctx.fillStyle = mu; ctx.font = '12px system-ui'; ctx.fillText('código com defeitos', 40, 12); ctx.fillText('produção', 40, H - 10);
+      ctx.strokeStyle = ln; ctx.beginPath(); ctx.moveTo(40, yF + 6); ctx.lineTo(W - 160, yF + 6); ctx.stroke();
+      gotas.forEach(g => { ctx.fillStyle = g.parou >= 0 ? ac : g.y >= yF ? rd : fg; ctx.globalAlpha = g.parou >= 0 ? Math.max(.25, g.vida) : 1; ctx.beginPath(); ctx.arc(g.x, g.y, 5, 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
+    }
+    function quadro() {
+      let viva = false;
+      gotas.forEach(g => {
+        if (g.parou >= 0) { g.vida -= .01; return; }
+        if (g.y >= yF) return;
+        viva = true; g.y += 2.6;
+        C.forEach((c, k) => {                     // decide uma única vez por camada, de cima para baixo
+          const y = y0 + gap * (k + 1);
+          if (g.parou >= 0 || g['c' + k] || g.y < y - 8) return;
+          g['c' + k] = 1;
+          if (ativa(k) && Math.random() < c.pega) { g.parou = k; g.y = y - 10; }
+          else g.alvo = furos[k][Math.floor(Math.random() * 4)];
+        });
+        if (g.alvo !== undefined) g.x += (g.alvo - g.x) * .08;
+        if (g.y >= yF && g.parou < 0) { prod++; ui.querySelector('.k-p').textContent = prod; }
+      });
+      desenha();
+      if (viva || gotas.some(g => g.parou >= 0 && g.vida > .25)) requestAnimationFrame(quadro); else anim = false;
+    }
+    ui.addEventListener('change', () => { teoria(); desenha(); });
+    ui.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      if (a.dataset.a === 'z') { gotas = []; soltos = prod = 0; ui.querySelector('.k-n').textContent = 0; ui.querySelector('.k-p').textContent = 0; desenha(); return; }
+      for (let i = 0; i < 40; i++) gotas.push({ x: 60 + Math.random() * (W - 240), y: 20 - i * 9, parou: -1, passou: 0, vida: 1 });
+      soltos += 40; ui.querySelector('.k-n').textContent = soltos;
+      if (!anim) { anim = true; requestAnimationFrame(quadro); }
+    });
+    teoria(); desenha();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* attention: para onde cada palavra "olha" (pesos ilustrativos)       */
+  /* {tokens:[...], pesos:{"i":[...]}, notas:{"i":"..."}, inicial}       */
+  /* ------------------------------------------------------------------ */
+  IAS.attention = function (box) {
+    const D = dados(box), T = D.tokens || [];
+    const ui = h('div', '', '<div class="ias-att"></div><div class="ias-info"></div>');
+    box.appendChild(ui);
+    const fila = ui.querySelector('.ias-att');
+    T.forEach((t, i) => {
+      const b = h('button', 'tok' + (D.pesos[i] ? ' clk' : ''), '<span class="w"></span><span class="tx"></span><span class="pc"></span>');
+      b.type = 'button'; b.querySelector('.tx').textContent = t; b.disabled = !D.pesos[i];
+      b.onclick = () => sel(i); fila.appendChild(b);
+    });
+    function sel(i) {
+      const p = D.pesos[i];
+      [...fila.children].forEach((b, j) => {
+        b.classList.toggle('src', j === i);
+        b.querySelector('.w').style.height = (j === i ? 0 : p[j] * 100) + '%';
+        b.querySelector('.pc').textContent = j === i ? 'foco' : pct(p[j]);
+      });
+      ui.querySelector('.ias-info').innerHTML = '<b>“' + T[i] + '”</b> ' + (D.notas[i] || '');
+    }
+    sel(D.inicial || +Object.keys(D.pesos)[0]);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* radar: os seis pilares do Well-Architected para cada opção          */
+  /* {eixos:[...], opcoes:[{nome, v:[0..5], txt}]}                       */
+  /* ------------------------------------------------------------------ */
+  IAS.radar = function (box) {
+    const D = dados(box), E = D.eixos, O = D.opcoes;
+    const cx = 380, cy = 170, R = 125, n = E.length;
+    const pt = (k, r) => [cx + r * Math.sin(2 * Math.PI * k / n), cy - r * Math.cos(2 * Math.PI * k / n)];
+    let s = '<svg viewBox="0 0 760 340" role="img" aria-label="Gráfico de radar com os seis pilares">';
+    for (let lv = 1; lv <= 5; lv++) s += '<polygon points="' + E.map((_, k) => pt(k, R * lv / 5).join(',')).join(' ') + '" style="fill:none;stroke:var(--line)"/>';
+    E.forEach((e, k) => { const [x, y] = pt(k, R), [lx, ly] = pt(k, R + 26); s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" style="stroke:var(--line)"/><text x="' + lx + '" y="' + ly + '" text-anchor="middle" dominant-baseline="middle" style="fill:var(--fg);font:600 12px var(--body)">' + e + '</text>'; });
+    s += '<polygon class="pol" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:2.5;fill-opacity:.75"/></svg>';
+    const ui = h('div', 'ias-curve', s + '<div class="ias-row ops"></div><div class="ias-info"></div>');
+    box.appendChild(ui);
+    const pol = ui.querySelector('.pol');
+    let atual = O[0].v.slice();
+    const pinta = v => pol.setAttribute('points', v.map((x, k) => pt(k, R * x / 5).join(',')).join(' '));
+    function vai(j) {
+      const de = atual.slice(), para = O[j].v;
+      tween(0, 1, 700, t => { atual = de.map((x, k) => x + (para[k] - x) * t); pinta(atual); });
+      ui.querySelector('.ias-info').innerHTML = '<b>' + O[j].nome + '.</b> ' + O[j].txt;
+      [...ui.querySelectorAll('.ops button')].forEach((b, k) => b.setAttribute('aria-pressed', String(k === j)));
+    }
+    O.forEach((o, j) => { const b = h('button', 'ias-btn', o.nome); b.type = 'button'; b.onclick = () => vai(j); ui.querySelector('.ops').appendChild(b); });
+    pinta(atual); vai(0);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* queue: fila SQS com novas tentativas e dead-letter queue            */
+  /* ------------------------------------------------------------------ */
+  IAS.queue = function (box) {
+    const ui = h('div', '',
+      '<div class="ias-lanes"><div><span class="ln-t">Fila SQS</span><div class="ln q"></div></div><div><span class="ln-t">Lambda</span><div class="ln f"></div></div><div><span class="ln-t">Processadas</span><div class="ln ok"></div></div><div><span class="ln-t">Fila de erro (DLQ)</span><div class="ln dlq"></div></div></div>' +
+      '<div class="ias-chk" style="margin-top:8px"><label><input type="checkbox" class="sem"> Sem fila de erro (como na versão gerada pela IA)</label></div>' +
+      '<div class="ias-row"><button type="button" class="ias-btn pri" data-a="ok">Chegam 4 fotos</button><button type="button" class="ias-btn" data-a="bad">Chega uma foto ilegível</button><button type="button" class="ias-btn" data-a="z">↺</button></div>' +
+      '<div class="ias-kpis"><div class="ias-kpi ok"><span>Avisos enviados</span><b class="k-ok">0</b></div><div class="ias-kpi warn"><span>Tentativas que falharam</span><b class="k-f">0</b></div><div class="ias-kpi"><span>Alarme da DLQ</span><b class="k-a">ok</b></div></div><p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    let fila = [], fn = null, n = 1, ok = 0, falhas = 0, timer = null;
+    const L = s => ui.querySelector('.ln.' + s);
+    const chip = m => { const c = h('span', 'msg' + (m.bad ? ' bad' : ''), '#' + m.id + (m.rc ? ' <small>' + m.rc + '×</small>' : '')); return c; };
+    function pinta() {
+      L('q').innerHTML = ''; fila.forEach(m => L('q').appendChild(chip(m)));
+      L('f').innerHTML = ''; if (fn) L('f').appendChild(chip(fn));
+      ui.querySelector('.k-ok').textContent = ok; ui.querySelector('.k-f').textContent = falhas;
+    }
+    function tick() {
+      if (fn) {
+        const m = fn; fn = null;
+        if (!m.bad) { ok++; const c = chip(m); c.classList.add('done'); L('ok').appendChild(c); }
+        else {
+          m.rc = (m.rc || 0) + 1; falhas++;
+          const sem = ui.querySelector('.sem').checked;
+          if (!sem && m.rc >= 3) {
+            const c = chip(m); L('dlq').appendChild(c);
+            const a = ui.querySelector('.k-a'); a.textContent = 'DISPAROU'; a.parentNode.className = 'ias-kpi bad';
+            ui.querySelector('.nt').innerHTML = 'Depois de 3 tentativas, a mensagem #' + m.id + ' foi para a fila de erro e o alarme avisou a equipe. As outras fotos seguiram normalmente.';
+          } else if (sem && m.rc >= 8) {
+            clearInterval(timer); timer = null; fila.push(m);
+            ui.querySelector('.nt').innerHTML = '<strong style="color:var(--red)">Parei a simulação depois de 8 tentativas.</strong> Na AWS, sem fila de erro, a mensagem #' + m.id + ' continuaria voltando até o fim do período de retenção da fila (4 dias, por padrão), gastando uma execução e uma chamada ao Textract a cada volta, sem ninguém saber.';
+            pinta(); return;
+          } else {
+            fila.push(m);
+            ui.querySelector('.nt').innerHTML = sem && m.rc >= 3 ? '<strong style="color:var(--red)">Sem fila de erro, a mensagem #' + m.id + ' volta para a fila para sempre:</strong> cada tentativa gasta uma execução da Lambda e uma chamada ao Textract, e ninguém fica sabendo.' : 'A mensagem #' + m.id + ' falhou e voltou para a fila depois do tempo de visibilidade (tentativa ' + m.rc + ').';
+          }
+        }
+      } else if (fila.length) fn = fila.shift();
+      pinta();
+      if (!fn && !fila.length) { clearInterval(timer); timer = null; }
+    }
+    const roda = () => { if (!timer) timer = setInterval(tick, reduz() ? 200 : 700); };
+    ui.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      if (a.dataset.a === 'ok') { for (let i = 0; i < 4; i++) fila.push({ id: n++ }); roda(); }
+      if (a.dataset.a === 'bad') { fila.push({ id: n++, bad: true }); roda(); }
+      if (a.dataset.a === 'z') { clearInterval(timer); timer = null; fila = []; fn = null; n = 1; ok = falhas = 0; ['ok', 'dlq'].forEach(s => (L(s).innerHTML = '')); const k = ui.querySelector('.k-a'); k.textContent = 'ok'; k.parentNode.className = 'ias-kpi'; ui.querySelector('.nt').textContent = ''; }
+      pinta();
+    });
+    pinta();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* scale: EC2 com Auto Scaling × Lambda diante de um pico de acessos   */
+  /* ------------------------------------------------------------------ */
+  IAS.scale = function (box) {
+    const ui = h('div', '',
+      '<div class="ias-row modos"><button type="button" class="ias-btn" data-m="ec2" aria-pressed="true">EC2 + Auto Scaling</button><button type="button" class="ias-btn" data-m="lam">Lambda</button><button type="button" class="ias-btn" data-m="lim">Lambda com limite baixo</button><button type="button" class="ias-btn pri" data-a="play">▶ Rodar o pico</button></div>' +
+      '<canvas width="760" height="260" role="img" aria-label="Gráfico da demanda e da capacidade ao longo de uma hora"></canvas>' +
+      '<div class="ias-legend"><span><i style="background:var(--fg)"></i>demanda (requisições por segundo)</span><span><i style="background:var(--accent)"></i>capacidade</span><span><i style="background:var(--red)"></i>requisições perdidas</span></div>' +
+      '<div class="ias-kpis"><div class="ias-kpi bad"><span>Requisições perdidas</span><b class="k-p">–</b></div><div class="ias-kpi"><span>Capacidade máxima</span><b class="k-c">–</b></div></div><p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    const cv = ui.querySelector('canvas'), ctx = cv.getContext('2d'), T = 60, MAX = 1000;
+    const dem = Array.from({ length: T }, (_, t) => t < 20 ? 120 : t < 24 ? 120 + (t - 19) * 190 : t < 38 ? 900 : t < 44 ? 900 - (t - 37) * 130 : 120);
+    let modo = 'ec2';
+    function capac(m) {
+      const cap = [];
+      if (m === 'ec2') { let inst = 2, pend = []; for (let t = 0; t < T; t++) { pend = pend.filter(p => { if (p <= t) { inst++; return false; } return true; }); const c = inst * 150; if (dem[t] > c * .7 && pend.length < 2) pend.push(t + 5); if (dem[t] < c * .3 && inst > 2 && !pend.length) inst--; cap.push(c); } }
+      else { for (let t = 0; t < T; t++) cap.push(m === 'lim' ? Math.min(dem[t], 500) : dem[t]); }
+      return cap;
+    }
+    function desenha(ate) {
+      const W = cv.width, H = cv.height, x = t => 40 + t / (T - 1) * (W - 60), y = v => H - 26 - v / MAX * (H - 46);
+      const cap = capac(modo);
+      ctx.clearRect(0, 0, W, H); ctx.font = '11px system-ui'; ctx.fillStyle = css('--muted');
+      [0, 250, 500, 750, 1000].forEach(v => { ctx.fillText(v, 4, y(v)); ctx.strokeStyle = css('--line'); ctx.beginPath(); ctx.moveTo(40, y(v)); ctx.lineTo(W - 20, y(v)); ctx.stroke(); });
+      ctx.fillText('minuto 0', 40, H - 8); ctx.fillText('minuto 60', W - 80, H - 8);
+      ctx.fillStyle = css('--red'); ctx.globalAlpha = .35;
+      for (let t = 0; t < Math.min(ate, T - 1); t++) if (dem[t] > cap[t]) { ctx.beginPath(); ctx.moveTo(x(t), y(dem[t])); ctx.lineTo(x(t + 1), y(dem[t + 1])); ctx.lineTo(x(t + 1), y(Math.min(dem[t + 1], cap[t + 1]))); ctx.lineTo(x(t), y(cap[t])); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      const linha = (arr, cor, w) => { ctx.strokeStyle = cor; ctx.lineWidth = w; ctx.beginPath(); for (let t = 0; t <= Math.min(ate, T - 1); t++) t ? ctx.lineTo(x(t), y(arr[t])) : ctx.moveTo(x(t), y(arr[t])); ctx.stroke(); ctx.lineWidth = 1; };
+      linha(dem, css('--fg'), 2); linha(cap, css('--accent'), 2.5);
+      if (ate >= T - 1) {
+        let perd = 0, tot = 0; dem.forEach((d, t) => { tot += d; perd += Math.max(0, d - cap[t]); });
+        ui.querySelector('.k-p').textContent = pct(perd / tot, 1); ui.querySelector('.k-c').textContent = Math.max(...cap) + ' req/s';
+        ui.querySelector('.nt').innerHTML = { ec2: 'O Auto Scaling reage, mas cada instância nova leva alguns minutos para ficar pronta. Durante a subida do pico, parte das requisições se perde. Na prática, isso se compensa com capacidade de reserva, escalonamento programado ou filas.', lam: 'A Lambda cria execuções conforme a demanda chega: a capacidade acompanha a curva quase na hora. O custo também acompanha, por isso orçamento e alarmes são obrigatórios. As primeiras execuções podem ter "partida a frio".', lim: 'Com um limite de concorrência baixo (500 aqui), a Lambda protege o custo e os serviços de trás, como o Textract, mas recusa o que passar do limite. Limite é uma decisão de engenharia, não um detalhe.' }[modo];
+      } else { ui.querySelector('.k-p').textContent = '…'; ui.querySelector('.k-c').textContent = '…'; ui.querySelector('.nt').textContent = ''; }
+    }
+    let raf = null;
+    function roda() { cancelAnimationFrame(raf); if (reduz()) { desenha(T); return; } const t0 = performance.now(); const f = now => { const a = (now - t0) / 4000 * T; desenha(a); if (a < T) raf = requestAnimationFrame(f); }; raf = requestAnimationFrame(f); }
+    ui.addEventListener('click', e => {
+      const m = e.target.closest('[data-m]'), a = e.target.closest('[data-a]');
+      if (m) { modo = m.dataset.m; [...ui.querySelectorAll('[data-m]')].forEach(b => b.setAttribute('aria-pressed', String(b === m))); roda(); }
+      if (a) roda();
+    });
+    desenha(0); quandoVisivel(box, roda);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* tail: latência de cauda com fan-out (Dean e Barroso, 2013)          */
+  /* ------------------------------------------------------------------ */
+  IAS.tail = function (box) {
+    const ui = h('div', '',
+      '<div class="grid2"><div><label class="r">Serviços chamados por requisição <span class="nv"></span></label><input type="range" data-k="n" min="1" max="100" value="10"></div>' +
+      '<div><label class="r">Chance de cada serviço estar lento <span class="pv"></span></label><input type="range" data-k="p" min="1" max="50" value="10"></div></div>' +
+      '<div class="ias-grid"></div>' +
+      '<div class="ias-row"><button type="button" class="ias-btn pri" data-a="1">Uma requisição</button><button type="button" class="ias-btn" data-a="1000">1.000 requisições</button></div>' +
+      '<div class="ias-kpis"><div class="ias-kpi warn"><span>Requisição lenta (teoria)</span><b class="k-t"></b></div><div class="ias-kpi"><span>Medido</span><b class="k-m">–</b></div><div class="ias-kpi"><span>Requisições</span><b class="k-n">0</b></div></div><p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    let N = 0, L = 0;
+    const v = k => +ui.querySelector('[data-k=' + k + ']').value;
+    function base() {
+      const n = v('n'), p = v('p') / 1000;
+      ui.querySelector('.nv').textContent = n; ui.querySelector('.pv').textContent = pct(p, 1);
+      const g = ui.querySelector('.ias-grid'); g.innerHTML = ''; for (let i = 0; i < n; i++) g.appendChild(h('i'));
+      const t = 1 - Math.pow(1 - p, n);
+      ui.querySelector('.k-t').textContent = pct(t, 1);
+      ui.querySelector('.nt').innerHTML = 'Cada serviço é lento só ' + pct(p, 1) + ' das vezes. Mas a requisição só termina quando <strong>todos</strong> respondem, então basta um lento: 1 − (1 − ' + dec(p, 3) + ')<sup>' + n + '</sup> = <strong>' + pct(t, 1) + '</strong>. No exemplo de Dean e Barroso (2013), com 1% e 100 servidores, 63% das requisições ficam lentas.';
+      N = L = 0; ui.querySelector('.k-n').textContent = 0; ui.querySelector('.k-m').textContent = '–';
+    }
+    ui.addEventListener('input', base);
+    ui.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      const n = v('n'), p = v('p') / 1000, reps = +a.dataset.a;
+      for (let r = 0; r < reps; r++) {
+        let lenta = false; const marc = [];
+        for (let i = 0; i < n; i++) { const s = Math.random() < p; marc.push(s); lenta = lenta || s; }
+        N++; if (lenta) L++;
+        if (reps === 1) [...ui.querySelectorAll('.ias-grid i')].forEach((c, i) => { c.className = marc[i] ? 'slow' : 'fast'; });
+      }
+      ui.querySelector('.k-n').textContent = N.toLocaleString('pt-BR'); ui.querySelector('.k-m').textContent = pct(L / N, 1);
+    });
+    base();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* brooks: essencial × acidental, e quanto a IA pode reduzir           */
+  /* {tarefas:[{nome, acid, txt}]}  acid = fração acidental              */
+  /* ------------------------------------------------------------------ */
+  IAS.brooks = function (box) {
+    const T = dados(box).tarefas || [];
+    const ui = h('div', '',
+      '<div class="ias-row ts"></div>' +
+      '<label class="r" style="margin-top:6px">Quanto a IA elimina do trabalho acidental <span class="rv"></span></label><input type="range" min="0" max="100" step="5" value="70">' +
+      '<div class="ias-stack"><span class="lb">Antes</span><div class="sb"><i class="es"></i><i class="ac"></i></div><span class="lb">Com IA</span><div class="sb"><i class="es"></i><i class="ac"></i><i class="gn"></i></div></div>' +
+      '<div class="ias-legend"><span><i style="background:var(--accent)"></i>essencial (entender, decidir)</span><span><i style="background:var(--amber)"></i>acidental (escrever, configurar)</span><span><i style="background:var(--line)"></i>tempo economizado</span></div>' +
+      '<div class="ias-info"></div>');
+    box.appendChild(ui);
+    let j = 0;
+    function pinta() {
+      const t = T[j], r = +ui.querySelector('input').value / 100, a = t.acid, e = 1 - a, novo = e + a * (1 - r);
+      ui.querySelector('.rv').textContent = pct(r);
+      const [antes, depois] = ui.querySelectorAll('.sb');
+      antes.querySelector('.es').style.width = e * 100 + '%'; antes.querySelector('.ac').style.width = a * 100 + '%';
+      depois.querySelector('.es').style.width = e * 100 + '%'; depois.querySelector('.ac').style.width = a * (1 - r) * 100 + '%'; depois.querySelector('.gn').style.width = a * r * 100 + '%';
+      ui.querySelector('.ias-info').innerHTML = '<b>' + t.nome + ':</b> ' + t.txt + ' Ganho nesta tarefa: <strong>' + pct(1 - novo) + '</strong>. Mesmo que a IA eliminasse todo o acidental, o ganho máximo seria ' + pct(a) + '.';
+      [...ui.querySelectorAll('.ts button')].forEach((b, k) => b.setAttribute('aria-pressed', String(k === j)));
+    }
+    T.forEach((t, k) => { const b = h('button', 'ias-btn', t.nome); b.type = 'button'; b.onclick = () => { j = k; pinta(); }; ui.querySelector('.ts').appendChild(b); });
+    ui.querySelector('input').addEventListener('input', pinta);
+    pinta();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* levels: os dez níveis de automação de Sheridan e Verplank           */
+  /* {niveis:[{d, ex, escada, risco}]}                                   */
+  /* ------------------------------------------------------------------ */
+  IAS.levels = function (box) {
+    const N = dados(box).niveis || [];
+    const ui = h('div', '',
+      '<input type="range" min="1" max="' + N.length + '" value="4" aria-label="Nível de automação">' +
+      '<div class="ias-ladder10">' + N.map((_, i) => '<span>' + (i + 1) + '</span>').join('') + '</div>' +
+      '<div class="ias-split"><div class="p">Pessoa decide</div><div class="m">Máquina decide</div></div>' +
+      '<div class="ias-info"></div>');
+    box.appendChild(ui);
+    const r = ui.querySelector('input');
+    function pinta() {
+      const i = +r.value - 1, n = N[i], frac = i / (N.length - 1);
+      [...ui.querySelectorAll('.ias-ladder10 span')].forEach((s, k) => { s.className = k === i ? 'on ' + n.risco : k < i ? 'past' : ''; });
+      ui.querySelector('.ias-split .p').style.width = (100 - frac * 100) + '%'; ui.querySelector('.ias-split .m').style.width = frac * 100 + '%';
+      ui.querySelector('.ias-info').innerHTML = '<b>Nível ' + (i + 1) + ':</b> ' + n.d + '<br><span style="color:var(--muted)">Na engenharia de software:</span> ' + n.ex + (n.escada ? '<br><span style="color:var(--muted)">Na escada de autonomia da aula 1:</span> ' + n.escada : '');
+    }
+    r.addEventListener('input', pinta); pinta();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* goodhart: o que acontece quando a métrica vira meta                 */
+  /* {cenarios:[{nome, txt, series:[{l, cor, v:[...]}]}]}                */
+  /* ------------------------------------------------------------------ */
+  IAS.goodhart = function (box) {
+    const C = dados(box).cenarios || [];
+    const ui = h('div', '', '<div class="ias-row cs"></div><canvas width="760" height="250" role="img" aria-label="Gráfico de linhas ao longo de 12 sprints"></canvas><div class="ias-legend lg"></div><div class="ias-info"></div>');
+    box.appendChild(ui);
+    const cv = ui.querySelector('canvas'), ctx = cv.getContext('2d');
+    let j = 0, raf = null;
+    function desenha(ate) {
+      const W = cv.width, H = cv.height, S = C[j].series, n = S[0].v.length, x = t => 50 + t / (n - 1) * (W - 80), y = v => H - 28 - v / 100 * (H - 50);
+      ctx.clearRect(0, 0, W, H); ctx.font = '11px system-ui'; ctx.fillStyle = css('--muted'); ctx.strokeStyle = css('--line');
+      [0, 50, 100].forEach(v => { ctx.beginPath(); ctx.moveTo(50, y(v)); ctx.lineTo(W - 30, y(v)); ctx.stroke(); });
+      for (let t = 0; t < n; t++) ctx.fillText('S' + (t + 1), x(t) - 6, H - 10);
+      S.forEach(s => {
+        ctx.strokeStyle = css(COR[s.cor] || '--accent'); ctx.lineWidth = 2.5; ctx.beginPath();
+        const lim = Math.min(ate, n - 1), ti = Math.floor(lim);
+        for (let t = 0; t <= ti; t++) t ? ctx.lineTo(x(t), y(s.v[t])) : ctx.moveTo(x(t), y(s.v[t]));
+        if (ti < n - 1) { const f = lim - ti; ctx.lineTo(x(ti + f), y(s.v[ti] + (s.v[ti + 1] - s.v[ti]) * f)); }
+        ctx.stroke(); ctx.lineWidth = 1;
+      });
+    }
+    function vai(k) {
+      j = k; cancelAnimationFrame(raf);
+      ui.querySelector('.lg').innerHTML = C[j].series.map(s => '<span><i style="background:var(' + (COR[s.cor] || '--accent') + ')"></i>' + s.l + '</span>').join('');
+      ui.querySelector('.ias-info').innerHTML = '<b>' + C[j].nome + '.</b> ' + C[j].txt;
+      [...ui.querySelectorAll('.cs button')].forEach((b, i) => b.setAttribute('aria-pressed', String(i === j)));
+      const n = C[j].series[0].v.length;
+      if (reduz()) { desenha(n); return; }
+      const t0 = performance.now(); const f = now => { const a = (now - t0) / 3000 * n; desenha(a); if (a < n) raf = requestAnimationFrame(f); }; raf = requestAnimationFrame(f);
+    }
+    C.forEach((c, k) => { const b = h('button', 'ias-btn', c.nome); b.type = 'button'; b.onclick = () => vai(k); ui.querySelector('.cs').appendChild(b); });
+    desenha(0); quandoVisivel(box, () => vai(0));
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* escada: autonomia sobe por evidência e desce por incidente          */
+  /* {niveis:[{n, nome, d}]}                                             */
+  /* ------------------------------------------------------------------ */
+  IAS.escada = function (box) {
+    const N = dados(box).niveis || [];
+    const ui = h('div', 'grid2',
+      '<div class="ias-esc">' + N.slice().reverse().map(x => '<div data-n="' + x.n + '"><b>' + x.n + '</b><span>' + x.nome + '</span></div>').join('') + '</div>' +
+      '<div><div class="ias-chk"><label><input type="checkbox" class="rev"> A ação é reversível e de baixo impacto</label></div>' +
+      '<div class="ias-row" style="flex-direction:column;align-items:stretch"><button type="button" class="ias-btn pri" data-a="up">30 dias com métricas boas e sem incidente ↑</button><button type="button" class="ias-btn" data-a="down">Aconteceu um incidente ↓</button><button type="button" class="ias-btn" data-a="z">↺ Recomeçar no nível 1</button></div>' +
+      '<div class="ias-info"></div><div class="ias-log"></div></div>');
+    box.appendChild(ui);
+    let nv = 1;
+    const log = t => { const d = h('div'); d.textContent = t; ui.querySelector('.ias-log').prepend(d); };
+    function pinta(msg) {
+      [...ui.querySelectorAll('.ias-esc div')].forEach(d => d.classList.toggle('on', +d.dataset.n === nv));
+      const x = N.find(y => y.n === nv); ui.querySelector('.ias-info').innerHTML = '<b>Nível ' + nv + ' · ' + x.nome + '.</b> ' + x.d + (msg ? '<br>' + msg : '');
+    }
+    ui.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      const rev = ui.querySelector('.rev').checked;
+      if (a.dataset.a === 'up') {
+        if (nv >= 4) { log('Já está no topo.'); pinta(); return; }
+        if (nv === 3 && !rev) { log('Pedido para subir ao nível 4 negado: a ação não é reversível.'); pinta('<strong style="color:var(--amber)">Não sobe:</strong> o nível 4 é só para ações reversíveis e de baixo impacto. Para esta ação, o teto é o 3.'); return; }
+        nv++; log('Subiu para o nível ' + nv + ' com base em evidência.'); pinta();
+      }
+      if (a.dataset.a === 'down') { if (nv > 0) nv--; log('Incidente: voltou para o nível ' + nv + '. O postmortem diz o que falta para subir de novo.'); pinta('<strong style="color:var(--red)">Desceu um degrau.</strong> Sem culpados: a pergunta é "que guarda faltou?".'); }
+      if (a.dataset.a === 'z') { nv = 1; ui.querySelector('.ias-log').innerHTML = ''; pinta(); }
+    });
+    pinta();
+  };
+
   /* ---------------------------- inicialização ------------------------ */
   function init() {
     document.querySelectorAll('[data-ias]').forEach(box => {

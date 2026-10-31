@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo relacional e normalização · Arquitetura de Sistemas · AcademicHub</title>
+<meta name="description" content="Relações, chaves e as formas normais 1FN, 2FN e 3FN: por que a redundância causa anomalias e como a normalização as elimina, com exemplos executados em SQL.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="arq/03-modelo-relacional-normalizacao">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table text-violet-400 mr-2"></i>Tópico 3 · Modelo relacional e normalização</h2>
+  <div class="ah-prose">
+    <p>O <strong>modelo relacional</strong>, proposto por Codd (1970), representa dados como relações (tabelas) e permite consultá-los com álgebra e linguagens declarativas. A <strong>normalização</strong> é o processo de organizar essas relações para que cada fato seja registrado em um único lugar, eliminando redundâncias que geram inconsistências.</p>
+    <p><strong>Objetivos de aprendizagem.</strong> Ao final deste tópico, o estudante deverá ser capaz de:</p>
+    <ul>
+      <li>identificar anomalias de inserção, atualização e remoção em uma tabela não normalizada;</li>
+      <li>aplicar as formas normais 1FN, 2FN e 3FN;</li>
+      <li>justificar a decomposição de uma tabela com base nas dependências funcionais;</li>
+      <li>reconhecer quando a desnormalização é uma decisão deliberada, por desempenho.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="motivacao" data-toc="Motivação: o que dá errado com dados repetidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-violet-400 mr-2"></i>Motivação · anomalias</h2>
+  <div class="ah-prose">
+    <p>Considere uma tabela que guarda pedidos com o nome e o endereço do cliente em cada linha. Se a cliente Ana muda de endereço, é preciso atualizar todas as suas linhas. Se uma delas for esquecida, o banco passa a ter dois endereços para a mesma pessoa. Esse erro é chamado de <strong>anomalia de atualização</strong>. Anomalias de inserção (não é possível cadastrar um cliente sem pedido) e de remoção (apagar o último pedido de um cliente apaga também seus dados) completam o quadro.</p>
+    <p>Essas anomalias não são um problema de hardware nem de linguagem: são consequências de como os fatos foram agrupados. A normalização é o método para tratar essa causa.</p>
+  </div>
+
+</section>
+
+<section id="teoria" data-toc="Teoria: dependências funcionais e formas normais" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · formas normais</h2>
+  <div class="ah-prose">
+    <p>Uma <strong>dependência funcional</strong> X → Y significa que, para cada valor de X, há um único valor de Y. Codd (1970) e, em seguida, Codd (1971) formalizaram as três primeiras formas normais a partir dessas dependências:</p>
+    <ul>
+      <li><strong>1FN:</strong> todos os atributos são atômicos, sem listas ou grupos repetidos, e cada linha é identificada por uma chave.</li>
+      <li><strong>2FN:</strong> está em 1FN e nenhum atributo não chave depende apenas de parte de uma chave composta.</li>
+      <li><strong>3FN:</strong> está em 2FN e nenhum atributo não chave depende de outro atributo não chave (dependência transitiva).</li>
+    </ul>
+    <p>Kent (1983), no artigo clássico <em>A Simple Guide to Five Normal Forms in Relational Database Theory</em>, popularizou a visão de que cada atributo deve depender “da chave, da chave inteira e de nada além da chave”. Date (2004), em <em>An Introduction to Database Systems</em>, apresenta as formas normais superiores e os critérios para decompor relações sem perda de informação.</p>
+  </div>
+
+</section>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: Anomalias de atualização numa tabela não normalizada</h3>
+  <p class="ah-lead text-sm mb-4">O endereço repetido é a causa da anomalia. A separação em clientes e pedidos elimina a repetição.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq03a" style="height:280px"></canvas></div>
+  <div id="ctlArq03a" class="mt-4"></div>
+  <div id="capArq03a" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Animação: As formas normais em sequência</h3>
+  <p class="ah-lead text-sm mb-4">Cada forma normal acrescenta uma restrição sobre as dependências. Acompanhe a progressão do quadro inicial ao final.</p>
+  <div class="ah-stage" style="height:280px"><canvas id="cvArq03b" style="height:280px"></canvas></div>
+  <div id="ctlArq03b" class="mt-4"></div>
+  <div id="capArq03b" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+
+<section id="exemplo" data-toc="Exemplo prático: normalizar e consultar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-violet-400 mr-2"></i>Exemplo · da tabela repetida à tabela normalizada</h2>
+  <div class="ah-prose">
+    <p>O exemplo a seguir foi executado no SQLite. A tabela não normalizada repete o endereço de Ana. Na forma normalizada, o endereço existe uma única vez, e a consulta por cliente é feita com uma junção.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">SQL · tabela não normalizada e normalizada</p>
+<pre class="ah-code"><code>CREATE TABLE pedidos_nao_normalizada (pedido_id INTEGER, cliente TEXT, endereco TEXT, total REAL);
+INSERT INTO pedidos_nao_normalizada VALUES (1,'Ana','Rua X',100.0),(2,'Ana','Rua X',40.0),(3,'Ana','Rua Y',70.0);
+
+CREATE TABLE clientes (cliente_id INTEGER PRIMARY KEY, nome TEXT UNIQUE, endereco TEXT);
+CREATE TABLE pedidos (pedido_id INTEGER PRIMARY KEY, cliente_id INTEGER REFERENCES clientes(cliente_id), total REAL);
+INSERT INTO clientes VALUES (1,'Ana','Rua X'), (2,'Bruno','Rua Z');
+INSERT INTO pedidos VALUES (1,1,100.0), (2,1,40.0), (3,2,70.0);
+
+-- consulta: total por cliente, sem repetir o endereço
+SELECT c.nome, c.endereco, SUM(p.total)
+FROM pedidos p JOIN clientes c ON c.cliente_id = p.cliente_id
+GROUP BY c.cliente_id;</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · consultas executadas no SQLite</p>
+<pre class="ah-code"><code>Anomalia (mesmo cliente, endereços divergentes):
+  ('Ana', 'Rua X', 2)
+  ('Ana', 'Rua Y', 1)
+Normalizado: total por cliente
+  ('Ana', 'Rua X', 140.0)
+  ('Bruno', 'Rua Z', 70.0)</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a saída da tabela não normalizada já mostra o problema: o mesmo cliente aparece com dois endereços. Na forma normalizada, a atualização do endereço acontece em um único registro, e a consulta reconstrói a informação por junção. O custo é a junção, que é barata quando as chaves estão indexadas.</p>
+  </div>
+
+</section>
+
+<section id="mercado" data-toc="Uso no mercado" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-violet-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Quase todos os sistemas transacionais usam bancos relacionais normalizados até a 3FN: PostgreSQL, MySQL, SQL Server e Oracle. Em data warehouses, a modelagem dimensional (esquema estrela) desnormaliza de propósito, para acelerar consultas analíticas, como discutido por Kimball e Ross (2013). A diferença está no objetivo: integridade no transacional, velocidade de leitura no analítico.</p>
+  </div>
+
+</section>
+
+<section id="vantagens" data-toc="Vantagens e limitações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-unbalanced text-violet-400 mr-2"></i>Vantagens e limitações</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Vantagem:</strong> integridade e ausência de anomalias de atualização.</li>
+      <li><strong>Vantagem:</strong> consultas flexíveis, que podem ser feitas sem prever todas as combinações.</li>
+      <li><strong>Limitação:</strong> consultas que reúnem muitas tabelas podem ser caras em volumes grandes.</li>
+      <li><strong>Limitação:</strong> a normalização excessiva complica o modelo; a decisão de desnormalizar deve ser medida, não presumida.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-violet-400 mr-2"></i>Exercícios resolvidos</h2>
+  <div class="space-y-5">
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">1. A tabela de itens de pedido tem a chave (pedido_id, produto_id) e a coluna nome_produto. Está em 2FN?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> não. O nome do produto depende apenas de produto_id, que é parte da chave composta. A dependência parcial viola a 2FN; a solução é mover o nome para uma tabela de produtos.</p></div>
+      </details>
+    </div>
+    <div class="ah-card p-5">
+      <p class="text-sm text-white font-semibold mb-2">2. Uma tabela tem cep e cidade, e cidade depende do cep. Qual forma normal está violada?</p>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-xs text-violet-300 font-semibold">Ver resposta</summary>
+        <div class="ah-prose mt-3 text-sm"><p><strong>Resposta:</strong> a 3FN, porque há dependência transitiva: a chave identifica o pedido, o cep identifica a cidade, e a cidade passa a depender da chave por meio do cep.</p></div>
+      </details>
+    </div>
+  </div>
+
+</section>
+
+<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual anomalia ocorre quando o endereço de um cliente precisa ser alterado em várias linhas e uma delas é esquecida?</p>
+      <button class="ah-quiz-opt">Anomalia de inserção</button>
+      <button class="ah-quiz-opt">Anomalia de atualização</button>
+      <button class="ah-quiz-opt">Anomalia de remoção</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A redundância faz com que a atualização incompleta deixe dados contraditórios.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="2">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma dependência transitiva é violada em qual forma normal?</p>
+      <button class="ah-quiz-opt">1FN</button>
+      <button class="ah-quiz-opt">2FN</button>
+      <button class="ah-quiz-opt">3FN</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. A 3FN proíbe que um atributo não chave dependa de outro atributo não chave.</p>
+    </div>
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que data warehouses desnormalizam de propósito?</p>
+      <button class="ah-quiz-opt">Porque a normalização é proibida</button>
+      <button class="ah-quiz-opt">Para acelerar consultas analíticas que leem muitos dados</button>
+      <button class="ah-quiz-opt">Porque o SQL não permite junções</button>
+      <p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Correto. Em análises, a leitura rápida pesa mais que a ausência de redundância.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="sintese" data-toc="Síntese" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-violet-400 mr-2"></i>Síntese do tópico</h2>
+  <div class="ah-prose">
+    <ul>
+      <li>Redundância gera anomalias de inserção, atualização e remoção.</li>
+      <li>As formas normais eliminam dependências parciais e transitivas.</li>
+      <li>Desnormalizar é uma decisão de desempenho, que deve ser medida.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>CODD, Edgar F. A relational model of data for large shared data banks. <em>Communications of the ACM</em>, v. 13, n. 6, 1970.</li>
+    <li>CODD, Edgar F. Further normalization of the data base relational model. In: <em>Data Base Systems</em>. Englewood Cliffs: Prentice-Hall, 1971.</li>
+    <li>KENT, William. A simple guide to five normal forms in relational database theory. <em>Communications of the ACM</em>, v. 26, n. 2, 1983.</li>
+    <li>DATE, C. J. <em>An Introduction to Database Systems</em>. 8. ed. Boston: Addison-Wesley, 2004.</li>
+    <li>KIMBALL, Ralph; ROSS, Margy. <em>The Data Warehouse Toolkit</em>. 3. ed. Indianapolis: Wiley, 2013.</li>
+  </ul>
+
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js"></script>
+<script src="../../../assets/js/estrutura-dados.js"></script>
+<script src="../../../assets/js/design-system-aws.js"></script>
+<script src="../../../assets/js/arquitetura-sistemas.js"></script>
+<script>
+(function () {
+  'use strict';
+  DSA.monta('arq03a');
+  DSA.monta('arq03b');
+})();
+</script>
+</body>
+</html>
