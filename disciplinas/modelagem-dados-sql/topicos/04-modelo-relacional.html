@@ -220,6 +220,18 @@ INSERT INTO itens_pedido VALUES (42, 1, 1, 3500.00);</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-cyan-400 mr-2"></i>Mais animações: integridade em movimento</h2>
+  <p class="text-sm text-slate-400 mb-5">O que o banco faz, passo a passo, quando uma regra de integridade é acionada.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · ON DELETE CASCADE: o que some junto</h3>
+  <div id="anim-cascade" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · inserir um pedido: a busca pela chave estrangeira</h3>
+  <div id="anim-busca-fk"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -440,6 +452,42 @@ CREATE TABLE u (a INTEGER PRIMARY KEY, b TEXT); -- chave: sem duplicatas</div>` 
       html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cli(1, 'Ana Souza', false)}${ped(10, 99, true)}</div>
         <div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-ban"></i><div><strong>FOREIGN KEY constraint failed</strong></div></div>` }
   ]);
+})();
+
+/* ===================== Mais animações: cascata e busca de FK ===================== */
+(function () {
+  const nos = [
+    { id: 'pa', pai: null, rotulo: 'pasta 1 · Projetos' },
+    { id: 'a1', pai: 'pa', rotulo: 'a.sql' },
+    { id: 'a2', pai: 'pa', rotulo: 'b.sql' },
+    { id: 'pb', pai: null, rotulo: 'pasta 2 · Fotos' },
+    { id: 'a3', pai: 'pb', rotulo: 'c.jpg' }
+  ];
+  const quadros = [
+    { est: () => '', t: 'Estado inicial', x: 'Duas pastas e três arquivos. Cada arquivo guarda o id da pasta a que pertence.' },
+    { est: id => id === 'pa' ? 'on' : '', t: 'DELETE FROM pasta WHERE id = 1', x: 'A pasta 1 vai ser apagada. O banco verifica quem depende dela.' },
+    { est: id => id === 'pa' ? 'on' : (id === 'a1' || id === 'a2') ? 'off' : '', t: 'ON DELETE CASCADE', x: 'Os arquivos que apontavam para a pasta 1 são removidos junto, em cascata.' },
+    { est: id => (id === 'pb' || id === 'a3') ? 'done' : '', t: 'Resultado', x: 'Sobrou a pasta 2 com o arquivo c.jpg, que não dependia da pasta apagada.' }
+  ];
+  SQLLab.passos(document.getElementById('anim-cascade'), quadros.map(q => ({
+    titulo: q.t,
+    texto: q.x,
+    html: () => SQLLab.arvoreHTML(nos, q.est)
+  })));
+
+  const clientes = [[1, 'Ana Souza'], [2, 'Bruno Lima'], [3, 'Carla Mendes'], [4, 'Diego Rocha'], [5, 'Elisa Ferreira'], [6, 'Gabriel Tavares'], [7, 'Helena Costa']];
+  const passosB = clientes.map((c, k) => ({
+    titulo: `Comparando 99 com id ${c[0]}`,
+    texto: `Ainda não achamos. O id ${c[0]} não é 99; a busca segue para a próxima linha.`,
+    html: () => SQLLab.tabelaHTML(['id_cliente', 'nome'], clientes, { destaque: [k] })
+  }));
+  passosB.push({
+    titulo: 'Nenhuma linha casou',
+    texto: 'Sem cliente 99, a referência é órfã. Com a verificação ligada, o banco recusa o INSERT e nada é gravado.',
+    html: () => `${SQLLab.tabelaHTML(['id_cliente', 'nome'], clientes, {})}
+      <div class="sql-erro mt-3"><i class="fa-solid fa-ban"></i> FOREIGN KEY constraint failed</div>`
+  });
+  SQLLab.passos(document.getElementById('anim-busca-fk'), passosB);
 })();
 
 AH.initReveal();

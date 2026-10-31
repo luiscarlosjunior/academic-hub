@@ -265,6 +265,18 @@ WHERE email &lt;&gt; 'ana@loja.com';</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Mais animações: lógica de três valores e filtros</h2>
+  <p class="text-sm text-slate-400 mb-5">Acompanhe, célula por célula, como o banco decide se uma linha entra no resultado.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · tabela-verdade com NULL (AND e OR)</h3>
+  <div id="anim-3v" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · um LIKE passando pelas linhas</h3>
+  <div id="anim-like"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -456,6 +468,50 @@ ORDER BY nome;</pre>
         const linhas = passa.map(i => [todos[i][1], todos[i][2]]).sort((a, b) => b[1] - a[1]);
         return `<div class="sql-q mb-3">... ORDER BY preco DESC</div>${tab(['nome', 'preco'], linhas, [0], true)}`; } }
   ]);
+})();
+
+/* ===================== Mais animações: três valores e LIKE ===================== */
+(function () {
+  const V = 'V', F = 'F', N = 'N';
+  const nome = { V: 'verdadeiro', F: 'falso', N: 'NULL' };
+  const and3 = (a, b) => (a === F || b === F) ? F : (a === N || b === N) ? N : V;
+  const or3 = (a, b) => (a === V || b === V) ? V : (a === N || b === N) ? N : F;
+  const tabela = (op, destaqueLinha, destaqueColuna) => {
+    const vals = [V, F, N];
+    const cab = `<tr><th>${op === 'AND' ? 'AND' : 'OR'}</th>${vals.map(b => `<th>${b}</th>`).join('')}</tr>`;
+    const corpo = vals.map(a => `<tr>
+        <th>${a}</th>${vals.map(b => {
+          const r = op === 'AND' ? and3(a, b) : or3(a, b);
+          const hl = (a === destaqueLinha || b === destaqueColuna) ? 'sql-hl' : '';
+          return `<td class="${hl}">${r}</td>`;
+        }).join('')}</tr>`).join('');
+    return `<div class="sql-wrap"><table class="sql-table"><thead>${cab}</thead><tbody>${corpo}</tbody></table></div>`;
+  };
+  SQLLab.passos(document.getElementById('anim-3v'), [
+    { titulo: 'Passo 1 · NULL AND x', texto: 'Quando a outra parte é verdadeira, o resultado depende do valor desconhecido: a linha fica NULL, e o WHERE não a mantém.',
+      html: () => tabela('AND', N, null) },
+    { titulo: 'Passo 2 · falso AND x', texto: 'Se uma das partes é falsa, o AND já é falso, não importa o valor desconhecido. Por isso a coluna F fica marcada.',
+      html: () => tabela('AND', null, F) },
+    { titulo: 'Passo 3 · NULL OR x', texto: 'No OR, um verdadeiro basta. Com a outra parte desconhecida e a nossa falsa, o resultado ainda é NULL.',
+      html: () => tabela('OR', N, null) },
+    { titulo: 'Passo 4 · a comparação com NULL', texto: 'Qualquer comparação com NULL (=, <>, <, >) gera NULL. Por isso “email = NULL” nunca passa no WHERE: o resultado é sempre desconhecido.',
+      html: () => `<div class="sql-q">x = NULL   →   NULL</div><p class="text-xs text-slate-400 mt-3">O WHERE só mantém linhas em que a condição é verdadeira (V). NULL não é verdadeiro.</p>` }
+  ]);
+
+  const produtos = [[1, 'Notebook 14'], [2, 'Smartphone'], [3, 'Fone Bluetooth'], [4, 'Livro SQL Essencial'], [5, 'Livro Algoritmos'],
+    [6, 'Camiseta Básica'], [7, 'Tênis de Corrida'], [8, 'Cafeteira'], [9, 'Panela Antiaderente']];
+  const casa = n => n.toLowerCase().includes('livro');
+  SQLLab.passos(document.getElementById('anim-like'), produtos.map((p, k) => {
+    const ok = casa(p[1]);
+    /* resultado parcial até esta linha, fixado no momento do passo */
+    const ateAqui = produtos.slice(0, k + 1).filter(x => casa(x[1])).map(x => x[1]);
+    return {
+      titulo: `Linha ${k + 1} · “${p[1]}”`,
+      texto: `LIKE '%livro%' ${ok ? 'casa' : 'não casa'}: ${ok ? 'o texto contém “livro”, em qualquer posição.' : 'o texto não contém “livro”.'}`,
+      html: () => SQLLab.tabelaHTML(['id', 'nome'], produtos, { destaque: [k] }) +
+        `<p class="text-xs text-slate-400 mt-3">Resultado até aqui: ${ateAqui.length ? ateAqui.join(' · ') : 'nenhuma linha'}</p>`
+    };
+  }));
 })();
 
 AH.initReveal();

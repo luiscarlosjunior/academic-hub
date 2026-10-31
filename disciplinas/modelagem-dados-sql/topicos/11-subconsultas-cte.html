@@ -259,6 +259,18 @@ HAVING COUNT(*) &gt; 1;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Mais animações: subconsultas correlacionadas e CTEs</h2>
+  <p class="text-sm text-slate-400 mb-5">Veja a consulta de dentro para fora e a sequência de etapas de uma CTE.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · EXISTS correlacionado: a checagem linha a linha</h3>
+  <div id="anim-exists" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · uma CTE, etapa por etapa</h3>
+  <div id="anim-cte"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -460,6 +472,36 @@ WHERE NOT EXISTS (
         ${SQLLab.tabelaHTML(['nome', 'preco'], produtos.map(p => [p[0], p[1]]), { destaque: acima, animar: true })}` },
     { titulo: 'Passo 3 · o resultado', texto: 'Só os produtos acima da média permanecem. Os destacados são o resultado final.',
       html: () => SQLLab.tabelaHTML(['nome', 'preco'], acima.map(i => produtos[i]), { animar: true }) }
+  ]);
+})();
+
+/* ===================== Mais animações: EXISTS e CTE ===================== */
+(function () {
+  const clientes = [[1, 'Ana'], [2, 'Bruno'], [3, 'Carla'], [4, 'Diego'], [5, 'Elisa'], [6, 'Gabriel'], [7, 'Helena']];
+  const temPedido = { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: false };
+  const passosE = clientes.map((c, k) => {
+    /* linhas já avaliadas, com o resultado de EXISTS */
+    const avaliadas = clientes.slice(0, k + 1).map(x => [x[0], x[1], temPedido[x[0]] ? 'verdadeiro' : 'falso']);
+    const pendentes = clientes.slice(k + 1).map(x => [x[0], x[1], '…']);
+    return {
+      titulo: `Cliente ${c[1]} · EXISTS`,
+      texto: `Para ${c[1]}, a subconsulta procura pedidos com p.id_cliente = ${c[0]}. ${temPedido[c[0]] ? 'Achou ao menos um: EXISTS é verdadeiro e a linha passa.' : 'Não achou nenhum: EXISTS é falso e a linha sai.'}`,
+      html: () => SQLLab.tabelaHTML(['id_cliente', 'nome', 'EXISTS'], [...avaliadas, ...pendentes], { destaque: [k] })
+    };
+  });
+  SQLLab.passos(document.getElementById('anim-exists'), passosE);
+
+  const totais = [[1, '2024-07-01', 4000], [2, '2024-07-03', 239.6], [3, '2024-07-15', 2450], [4, '2024-08-02', 399],
+    [5, '2024-08-10', 599], [6, '2024-08-21', 99.8], [7, '2024-09-05', 299.8], [8, '2024-09-18', 3549.9], [9, '2024-09-30', 250]];
+  const cidade = { 1: 'Ana', 3: 'Ana', 5: 'Diego', 8: 'Diego' };
+  const grandes = totais.filter(t => t[2] > 500);
+  SQLLab.passos(document.getElementById('anim-cte'), [
+    { titulo: 'Etapa 1 · total_por_pedido', texto: 'A primeira CTE soma quantidade × preço de cada pedido. Ela é uma tabela temporária, que pode ser lida isoladamente.',
+      html: () => SQLLab.tabelaHTML(['id_pedido', 'data', 'total'], totais, { animar: true }) },
+    { titulo: 'Etapa 2 · pedidos_grandes', texto: 'A segunda CTE lê a primeira e filtra total > 500. Os destacados são os pedidos que passam.',
+      html: () => SQLLab.tabelaHTML(['id_pedido', 'data', 'total'], totais, { destaque: totais.map((t, i) => t[2] > 500 ? i : -1).filter(i => i >= 0) }) },
+    { titulo: 'Etapa 3 · a consulta final', texto: 'A última etapa junta as grandes com clientes e mostra o nome. A cadeia de etapas se lê de cima para baixo.',
+      html: () => SQLLab.tabelaHTML(['cliente', 'pedido', 'total'], grandes.map(g => [cidade[g[0]], g[0], g[2]]), { animar: true }) }
   ]);
 })();
 

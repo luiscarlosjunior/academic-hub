@@ -268,6 +268,18 @@ ORDER BY clientes DESC, cidade;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Mais animações: pivô e colapso de linhas</h2>
+  <p class="text-sm text-slate-400 mb-5">Duas ideias de agregação: montar uma tabela dinâmica pedido a pedido, e a diferença entre colapsar linhas e mantê-las.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · pivô com CASE, pedido por pedido</h3>
+  <div id="anim-pivo" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · GROUP BY colapsa; a janela mantém</h3>
+  <div id="anim-colapso"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -460,6 +472,54 @@ SELECT COUNT(*) AS pedidos_reais FROM pedidos;</pre>
     { titulo: 'HAVING COUNT(*) > 1', texto: 'O HAVING descarta os grupos pequenos depois de contar. “cancelado”, com um pedido, sai do resultado.',
       html: () => SQLLab.tabelaHTML(['status', 'quantidade'], grupos.map(g => [g, pedidos.filter(p => p[1] === g).length]).filter(r => r[1] > 1).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), { animar: true })
         + `<p class="text-xs text-slate-400 mt-2">“cancelado” foi descartado pelo HAVING.</p>` }
+  ]);
+})();
+
+/* ===================== Mais animações: pivô e colapso ===================== */
+(function () {
+  const pedidos = [
+    { id: 1, cidade: 'São Paulo', status: 'enviado' }, { id: 2, cidade: 'Rio de Janeiro', status: 'pago' },
+    { id: 3, cidade: 'São Paulo', status: 'pago' }, { id: 4, cidade: 'Belo Horizonte', status: 'cancelado' },
+    { id: 5, cidade: 'São Paulo', status: 'enviado' }, { id: 6, cidade: 'Curitiba', status: 'pendente' },
+    { id: 7, cidade: 'Rio de Janeiro', status: 'enviado' }, { id: 8, cidade: 'São Paulo', status: 'pago' },
+    { id: 9, cidade: 'Recife', status: 'pendente' }
+  ];
+  const cidades = ['São Paulo', 'Rio de Janeiro', 'Curitiba', 'Recife'];
+  const colunas = ['pago', 'enviado', 'pendente'];
+  /* Cada passo guarda uma foto da matriz naquele instante (a tabela é montada depois) */
+  const estado = Object.fromEntries(cidades.map(c => [c, Object.fromEntries(colunas.map(s => [s, 0]))]));
+  const foto = () => cidades.map(c => [c, ...colunas.map(s => estado[c][s])]);
+  const quadro = (linhas, cidadeAtual) => SQLLab.tabelaHTML(['cidade', ...colunas], linhas,
+    { destaque: cidadeAtual ? [cidades.indexOf(cidadeAtual)] : [] });
+  const passosPivo = [{ titulo: 'Ponto de partida', texto: 'Cada cidade é uma linha. Cada status é uma coluna. Tudo começa em zero.',
+    linhas: foto(), cidade: null }];
+  pedidos.forEach(p => {
+    if (colunas.includes(p.status)) estado[p.cidade][p.status] += 1;
+    passosPivo.push({
+      titulo: `Pedido ${p.id} · ${p.cidade}, ${p.status}`,
+      texto: colunas.includes(p.status)
+        ? `CASE escolhe a coluna “${p.status}” e SUM soma 1 na linha de ${p.cidade}.`
+        : 'O pedido está cancelado. O pivô não tem coluna para ele, então nenhuma célula muda.',
+      linhas: foto(), cidade: p.cidade
+    });
+  });
+  SQLLab.passos(document.getElementById('anim-pivo'), passosPivo.map(s => ({
+    titulo: s.titulo, texto: s.texto, html: () => quadro(s.linhas, s.cidade)
+  })));
+
+  const linhas = pedidos.map(p => [p.id, p.status]);
+  const contagemPorStatus = s => pedidos.filter(p => p.status === s).length;
+  const janela = pedidos.map(p => [p.id, p.status, contagemPorStatus(p.status)]);
+  SQLLab.passos(document.getElementById('anim-colapso'), [
+    { titulo: 'Nove linhas, nove pedidos', texto: 'A tabela de pedidos tem uma linha por pedido. Esse é o nível de detalhe que temos.',
+      html: () => SQLLab.tabelaHTML(['id_pedido', 'status'], linhas, { animar: true }) },
+    { titulo: 'GROUP BY status', texto: 'O agrupamento junta as linhas de mesmo status. Agora são 4 linhas: o detalhe por pedido desapareceu.',
+      html: () => {
+        const g = ['enviado', 'pago', 'pendente', 'cancelado'].map(s => [s, contagemPorStatus(s)]);
+        return SQLLab.tabelaHTML(['status', 'COUNT(*)'], g, { animar: true });
+      } },
+    { titulo: 'COUNT(*) OVER (PARTITION BY status)', texto: 'A função de janela calcula a mesma contagem, mas devolve cada linha com o total do seu grupo. As nove linhas continuam.',
+      html: () => SQLLab.tabelaHTML(['id_pedido', 'status', 'total do grupo'], janela, { animar: true }) }
   ]);
 })();
 

@@ -318,6 +318,18 @@ SELECT * FROM pedidos WHERE status &lt;&gt; 'cancelado';</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-fuchsia-400 mr-2"></i>Mais animações: varredura, índice e ordem</h2>
+  <p class="text-sm text-slate-400 mb-5">Compare o custo de cada abordagem e veja por que a ordem das colunas do índice importa.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · full scan × índice: quantas linhas são lidas?</h3>
+  <div id="anim-varredura" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · índice composto: o intervalo contíguo</h3>
+  <div id="anim-composto"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -513,6 +525,44 @@ ORDER BY fracao_seletiva DESC;</pre>
         <div class="ah-card p-4"><div class="text-[11px] text-slate-400">2 níveis</div><div class="text-xl font-bold text-white">~90 mil</div><div class="text-[11px] text-slate-500">chaves</div></div>
         <div class="ah-card p-4"><div class="text-[11px] text-slate-400">3 níveis</div><div class="text-xl font-bold text-cyan-300">~27 milhões</div><div class="text-[11px] text-slate-500">chaves, com 3 leituras</div></div></div>
         <p class="text-xs text-slate-500 mt-2 text-center">Valores aproximados, para fan-out de 300 chaves por nó.</p>` }
+  ]);
+})();
+
+/* ===================== Mais animações: varredura e índice composto ===================== */
+(function () {
+  const pedidos = [[1, 'enviado'], [2, 'pago'], [3, 'pago'], [4, 'cancelado'], [5, 'enviado'], [6, 'pendente'], [7, 'enviado'], [8, 'pago'], [9, 'pendente']];
+  const passosV = pedidos.map((p, k) => {
+    const achados = pedidos.slice(0, k + 1).filter(x => x[1] === 'pago').map(x => x[0]);
+    return {
+      titulo: `Linha lida ${k + 1} de ${pedidos.length}`,
+      texto: `Sem índice, o banco lê a linha ${p[0]} (status “${p[1]}”) e compara. Até aqui: ${k + 1} linhas lidas.`,
+      html: () => SQLLab.tabelaHTML(['id_pedido', 'status'], pedidos, { destaque: [k] }) +
+        `<p class="text-xs text-slate-400 mt-3">Pedidos “pago” encontrados até agora: ${achados.length ? achados.join(', ') : 'nenhum'}</p>`
+    };
+  });
+  passosV.push({
+    titulo: 'Com índice em status',
+    texto: 'O índice está ordenado por status. A busca por “pago” vai direto às três entradas (2, 3 e 8) e não lê as demais linhas.',
+    html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div><div class="text-xs text-cyan-300 mb-2">sem índice: 9 linhas lidas</div>${SQLLab.tabelaHTML(['id_pedido', 'status'], pedidos, { destaque: [1, 2, 7] })}</div>
+      <div><div class="text-xs text-cyan-300 mb-2">com índice: 3 leituras</div>${SQLLab.tabelaHTML(['status', 'id_pedido'], [['pago', 2], ['pago', 3], ['pago', 8]], { animar: true })}</div>
+    </div>`
+  });
+  SQLLab.passos(document.getElementById('anim-varredura'), passosV);
+
+  const entradas = [[1, '2024-07-01', 1], [1, '2024-07-15', 3], [2, '2024-07-03', 2], [2, '2024-09-05', 7], [3, '2024-08-02', 4],
+    [4, '2024-08-10', 5], [4, '2024-09-18', 8], [5, '2024-08-21', 6], [6, '2024-09-30', 9]];
+  const cols = ['id_cliente', 'data_pedido', 'id_pedido'];
+  const faixa = entradas.map((e, i) => e[0] === 1 ? i : -1).filter(i => i >= 0);
+  SQLLab.passos(document.getElementById('anim-composto'), [
+    { titulo: 'O índice (id_cliente, data_pedido)', texto: 'As entradas estão ordenadas primeiro por cliente e, dentro de cada cliente, por data.',
+      html: () => SQLLab.tabelaHTML(cols, entradas, {}) },
+    { titulo: 'Buscar id_cliente = 1', texto: 'O banco procura o primeiro ponto em que id_cliente = 1, usando a ordem do índice.',
+      html: () => SQLLab.tabelaHTML(cols, entradas, { destaque: [0] }) },
+    { titulo: 'Ler enquanto id_cliente = 1', texto: 'As entradas de cliente 1 ficam juntas. O banco lê o intervalo contíguo: pedidos 1 e 3.',
+      html: () => SQLLab.tabelaHTML(cols, entradas, { destaque: faixa, animar: true }) },
+    { titulo: 'Parar ao mudar de cliente', texto: 'A próxima entrada tem id_cliente = 2. A ordem garante que nenhuma outra linha de cliente 1 aparece depois.',
+      html: () => SQLLab.tabelaHTML(cols, entradas, { destaque: faixa }) + `<div class="ah-callout ah-callout-info mt-3"><i class="fa-solid fa-circle-info"></i><div>Por isso a coluna de igualdade vem primeiro no índice composto.</div></div>` }
   ]);
 })();
 

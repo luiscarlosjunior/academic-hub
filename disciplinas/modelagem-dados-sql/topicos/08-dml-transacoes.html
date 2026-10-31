@@ -236,6 +236,18 @@ SELECT COUNT(*) AS arquivados FROM pedidos_arquivados;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Mais animações: escrita, upsert e savepoints</h2>
+  <p class="text-sm text-slate-400 mb-5">Cada escrita muda a tabela de um jeito diferente. As animações mostram o estado a cada passo.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · upsert: atualizar ou inserir?</h3>
+  <div id="anim-upsert" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · savepoint: desfazer só uma parte</h3>
+  <div id="anim-savepoint"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -433,6 +445,46 @@ SELECT COUNT(*) AS cobrancas, SUM(valor) AS total FROM pagamentos;</pre>
       html: () => `${comandos('ROLLBACK;')}<div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i>
         <div>Nenhum registro parcial ficou gravado. O banco está íntegro.</div></div>` }
   ]);
+})();
+
+/* ===================== Mais animações: upsert e savepoint ===================== */
+(function () {
+  const cab = ['id_categoria', 'nome'];
+  const base = [[1, 'Eletrônicos'], [2, 'Livros'], [3, 'Roupas'], [4, 'Casa'], [5, 'Esportes']];
+  const comSaida = (linhas, dest, texto) => SQLLab.tabelaHTML(cab, linhas, { destaque: dest, animar: true });
+  SQLLab.passos(document.getElementById('anim-upsert'), [
+    { titulo: 'Estado inicial', texto: 'Cinco categorias cadastradas. Queremos gravar a categoria 1 com um nome novo.',
+      html: () => comSaida(base, []) },
+    { titulo: 'INSERT id 1 · conflito na chave', texto: 'A chave 1 já existe. Em vez de falhar, o ON CONFLICT ... DO UPDATE assume a linha existente.',
+      html: () => `<div class="sql-q mb-3">INSERT INTO categorias VALUES (1, 'Eletrônicos e Informática')\nON CONFLICT (id_categoria) DO UPDATE SET nome = excluded.nome;</div>` + comSaida(base, [0]) },
+    { titulo: 'DO UPDATE · a linha é alterada', texto: 'excluded.nome é o valor que tentou entrar. A linha 1 recebe o nome novo, e nenhuma linha nova aparece.',
+      html: () => comSaida([[1, 'Eletrônicos e Informática'], ...base.slice(1)], [0]) },
+    { titulo: 'INSERT id 6 · sem conflito', texto: 'Agora a chave 6 não existe. O mesmo comando insere uma linha nova, sem nenhum UPDATE.',
+      html: () => comSaida([[1, 'Eletrônicos e Informática'], ...base.slice(1), [6, 'Papelaria']], [5]) }
+  ]);
+
+  const cols = ['Ação', 'Estoque produto 2', 'Estoque produto 6'];
+  const ev = [
+    { t: '1', 'Ação': 'BEGIN', 'Estoque produto 2': '15', 'Estoque produto 6': '100' },
+    { t: '2', 'Ação': 'UPDATE produto 2 (−1)', 'Estoque produto 2': '14', 'Estoque produto 6': '100' },
+    { t: '3', 'Ação': 'SAVEPOINT antes_brinde', 'Estoque produto 2': '14', 'Estoque produto 6': '100' },
+    { t: '4', 'Ação': 'UPDATE produto 6 (−1)', 'Estoque produto 2': '14', 'Estoque produto 6': '99' },
+    { t: '5', 'Ação': 'ROLLBACK TO antes_brinde', 'Estoque produto 2': '14', 'Estoque produto 6': '100' },
+    { t: '6', 'Ação': 'COMMIT', 'Estoque produto 2': '14', 'Estoque produto 6': '100' }
+  ];
+  const txt = [
+    'Estoques iniciais.',
+    'A primeira baixa está na transação, ainda não confirmada.',
+    'O savepoint marca um ponto de retorno dentro da transação.',
+    'A segunda baixa acontece depois do savepoint.',
+    'ROLLBACK TO desfaz só o que veio depois do savepoint: a baixa do produto 6 some.',
+    'O COMMIT confirma o que restou: a baixa do produto 2 é definitiva.'
+  ];
+  SQLLab.passos(document.getElementById('anim-savepoint'), ev.map((e, i) => ({
+    titulo: `Evento ${i + 1} de ${ev.length}`,
+    texto: txt[i],
+    html: () => SQLLab.cronogramaHTML(cols, ev, i)
+  })));
 })();
 
 AH.initReveal();

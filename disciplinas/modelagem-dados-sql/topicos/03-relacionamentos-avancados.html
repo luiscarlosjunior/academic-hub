@@ -254,6 +254,18 @@ WHERE i.id_pedido = 1;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-cyan-400 mr-2"></i>Mais animações: especialização e auto-relacionamento</h2>
+  <p class="text-sm text-slate-400 mb-5">Os relacionamentos avançados ficam mais claros quando seguimos uma linha pelo esquema.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · especialização: a superclasse e as subclasses</h3>
+  <div id="anim-espec" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · auto-relacionamento: subir pela chave estrangeira</h3>
+  <div id="anim-auto"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -454,6 +466,47 @@ produtos: [Notebook, Fone, ...]   ← vários valores em uma coluna</div></div>
     { titulo: 'Passo 4 · o banco recusa o erro', texto: 'Uma segunda linha com o mesmo par viola a chave primária. O banco impede a duplicata.',
       html: () => `<div class="ah-callout ah-callout-warn"><i class="fa-solid fa-ban"></i><div><strong>UNIQUE constraint failed: itens_pedido.id_pedido, itens_pedido.id_produto</strong><br><span class="text-xs">Inserir (1, 1, …) novamente é recusado.</span></div></div>` }
   ]);
+})();
+
+/* ===================== Mais animações: especialização e reflexivo ===================== */
+(function () {
+  const esp = [
+    { id: 'c', pai: null, rotulo: 'clientes' },
+    { id: 'pf', pai: 'c', rotulo: 'pessoas_fisicas' },
+    { id: 'pj', pai: 'c', rotulo: 'pessoas_juridicas' }
+  ];
+  const passosE = [
+    { on: 'c', done: [], t: 'Passo 1 · a superclasse', x: 'Ana entra primeiro em clientes, com os dados comuns a todo cliente.' },
+    { on: 'pf', done: ['c'], t: 'Passo 2 · a subclasse certa', x: 'Como Ana é pessoa física, o CPF vai para pessoas_fisicas, usando a mesma chave do cliente.' },
+    { on: 'pj', done: ['c'], t: 'Passo 3 · a regra que falta', x: 'Sem uma regra de disjunção, a mesma chave também poderia entrar em pessoas_juridicas. A validação precisa ser escrita.' }
+  ];
+  SQLLab.passos(document.getElementById('anim-espec'), passosE.map(p => ({
+    titulo: p.t,
+    texto: p.x,
+    html: () => SQLLab.arvoreHTML(esp, id => id === p.on ? 'on' : p.done.includes(id) ? 'done' : '')
+  })));
+
+  const func = [
+    { id: 'marta', pai: null, rotulo: 'Marta (NULL)' },
+    { id: 'roberto', pai: 'marta', rotulo: 'Roberto' },
+    { id: 'lucia', pai: 'marta', rotulo: 'Lúcia' },
+    { id: 'tiago', pai: 'roberto', rotulo: 'Tiago' },
+    { id: 'juliana', pai: 'roberto', rotulo: 'Juliana' },
+    { id: 'paulo', pai: 'lucia', rotulo: 'Paulo' },
+    { id: 'renata', pai: 'paulo', rotulo: 'Renata' }
+  ];
+  const subida = ['renata', 'paulo', 'lucia', 'marta'];
+  const txtS = [
+    'Começamos em Renata. O campo id_supervisor aponta para Paulo.',
+    'Paulo tem como supervisora Lúcia. Cada passo sobe uma chave estrangeira.',
+    'Lúcia reporta a Marta.',
+    'Marta tem id_supervisor NULL: a subida termina. É a condição de parada natural da hierarquia.'
+  ];
+  SQLLab.passos(document.getElementById('anim-auto'), subida.map((id, k) => ({
+    titulo: `Passo ${k + 1} · ${func.find(n => n.id === id).rotulo}`,
+    texto: txtS[k],
+    html: () => SQLLab.arvoreHTML(func, x => x === id ? 'on' : subida.slice(0, k).includes(x) ? 'done' : '')
+  })));
 })();
 
 AH.initReveal();

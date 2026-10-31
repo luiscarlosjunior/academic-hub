@@ -239,6 +239,18 @@ FROM clientes;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-cyan-400 mr-2"></i>Mais animações: os mecanismos em movimento</h2>
+  <p class="text-sm text-slate-400 mb-5">Avance os passos para ver o que acontece dentro do banco. O destaque mostra o que muda em cada etapa.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · por que o log vem antes da página</h3>
+  <div id="anim-log" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · o modelo hierárquico navega por caminhos</h3>
+  <div id="anim-hierarquia"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -469,6 +481,50 @@ ORDER BY valor DESC;</pre>
       html: () => `<div class="sql-q mb-3">ROLLBACK;  -- feito automaticamente na recuperação</div>${saldos(500, 200, ok)}
         <div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i><div>Atomicidade preservada: o total continua R$ 700.</div></div>` }
   ]);
+})();
+
+/* ===================== Mais animações: log e hierarquia ===================== */
+(function () {
+  const cols = ['Transação', 'Log no disco', 'Dado (página)'];
+  const ev = [
+    { t: '1', 'Transação': 'BEGIN' },
+    { t: '2', 'Transação': 'UPDATE conta A: −100', 'Log no disco': 'registra o valor antigo (undo)', 'Dado (página)': 'intacta' },
+    { t: '3', 'Transação': 'UPDATE conta B: +100', 'Log no disco': 'registra o valor novo (redo)', 'Dado (página)': 'alterada só no buffer' },
+    { t: '4', 'Transação': 'COMMIT', 'Log no disco': 'gravado e forçado no disco (fsync)', 'Dado (página)': 'ainda no buffer' },
+    { t: '5', 'Dado (página)': 'escrita no disco depois (checkpoint)' }
+  ];
+  const txt = [
+    'Nada foi escrito ainda: a transação está aberta.',
+    'Antes de mexer na página, o SGBD grava no log como desfazer a mudança.',
+    'A página muda só na memória. O log também registra como refazer.',
+    'O COMMIT só responde depois que o log está no disco. A página pode ser gravada depois.',
+    'Em algum momento, as páginas alteradas vão para o disco. Se a energia cair antes, o log refaz o que foi confirmado.'
+  ];
+  SQLLab.passos(document.getElementById('anim-log'), ev.map((e, i) => ({
+    titulo: `Evento ${i + 1} de ${ev.length}`,
+    texto: txt[i],
+    html: () => SQLLab.cronogramaHTML(cols, ev, i)
+  })));
+
+  const nos = [
+    { id: 'emp', pai: null, rotulo: 'Empresa' },
+    { id: 'vend', pai: 'emp', rotulo: 'Vendas' },
+    { id: 'fin', pai: 'emp', rotulo: 'Financeiro' },
+    { id: 'ana', pai: 'vend', rotulo: 'Ana' },
+    { id: 'bruno', pai: 'vend', rotulo: 'Bruno' },
+    { id: 'carla', pai: 'fin', rotulo: 'Carla' }
+  ];
+  const caminho = ['emp', 'vend', 'ana'];
+  const frases = [
+    'Para chegar a Ana, o programa começa na raiz e desce pelos filhos, um nível de cada vez.',
+    'Vendas é filha da Empresa. O caminho desce mais um nível.',
+    'Ana é filha de Vendas. Se o caminho mudar na estrutura, todo código que o percorre quebra.'
+  ];
+  SQLLab.passos(document.getElementById('anim-hierarquia'), caminho.map((id, k) => ({
+    titulo: `Passo ${k + 1} · ${nos.find(n => n.id === id).rotulo}`,
+    texto: frases[k],
+    html: () => SQLLab.arvoreHTML(nos, x => x === id ? 'on' : caminho.slice(0, k).includes(x) ? 'done' : '')
+  })));
 })();
 
 AH.initReveal();

@@ -242,6 +242,18 @@ ORDER BY data_pedido, id_pedido;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-fuchsia-400 mr-2"></i>Mais animações: frames e vizinhos</h2>
+  <p class="text-sm text-slate-400 mb-5">A janela de cada linha, passo a passo: o frame define quais linhas entram no cálculo.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · ROWS × RANGE: o frame de cada linha</h3>
+  <div id="anim-frame" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · LAG: a linha olha para a anterior</h3>
+  <div id="anim-lag"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -454,6 +466,42 @@ FROM v;</pre>
         return tabela(['categoria', 'produto', 'preço', 'ROW_NUMBER'], linhas, linhas.map((l, i) => l[3] === 1 ? i : -1).filter(i => i >= 0));
       } }
   ]);
+})();
+
+/* ===================== Mais animações: frames e LAG ===================== */
+(function () {
+  const dados = [['2024-01-01', 10], ['2024-01-01', 20], ['2024-01-02', 5]];
+  const passosF = dados.map((d, k) => {
+    /* para cada linha j já avaliada: ROWS soma até j; RANGE soma todas as linhas de data <= data de j */
+    const linhas = dados.map((x, j) => {
+      const rows = dados.slice(0, j + 1).reduce((s, y) => s + y[1], 0);
+      const range = dados.reduce((s, y) => y[0] <= x[0] ? s + y[1] : s, 0);
+      return [x[0], x[1], j <= k ? rows : '…', j <= k ? range : '…'];
+    });
+    return {
+      titulo: `Linha ${k + 1} · data ${d[0]}`,
+      texto: k === 0
+        ? 'Com ROWS, o frame vai só até a linha atual: soma 10. Com RANGE, a linha de mesma data também entra: soma 30.'
+        : k === 1
+          ? 'A segunda linha tem a mesma data. Nos dois frames, ela já soma as duas linhas: 30.'
+          : 'Data nova: os dois frames incluem tudo até aqui, então ambos chegam a 35.',
+      html: () => SQLLab.tabelaHTML(['data', 'x', 'SUM ROWS', 'SUM RANGE'], linhas, { destaque: [k], animar: true })
+    };
+  });
+  SQLLab.passos(document.getElementById('anim-frame'), passosF);
+
+  const pedidos = [[1, 4000], [2, 239.6], [3, 2450], [4, 399], [5, 599], [6, 99.8], [7, 299.8], [8, 3549.9], [9, 250]];
+  const passosL = pedidos.map((p, k) => {
+    const linhas = pedidos.slice(0, k + 1).map((p2, j) => [p2[0], p2[1], j === 0 ? '—' : pedidos[j - 1][1]]);
+    return {
+      titulo: `Pedido ${p[0]} · LAG olha o ${k === 0 ? 'primeiro (sem anterior)' : `pedido ${pedidos[k - 1][0]}`}`,
+      texto: k === 0
+        ? 'Não há linha anterior: LAG devolve NULL (aqui, um traço).'
+        : `LAG devolve o total do pedido ${pedidos[k - 1][0]}, a linha de cima. Uma janela de uma linha basta para comparar.`,
+      html: () => SQLLab.tabelaHTML(['pedido', 'total', 'LAG(total)'], linhas, { destaque: [k], animar: true })
+    };
+  });
+  SQLLab.passos(document.getElementById('anim-lag'), passosL);
 })();
 
 AH.initReveal();

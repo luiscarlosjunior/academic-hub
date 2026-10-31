@@ -272,6 +272,18 @@ SELECT id_produto, nome, preco, estoque FROM produtos WHERE id_produto IN (11, 1
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Mais animações: restrições e tipos em movimento</h2>
+  <p class="text-sm text-slate-400 mb-5">Veja o caminho que um comando percorre dentro do banco e como cada valor é armazenado.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · o trigger que impede o estoque negativo</h3>
+  <div id="anim-trigger" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · afinidade de tipos: o que é guardado de fato</h3>
+  <div id="anim-afinidade"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -506,6 +518,40 @@ SELECT COUNT(*) AS sem_telefone FROM clientes WHERE telefone = '';</pre>
       <div class="sql-erro"><i class="fa-solid fa-ban"></i> ${c.msg}</div>
       <p class="text-xs text-slate-400 mt-3">Nada foi gravado. A operação é atômica: ou a linha inteira entra, ou nada entra.</p>`
   })));
+})();
+
+/* ===================== Mais animações: trigger e afinidade ===================== */
+(function () {
+  const etapas = ['UPDATE produtos', 'BEFORE UPDATE dispara', 'WHEN NEW.estoque < 0 ?', 'RAISE(ABORT)'];
+  const fluxo = k => `<div class="sql-flow">${etapas.map((e, i) =>
+    `<div class="${i === k ? 'on' : ''}">${i + 1}. ${e}</div>${i < etapas.length - 1 ? '<i class="fa-solid fa-arrow-right"></i>' : ''}`).join('')}</div>`;
+  SQLLab.passos(document.getElementById('anim-trigger'), [
+    { titulo: 'Passo 1 · o comando chega', texto: 'UPDATE produtos SET estoque = estoque − 100 WHERE id_produto = 1. Antes de gravar, o banco procura triggers para essa operação.',
+      html: () => fluxo(0) + '<div class="sql-q mt-3">estoque atual = 8  →  8 − 100 = −92</div>' },
+    { titulo: 'Passo 2 · o trigger dispara', texto: 'O trigger é BEFORE UPDATE OF estoque. Ele roda antes da linha ser alterada, e tem acesso ao valor novo (NEW).',
+      html: () => fluxo(1) + '<div class="sql-q mt-3">NEW.estoque = −92</div>' },
+    { titulo: 'Passo 3 · a condição', texto: 'WHEN NEW.estoque < 0 é verdadeiro: −92 é menor que zero. A regra foi violada.',
+      html: () => fluxo(2) + '<div class="sql-q mt-3">−92 &lt; 0  →  verdadeiro</div>' },
+    { titulo: 'Passo 4 · a interrupção', texto: 'RAISE(ABORT) cancela o comando inteiro. A linha continua com estoque 8, e o erro chega à aplicação.',
+      html: () => fluxo(3) + '<div class="sql-erro mt-3"><i class="fa-solid fa-ban"></i> estoque não pode ser negativo</div>' }
+  ]);
+
+  const cab = ['valor inserido', 'valor guardado', 'tipo guardado'];
+  const entradas = [['42', 42, 'integer'], ['abc', 'abc', 'text'], [3.5, 3.5, 'real']];
+  const frases = [
+    'A coluna é INTEGER, e o texto “42” é convertido para o número 42.',
+    'Não há como converter “abc” em inteiro. O SQLite guarda o texto mesmo assim, sem erro.',
+    'O valor 3.5 não é inteiro. A coluna aceita e guarda como real.'
+  ];
+  /* cada passo guarda a tabela até aquele INSERT (foto, não referência) */
+  SQLLab.passos(document.getElementById('anim-afinidade'), entradas.map((e, k) => {
+    const ate = entradas.slice(0, k + 1);
+    return {
+      titulo: `INSERT ${typeof e[0] === 'string' ? "'" + e[0] + "'" : e[0]} numa coluna INTEGER`,
+      texto: frases[k],
+      html: () => SQLLab.tabelaHTML(cab, ate, { destaque: [k], animar: true })
+    };
+  }));
 })();
 
 AH.initReveal();

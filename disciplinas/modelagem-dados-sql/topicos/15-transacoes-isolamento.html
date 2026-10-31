@@ -249,6 +249,18 @@ SELECT id_produto, nome, estoque FROM produtos WHERE id_produto = 8;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-fuchsia-400 mr-2"></i>Mais animações: leitura suja e deadlock</h2>
+  <p class="text-sm text-slate-400 mb-5">Duas transações e o tempo: veja o que cada uma enxerga e quando o problema aparece.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · leitura suja: B lê o que A nunca confirmou</h3>
+  <div id="anim-suja" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · deadlock: dois esperam um pelo outro</h3>
+  <div id="anim-deadlock"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -468,6 +480,49 @@ SELECT * FROM assento;</pre>
       html: () => `<div class="sql-q">UPDATE contas SET saldo = saldo + 10 WHERE id = 1;   -- feito duas vezes</div>
         <div class="mt-3">${saldo(120, 'text-emerald-400')}</div>` }
   ]);
+})();
+
+/* ===================== Mais animações: leitura suja e deadlock ===================== */
+(function () {
+  const colsS = ['Transação A', 'Transação B'];
+  const suja = [
+    { t: '1', 'Transação A': 'UPDATE estoque = 3 (sem COMMIT)' },
+    { t: '2', 'Transação B': 'SELECT estoque → 3  (leitura suja)' },
+    { t: '3', 'Transação A': 'ROLLBACK: o estoque volta a 8' },
+    { t: '4', 'Transação B': 'segue com o valor 3, que nunca foi confirmado' }
+  ];
+  const txtS = [
+    'A altera o estoque, mas a mudança ainda não está confirmada.',
+    'B lê 3. Em READ UNCOMMITTED, isso é permitido: o dado está visível.',
+    'A desfaz a mudança. Para o banco, o estoque nunca foi 3.',
+    'B já tomou uma decisão com um valor que deixou de existir. Por isso READ COMMITTED proíbe essa leitura.'
+  ];
+  SQLLab.passos(document.getElementById('anim-suja'), suja.map((e, i) => ({
+    titulo: `Evento ${i + 1} de ${suja.length}`,
+    texto: txtS[i],
+    html: () => SQLLab.cronogramaHTML(colsS, suja, i)
+  })));
+
+  const colsD = ['T1', 'T2'];
+  const dead = [
+    { t: '1', T1: 'UPDATE produto 1 (trava o 1)' },
+    { t: '2', T2: 'UPDATE produto 2 (trava o 2)' },
+    { t: '3', T1: 'UPDATE produto 2 → espera T2' },
+    { t: '4', T2: 'UPDATE produto 1 → espera T1' },
+    { t: '5', T2: 'deadlock detectado: T2 é abortada' }
+  ];
+  const txtD = [
+    'T1 trava a linha do produto 1.',
+    'T2 trava a linha do produto 2. Até aqui, nenhuma espera.',
+    'T1 quer o produto 2, que está travado por T2. T1 espera.',
+    'T2 quer o produto 1, travado por T1. Agora há um ciclo de espera.',
+    'O banco percebe o ciclo e aborta uma das transações. A aplicação deve repetir a que foi abortada.'
+  ];
+  SQLLab.passos(document.getElementById('anim-deadlock'), dead.map((e, i) => ({
+    titulo: `Evento ${i + 1} de ${dead.length}`,
+    texto: txtD[i],
+    html: () => SQLLab.cronogramaHTML(colsD, dead, i)
+  })));
 })();
 
 AH.initReveal();

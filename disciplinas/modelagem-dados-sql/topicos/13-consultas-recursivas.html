@@ -270,6 +270,18 @@ SELECT dia FROM dias;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-fuchsia-400 mr-2"></i>Mais animações: fila, visitados e trilha</h2>
+  <p class="text-sm text-slate-400 mb-5">A recursão em grafos é uma busca em largura com memória de visitados. Acompanhe a fila.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · alcance a partir de SP, com fila e visitados</h3>
+  <div id="anim-fila" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · a trilha que cresce a cada nível</h3>
+  <div id="anim-trilha"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-fuchsia-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -474,6 +486,55 @@ SELECT COUNT(*) AS alcancados FROM sub;</pre>
       html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${caixa('conjunto de trabalho', niveis[3].nomes, '#e879f9')}${caixa('resultado acumulado', acumulado(3), '#22d3ee')}</div>
         <div class="ah-callout ah-callout-ok mt-3"><i class="fa-solid fa-circle-check"></i><div>Sem linhas novas: a recursão para. Sete pessoas no total.</div></div>` }
   ]);
+})();
+
+/* ===================== Mais animações: fila e trilha ===================== */
+(function () {
+  const arestas = { SP: ['RJ', 'CWB'], RJ: ['BH'], BH: ['SP'], CWB: [] };
+  /* simula a busca em largura: cada passo guarda fila e visitados */
+  const quadros = [];
+  let fila = ['SP'];
+  const visitados = ['SP'];
+  quadros.push({ fila: [...fila], visitados: [...visitados], t: 'Início', x: 'A recursão começa com SP. SP entra na fila e na lista de visitados.', atual: null });
+  while (fila.length) {
+    const atual = fila.shift();
+    const novos = [];
+    const viz = arestas[atual];
+    const ja = viz.filter(v => visitados.includes(v));
+    viz.forEach(v => { if (!visitados.includes(v)) { visitados.push(v); fila.push(v); novos.push(v); } });
+    quadros.push({
+      fila: [...fila], visitados: [...visitados], atual,
+      t: `Retira ${atual}`,
+      x: novos.length ? `Vizinhos de ${atual}: ${viz.join(', ')}. Entram na fila os que ainda não foram visitados: ${novos.join(', ')}.`
+        : ja.length ? `Vizinho ${ja.join(', ')} já está em visitados. O UNION descarta a repetição, e o ciclo não gera linha nova.`
+          : `${atual} não tem saídas. Nada entra na fila.`
+    });
+  }
+  const caixa = (titulo, itens, cls) => `<div class="ah-card p-3 flex-1 min-w-[160px]"><div class="text-[11px] text-slate-400 mb-2">${titulo}</div>
+    <div class="flex flex-wrap gap-2">${itens.length ? itens.map(i => `<span class="sql-no ${cls(i)}">${i}</span>`).join('') : '<span class="text-xs text-slate-600 italic">vazio</span>'}</div></div>`;
+  SQLLab.passos(document.getElementById('anim-fila'), quadros.map(q => ({
+    titulo: q.t,
+    texto: q.x,
+    html: () => `<div class="flex flex-col md:flex-row gap-3">
+      ${caixa('fila (working table)', q.fila, () => 'on')}
+      ${caixa('visitados (UNION)', q.visitados, i => q.atual === i ? 'on' : 'done')}
+    </div>`
+  })));
+
+  const func = [
+    { id: 'marta', pai: null, rotulo: 'Marta' },
+    { id: 'lucia', pai: 'marta', rotulo: 'Lúcia' },
+    { id: 'paulo', pai: 'lucia', rotulo: 'Paulo' },
+    { id: 'renata', pai: 'paulo', rotulo: 'Renata' }
+  ];
+  const ordem = ['marta', 'lucia', 'paulo', 'renata'];
+  const trilhas = ['Marta', 'Marta > Lúcia', 'Marta > Lúcia > Paulo', 'Marta > Lúcia > Paulo > Renata'];
+  SQLLab.passos(document.getElementById('anim-trilha'), ordem.map((id, k) => ({
+    titulo: `Nível ${k} · ${func.find(f => f.id === id).rotulo}`,
+    texto: `A coluna trilha recebe o texto do nível anterior mais “> ${func.find(f => f.id === id).rotulo}”: ${trilhas[k]}.`,
+    html: () => `${SQLLab.arvoreHTML(func, x => x === id ? 'on' : ordem.slice(0, k).includes(x) ? 'done' : '')}
+      <div class="sql-q mt-4">trilha = ${trilhas[k]}</div>`
+  })));
 })();
 
 AH.initReveal();

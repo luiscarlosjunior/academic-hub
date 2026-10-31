@@ -239,6 +239,18 @@ ORDER BY pedidos DESC, c.nome;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-cyan-400 mr-2"></i>Mais animações: cardinalidades em movimento</h2>
+  <p class="text-sm text-slate-400 mb-5">Avance os passos para ver cada cardinalidade se materializar nos dados.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · 1:N como árvore: cada pedido tem um único cliente</h3>
+  <div id="anim-1n" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · N:N: a mesma tabela de itens resolve os dois lados</h3>
+  <div id="anim-nn"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -435,6 +447,45 @@ ORDER BY subordinados DESC, s.nome;</pre>
 Pedido   }o──|| Produto   <span class="text-slate-500">(via itens_pedido)</span>
 Cliente  (0..N) faz  Pedido (1..1)</div>` }
   ]);
+})();
+
+/* ===================== Mais animações: cardinalidades ===================== */
+(function () {
+  const nos = [
+    { id: 'ana', pai: null, rotulo: 'Cliente: Ana' },
+    { id: 'bruno', pai: null, rotulo: 'Cliente: Bruno' },
+    { id: 'p1', pai: 'ana', rotulo: 'Pedido 1' },
+    { id: 'p3', pai: 'ana', rotulo: 'Pedido 3' },
+    { id: 'p2', pai: 'bruno', rotulo: 'Pedido 2' }
+  ];
+  const passos1 = [
+    { on: ['ana'], done: [], t: 'Um cliente', x: 'Ana é a raiz do ramo. O relacionamento “faz” parte dela para os seus pedidos.' },
+    { on: ['p1', 'p3'], done: ['ana'], t: 'Muitos pedidos (N)', x: 'Os pedidos descem a partir de Ana. Um cliente pode ter vários pedidos: o lado “muitos” do 1:N.' },
+    { on: ['p3'], done: ['ana'], t: 'Um cliente por pedido (1)', x: 'Pedido 3 tem um único pai. Essa é a regra “cada pedido pertence a um cliente”: o lado do pedido tem máximo 1.' },
+    { on: ['p2'], done: ['bruno'], t: 'Outro ramo, sem mistura', x: 'Bruno tem seu próprio ramo. Como cada pedido tem um único pai, os ramos nunca se cruzam.' }
+  ];
+  SQLLab.passos(document.getElementById('anim-1n'), passos1.map(p => ({
+    titulo: p.t,
+    texto: p.x,
+    html: () => SQLLab.arvoreHTML(nos, id => p.on.includes(id) ? 'on' : p.done.includes(id) ? 'done' : '')
+  })));
+
+  const itens = [
+    [1, 1, 1, 3500], [1, 3, 2, 250], [2, 4, 1, 89.9], [2, 6, 3, 49.9], [3, 2, 1, 2200],
+    [3, 3, 1, 250], [4, 7, 1, 399], [5, 8, 1, 299], [5, 9, 2, 150], [6, 6, 2, 49.9],
+    [7, 4, 2, 89.9], [7, 5, 1, 120], [8, 1, 1, 3500], [8, 6, 1, 49.9], [9, 3, 1, 250]
+  ];
+  const cols = ['id_pedido', 'id_produto', 'quantidade', 'preco_unitario'];
+  const passos2 = [
+    { d: [0, 1], t: 'O pedido 1 em duas linhas', x: 'Um pedido tem vários produtos: o lado “muitos” da N:N aparece como linhas da associativa.' },
+    { d: [1, 5, 14], t: 'O produto 3 em três pedidos', x: 'O mesmo produto aparece em vários pedidos. A tabela da associativa resolve os dois sentidos da relação.' },
+    { d: [], t: 'A chave é o par', x: 'O par (id_pedido, id_produto) identifica a linha. Por isso o mesmo produto não se repete no mesmo pedido.' }
+  ];
+  SQLLab.passos(document.getElementById('anim-nn'), passos2.map(p => ({
+    titulo: p.t,
+    texto: p.x,
+    html: () => SQLLab.tabelaHTML(cols, itens, { destaque: p.d, animar: true })
+  })));
 })();
 
 AH.initReveal();

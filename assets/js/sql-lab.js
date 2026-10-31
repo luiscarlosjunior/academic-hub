@@ -326,6 +326,35 @@ INSERT INTO funcionarios VALUES
     iniciaEditores(scope);
   }
 
-  global.SQLLab = { init, novoBanco, resultadoHTML, tabelaHTML, destacar, passos, SEED };
+  /* Árvore em níveis: nos = [{ id, pai, rotulo }]; estado(id) -> 'on' | 'done' | 'off' | '' */
+  function arvoreHTML(nos, estado) {
+    const porPai = {};
+    nos.forEach(n => { const k = n.pai == null ? '_' : n.pai; (porPai[k] = porPai[k] || []).push(n); });
+    const niveis = [];
+    let atual = porPai['_'] || [];
+    while (atual.length) {
+      niveis.push(atual);
+      atual = atual.reduce((acc, n) => acc.concat(porPai[n.id] || []), []);
+    }
+    return niveis.map(nivel => `<div class="sql-arv-nivel">${nivel.map(n => {
+      const st = estado ? estado(n.id) : '';
+      return `<div class="sql-no ${st}">${esc(n.rotulo)}</div>`;
+    }).join('')}</div>`).join('<div class="sql-arv-seta"><i class="fa-solid fa-arrow-down"></i></div>');
+  }
+
+  /* Cronograma: colunas = nomes de sessões/transações; eventos = [{ t, [coluna]: texto }].
+     Mostra os eventos até 'atual'; o último fica destacado. */
+  function cronogramaHTML(colunas, eventos, atual) {
+    const linhas = eventos.slice(0, atual + 1).map((e, i) => `
+      <tr class="${i === atual ? 'sql-hl' : ''}">
+        <td class="sql-t">${esc(e.t)}</td>
+        ${colunas.map(c => `<td>${e[c] ? esc(e[c]) : ''}</td>`).join('')}
+      </tr>`).join('');
+    return `<div class="sql-wrap"><table class="sql-table">
+      <thead><tr><th>tempo</th>${colunas.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${linhas}</tbody></table></div>`;
+  }
+
+  global.SQLLab = { init, novoBanco, resultadoHTML, tabelaHTML, destacar, passos, arvoreHTML, cronogramaHTML, SEED };
   document.addEventListener('DOMContentLoaded', () => init(document));
 })(window);

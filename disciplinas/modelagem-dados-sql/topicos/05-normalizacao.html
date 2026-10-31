@@ -279,6 +279,18 @@ WHERE p.id_pedido = 9;</pre>
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-cyan-400 mr-2"></i>Mais animações: dependências em movimento</h2>
+  <p class="text-sm text-slate-400 mb-5">Duas ideias centrais da normalização, mostradas como processo.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · o fecho de atributos, passo a passo</h3>
+  <div id="anim-fecho" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · uma dependência violada nos dados</h3>
+  <div id="anim-violacao"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-cyan-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -508,6 +520,35 @@ HAVING COUNT(DISTINCT cidade) &gt; 1;</pre>
         <div class="on">clientes</div><i class="fa-solid fa-arrow-right"></i><div class="on">pedidos</div><i class="fa-solid fa-arrow-right"></i>
         <div class="on">itens_pedido</div><i class="fa-solid fa-arrow-right"></i><div class="on">produtos</div></div>
         <p class="text-xs text-slate-400 mt-3">Este é o esquema da loja usado no restante da disciplina.</p>` }
+  ]);
+})();
+
+/* ===================== Mais animações: fecho e violação ===================== */
+(function () {
+  const atributos = ['A', 'B', 'C', 'D'];
+  const caixas = (fecho, novos) => `<div class="sql-arv-nivel">${atributos.map(a =>
+    `<span class="sql-no ${novos.includes(a) ? 'on' : fecho.includes(a) ? 'done' : ''}">${a}</span>`).join('')}</div>
+    <p class="text-xs text-slate-400 text-center mt-3">fecho de X = {${fecho.join(', ')}}</p>`;
+  SQLLab.passos(document.getElementById('anim-fecho'), [
+    { titulo: 'Passo 1 · começamos com X = {A}', texto: 'O fecho começa com o próprio X. A já está nele.',
+      html: () => caixas(['A'], ['A']) },
+    { titulo: 'Passo 2 · aplicar A → B', texto: 'Como A está no fecho, a dependência A → B acrescenta B.',
+      html: () => caixas(['A', 'B'], ['B']) },
+    { titulo: 'Passo 3 · aplicar B → C', texto: 'Agora B está no fecho. Então B → C acrescenta C.',
+      html: () => caixas(['A', 'B', 'C'], ['C']) },
+    { titulo: 'Passo 4 · nada mais entra', texto: 'Nenhuma dependência tem D no lado direito. O fecho não cresce: {A} não é chave, porque não determina D.',
+      html: () => caixas(['A', 'B', 'C'], []) }
+  ]);
+
+  const linhas = [[1, 'Ana', 'São Paulo'], [2, 'Bruno', 'Rio de Janeiro'], [1, 'Ana', 'Recife']];
+  const cab = ['id_cliente', 'nome', 'cidade'];
+  SQLLab.passos(document.getElementById('anim-violacao'), [
+    { titulo: 'Passo 1 · a primeira linha', texto: 'Lemos id 1 → São Paulo. Guardamos o que ele determina.',
+      html: () => SQLLab.tabelaHTML(cab, linhas, { destaque: [0] }) },
+    { titulo: 'Passo 2 · a segunda linha', texto: 'Id 2 → Rio. Até aqui, nenhum conflito.',
+      html: () => SQLLab.tabelaHTML(cab, linhas, { destaque: [1] }) },
+    { titulo: 'Passo 3 · o id 1 de novo', texto: 'Id 1 aparece com Recife. A dependência id_cliente → cidade foi violada: o mesmo valor determina dois resultados.',
+      html: () => SQLLab.tabelaHTML(cab, linhas, { destaque: [0, 2] }) + `<div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-triangle-exclamation"></i><div>Violação: id_cliente 1 → duas cidades.</div></div>` }
   ]);
 })();
 

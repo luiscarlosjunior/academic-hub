@@ -278,6 +278,18 @@ JOIN funcionarios b
   </details>
 </section>
 
+<!-- ============================ MAIS ANIMAÇÕES ============================ -->
+<section id="animacoes-extra" data-toc="Mais animações" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-2"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Mais animações: como a junção é executada</h2>
+  <p class="text-sm text-slate-400 mb-5">Veja o laço que o banco executa e o efeito do filtro no ON contra o WHERE.</p>
+
+  <h3 class="ah-h3 mb-2">Animação A · nested loop: para cada cliente, varre os pedidos</h3>
+  <div id="anim-loop" class="mb-6"></div>
+
+  <h3 class="ah-h3 mb-2">Animação B · filtro no ON × filtro no WHERE</h3>
+  <div id="anim-onwhere"></div>
+</section>
+
 <!-- ============================ APROFUNDAMENTO ============================ -->
 <section id="pratica" data-toc="Aprofundamento e prática" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-book-open text-sky-400 mr-2"></i>Aprofundamento e prática</h2>
@@ -506,6 +518,48 @@ SELECT COUNT(*) AS clientes_curitiba FROM clientes WHERE cidade = 'Curitiba';</p
       html: () => comparar('full', 'clientes c FULL OUTER JOIN pedidos p ON ...', fullPares.map(r => [r[0] === null ? 'NULL' : r[0], r[1] === null ? 'NULL' : r[1]]), ['cliente', 'pedido'], [3, 4]) },
     { titulo: 'CROSS JOIN', texto: 'Sem condição: cada cliente com cada pedido. 3 × 4 = 12 linhas. Quase nunca é o que se quer.',
       html: () => comparar('cross', 'clientes c CROSS JOIN pedidos p', cross, ['cliente', 'pedido'], []) }
+  ]);
+})();
+
+/* ===================== Mais animações: laço e ON × WHERE ===================== */
+(function () {
+  const clientes = [[1, 'Ana'], [2, 'Bruno'], [3, 'Carla']];
+  const pedidos = [[1, 1], [2, 2], [3, 1], [4, 3], [5, 4], [6, 5], [7, 2], [8, 4], [9, 6]];
+  const pares = [];
+  const passosL = [];
+  clientes.forEach((c, k) => {
+    const casam = pedidos.map((p, j) => p[1] === c[0] ? j : -1).filter(j => j >= 0);
+    const novos = casam.map(j => [c[1], pedidos[j][0]]);
+    pares.push(...novos);
+    /* foto do acumulado neste passo */
+    const acumulado = pares.slice();
+    const idxNovos = acumulado.map((_, i) => i).slice(acumulado.length - novos.length);
+    passosL.push({
+      titulo: `Laço externo · cliente ${c[1]}`,
+      texto: `O banco pega ${c[1]} e varre toda a tabela de pedidos (laço interno). As linhas destacadas são as que casam com o id ${c[0]}.`,
+      html: () => `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><div class="text-xs text-cyan-300 mb-2">pedidos (varridos)</div>${SQLLab.tabelaHTML(['id_pedido', 'id_cliente'], pedidos, { destaque: casam })}</div>
+        <div><div class="text-xs text-cyan-300 mb-2">resultado acumulado</div>${SQLLab.tabelaHTML(['cliente', 'pedido'], acumulado, { destaque: idxNovos, animar: true })}</div>
+      </div>`
+    });
+  });
+  SQLLab.passos(document.getElementById('anim-loop'), passosL);
+
+  const cols = ['cliente', 'pedido', 'status'];
+  const ped = [[1, 1, 'enviado'], [2, 2, 'pago'], [3, 1, 'pago'], [4, 3, 'cancelado'], [5, 4, 'enviado'], [6, 5, 'pendente'], [7, 2, 'enviado'], [8, 4, 'pago'], [9, 6, 'pendente']];
+  const cli = { 1: 'Ana', 2: 'Bruno', 3: 'Carla', 4: 'Diego', 5: 'Elisa', 6: 'Gabriel' };
+  const comOn = [['Ana', 3, 'pago'], ['Bruno', 2, 'pago'], ['Carla', 'NULL', 'NULL']];
+  const todasLigacoes = [];
+  [1, 2, 3].forEach(c => ped.filter(p => p[1] === c).forEach(p => todasLigacoes.push([cli[c], p[0], p[2]])));
+  const comWhere = todasLigacoes.filter(r => r[2] === 'pago');
+  SQLLab.passos(document.getElementById('anim-onwhere'), [
+    { titulo: 'Passo 1 · a junção com o filtro no ON', texto: 'O filtro “pago” faz parte da junção. Clientes sem pedido pago continuam na lista, com NULL.',
+      html: () => SQLLab.tabelaHTML(cols.map((c, i) => i === 1 ? 'pedido' : c), comOn.map(r => r.map(v => v === 'NULL' ? null : v)), { destaque: [2], animar: true }) +
+        `<p class="text-xs text-slate-400 mt-3">Carla continua aqui, com pedido NULL: o LEFT JOIN preservou a linha.</p>` },
+    { titulo: 'Passo 2 · a mesma junção, filtro no WHERE', texto: 'Primeiro juntamos tudo, e só depois filtramos. A linha da Carla tem status cancelado, e o WHERE a descarta.',
+      html: () => SQLLab.tabelaHTML(cols, todasLigacoes, { destaque: todasLigacoes.map((r, i) => r[2] === 'pago' ? i : -1).filter(i => i >= 0), animar: true }) },
+    { titulo: 'Passo 3 · o efeito', texto: 'O resultado do WHERE tem menos linhas que o do ON, e a Carla sumiu. Com o filtro no WHERE, o LEFT JOIN virou INNER JOIN.',
+      html: () => SQLLab.tabelaHTML(cols, comWhere, { animar: true }) + `<div class="ah-callout ah-callout-warn mt-3"><i class="fa-solid fa-triangle-exclamation"></i><div>Carla foi perdida: o filtro no WHERE descarta linhas sem pedido pago.</div></div>` }
   ]);
 })();
 
