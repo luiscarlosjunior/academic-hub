@@ -31,82 +31,42 @@
 
   <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
 <section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-amber-400 mr-2"></i>Tópico 5 · Busca</h2>
-  <div class="ah-prose">
-    <p>
-      Buscar é a operação mais frequente em qualquer sistema: achar um usuário, uma chave, uma posição. O custo depende de duas coisas: se os
-      dados estão organizados, e quanto da organização o algoritmo consegue aproveitar. Esta página vai da busca linear, que não exige nada,
-      à busca binária, que exige ordem e transforma O(n) em O(log n), e à busca sobre a resposta, que usa a mesma ideia para problemas
-      que nem parecem de busca.
-    </p>
-    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
-    <ul>
-      <li>justificar a busca linear e calcular seu custo, com e sem ordem;</li>
-      <li>implementar a busca binária de forma correta, sem armadilhas de limites;</li>
-      <li>usar <code>lower_bound</code> para achar a primeira ocorrência;</li>
-      <li>aplicar busca sobre a resposta a problemas com resposta monotônica.</li>
-    </ul>
-  </div>
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-amber-400 mr-2"></i>Tópico 5 · Busca linear e binária</h2>
+<div class="ah-prose mt-3"><p>Buscar é achar um valor numa coleção. Parece simples, mas a forma de buscar muda o custo de forma enorme: uma busca pode precisar olhar todos os elementos, ou apenas uma dúzia de comparações. Nesta página você vai ver as duas buscas fundamentais, com código em C, depuração passo a passo e exemplos reais.</p></div><h3 class="ah-h3 mt-8 mb-2">O que você vai conseguir fazer</h3><ul class="ah-prose space-y-2 mt-3"><li>Implementar a busca linear e a busca binária em C e explicar cada linha.</li><li>Depurar as duas buscas com o seu próprio vetor e o valor que você escolher.</li><li>Reconhecer quando a binária é permitida (vetor ordenado) e quando a linear é a escolha certa.</li><li>Evitar os erros clássicos de busca binária: ordem errada, estouro e laço infinito.</li><li>Explicar onde essas buscas aparecem em bancos de dados, bibliotecas e ferramentas como o Git.</li></ul><div class="ah-callout ah-callout-info mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Dica para estudar:</strong> leia as duas seções nesta ordem, rode o depurador de cada uma com um vetor seu e só depois veja os exemplos. Depurar é a forma mais rápida de entender um laço.</div></div>
 </section>
-
-<section id="teoria" data-toc="Teoria: a ideia de dividir" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-amber-400 mr-2"></i>Teoria: por que dividir ao meio funciona</h2>
-  <div class="ah-prose">
-    <p>
-      Numa busca binária, comparamos o alvo com o elemento do meio. Se o alvo é menor, a metade direita não pode conter o alvo, e a descartamos
-      sem olhar. Cada comparação elimina metade do espaço restante. Após <code>k</code> comparações, restam n / 2<sup>k</sup> candidatos.
-      O processo termina quando resta um, ou seja, k = log₂ n: O(log n). Para um bilhão de elementos, bastam cerca de 30 comparações.
-    </p>
-    <p>
-      A regra é <strong>absoluta</strong>: a busca binária só funciona se o vetor estiver ordenado. Sem a ordem, descartar uma metade pode eliminar
-      o alvo, e o algoritmo devolve “não encontrado” sem nenhum aviso. Bentley (1999, cap. 4) mostrou que uma fração grande das implementações
-      publicadas tinha algum erro sutil de limites, e Bloch (2006) descreveu um desses erros, de estouro de inteiro, que aparecia em bibliotecas
-      padrão. A forma segura do meio é <code>lo + (hi − lo) / 2</code>.
-    </p>
-  </div>
-  <div class="overflow-x-auto ah-card mt-6">
-    <table class="ah-table">
-      <thead><tr><th>Busca</th><th>Pré-condição</th><th>Tempo</th><th>Espaço extra</th></tr></thead>
-      <tbody>
-        <tr><td>Linear</td><td>nenhuma</td><td>O(n)</td><td>O(1)</td></tr>
-        <tr><td>Binária, iterativa</td><td>vetor ordenado</td><td>O(log n)</td><td>O(1)</td></tr>
-        <tr><td>Binária, recursiva</td><td>vetor ordenado</td><td>O(log n)</td><td>O(log n) de pilha</td></tr>
-        <tr><td>Busca sobre a resposta</td><td>resposta monotônica</td><td>O(log(intervalo) · custo do teste)</td><td>O(1)</td></tr>
-      </tbody>
-    </table>
-  </div>
+<section id="antes" data-toc="O que é buscar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ruler text-amber-400 mr-2"></i>Antes de começar: medir uma busca</h2>
+<div class="ah-prose mt-3"><p>Para comparar algoritmos, contamos <strong>comparações</strong>: quantas vezes o programa olha um valor do vetor. Essa conta não depende do computador e mostra como o custo cresce quando o vetor cresce.</p></div><div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Tamanho n</th><th>Busca linear (pior caso)</th><th>Busca binária (pior caso)</th></tr></thead><tbody><tr><td>10</td><td>10 comparações</td><td>4 comparações</td></tr><tr><td>1 000</td><td>1 000 comparações</td><td>10 comparações</td></tr><tr><td>1 000 000</td><td>1 000 000 comparações</td><td>20 comparações</td></tr><tr><td>1 000 000 000</td><td>1 000 000 000 comparações</td><td>30 comparações</td></tr></tbody></table></div><div class="ah-prose mt-3"><p>A linear cresce junto com n. A binária cresce com log₂ n: cada comparação elimina metade dos candidatos. Por isso, em um vetor de bilhão de valores, a binária faz cerca de 30 comparações e a linear, um bilhão.</p></div>
 </section>
-
-<section id="linear" data-toc="Operação 1: busca linear" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bars-staggered text-amber-400 mr-2"></i>Operação 1 · Busca linear</h2>
-  <div class="ah-prose">
-    <p>
-      Percorre o vetor do início ao fim até achar o valor. É o método certo quando os dados não estão ordenados e a busca é feita uma única vez:
-      ordenar custa O(n log n), mais do que a própria busca. Pior caso: O(n), quando o valor não existe ou está no fim.
-    </p>
-  </div>
-  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:linear</code></p>
+<section id="linear" data-toc="Parte 1: busca linear" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bars-staggered text-amber-400 mr-2"></i>Parte 1 · Busca linear</h2>
+<div class="ah-prose mt-3"><p>A busca linear é a mais simples: percorre o vetor do início ao fim e para no primeiro valor igual ao buscado. <strong>Não exige ordem</strong>, por isso é a escolha natural quando o vetor é desordenado e a busca acontece uma única vez.</p></div><h3 class="ah-h3 mt-8 mb-2">O código em C</h3><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>busca_linear · 05-busca.c, linhas 9 a 13</code></p>
 <pre class="ah-code"><code>static long busca_linear(const int a[], size_t n, int x) {
     for (size_t i = 0; i &lt; n; i++)
         if (a[i] == x) return (long)i;
     return -1;
-}</code></pre>
-  <h3 class="ah-h3 mt-8 mb-3">Animação: busca linear</h3>
-  <div class="ah-stage" style="height:240px"><canvas id="cvBuscaLinear" style="height:240px"></canvas></div>
-  <div id="ctlBuscaLinear" class="mt-4"></div>
-  <div id="capBuscaLinear" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+}</code></pre><h3 class="ah-h3 mt-8 mb-2">Depure a busca linear com o seu vetor</h3><div class="ah-prose mt-3"><p>Digite o vetor e o valor, aplique e avance linha por linha. Tente um valor no início, um no meio e um que não existe, para ver as três situações.</p></div><div data-depurador data-algoritmos="busca_linear" data-algoritmo="busca_linear" data-entrada data-vetor="3, 7, 11, 15, 19, 24, 28, 33, 41, 47, 52, 60" data-alvo="41" class="mt-4"></div><div class="ah-card p-5 mt-5"><p class="text-sm font-semibold text-white mb-2"><i class="fa-solid fa-hand-pointer text-amber-400 mr-2"></i>Como usar o depurador</p><ol class="ah-prose space-y-1 text-sm list-decimal pl-5"><li>Digite um vetor de números inteiros (até 16), separados por vírgula ou espaço.</li><li>Escolha o valor a buscar no campo "Valor a buscar" e clique em <strong>Aplicar</strong>.</li><li>Use <strong>Próxima</strong> para executar uma linha por vez. A linha amarela é a que o programa executa agora.</li><li>Observe as variáveis e o destaque do vetor a cada passo. Reproduzir anima tudo sozinho.</li></ol></div><h3 class="ah-h3 mt-8 mb-2">Linha a linha</h3><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Linha</th><th>Código</th><th>O que faz e como afeta o algoritmo</th></tr></thead><tbody><tr><td class="font-mono text-xs text-slate-500">9</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">static long busca_linear(const int a[], size_t n, int x) {</td><td class="text-sm text-slate-300">Assinatura: recebe o vetor (ponteiro, sem cópia), o tamanho n e o valor x. Não exige ordem.</td></tr><tr><td class="font-mono text-xs text-slate-500">10</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    for (size_t i = 0; i &lt; n; i++)</td><td class="text-sm text-slate-300">Laço sobre os índices de 0 a n − 1. No pior caso, são n voltas.</td></tr><tr><td class="font-mono text-xs text-slate-500">11</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        if (a[i] == x) return (long)i;</td><td class="text-sm text-slate-300">Compara a posição atual com x. Se for igual, retorna o índice e a busca termina cedo.</td></tr><tr><td class="font-mono text-xs text-slate-500">12</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    return -1;</td><td class="text-sm text-slate-300">O laço acabou sem achar: o valor não está no vetor. −1 é o sinal de "não encontrado".</td></tr><tr><td class="font-mono text-xs text-slate-500">13</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">}</td><td class="text-sm text-slate-300">Fim. Custo: O(n) no pior caso, O(1) de memória extra.</td></tr></tbody></table></div><h3 class="ah-h3 mt-8 mb-2">Exemplos em C</h3><div class="ah-prose mt-3"><p>O primeiro exemplo conta as comparações, para você medir o custo. O segundo usa uma sentinela: o alvo é colocado depois do fim do vetor, e o laço não precisa testar o limite a cada volta.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-a: contar comparações</code></p>
+<pre class="ah-code"><code>static long linear_contando(const int a[], size_t n, int x, int *cmp) {
+    *cmp = 0;
+    for (size_t i = 0; i &lt; n; i++) {
+        (*cmp)++;
+        if (a[i] == x) return (long)i;
+    }
+    return -1;
+}</code></pre><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-b: sentinela</code></p>
+<pre class="ah-code"><code> * então o laço não precisa testar i &lt; n a cada volta. Exige a[n] livre. */
+static long linear_sentinela(int a[], size_t n, int x) {
+    int salvo = a[n];
+    a[n] = x;
+    size_t i = 0;
+    while (a[i] != x) i++;
+    a[n] = salvo;
+    return (i &lt; n) ? (long)i : -1;
+}</code></pre><h3 class="ah-h3 mt-8 mb-2">Custo</h3><div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Caso</th><th>Comparações</th><th>Quando acontece</th></tr></thead><tbody><tr><td>Melhor</td><td>1</td><td>o valor está na primeira posição</td></tr><tr><td>Médio</td><td>n / 2</td><td>o valor está em algum lugar no meio</td></tr><tr><td>Pior</td><td>n</td><td>o valor está no fim ou não existe</td></tr></tbody></table></div><div class="ah-callout ah-callout-ok mt-5"><i class="fa-solid fa-circle-check"></i><div>Memória extra: O(1). A busca não cria estruturas auxiliares, só um índice.</div></div>
 </section>
-
-<section id="binaria" data-toc="Operação 2: busca binária" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-divide text-amber-400 mr-2"></i>Operação 2 · Busca binária</h2>
-  <div class="ah-prose">
-    <p>
-      A versão iterativa mantém o intervalo semiaberto <code>[lo, hi)</code>: o alvo, se existir, está dentro dele. Essa convenção evita
-      casos especiais: <code>lo == hi</code> significa intervalo vazio. A versão recursiva é mais clara, mas usa O(log n) de pilha.
-      Em C, prefira a iterativa.
-    </p>
-  </div>
-  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:binaria-iter</code></p>
+<section id="binaria" data-toc="Parte 2: busca binária" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-divide text-amber-400 mr-2"></i>Parte 2 · Busca binária</h2>
+<div class="ah-prose mt-3"><p>A busca binária compara o valor buscado com o elemento do <strong>meio</strong> do intervalo. Se o valor é menor, a metade direita não pode conter o valor e é descartada; se é maior, a esquerda sai. Cada comparação elimina metade dos candidatos.</p></div><div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Pré-condição obrigatória:</strong> o vetor precisa estar ordenado. Em um vetor desordenado, descartar uma metade pode eliminar o valor buscado, e a busca responde "não existe" sem nenhum aviso.</div></div><h3 class="ah-h3 mt-8 mb-2">O código em C</h3><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>busca_binaria (versão iterativa) · 05-busca.c, linhas 17 a 26</code></p>
 <pre class="ah-code"><code>static long busca_binaria(const int a[], size_t n, int x) {
     size_t lo = 0, hi = n;                         /* intervalo [lo, hi) */
     while (lo &lt; hi) {
@@ -116,26 +76,33 @@
         else hi = mid;
     }
     return -1;
-}</code></pre>
-  <p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca.c · op:binaria-rec</code></p>
-<pre class="ah-code"><code>static long busca_rec(const int a[], size_t lo, size_t hi, int x) {
-    if (lo &gt;= hi) return -1;
-    size_t mid = lo + (hi - lo) / 2;
-    if (a[mid] == x) return (long)mid;
-    if (a[mid] &lt; x) return busca_rec(a, mid + 1, hi, x);
-    return busca_rec(a, lo, mid, x);
-}
-
-static long busca_binaria_rec(const int a[], size_t n, int x) {
-    return busca_rec(a, 0, n, x);
-}</code></pre>
-  <h3 class="ah-h3 mt-8 mb-3">Animação: busca binária</h3>
-  <p class="ah-lead text-sm mb-4">Os elementos apagados já foram descartados. Teste um valor presente, um ausente e o primeiro elemento.</p>
-  <div class="ah-stage" style="height:240px"><canvas id="cvBusca" style="height:240px"></canvas></div>
-  <div id="ctlBusca" class="mt-4"></div>
-  <div id="capBusca" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+}</code></pre><h3 class="ah-h3 mt-8 mb-2">Depure a busca binária</h3><div class="ah-prose mt-3"><p>O vetor de exemplo já está ordenado. Se você digitar um vetor fora de ordem, a busca ordena uma cópia antes de começar, e a explicação avisa isso. Observe como <code>lo</code>, <code>hi</code> e <code>mid</code> mudam a cada volta.</p></div><div data-depurador data-algoritmos="busca_binaria" data-algoritmo="busca_binaria" data-entrada data-vetor="3, 7, 11, 15, 19, 24, 28, 33, 41, 47, 52, 60" data-alvo="41" class="mt-4"></div><div class="ah-card p-5 mt-5"><p class="text-sm font-semibold text-white mb-2"><i class="fa-solid fa-hand-pointer text-amber-400 mr-2"></i>Como usar o depurador</p><ol class="ah-prose space-y-1 text-sm list-decimal pl-5"><li>Digite um vetor de números inteiros (até 16), separados por vírgula ou espaço.</li><li>Escolha o valor a buscar no campo "Valor a buscar" e clique em <strong>Aplicar</strong>.</li><li>Use <strong>Próxima</strong> para executar uma linha por vez. A linha amarela é a que o programa executa agora.</li><li>Observe as variáveis e o destaque do vetor a cada passo. Reproduzir anima tudo sozinho.</li></ol></div><h3 class="ah-h3 mt-8 mb-2">Linha a linha</h3><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Linha</th><th>Código</th><th>O que faz e como afeta o algoritmo</th></tr></thead><tbody><tr><td class="font-mono text-xs text-slate-500">17</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">static long busca_binaria(const int a[], size_t n, int x) {</td><td class="text-sm text-slate-300">Assinatura igual à da linear, mas esta busca só funciona em vetor ordenado. Essa é a pré-condição.</td></tr><tr><td class="font-mono text-xs text-slate-500">18</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    size_t lo = 0, hi = n;                         /* intervalo [lo, hi) */</td><td class="text-sm text-slate-300">lo e hi definem o intervalo [lo, hi), que inclui a posição lo e exclui hi. Com hi = n, o intervalo inicial é o vetor inteiro.</td></tr><tr><td class="font-mono text-xs text-slate-500">19</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    while (lo &lt; hi) {</td><td class="text-sm text-slate-300">Enquanto houver candidatos. Quando lo == hi, o intervalo está vazio: o valor não existe.</td></tr><tr><td class="font-mono text-xs text-slate-500">20</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        size_t mid = lo + (hi - lo) / 2;</td><td class="text-sm text-slate-300">Calcula o meio como lo + (hi − lo) / 2. A forma (lo + hi) / 2 pode estourar o tipo; esta não.</td></tr><tr><td class="font-mono text-xs text-slate-500">21</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        if (a[mid] == x) return (long)mid;</td><td class="text-sm text-slate-300">Se o elemento do meio é o valor buscado, a busca termina.</td></tr><tr><td class="font-mono text-xs text-slate-500">22</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        if (a[mid] &lt; x) lo = mid + 1;</td><td class="text-sm text-slate-300">a[mid] < x: o valor, se existir, está à direita. lo = mid + 1 descarta o meio e tudo à esquerda.</td></tr><tr><td class="font-mono text-xs text-slate-500">23</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        else hi = mid;</td><td class="text-sm text-slate-300">Senão, a[mid] > x: o valor está à esquerda. hi = mid descarta a metade direita; como hi é excluído, mid também sai.</td></tr><tr><td class="font-mono text-xs text-slate-500">24</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    }</td><td class="text-sm text-slate-300">Fim do corpo do laço. Cada volta corta o intervalo pela metade.</td></tr><tr><td class="font-mono text-xs text-slate-500">25</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    return -1;</td><td class="text-sm text-slate-300">Intervalo vazio: o valor não existe. Número de voltas: no máximo ⌊log₂ n⌋ + 1.</td></tr><tr><td class="font-mono text-xs text-slate-500">26</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">}</td><td class="text-sm text-slate-300">Fim. Custo: O(log n) de tempo, O(1) de memória extra.</td></tr></tbody></table></div><h3 class="ah-h3 mt-8 mb-2">Exemplos em C</h3><div class="ah-prose mt-3"><p>A trilha mostra o intervalo e o meio em cada passo. O exemplo seguinte explica por que o meio é calculado como lo + (hi − lo) / 2.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-c: trilha da binária</code></p>
+<pre class="ah-code"><code>static long binaria_trilha(const int a[], size_t n, int x) {
+    size_t lo = 0, hi = n;
+    int passo = 0;
+    while (lo &lt; hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        passo++;
+        printf("  passo %d: intervalo [%zu, %zu) meio=%zu a[meio]=%d\n", passo, lo, hi, mid, a[mid]);
+        if (a[mid] == x) {
+            printf("  achou em %zu após %d passos\n", mid, passo);
+            return (long)mid;
+        }
+        if (a[mid] &lt; x) lo = mid + 1;
+        else hi = mid;
+    }
+    printf("  intervalo vazio após %d passos: não existe\n", passo);
+    return -1;
+}</code></pre><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-d: o estouro do meio</code></p>
+<pre class="ah-code"><code>static void demonstra_estouro(void) {
+    unsigned int lo = 3000000000u, hi = 3500000000u;
+    unsigned int ingenuo = (lo + hi) / 2;      /* a soma passa de UINT_MAX e dá a volta */
+    unsigned int seguro = lo + (hi - lo) / 2;
+    printf("  lo=%u hi=%u\n", lo, hi);
+    printf("  (lo + hi) / 2     = %u  (errado: a soma estourou)\n", ingenuo);
+    printf("  lo + (hi - lo)/2  = %u  (correto)\n", seguro);
+}</code></pre><h3 class="ah-h3 mt-8 mb-2">Custo</h3><div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Caso</th><th>Comparações</th><th>Quando acontece</th></tr></thead><tbody><tr><td>Melhor</td><td>1</td><td>o valor está exatamente no meio</td></tr><tr><td>Pior</td><td>⌊log₂ n⌋ + 1</td><td>o valor está numa ponta ou não existe</td></tr></tbody></table></div><div class="ah-callout ah-callout-ok mt-5"><i class="fa-solid fa-circle-check"></i><div>Memória extra: O(1) na versão iterativa. A versão recursiva usa O(log n) de pilha de chamadas.</div></div>
 </section>
-
 <section id="lower" data-toc="Operação 3: lower_bound" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-turn-down text-amber-400 mr-2"></i>Operação 3 · <em>lower_bound</em>: a primeira posição</h2>
   <div class="ah-prose">
@@ -156,21 +123,129 @@ static long busca_binaria_rec(const int a[], size_t n, int x) {
     return lo;                                     /* primeira posição com a[i] &gt;= x */
 }</code></pre>
 </section>
-
-<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
-  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/05-busca.c">05-busca.c</a></p>
-  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
-<pre class="ah-code"><code>buscar 24: linear=5 binária=5 recursiva=5
-buscar 40: linear=-1 binária=-1 recursiva=-1
-buscar  3: linear=0 binária=0 recursiva=0
-primeira ocorrência de 2 em {1,2,2,2,5,8} = 1
-primeira ocorrência de 4 = -1
-raiz inteira de 99 = 9, de 100 = 10
-mínimo de {4,5,6,7,0,1,2} = 0
-índice de um pico em {1,3,8,12,4,2} = 3</code></pre>
+<section id="conc-lowerbound" data-toc="lower_bound, a primeira ocorrência" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-turn-down text-amber-400 mr-2"></i>Animação: lower_bound, a primeira ocorrência</h2>
+  <p class="ah-lead text-sm mb-4">Com valores repetidos, lower_bound converge para a primeira posição com valor maior ou igual ao alvo.</p>
+  <div class="ah-stage" style="height:200px"><canvas id="cvLB" style="height:200px"></canvas></div>
+  <div id="ctl-cvLB" class="mt-4"></div>
+  <div id="cap-cvLB" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
 </section>
+<section id="comparacao" data-toc="Comparação" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-amber-400 mr-2"></i>Linear ou binária: qual escolher</h2>
+<div class="overflow-x-auto ah-card mt-5"><table class="ah-table"><thead><tr><th>Critério</th><th>Busca linear</th><th>Busca binária</th></tr></thead><tbody><tr><td>Exige vetor ordenado?</td><td>Não</td><td>Sim</td></tr><tr><td>Custo no pior caso</td><td>O(n)</td><td>O(log n)</td></tr><tr><td>Memória extra</td><td>O(1)</td><td>O(1) iterativa</td></tr><tr><td>Quando vale a pena</td><td>busca única, vetor pequeno ou desordenado</td><td>muitas buscas em dados ordenados que mudam pouco</td></tr></tbody></table></div><div class="ah-prose mt-3"><p>Ordenar um vetor custa O(n log n). Se você vai fazer uma única busca, ordenar não compensa: a linear é mais barata. Se vai fazer milhares de buscas no mesmo vetor, a ordenação se paga logo.</p></div><h3 class="ah-h3 mt-8 mb-2">Animação: a corrida</h3><div class="ah-prose mt-3"><p>As duas buscas procuram o mesmo valor no mesmo vetor ordenado. Cada quadro é uma comparação de cada uma. A linear avança uma posição por vez; a binária salta para o meio do intervalo.</p></div><div class="ah-stage" style="height:220px"><canvas id="cvCorrida" style="height:220px"></canvas></div>
+  <div id="ctl-cvCorrida" class="mt-4"></div>
+  <div id="cap-cvCorrida" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+<section id="erros" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-amber-400 mr-2"></i>Erros comuns e casos de borda</h2>
+<div class="ah-prose mt-3"><p>Estes são os erros que mais aparecem em busca. Cada um tem um exemplo curto. São trechos ilustrativos, para você reconhecer o problema; a versão correta está nas seções anteriores.</p></div><h3 class="ah-h3 mt-8 mb-2">1. Buscar binário em vetor desordenado</h3><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>ilustrativo</code></p>
+<pre class="ah-code"><code>int a[] = {7, 2, 9};   /* desordenado */
+long r = busca_binaria(a, 3, 7);
+/* r == -1, mas 7 está em a[0]: a regra de descarte foi aplicada a um vetor fora de ordem */</code></pre><h3 class="ah-h3 mt-8 mb-2">2. Laço infinito ao atualizar os limites errado</h3><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>ilustrativo</code></p>
+<pre class="ah-code"><code>while (lo &lt; hi) {
+    size_t mid = lo + (hi - lo) / 2;
+    if (a[mid] &lt; x) lo = mid;      /* errado: deveria ser mid + 1 */
+    else hi = mid;
+}
+/* com lo == mid, o intervalo nunca encolhe quando hi = lo + 1 */</code></pre><h3 class="ah-h3 mt-8 mb-2">3. Tamanho zero com índice inclusivo</h3><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>ilustrativo</code></p>
+<pre class="ah-code"><code>size_t hi = n - 1;   /* se n == 0, n - 1 dá a volta: vira o maior valor de size_t */</code></pre><div class="ah-prose mt-3"><p>A versão desta página usa o intervalo [lo, hi), em que hi = n é válido. Isso evita o problema: com n = 0, o laço simplesmente não roda.</p></div><h3 class="ah-h3 mt-8 mb-2">4. Estouro no meio</h3><div class="ah-prose mt-3"><p>O exemplo ex-d mostra o caso: (lo + hi) / 2 pode estourar o tipo, enquanto lo + (hi − lo) / 2 nunca estoura.</p></div><div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div>Sempre teste com: vetor vazio, um elemento, valor na primeira posição, valor na última, valor inexistente menor que o primeiro e maior que o último, e valores repetidos.</div></div>
+</section>
+<section id="exemplos" data-toc="Exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplos em C com saída real</h2>
+<div class="ah-prose mt-3"><p>Os exemplos a seguir completam os das partes 1 e 2 com casos de uso. Todo o código está em <code>05-busca-etapas.c</code>, que compila com <code>-Werror</code>. A saída real do programa aparece no final.</p></div><h3 class="ah-h3 mt-8 mb-2">Agenda de contatos</h3><div class="ah-prose mt-3"><p>Uma lista de nomes ordenada é uma agenda. Comparar strings com <code>strcmp</code> dá a ordem alfabética, e a binária encontra o nome em log₂ n comparações.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-e: agenda</code></p>
+<pre class="ah-code"><code>static long agenda_busca(const char *nomes[], size_t n, const char *alvo) {
+    size_t lo = 0, hi = n;
+    while (lo &lt; hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        int c = strcmp(nomes[mid], alvo);
+        if (c == 0) return (long)mid;
+        if (c &lt; 0) lo = mid + 1;
+        else hi = mid;
+    }
+    return -1;
+}</code></pre><h3 class="ah-h3 mt-8 mb-2">Valores repetidos</h3><div class="ah-prose mt-3"><p>Com repetições, a linear conta todas as ocorrências. A binária faz <code>lower_bound(x + 1) − lower_bound(x)</code>: a diferença entre as duas primeiras posições é a quantidade de ocorrências de x.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-f: ocorrências</code></p>
+<pre class="ah-code"><code>static size_t lower_bound(const int a[], size_t n, int x) {
+    size_t lo = 0, hi = n;
+    while (lo &lt; hi) {
+        size_t m = lo + (hi - lo) / 2;
+        if (a[m] &lt; x) lo = m + 1;
+        else hi = m;
+    }
+    return lo;
+}
 
+static size_t ocorrencias_linear(const int a[], size_t n, int x) {
+    size_t c = 0;
+    for (size_t i = 0; i &lt; n; i++)
+        if (a[i] == x) c++;
+    return c;
+}
+
+static size_t ocorrencias_binaria(const int a[], size_t n, int x) {
+    return lower_bound(a, n, x + 1) - lower_bound(a, n, x);
+}</code></pre><h3 class="ah-h3 mt-8 mb-2">Saída real do programa completo</h3><pre class="ah-code"><code>linear contando: 41 está no índice 8 após 9 comparações
+linear com sentinela: 47 está no índice 9
+linear com sentinela: 50 está no índice -1
+binária com trilha, procurando 41:
+  passo 1: intervalo [0, 12) meio=6 a[meio]=28
+  passo 2: intervalo [7, 12) meio=9 a[meio]=47
+  passo 3: intervalo [7, 9) meio=8 a[meio]=41
+  achou em 8 após 3 passos
+binária com trilha, procurando 40:
+  passo 1: intervalo [0, 12) meio=6 a[meio]=28
+  passo 2: intervalo [7, 12) meio=9 a[meio]=47
+  passo 3: intervalo [7, 9) meio=8 a[meio]=41
+  passo 4: intervalo [7, 8) meio=7 a[meio]=33
+  intervalo vazio após 4 passos: não existe
+o estouro do meio:
+  lo=3000000000 hi=3500000000
+  (lo + hi) / 2     = 1102516352  (errado: a soma estourou)
+  lo + (hi - lo)/2  = 3250000000  (correto)
+agenda: Diego está na posição 3
+agenda: Zoe está na posição -1
+ocorrências de 2: linear=3 binária=3
+ocorrências de 5: linear=2 binária=2
+bisect com 16 commits, falha começa no commit 11:
+  testa commit 8: bom
+  testa commit 12: ruim
+  testa commit 10: bom
+  testa commit 11: ruim
+  primeiro commit ruim = 11, encontrado em 4 testes</code></pre>
+</section>
+<section id="bisect" data-toc="Git bisect" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-amber-400 mr-2"></i>Aplicação: git bisect</h2>
+<div class="ah-prose mt-3"><p>Quando um bug aparece, o <code>git bisect</code> localiza o commit que o introduziu. Você marca um commit bom e um ruim, e o Git testa o commit do meio, repetindo até achar o primeiro ruim. Com 16 commits, bastam 4 testes. O exemplo ex-g é o mesmo raciocínio em C.</p></div><div class="ah-stage" style="height:200px"><canvas id="cvBisect" style="height:200px"></canvas></div>
+  <div id="ctl-cvBisect" class="mt-4"></div>
+  <div id="cap-cvBisect" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-g: bisect</code></p>
+<pre class="ah-code"><code>static int ruim(int commit, int primeiro_ruim) {
+    return commit &gt;= primeiro_ruim;
+}
+
+static int bisect(int total, int primeiro_ruim) {
+    int lo = 1, hi = total, testes = 0;
+    while (lo &lt; hi) {
+        int meio = lo + (hi - lo) / 2;
+        testes++;
+        printf("  testa commit %d: %s\n", meio, ruim(meio, primeiro_ruim) ? "ruim" : "bom");
+        if (ruim(meio, primeiro_ruim)) hi = meio;
+        else lo = meio + 1;
+    }
+    printf("  primeiro commit ruim = %d, encontrado em %d testes\n", lo, testes);
+    return lo;
+}</code></pre>
+</section>
+<section id="aplicacoes" data-toc="Onde é aplicada" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-earth-americas text-amber-400 mr-2"></i>Onde a busca é aplicada no dia a dia</h2>
+<ul class="ah-prose space-y-2 mt-3"><li><strong>Índices de banco de dados</strong>: a maioria dos índices é uma árvore B. Dentro de cada página, a busca pelas chaves é binária; é por isso que achar uma linha pela chave primária é rápido mesmo com milhões de registros.</li><li><strong>Bibliotecas padrão</strong>: Python tem o módulo <code>bisect</code>; Java tem <code>Arrays.binarySearch</code>; C tem <code>bsearch</code> na biblioteca padrão.</li><li><strong>Git</strong>: <code>git bisect</code> acha o commit que introduziu um bug em log₂ n testes.</li><li><strong>Tabelas de faixa</strong>: imposto, frete e tarifas são tabelas ordenadas de limites; achar a faixa de um valor é uma busca.</li><li><strong>Logs e séries temporais</strong>: arquivos ordenados por horário são buscados por data sem ler o arquivo inteiro.</li><li><strong>Autocomplete</strong>: a lista de palavras ordenada permite achar o primeiro nome que começa com um prefixo.</li></ul>
+</section>
+<section id="mercado" data-toc="Como o mercado vê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-amber-400 mr-2"></i>Como o mercado trata a busca</h2>
+<div class="ah-prose mt-3"><p>Busca binária é um dos temas mais cobrados em entrevistas técnicas de software, em três formas: a busca clássica, a busca de limites (lower e upper bound) e a busca sobre a resposta. O motivo é prático: quem entende a pré-condição, o intervalo e os casos de borda escreve a busca sem erro. Os erros mais comuns são justamente os de limite (BENTLEY, 1999; BLOCH, 2006).</p></div><div class="ah-prose mt-3"><p>Na engenharia real, a decisão é de projeto, não só de algoritmo. Busca binária exige dados ordenados: se a tabela muda muito, manter a ordem custa caro, e costuma-se preferir hash para igualdade ou árvore balanceada para dados dinâmicos. A pergunta de um profissional é: os dados estão ordenados, mudam pouco e são consultados muitas vezes?</p></div><ul class="ah-prose space-y-2 mt-3"><li><strong>Documentação oficial</strong>: Python, <code>bisect</code> (docs.python.org/3/library/bisect.html); Java, <code>Arrays.binarySearch</code> (docs.oracle.com, pacote java.util); Git, <code>git bisect</code> (git-scm.com/docs/git-bisect).</li><li><strong>Padrão C</strong>: ISO/IEC 9899:2018, função <code>bsearch</code> de <code>stdlib.h</code>, que exige vetor ordenado pelo mesmo critério de comparação.</li><li><strong>Banco de dados</strong>: COMER, D. "The Ubiquitous B-Tree". ACM Computing Surveys, v. 11, n. 2, p. 121–137, 1979.</li><li><strong>Livros</strong>: BENTLEY, J. Programming Pearls. 2. ed. Addison-Wesley, 1999, cap. 4; KNUTH, D. E. The Art of Computer Programming, v. 3, seção 6.2.1.</li><li><strong>Erro clássico</strong>: BLOCH, J. "Extra, extra – read all about it: nearly all binary searches and mergesorts are broken". Google Research Blog, 2006.</li></ul>
+</section>
+<section id="limites" data-toc="Quando usar (e quando não)" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-amber-400 mr-2"></i>Quando usar a busca binária, e quando não</h2>
+<ul class="ah-prose space-y-2 mt-3"><li><strong>Use a binária</strong>: dados ordenados, estáticos ou quase estáticos, consultados muitas vezes; buscas por intervalo, limite ou prefixo; problemas com resposta monotônica.</li><li><strong>Use a linear</strong>: vetor pequeno, vetor desordenado, ou uma única busca (ordenar sairia mais caro).</li><li><strong>Use hash</strong> para igualdade pura em grande volume: O(1) em média.</li><li><strong>Use árvore balanceada</strong> quando os dados mudam e precisam continuar ordenados.</li></ul>
+</section>
 <section id="resposta" data-toc="Padrão: busca sobre a resposta" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-amber-400 mr-2"></i>Padrão de resolução: busca sobre a resposta</h2>
   <div class="ah-prose">
@@ -187,7 +262,19 @@ mínimo de {4,5,6,7,0,1,2} = 0
     </ol>
   </div>
 </section>
-
+<section id="programa" data-toc="Programa completo em C" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Programa completo</h2>
+  <p class="ah-diagram-cap">Arquivo: <a class="text-amber-300 underline underline-offset-2" href="../exemplos-c/05-busca.c">05-busca.c</a></p>
+  <p class="text-xs font-bold text-emerald-300 mt-4 mb-2">Saída real do programa</p>
+<pre class="ah-code"><code>buscar 24: linear=5 binária=5 recursiva=5
+buscar 40: linear=-1 binária=-1 recursiva=-1
+buscar  3: linear=0 binária=0 recursiva=0
+primeira ocorrência de 2 em {1,2,2,2,5,8} = 1
+primeira ocorrência de 4 = -1
+raiz inteira de 99 = 9, de 100 = 10
+mínimo de {4,5,6,7,0,1,2} = 0
+índice de um pico em {1,3,8,12,4,2} = 3</code></pre>
+</section>
 <section id="exercicios" data-toc="Exercícios resolvidos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-ruler text-amber-400 mr-2"></i>Exercícios resolvidos</h2>
 
@@ -262,256 +349,12 @@ mínimo de {4,5,6,7,0,1,2} = 0
 }</code></pre>
   </div>
 </section>
-
-<section id="mais-exemplos" data-toc="Mais exemplos em C" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Mais exemplos em C</h2>
-  <p class="ah-lead text-sm mb-4">Quatro problemas adicionais, cada um com uma técnica diferente. Todos estão no arquivo <code>05-mais-exemplos.c</code>, que compila com os mesmos avisos como erro.</p>
-  <div class="ah-card p-5 mt-4">
-    <h3 class="ah-h3 mb-2">Exemplo A: Busca em matriz achatada</h3>
-    <div class="ah-prose text-sm"><p>Uma matriz ordenada por linhas é, em ordem linear, um vetor ordenado. Basta converter o índice linear em (linha, coluna) com divisão e resto, e aplicar a busca binária.</p></div>
-    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-a</code></p>
-    <pre class="ah-code"><code>static int busca_matriz(int l, int c, const int m[][4], int alvo) {
-    int lo = 0, hi = l * c - 1;
-    while (lo &lt;= hi) {
-        int mid = lo + (hi - lo) / 2;
-        int v = m[mid / c][mid % c];
-        if (v == alvo) return 1;
-        if (v &lt; alvo) lo = mid + 1;
-        else hi = mid - 1;
-    }
-    return 0;
-}</code></pre>
-  </div>
-  <div class="ah-card p-5 mt-4">
-    <h3 class="ah-h3 mb-2">Exemplo B: Menor prefixo com soma mínima</h3>
-    <div class="ah-prose text-sm"><p>A soma dos prefixos cresce com k, então a condição "soma ≥ alvo" é monotônica. A busca sobre a resposta encontra o menor k em O(log n) testes.</p></div>
-    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-b</code></p>
-    <pre class="ah-code"><code>static int menor_prefixo(const int a[], int n, long alvo) {
-    long p[64];
-    p[0] = 0;
-    for (int i = 0; i &lt; n; i++) p[i + 1] = p[i] + a[i];
-    int lo = 1, hi = n, resp = -1;
-    while (lo &lt;= hi) {
-        int mid = lo + (hi - lo) / 2;
-        if (p[mid] &gt;= alvo) { resp = mid; hi = mid - 1; }
-        else lo = mid + 1;
-    }
-    return resp;
-}</code></pre>
-  </div>
-  <div class="ah-card p-5 mt-4">
-    <h3 class="ah-h3 mb-2">Exemplo C: Contagem de ocorrências com limites</h3>
-    <div class="ah-prose text-sm"><p>contar(x) = primeira posição ≥ x+1 menos primeira posição ≥ x. Para um valor que não existe, como o 4 da lista, o resultado é 0.</p></div>
-    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-c</code></p>
-    <pre class="ah-code"><code>static int primeiro_maior_igual(const int a[], int n, int x) {
-    int lo = 0, hi = n;
-    while (lo &lt; hi) {
-        int mid = lo + (hi - lo) / 2;
-        if (a[mid] &lt; x) lo = mid + 1;
-        else hi = mid;
-    }
-    return lo;
-}
-
-static int contar(const int a[], int n, int x) {
-    return primeiro_maior_igual(a, n, x + 1) - primeiro_maior_igual(a, n, x);
-}</code></pre>
-  </div>
-  <div class="ah-card p-5 mt-4">
-    <h3 class="ah-h3 mb-2">Exemplo D: Máximo de função unimodal (busca ternária)</h3>
-    <div class="ah-prose text-sm"><p>Em cada passo, compara dois pontos internos e descarta um terço do intervalo. A função −(x − 3)² + 10 tem máximo em x = 3, e o método converge para ele.</p></div>
-    <p class="text-xs font-bold text-amber-300 mt-4 mb-2">Em C · <code>05-mais-exemplos.c · ex-d</code></p>
-    <pre class="ah-code"><code>static double f(double x) { return -(x - 3.0) * (x - 3.0) + 10.0; }
-
-static double maximo_unimodal(double lo, double hi, int passos) {
-    for (int k = 0; k &lt; passos; k++) {
-        double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
-        if (f(m1) &lt; f(m2)) lo = m1;
-        else hi = m2;
-    }
-    return (lo + hi) / 2.0;
-}</code></pre>
-  </div>
-  <p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
-  <pre class="ah-code"><code>busca 12 em matriz 3x4: achou
-busca 13 em matriz 3x4: não
-menor prefixo com soma &gt;= 10: 4 elementos
-menor prefixo com soma &gt;= 100: -1
-ocorrências de 2: 3; de 5: 2; de 4: 0
-máximo de f(x) = -(x-3)^2 + 10 em [0, 10]: x = 3.0000</code></pre>
-</section>
 <section id="conceitos-dia" data-toc="Conceitos complementares e dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Conceitos complementares e uso no dia a dia</h2>
   <h3 class="ah-h3 mt-2 mb-2">Conceitos complementares</h3>
 <ul class="ah-prose space-y-2"><li><strong>Busca interpolada</strong>: se os valores estão uniformemente distribuídos, estimar a posição pelo valor (em vez de pelo meio) reduz as comparações para O(log log n) em média.</li><li><strong>Índices e trade-offs</strong>: uma busca O(log n) em árvore B é cara em escrita, mas barata em leitura. Hash dá O(1) médio, mas não preserva ordem para busca por intervalo.</li><li><strong>Busca sobre a resposta</strong>: é a ferramenta por trás de problemas de alocação, como "qual a menor capacidade que atende a todos os pedidos".</li><li><strong>Invariantes de busca</strong>: o erro clássico é atualizar os limites de forma que o intervalo não encolha. Um teste simples com vetores pequenos descobre quase todos os erros.</li></ul>
   <h3 class="ah-h3 mt-8 mb-2">Onde isso aparece no dia a dia</h3>
 <ul class="ah-prose space-y-2"><li><strong>Git bisect</strong>: para achar em qual commit um bug entrou, o Git faz busca binária no histórico, testando o commit do meio. Com 1024 commits, são 10 testes.</li><li><strong>Autocompletar e dicionários</strong>: sugestões em ordem alfabética são obtidas por busca binária no vetor de palavras ordenadas.</li><li><strong>Agenda e contatos</strong>: aplicativos de contatos mantêm a lista ordenada por nome e buscam por prefixo com lower_bound.</li><li><strong>Tabelas de preço e faixas</strong>: calcular a faixa de imposto ou de frete de um valor é uma busca binária em uma tabela ordenada de limites.</li></ul>
-</section>
-<section id="conc-lowerbound" data-toc="lower_bound, a primeira ocorrência" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrow-turn-down text-amber-400 mr-2"></i>Animação: lower_bound, a primeira ocorrência</h2>
-  <p class="ah-lead text-sm mb-4">Com valores repetidos, lower_bound converge para a primeira posição com valor maior ou igual ao alvo.</p>
-  <div class="ah-stage" style="height:200px"><canvas id="cvLB" style="height:200px"></canvas></div>
-  <div id="ctl-cvLB" class="mt-4"></div>
-  <div id="cap-cvLB" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
-</section>
-<section id="busca-depurador" data-toc="Depurador: passo a passo da busca" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-amber-400 mr-2"></i>Depurador: a busca linha por linha</h2>
-<div class="ah-prose mt-3"><p>O depurador executa as duas buscas como o programa C faria. Escolha a busca no seletor, avance uma linha por vez e observe as variáveis: na binária, <code>lo</code>, <code>hi</code> e <code>mid</code> mudam a cada volta, e o intervalo encolhe pela metade.</p></div><div data-depurador data-algoritmos="busca_linear,busca_binaria" data-algoritmo="busca_binaria" class="mt-6"></div>
-</section>
-<section id="busca-linear-linha" data-toc="Busca linear linha a linha" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bars-staggered text-amber-400 mr-2"></i>Busca linear: linha a linha</h2>
-<div class="ah-prose mt-3"><p>O código abaixo é o da função <code>busca_linear</code> de <code>05-busca.c</code>. A tabela explica cada linha e o efeito dela no custo.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Linha</th><th>Código</th><th>O que faz e como afeta o algoritmo</th></tr></thead><tbody><tr><td class="font-mono text-xs text-slate-500">9</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">static long busca_linear(const int a[], size_t n, int x) {</td><td class="text-sm text-slate-300">Assinatura: recebe o vetor (ponteiro, sem cópia), o tamanho n e o valor x. Não há pré-condição: o vetor pode estar em qualquer ordem.</td></tr><tr><td class="font-mono text-xs text-slate-500">10</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    for (size_t i = 0; i &lt; n; i++)</td><td class="text-sm text-slate-300">Laço sobre todos os índices de 0 a n − 1. Cada volta examina uma posição; no pior caso, são n voltas.</td></tr><tr><td class="font-mono text-xs text-slate-500">11</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        if (a[i] == x) return (long)i;</td><td class="text-sm text-slate-300">Compara a posição atual com x. Se for igual, retorna o índice e a busca termina cedo: no melhor caso, uma comparação.</td></tr><tr><td class="font-mono text-xs text-slate-500">12</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    return -1;</td><td class="text-sm text-slate-300">Chegou aqui sem achar: o valor não existe. Devolver −1 é o sinal convencional de "não encontrado".</td></tr><tr><td class="font-mono text-xs text-slate-500">13</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">}</td><td class="text-sm text-slate-300">Fim da função. Custo: O(n) no pior caso e O(1) de memória extra.</td></tr></tbody></table></div>
-</section>
-<section id="busca-binaria-linha" data-toc="Busca binária linha a linha" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-divide text-amber-400 mr-2"></i>Busca binária: linha a linha</h2>
-<div class="ah-prose mt-3"><p>Esta é a versão iterativa de <code>busca_binaria</code>. Ela mantém um intervalo que contém o alvo, se o alvo existir, e o reduz pela metade a cada volta.</p></div><div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Linha</th><th>Código</th><th>O que faz e como afeta o algoritmo</th></tr></thead><tbody><tr><td class="font-mono text-xs text-slate-500">17</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">static long busca_binaria(const int a[], size_t n, int x) {</td><td class="text-sm text-slate-300">Assinatura igual à da linear, mas esta busca só funciona em vetor ordenado. Essa é a pré-condição que o programador precisa garantir.</td></tr><tr><td class="font-mono text-xs text-slate-500">18</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    size_t lo = 0, hi = n;                         /* intervalo [lo, hi) */</td><td class="text-sm text-slate-300">lo e hi definem o intervalo semiaberto [lo, hi). Com hi = n, o intervalo inicial inclui todo o vetor e exclui a posição n, que não existe.</td></tr><tr><td class="font-mono text-xs text-slate-500">19</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    while (lo &lt; hi) {</td><td class="text-sm text-slate-300">Enquanto houver candidatos. Quando lo == hi, o intervalo está vazio e o alvo não existe.</td></tr><tr><td class="font-mono text-xs text-slate-500">20</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        size_t mid = lo + (hi - lo) / 2;</td><td class="text-sm text-slate-300">Calcula o meio como lo + (hi − lo) / 2. A forma (lo + hi) / 2 pode estourar o tipo; esta não.</td></tr><tr><td class="font-mono text-xs text-slate-500">21</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        if (a[mid] == x) return (long)mid;</td><td class="text-sm text-slate-300">Se o elemento do meio é o alvo, a busca termina com o índice.</td></tr><tr><td class="font-mono text-xs text-slate-500">22</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        if (a[mid] &lt; x) lo = mid + 1;</td><td class="text-sm text-slate-300">Se a[mid] < x, o alvo (se existir) está à direita. lo = mid + 1 descarta o meio e tudo à esquerda: metade do intervalo sai de cena.</td></tr><tr><td class="font-mono text-xs text-slate-500">23</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">        else hi = mid;</td><td class="text-sm text-slate-300">Senão, a[mid] > x e o alvo está à esquerda. hi = mid descarta a metade direita; como o intervalo é semiaberto, mid já fica fora.</td></tr><tr><td class="font-mono text-xs text-slate-500">24</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    }</td><td class="text-sm text-slate-300">Fim do corpo do laço. Cada volta reduz o intervalo pela metade, por isso o número de voltas é O(log n).</td></tr><tr><td class="font-mono text-xs text-slate-500">25</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">    return -1;</td><td class="text-sm text-slate-300">Intervalo vazio: o valor não está no vetor.</td></tr><tr><td class="font-mono text-xs text-slate-500">26</td><td class="font-mono text-xs text-emerald-200 whitespace-pre">}</td><td class="text-sm text-slate-300">Fim da função. Custo: O(log n) de tempo e O(1) de memória extra.</td></tr></tbody></table></div>
-</section>
-<section id="busca-corrida" data-toc="Corrida: linear × binária" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flag-checkered text-amber-400 mr-2"></i>Corrida: busca linear contra busca binária</h2>
-<div class="ah-prose mt-3"><p>As duas buscas procuram o mesmo valor no mesmo vetor ordenado de 16 posições. Cada quadro é uma comparação de cada uma. Repare que a linear avança uma posição por vez, enquanto a binária salta para o meio do intervalo.</p></div>
-  <div class="ah-stage" style="height:220px"><canvas id="cvCorrida" style="height:220px"></canvas></div>
-  <div id="ctl-cvCorrida" class="mt-4"></div>
-  <div id="cap-cvCorrida" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
-</section>
-<section id="busca-exemplos" data-toc="Exemplos em C passo a passo" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplos em C, passo a passo</h2>
-<div class="ah-prose mt-3"><p>Sete exemplos com um problema cada um. Eles seguem a ordem em que as ideias aparecem: contar comparações, sentinela, trilha da binária, o estouro do meio, busca de texto, repetições e, por fim, o bisect. Todo o código está em <code>05-busca-etapas.c</code>, que compila com <code>-Werror</code>.</p></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">Contar comparações</h3><div class="ah-prose text-sm"><p>A linear faz uma comparação por posição visitada. Contar isso é a forma mais direta de medir o custo: o contador mostra que achar o 41 leva 9 comparações num vetor de 12 valores.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-a</code></p>
-<pre class="ah-code"><code>static long linear_contando(const int a[], size_t n, int x, int *cmp) {
-    *cmp = 0;
-    for (size_t i = 0; i &lt; n; i++) {
-        (*cmp)++;
-        if (a[i] == x) return (long)i;
-    }
-    return -1;
-}</code></pre></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">Sentinela</h3><div class="ah-prose text-sm"><p>Colocar o alvo logo depois do fim do vetor elimina a checagem de limite do laço. Como o alvo sempre está no vetor, o laço para sozinho. Exige uma posição extra livre: uma técnica clássica para acelerar a linear.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-b</code></p>
-<pre class="ah-code"><code> * então o laço não precisa testar i &lt; n a cada volta. Exige a[n] livre. */
-static long linear_sentinela(int a[], size_t n, int x) {
-    int salvo = a[n];
-    a[n] = x;
-    size_t i = 0;
-    while (a[i] != x) i++;
-    a[n] = salvo;
-    return (i &lt; n) ? (long)i : -1;
-}</code></pre></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">Trilha da binária</h3><div class="ah-prose text-sm"><p>Imprimir o intervalo e o meio em cada passo torna visível a redução pela metade. Para o 41, são 3 passos; para o 40, que não existe, o intervalo esvazia em 4.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-c</code></p>
-<pre class="ah-code"><code>static long binaria_trilha(const int a[], size_t n, int x) {
-    size_t lo = 0, hi = n;
-    int passo = 0;
-    while (lo &lt; hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        passo++;
-        printf("  passo %d: intervalo [%zu, %zu) meio=%zu a[meio]=%d\n", passo, lo, hi, mid, a[mid]);
-        if (a[mid] == x) {
-            printf("  achou em %zu após %d passos\n", mid, passo);
-            return (long)mid;
-        }
-        if (a[mid] &lt; x) lo = mid + 1;
-        else hi = mid;
-    }
-    printf("  intervalo vazio após %d passos: não existe\n", passo);
-    return -1;
-}</code></pre></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">O estouro do meio</h3><div class="ah-prose text-sm"><p>Com números grandes, (lo + hi) / 2 passa do limite do tipo e dá um índice errado. A forma lo + (hi − lo) / 2 nunca estoura, porque hi − lo é sempre menor que o próprio tipo. Foi esse bug que Bloch (2006) descreveu em bibliotecas padrão.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-d</code></p>
-<pre class="ah-code"><code>static void demonstra_estouro(void) {
-    unsigned int lo = 3000000000u, hi = 3500000000u;
-    unsigned int ingenuo = (lo + hi) / 2;      /* a soma passa de UINT_MAX e dá a volta */
-    unsigned int seguro = lo + (hi - lo) / 2;
-    printf("  lo=%u hi=%u\n", lo, hi);
-    printf("  (lo + hi) / 2     = %u  (errado: a soma estourou)\n", ingenuo);
-    printf("  lo + (hi - lo)/2  = %u  (correto)\n", seguro);
-}</code></pre></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">Agenda de contatos</h3><div class="ah-prose text-sm"><p>Uma lista de nomes ordenada é uma agenda. Comparar strings com strcmp dá a ordem alfabética, e a binária encontra o nome em log₂ n comparações, sem percorrer a lista.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-e</code></p>
-<pre class="ah-code"><code>static long agenda_busca(const char *nomes[], size_t n, const char *alvo) {
-    size_t lo = 0, hi = n;
-    while (lo &lt; hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        int c = strcmp(nomes[mid], alvo);
-        if (c == 0) return (long)mid;
-        if (c &lt; 0) lo = mid + 1;
-        else hi = mid;
-    }
-    return -1;
-}</code></pre></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">Valores repetidos</h3><div class="ah-prose text-sm"><p>Com repetições, a linear conta todas as ocorrências. A binária conta com lower_bound(x + 1) − lower_bound(x): a diferença entre a primeira posição de x + 1 e a de x é a quantidade de ocorrências de x.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-f</code></p>
-<pre class="ah-code"><code>static size_t lower_bound(const int a[], size_t n, int x) {
-    size_t lo = 0, hi = n;
-    while (lo &lt; hi) {
-        size_t m = lo + (hi - lo) / 2;
-        if (a[m] &lt; x) lo = m + 1;
-        else hi = m;
-    }
-    return lo;
-}
-
-static size_t ocorrencias_linear(const int a[], size_t n, int x) {
-    size_t c = 0;
-    for (size_t i = 0; i &lt; n; i++)
-        if (a[i] == x) c++;
-    return c;
-}
-
-static size_t ocorrencias_binaria(const int a[], size_t n, int x) {
-    return lower_bound(a, n, x + 1) - lower_bound(a, n, x);
-}</code></pre></div><div class="ah-card p-5 mt-4"><h3 class="ah-h3 mb-2">Bisect</h3><div class="ah-prose text-sm"><p>Se os commits estão em ordem e, a partir de um deles, todos estão ruins, a binária acha o primeiro ruim em log₂ n testes. É o mesmo raciocínio do git bisect, que veremos na animação a seguir.</p></div><p class="text-xs font-bold text-amber-300 mt-5 mb-2">Em C · <code>05-busca-etapas.c · ex-g</code></p>
-<pre class="ah-code"><code>static int ruim(int commit, int primeiro_ruim) {
-    return commit &gt;= primeiro_ruim;
-}
-
-static int bisect(int total, int primeiro_ruim) {
-    int lo = 1, hi = total, testes = 0;
-    while (lo &lt; hi) {
-        int meio = lo + (hi - lo) / 2;
-        testes++;
-        printf("  testa commit %d: %s\n", meio, ruim(meio, primeiro_ruim) ? "ruim" : "bom");
-        if (ruim(meio, primeiro_ruim)) hi = meio;
-        else lo = meio + 1;
-    }
-    printf("  primeiro commit ruim = %d, encontrado em %d testes\n", lo, testes);
-    return lo;
-}</code></pre></div><p class="text-xs font-bold text-emerald-300 mt-6 mb-2">Saída real do programa completo</p>
-<pre class="ah-code"><code>linear contando: 41 está no índice 8 após 9 comparações
-linear com sentinela: 47 está no índice 9
-linear com sentinela: 50 está no índice -1
-binária com trilha, procurando 41:
-  passo 1: intervalo [0, 12) meio=6 a[meio]=28
-  passo 2: intervalo [7, 12) meio=9 a[meio]=47
-  passo 3: intervalo [7, 9) meio=8 a[meio]=41
-  achou em 8 após 3 passos
-binária com trilha, procurando 40:
-  passo 1: intervalo [0, 12) meio=6 a[meio]=28
-  passo 2: intervalo [7, 12) meio=9 a[meio]=47
-  passo 3: intervalo [7, 9) meio=8 a[meio]=41
-  passo 4: intervalo [7, 8) meio=7 a[meio]=33
-  intervalo vazio após 4 passos: não existe
-o estouro do meio:
-  lo=3000000000 hi=3500000000
-  (lo + hi) / 2     = 1102516352  (errado: a soma estourou)
-  lo + (hi - lo)/2  = 3250000000  (correto)
-agenda: Diego está na posição 3
-agenda: Zoe está na posição -1
-ocorrências de 2: linear=3 binária=3
-ocorrências de 5: linear=2 binária=2
-bisect com 16 commits, falha começa no commit 11:
-  testa commit 8: bom
-  testa commit 12: ruim
-  testa commit 10: bom
-  testa commit 11: ruim
-  primeiro commit ruim = 11, encontrado em 4 testes</code></pre>
-</section>
-<section id="busca-bisect" data-toc="Animação: git bisect" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code-branch text-amber-400 mr-2"></i>Animação: o git bisect, uma busca binária no histórico</h2>
-<div class="ah-prose mt-3"><p>Quando um bug aparece, o Git pode localizar o commit que o introduziu com <code>git bisect</code>. Você marca um commit como bom e outro como ruim, e o Git testa o commit do meio do intervalo, repetindo até achar o primeiro ruim. Com 16 commits, bastam 4 testes.</p></div>
-  <div class="ah-stage" style="height:200px"><canvas id="cvBisect" style="height:200px"></canvas></div>
-  <div id="ctl-cvBisect" class="mt-4"></div>
-  <div id="cap-cvBisect" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
-</section>
-<section id="busca-aplicacoes" data-toc="Onde a busca é aplicada" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-earth-americas text-amber-400 mr-2"></i>Onde a busca é aplicada no dia a dia</h2>
-<ul class="ah-prose space-y-2 mt-3"><li><strong>Índices de banco de dados</strong>: a maioria dos índices é uma árvore B. Dentro de cada página, a busca é binária sobre as chaves ordenadas; é por isso que achar uma linha por chave primária é rápido mesmo com milhões de registros.</li><li><strong>Bibliotecas padrão</strong>: Python tem o módulo <code>bisect</code>; Java tem <code>Arrays.binarySearch</code>; C tem <code>bsearch</code> na biblioteca padrão. Você raramente precisa escrever a sua.</li><li><strong>Git</strong>: <code>git bisect</code> acha o commit que introduziu um bug em log₂ n testes, mesmo que o histórico tenha milhares de commits.</li><li><strong>Tabelas de faixa</strong>: imposto, frete e tarifa de energia são tabelas ordenadas de limites. Achar a faixa de um valor é uma busca pelo limite superior.</li><li><strong>Logs e séries temporais</strong>: arquivos de log ordenados por horário são buscados por data com busca binária, sem ler o arquivo inteiro.</li><li><strong>Listas de contatos e dicionários</strong>: a ordem alfabética permite a busca por nome e a busca por prefixo (autocomplete).</li></ul>
-</section>
-<section id="busca-mercado" data-toc="Como o mercado vê a busca" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-amber-400 mr-2"></i>Como o mercado trata a busca binária</h2>
-<div class="ah-prose mt-3"><p>Busca binária é um dos temas mais cobrados em entrevistas técnicas de software, e costuma aparecer de três formas: a busca clássica, a busca de limites (lower e upper bound) e a busca sobre a resposta. O motivo é prático: quem entende a pré-condição, a invariante do intervalo e os casos de borda costuma escrever a busca sem erro. Os erros mais comuns são justamente os de limite, como os descritos por Bentley (1999) e Bloch (2006).</p></div><div class="ah-prose mt-3"><p>Na prática de engenharia, a decisão é de projeto, não só de algoritmo. Uma busca binária exige dados ordenados: se a tabela muda muito, manter a ordem custa caro, e o mercado costuma preferir uma tabela hash para igualdade ou uma árvore balanceada para dados dinâmicos. A pergunta que um profissional faz é: os dados estão ordenados, mudam pouco e são consultados muitas vezes?</p></div><ul class="ah-prose space-y-2 mt-3"><li><strong>Documentação oficial</strong>: Python, <code>bisect</code> (docs.python.org/3/library/bisect.html); Java, <code>Arrays.binarySearch</code> (docs.oracle.com, pacote java.util); Git, <code>git bisect</code> (git-scm.com/docs/git-bisect).</li><li><strong>Padrão C</strong>: ISO/IEC 9899:2018, função <code>bsearch</code> da biblioteca padrão (<code>stdlib.h</code>), que exige que o vetor esteja ordenado pelo mesmo critério de comparação.</li><li><strong>Banco de dados</strong>: COMER, D. "The Ubiquitous B-Tree". ACM Computing Surveys, v. 11, n. 2, p. 121–137, 1979.</li><li><strong>Livros de referência</strong>: BENTLEY, J. Programming Pearls. 2. ed. Addison-Wesley, 1999, cap. 4; KNUTH, D. E. The Art of Computer Programming, v. 3, seção 6.2.1.</li><li><strong>Erro clássico</strong>: BLOCH, J. "Extra, extra – read all about it: nearly all binary searches and mergesorts are broken". Google Research Blog, 2006.</li></ul>
-</section>
-<section id="busca-limites" data-toc="Onde pode ser utilizada (e onde não)" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-amber-400 mr-2"></i>Onde a busca binária pode ser usada, e onde não</h2>
-<ul class="ah-prose space-y-2 mt-3"><li><strong>Pode ser usada</strong>: dados estáticos ou quase estáticos, ordenados, consultados muitas vezes; buscas por intervalo, prefixo ou limite; problemas em que a resposta é monotônica (busca sobre a resposta).</li><li><strong>Não convém</strong>: dados que mudam o tempo todo sem uma estrutura de apoio; busca por igualdade pura em grande volume (uma tabela hash costuma ser melhor); vetor pequeno, em que a linear é mais simples e quase tão rápida.</li><li><strong>Alternativas</strong>: hash para igualdade (O(1) médio); árvore balanceada (AVL, rubro-negra) para dados que mudam e precisam de ordem; busca linear quando o vetor não está ordenado e a busca é única.</li><li><strong>Armadilhas</strong>: vetor não ordenado (o resultado vira errado sem aviso); estouro em lo + hi; laço infinito por atualizar lo ou hi de forma que o intervalo não encolha; confundir intervalo fechado com semiaberto.</li></ul>
 </section>
 <section id="propostos" data-toc="Exercícios propostos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flask text-amber-400 mr-2"></i>Exercícios propostos</h2>
@@ -526,7 +369,6 @@ bisect com 16 commits, falha começa no commit 11:
     </details>
   </div>
 </section>
-
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
@@ -553,7 +395,6 @@ bisect com 16 commits, falha começa no commit 11:
     </div>
   </div>
 </section>
-
 <section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
   <ul class="ah-prose">
@@ -563,7 +404,6 @@ bisect com 16 commits, falha começa no commit 11:
     <li>Problemas de “menor valor que satisfaz …” com condição monotônica são busca sobre a resposta.</li>
   </ul>
 </section>
-
 <section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
   <ul class="ah-prose text-sm space-y-3">
@@ -584,30 +424,14 @@ bisect com 16 commits, falha começa no commit 11:
 <script src="../../../assets/js/hub.js?v=tema3"></script>
 <script src="../../../assets/js/estrutura-dados.js"></script>
 <script src="../../../assets/js/conceitos.js?v=conc1"></script>
-<script src="../../../assets/js/depurador.js?v=dep3"></script>
+<script src="../../../assets/js/depurador.js?v=dep4"></script>
 <script>
 (function () {
   'use strict';
-
-  ED.criaAnimacao({
-    canvas: 'cvBuscaLinear', ctl: 'ctlBuscaLinear', cap: 'capBuscaLinear',
-    desenha: ED.desenhaBusca, gera: function () { return ED.geraBuscaLinear(); }, velocidade: 900
-  });
-  ED.criaAnimacao({
-    canvas: 'cvBusca', ctl: 'ctlBusca', cap: 'capBusca',
-    desenha: ED.desenhaBusca, gera: ED.geraBusca,
-    opcoes: [
-      { v: '24', rotulo: 'Procurar 24 (presente)' },
-      { v: '40', rotulo: 'Procurar 40 (ausente)' },
-      { v: '3', rotulo: 'Procurar 3 (primeiro elemento)' }
-    ]
-  });
-
   ED.criaAnimacao({
     canvas: 'cvLB', ctl: 'ctl-cvLB', cap: 'cap-cvLB',
     desenha: CONC.desenhaLowerBound, gera: CONC.geraLowerBound, velocidade: 1300
   });
-
   ED.criaAnimacao({
     canvas: 'cvCorrida', ctl: 'ctl-cvCorrida', cap: 'cap-cvCorrida',
     desenha: CONC.desenhaCorrida, gera: CONC.geraCorrida, velocidade: 800
@@ -616,7 +440,6 @@ bisect com 16 commits, falha começa no commit 11:
     canvas: 'cvBisect', ctl: 'ctl-cvBisect', cap: 'cap-cvBisect',
     desenha: CONC.desenhaBisect, gera: CONC.geraBisect, velocidade: 1200
   });
-
 })();
 </script>
 </body>

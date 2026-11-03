@@ -322,9 +322,9 @@ const CODIGO = {
     return r.S;
   }
 
-  function geraDepBuscaLinear(a0) {
+  function geraDepBuscaLinear(a0, alvo) {
     const a = a0.slice(), n = a.length, r = criaRegistro(a), st = r.st;
-    const x = a[Math.floor(n * 0.6)];
+    const x = alvo !== undefined ? alvo : a[Math.floor(n * 0.6)];
     st(9, { n, x }, [], `Chamada busca_linear(a, n, x) com x = ${x}. A busca percorre o vetor da esquerda para a direita, sem exigir ordem.`);
     for (let i = 0; i < n; i++) {
       st(10, { i, n, x }, [i], `i = ${i} < ${n}: verdadeiro, testa a posição ${i}.`);
@@ -338,9 +338,9 @@ const CODIGO = {
     return r.S;
   }
 
-  function geraDepBuscaBinaria(a0) {
+  function geraDepBuscaBinaria(a0, alvo) {
     const a = a0.slice().sort((p, q) => p - q), n = a.length, r = criaRegistro(a), st0 = r.st;
-    const x = a[Math.floor(n * 0.6)];
+    const x = alvo !== undefined ? alvo : a[Math.floor(n * 0.6)];
     const st = (l, v, hl, t, piv) => { st0(l, v, hl, t); r.S[r.S.length - 1].piv = piv === undefined ? -1 : piv; };
     st(17, { n, x }, [], `Chamada busca_binaria(a, n, x) com x = ${x}. Exige vetor ordenado: para este exemplo, ordenamos uma cópia.`);
     let lo = 0, hi = n;
@@ -386,12 +386,15 @@ const CODIGO = {
     const algoOpts = chaves.map(k =>
       `<option value="${k}"${k === algo0 ? ' selected' : ''}>${ALGORITMOS[k].nome}</option>`).join('');
     const vetOpts = Object.keys(VETORES).map(k => `<option value="${k}">${VETORES[k].nome}</option>`).join('');
+    const entrada = el.hasAttribute('data-entrada');
     el.classList.add('dbg');
     el.setAttribute('tabindex', '0');
     el.innerHTML = `
       <div class="dbg-barra">
         <label>Algoritmo <select data-k="algo">${algoOpts}</select></label>
-        <label>Vetor <select data-k="vet">${vetOpts}</select></label>
+        ${entrada ? `<label>Vetor <input data-k="txt" type="text" class="dbg-entrada" value="${escapa(el.getAttribute('data-vetor') || '')}" aria-label="Vetor de números"></label>
+        <label>Valor a buscar <input data-k="alvo" type="number" class="dbg-num" value="${escapa(el.getAttribute('data-alvo') || '')}" aria-label="Valor a buscar"></label>
+        <button type="button" data-a="aplicar" class="dbg-primario">Aplicar</button>` : `<label>Vetor <select data-k="vet">${vetOpts}</select></label>`}
         <label>Velocidade <select data-k="vel">
           <option value="1600">lenta</option><option value="900" selected>normal</option><option value="450">rápida</option>
         </select></label>
@@ -436,10 +439,35 @@ const CODIGO = {
       ).join('');
     }
 
+    function lerEntrada() {
+      const txt = q('txt').value.trim();
+      const partes = txt.split(/[\s,;]+/).filter(Boolean);
+      if (!partes.length) return { erro: 'Digite pelo menos um número no vetor, separado por vírgula ou espaço.' };
+      const vetor = partes.map(Number);
+      if (vetor.some(v => !Number.isInteger(v))) return { erro: 'Use apenas números inteiros. Exemplo: 3, 7, 11, 15.' };
+      if (vetor.length > 16) return { erro: 'Use no máximo 16 valores, para a animação caber na tela.' };
+      const alvoTxt = q('alvo').value.trim();
+      const alvo = Number(alvoTxt);
+      if (alvoTxt === '' || !Number.isInteger(alvo)) return { erro: 'Digite um número inteiro no campo "Valor a buscar".' };
+      return { vetor, alvo };
+    }
+
     function reconstroi() {
       const algo = sel.algo.value;
-      const vetor = VETORES[sel.vet.value].valores;
-      estados = GERADORES[algo](vetor);
+      let vetor, alvo, erro = null;
+      if (entrada) {
+        const lido = lerEntrada();
+        vetor = lido.vetor; alvo = lido.alvo; erro = lido.erro || null;
+      } else {
+        vetor = VETORES[sel.vet.value].valores;
+      }
+      if (erro) {
+        estados = [{ l: ALGORITMOS[algo].linhas[0], a: [], v: {}, hl: [], fix: [], piv: -1, pilha: [], aux: [], t: erro }];
+        q('codigo').innerHTML = linhasCodigo(algo);
+        i = 0; para(); render();
+        return;
+      }
+      estados = GERADORES[algo](vetor, alvo);
       q('codigo').innerHTML = linhasCodigo(algo);
       i = 0;
       para();
@@ -507,6 +535,7 @@ const CODIGO = {
       const b = e.target.closest('button[data-a]');
       if (!b) return;
       const a = b.dataset.a;
+      if (a === 'aplicar') return reconstroi();
       if (a === 'play') return reproduz();
       para();
       if (a === 'ini') i = 0;
@@ -516,12 +545,14 @@ const CODIGO = {
       render();
     });
     el.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
       if (e.key === 'ArrowRight') { para(); i++; render(); e.preventDefault(); }
       if (e.key === 'ArrowLeft') { para(); i--; render(); e.preventDefault(); }
       if (e.key === ' ') { reproduz(); e.preventDefault(); }
     });
     sel.algo.addEventListener('change', reconstroi);
-    sel.vet.addEventListener('change', reconstroi);
+    if (sel.vet) sel.vet.addEventListener('change', reconstroi);
+    if (entrada) [q('txt'), q('alvo')].forEach(c => c.addEventListener('keydown', e => { if (e.key === 'Enter') reconstroi(); }));
     sel.vel.addEventListener('change', () => { if (timer) { para(); reproduz(); } });
     reconstroi();
   }
@@ -537,6 +568,9 @@ const CODIGO = {
 .dbg-botoes button{padding:.4rem .7rem;border-radius:.55rem;border:1px solid var(--ah-border);background:var(--ah-surface-2);color:var(--ah-text);font-size:.8rem;font-weight:600;cursor:pointer}
 .dbg-botoes button:hover{border-color:var(--ah-accent)}
 .dbg-botoes .dbg-primario{background:var(--ah-accent);border-color:var(--ah-accent);color:#fff}
+.dbg-barra input{background:var(--ah-surface-2);color:var(--ah-text);border:1px solid var(--ah-border);border-radius:.5rem;padding:.3rem .45rem;font-size:.8rem;font-family:'Fira Code',monospace}
+.dbg-entrada{min-width:14rem}
+.dbg-num{width:5.5rem}
 .dbg-passo{margin-left:auto;font-family:'Fira Code',monospace;font-size:.75rem;color:var(--ah-muted)}
 .dbg-grade{display:grid;grid-template-columns:1.35fr 1fr;gap:1rem}
 @media (max-width:760px){.dbg-grade{grid-template-columns:1fr}}
