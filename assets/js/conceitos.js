@@ -354,6 +354,87 @@
     rotulo(ctx, 'restante', 20, h - 56);
   }
 
+
+  /* ---------- 13) Corrida: busca linear × busca binária no mesmo vetor ---------- */
+  const CORRIDA_VALORES = [3, 7, 11, 15, 19, 24, 28, 33, 41, 47, 52, 60, 64, 70, 81, 90];
+  function geraCorrida() {
+    const a = CORRIDA_VALORES, x = 47, n = a.length, Q = [];
+    const linEv = [];
+    for (let i = 0; i < n; i++) { linEv.push({ i, achou: a[i] === x }); if (a[i] === x) break; }
+    const binEv = [];
+    let lo = 0, hi = n;
+    while (lo < hi) {
+      const mid = lo + Math.floor((hi - lo) / 2);
+      const acha = a[mid] === x;
+      binEv.push({ lo, hi, mid, acha, direita: a[mid] < x });
+      if (acha) break;
+      if (a[mid] < x) lo = mid + 1; else hi = mid;
+    }
+    const T = Math.max(linEv.length, binEv.length);
+    Q.push({ a, x, lin: -1, linN: 0, bin: null, binN: 0, t: `Vetor ordenado de ${n} valores, procurando x = ${x}. Linear começa do início; binária começa no meio. Cada quadro é uma comparação de cada uma.` });
+    for (let t = 0; t < T; t++) {
+      const L = linEv[Math.min(t, linEv.length - 1)], B = binEv[Math.min(t, binEv.length - 1)];
+      const texto = [];
+      if (t < linEv.length) texto.push(`Linear compara a[${L.i}] = ${a[L.i]} com ${x} (comparação ${t + 1}).`);
+      else texto.push('Linear já terminou.');
+      if (t < binEv.length) texto.push(`Binária compara a[${B.mid}] = ${a[B.mid]} no intervalo [${B.lo}, ${B.hi}): ${B.acha ? 'achou.' : (B.direita ? 'descarta a metade esquerda.' : 'descarta a metade direita.')}`);
+      else texto.push('Binária já terminou.');
+      Q.push({ a, x, lin: t < linEv.length ? L.i : -1, linN: Math.min(t + 1, linEv.length), bin: t < binEv.length ? B : null, binN: Math.min(t + 1, binEv.length), t: texto.join(' ') });
+    }
+    Q.push({ a, x, lin: -1, linN: linEv.length, bin: null, binN: binEv.length, final: true,
+      t: `Resultado: linear fez ${linEv.length} comparações; binária fez ${binEv.length}. A linear cresce com n, a binária com log₂ n. Com 1 bilhão de elementos, seriam até 1 bilhão contra 30.` });
+    return Q;
+  }
+  function desenhaCorrida(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const n = q.a.length, cw = Math.min(40, (w - 150) / n), x0 = 130;
+    const linY = h * 0.22, binY = h * 0.56, ch = 40;
+    rotulo(ctx, 'linear', 16, linY + ch / 2, CORES.azulBorda);
+    rotulo(ctx, 'binária', 16, binY + ch / 2, CORES.okBorda);
+    q.a.forEach((v, k) => {
+      let st = ESTILO.normal;
+      if (k < q.linN - 1 || (q.final && q.a[k] === q.x)) st = ESTILO.ok;
+      if (k === q.lin) st = ESTILO.hl;
+      caixa(ctx, x0 + k * cw + 2, linY, cw - 4, ch, st, String(v));
+    });
+    q.a.forEach((v, k) => {
+      let st = ESTILO.normal;
+      if (q.bin && (k < q.bin.lo || k >= q.bin.hi)) st = ESTILO.apag;
+      if (q.bin && k === q.bin.mid) st = q.bin.acha ? ESTILO.ok : ESTILO.hl;
+      if (q.final && q.a[k] === q.x) st = ESTILO.ok;
+      caixa(ctx, x0 + k * cw + 2, binY, cw - 4, ch, st, String(v));
+    });
+    rotulo(ctx, `comparações — linear: ${q.linN} · binária: ${q.binN}`, 16, h - 14, CORES.azulBorda);
+  }
+
+  /* ---------- 14) git bisect: busca binária sobre o histórico de commits ---------- */
+  function geraBisect() {
+    const total = 16, primeiroRuim = 11, Q = [];
+    let lo = 1, hi = total;
+    Q.push({ lo, hi, meio: -1, total, t: `git bisect: ${total} commits em ordem. Sabemos que o commit 16 está ruim e o 1 está bom. Queremos o primeiro ruim, sem testar todos.` });
+    while (lo < hi) {
+      const meio = lo + Math.floor((hi - lo) / 2);
+      const ruim = meio >= primeiroRuim;
+      Q.push({ lo, hi, meio, total, ruim, t: `Testa o commit ${meio}: ${ruim ? 'ruim' : 'bom'}. ${ruim ? `O primeiro ruim está em ${lo}..${meio}: hi = ${meio}.` : `O primeiro ruim está depois de ${meio}: lo = ${meio + 1}.`}` });
+      if (ruim) hi = meio; else lo = meio + 1;
+    }
+    Q.push({ lo, hi: lo, meio: -1, total, t: `Achado: o commit ${lo} introduziu o problema, com ${Math.ceil(Math.log2(total))} testes em vez de ${total}. O Git faz isso automaticamente.` });
+    return Q;
+  }
+  function desenhaBisect(ctx, w, h, q) {
+    limpa(ctx, w, h);
+    const n = q.total, cw = Math.min(46, (w - 40) / n), x0 = (w - cw * n) / 2, y = h * 0.34, ch = 46;
+    for (let c = 1; c <= n; c++) {
+      let st = ESTILO.normal;
+      if (c < q.lo) st = ESTILO.ok;
+      else if (c > q.hi) st = ESTILO.erro;
+      if (c === q.meio) st = ESTILO.hl;
+      caixa(ctx, x0 + (c - 1) * cw + 2, y, cw - 4, ch, st, String(c));
+    }
+    rotulo(ctx, 'verde: bom · vermelho: ruim · âmbar: testando agora', 16, 14, CORES.mudo);
+    rotulo(ctx, `intervalo candidato: ${q.lo}..${q.hi}`, 16, h - 14, CORES.azulBorda);
+  }
+
   global.CONC = {
     geraEndereco, desenhaEndereco,
     geraTransposta, desenhaTransposta,
@@ -366,6 +447,8 @@
     geraUnionFind, desenhaUnionFind,
     geraRainhas, desenhaRainhas,
     geraEscadas, desenhaEscadas,
-    geraGuloso, desenhaGuloso
+    geraGuloso, desenhaGuloso,
+    geraCorrida, desenhaCorrida,
+    geraBisect, desenhaBisect
   };
 })(window);

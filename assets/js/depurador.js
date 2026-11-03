@@ -78,7 +78,27 @@ const CODIGO = {
  "95": "}"
 };
 
+  const CODIGO_BUSCA = {
+ "9": "static long busca_linear(const int a[], size_t n, int x) {",
+ "10": "    for (size_t i = 0; i < n; i++)",
+ "11": "        if (a[i] == x) return (long)i;",
+ "12": "    return -1;",
+ "13": "}",
+ "17": "static long busca_binaria(const int a[], size_t n, int x) {",
+ "18": "    size_t lo = 0, hi = n;                         /* intervalo [lo, hi) */",
+ "19": "    while (lo < hi) {",
+ "20": "        size_t mid = lo + (hi - lo) / 2;",
+ "21": "        if (a[mid] == x) return (long)mid;",
+ "22": "        if (a[mid] < x) lo = mid + 1;",
+ "23": "        else hi = mid;",
+ "24": "    }",
+ "25": "    return -1;",
+ "26": "}"
+};
+
   const ALGORITMOS = {
+    busca_linear: { nome: 'Busca linear', linhas: [9, 10, 11, 12, 13], codigo: CODIGO_BUSCA },
+    busca_binaria: { nome: 'Busca binária (iterativa)', linhas: [17, 18, 19, 20, 21, 22, 23, 24, 25, 26], codigo: CODIGO_BUSCA },
     bolha: { nome: 'Bolha (bubble sort)', linhas: [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27] },
     selecao: { nome: 'Seleção', linhas: [31, 32, 33, 34, 35, 36, 37, 38] },
     insercao: { nome: 'Inserção', linhas: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52] },
@@ -302,7 +322,53 @@ const CODIGO = {
     return r.S;
   }
 
-  const GERADORES = { bolha: geraBolha, selecao: geraSelecao, insercao: geraInsercao, quicksort: geraQuicksort, mergesort: geraMergeSort };
+  function geraDepBuscaLinear(a0) {
+    const a = a0.slice(), n = a.length, r = criaRegistro(a), st = r.st;
+    const x = a[Math.floor(n * 0.6)];
+    st(9, { n, x }, [], `Chamada busca_linear(a, n, x) com x = ${x}. A busca percorre o vetor da esquerda para a direita, sem exigir ordem.`);
+    for (let i = 0; i < n; i++) {
+      st(10, { i, n, x }, [i], `i = ${i} < ${n}: verdadeiro, testa a posição ${i}.`);
+      if (a[i] === x) {
+        st(11, { i, n, x, 'a[i]': a[i] }, [i], `a[${i}] = ${a[i]} == ${x}: sim. return ${i}. Foram ${i + 1} comparações.`);
+        return r.S;
+      }
+      st(11, { i, n, x, 'a[i]': a[i] }, [i], `a[${i}] = ${a[i]} == ${x}? não: segue para a próxima posição.`);
+    }
+    st(12, { n, x }, [], `return -1: percorreu as ${n} posições sem achar. Pior caso: n comparações, custo O(n).`);
+    return r.S;
+  }
+
+  function geraDepBuscaBinaria(a0) {
+    const a = a0.slice().sort((p, q) => p - q), n = a.length, r = criaRegistro(a), st0 = r.st;
+    const x = a[Math.floor(n * 0.6)];
+    const st = (l, v, hl, t, piv) => { st0(l, v, hl, t); r.S[r.S.length - 1].piv = piv === undefined ? -1 : piv; };
+    st(17, { n, x }, [], `Chamada busca_binaria(a, n, x) com x = ${x}. Exige vetor ordenado: para este exemplo, ordenamos uma cópia.`);
+    let lo = 0, hi = n;
+    st(18, { lo, hi }, [], `lo = 0 e hi = ${n}: intervalo semiaberto [lo, hi), ainda sem nada descartado.`);
+    for (;;) {
+      const cond = lo < hi;
+      st(19, { lo, hi }, [], `lo < hi? ${lo} < ${hi} é ${cond ? 'verdadeiro: ainda há candidatos.' : 'falso: o intervalo ficou vazio e o laço para.'}`);
+      if (!cond) break;
+      const mid = lo + Math.floor((hi - lo) / 2);
+      st(20, { lo, hi, mid }, [mid], `mid = ${lo} + (${hi} − ${lo}) / 2 = ${mid}: o elemento do meio é a[${mid}] = ${a[mid]}.`, mid);
+      if (a[mid] === x) {
+        st(21, { lo, hi, mid, 'a[mid]': a[mid] }, [mid], `a[mid] == ${x}: sim, encontrado. return ${mid}.`, mid);
+        return r.S;
+      }
+      st(21, { lo, hi, mid, 'a[mid]': a[mid] }, [mid], `a[mid] == ${x}? não.`, mid);
+      if (a[mid] < x) {
+        lo = mid + 1;
+        st(22, { lo, hi, mid }, [mid], `a[mid] = ${a[mid]} < ${x}: a resposta está à direita. Descarta a metade esquerda: lo = mid + 1 = ${lo}.`, mid);
+      } else {
+        hi = mid;
+        st(23, { lo, hi, mid }, [mid], `a[mid] = ${a[mid]} > ${x}: a resposta está à esquerda. Descarta a metade direita: hi = mid = ${hi}.`, mid);
+      }
+    }
+    st(25, { lo, hi }, [], `return -1: não existe. Número de comparações no máximo ⌊log₂ n⌋ + 1 = ${Math.floor(Math.log2(n)) + 1}: custo O(log n).`);
+    return r.S;
+  }
+
+  const GERADORES = { busca_linear: geraDepBuscaLinear, busca_binaria: geraDepBuscaBinaria, bolha: geraBolha, selecao: geraSelecao, insercao: geraInsercao, quicksort: geraQuicksort, mergesort: geraMergeSort };
 
   function escapa(s) {
     return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -313,8 +379,11 @@ const CODIGO = {
   }
 
   function monta(el) {
-    const algo0 = el.getAttribute('data-algoritmo') || 'bolha';
-    const algoOpts = Object.keys(ALGORITMOS).map(k =>
+    const permitidos = (el.getAttribute('data-algoritmos') || '').split(',').map(s => s.trim()).filter(k => ALGORITMOS[k]);
+    const chaves = permitidos.length ? permitidos : Object.keys(ALGORITMOS);
+    const pedido = el.getAttribute('data-algoritmo');
+    const algo0 = chaves.includes(pedido) ? pedido : chaves[0];
+    const algoOpts = chaves.map(k =>
       `<option value="${k}"${k === algo0 ? ' selected' : ''}>${ALGORITMOS[k].nome}</option>`).join('');
     const vetOpts = Object.keys(VETORES).map(k => `<option value="${k}">${VETORES[k].nome}</option>`).join('');
     el.classList.add('dbg');
@@ -363,7 +432,7 @@ const CODIGO = {
 
     function linhasCodigo(algo) {
       return ALGORITMOS[algo].linhas.map(n =>
-        `<div class="dbg-linha" data-l="${n}"><span class="dbg-n">${n}</span><span class="dbg-t">${escapa(CODIGO[String(n)])}</span></div>`
+        `<div class="dbg-linha" data-l="${n}"><span class="dbg-n">${n}</span><span class="dbg-t">${escapa((ALGORITMOS[algo].codigo || CODIGO)[String(n)])}</span></div>`
       ).join('');
     }
 
