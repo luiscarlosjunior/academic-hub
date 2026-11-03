@@ -1063,6 +1063,57 @@ const AH_DATA = {
           resumo: 'Guardar o histórico de eventos em vez do estado atual, separar leitura de escrita e reconstruir visões a partir do log.',
           tags: ['Event sourcing', 'CQRS', 'Projeções'], nivel: 'Avançado', minutos: 50 }
       ]
+    },
+    {
+      id: 'log',
+      slug: 'logica',
+      nome: 'Lógica: Matemática, Computacional e Outras',
+      curto: 'Lógica',
+      icone: 'fa-puzzle-piece',
+      cor: 'amber',
+      corHex: '#f59e0b',
+      descricao:
+        'Da proposição ao enigma: conectivos, tabelas-verdade, equivalências, quantificadores, provas por dedução natural, circuitos digitais e lógicas não clássicas (modal, temporal e fuzzy). Cada tópico traz explicação, exemplos do dia a dia e da computação e um jogo para fixar o conteúdo.',
+      trilhas: [
+        { id: 'proposicional', nome: 'Lógica proposicional', icone: 'fa-toggle-on', cor: '#fcd34d',
+          descricao: 'Proposições, conectivos, tabelas-verdade, tautologias e equivalências.' },
+        { id: 'predicados', nome: 'Predicados e provas', icone: 'fa-infinity', cor: '#a7f3d0',
+          descricao: 'Quantificadores, universos de discurso, contraexemplos e dedução natural.' },
+        { id: 'computacional', nome: 'Lógica computacional', icone: 'fa-microchip', cor: '#7dd3fc',
+          descricao: 'Portas lógicas, circuitos digitais e a ligação entre lógica e hardware.' },
+        { id: 'outras', nome: 'Outras lógicas', icone: 'fa-compass', cor: '#f0abfc',
+          descricao: 'Lógica modal, temporal, fuzzy e os enigmas de cavaleiros e escudeiros.' }
+      ],
+      topicos: [
+        { id: '01-proposicoes-conectivos', titulo: 'Proposições e conectivos', icone: 'fa-toggle-on',
+          resumo: 'O que é uma proposição, como os conectivos ¬, ∧, ∨, → e ↔ combinam valores verdade, e um jogo de verdadeiro ou falso.',
+          trilha: 'proposicional',
+          tags: ['Proposições', 'Conectivos', 'Valor verdade'], nivel: 'Introdutório', minutos: 40 },
+        { id: '02-tabelas-verdade-tautologias', titulo: 'Tabelas-verdade e tautologias', icone: 'fa-table-cells',
+          resumo: 'Construir tabelas-verdade, classificar fórmulas em tautologia, contradição ou contingência e um jogo de preenchimento de linhas.',
+          trilha: 'proposicional',
+          tags: ['Tabela-verdade', 'Tautologia', 'Contingência'], nivel: 'Introdutório', minutos: 45 },
+        { id: '03-equivalencias-leis', titulo: 'Equivalências e leis de De Morgan', icone: 'fa-scale-balanced',
+          resumo: 'Quando duas fórmulas são equivalentes, as leis clássicas (De Morgan, contraposição, distributividade) e o jogo da memória das equivalências.',
+          trilha: 'proposicional',
+          tags: ['Equivalência', 'De Morgan', 'Simplificação'], nivel: 'Intermediário', minutos: 45 },
+        { id: '04-quantificadores-predicados', titulo: 'Quantificadores e predicados', icone: 'fa-magnifying-glass',
+          resumo: 'Predicados, os quantificadores ∀ e ∃, a negação de quantificadores e como achar um contraexemplo.',
+          trilha: 'predicados',
+          tags: ['Predicados', 'Quantificadores', 'Contraexemplo'], nivel: 'Intermediário', minutos: 50 },
+        { id: '05-deducao-natural-provas', titulo: 'Dedução natural e provas', icone: 'fa-list-ol',
+          resumo: 'Regras de inferência (modus ponens, modus tollens, silogismo hipotético), provas passo a passo e um jogo de ordenar a demonstração.',
+          trilha: 'predicados',
+          tags: ['Dedução natural', 'Inferência', 'Prova'], nivel: 'Intermediário', minutos: 55 },
+        { id: '06-logica-circuitos', titulo: 'Lógica computacional: portas e circuitos', icone: 'fa-microchip',
+          resumo: 'De Shannon às portas AND, OR, XOR e NAND, como um circuito calcula uma tabela-verdade e um jogo para descobrir a porta certa.',
+          trilha: 'computacional',
+          tags: ['Circuitos', 'Portas lógicas', 'Shannon'], nivel: 'Intermediário', minutos: 50 },
+        { id: '07-outras-logicas-enigmas', titulo: 'Outras lógicas e o enigma dos cavaleiros', icone: 'fa-compass',
+          resumo: 'Lógica modal (necessidade e possibilidade), temporal (verificação de programas) e fuzzy, com o desafio de cavaleiros e escudeiros de Smullyan.',
+          trilha: 'outras',
+          tags: ['Modal', 'Temporal', 'Fuzzy', 'Enigmas'], nivel: 'Avançado', minutos: 60 }
+      ]
     }
   ]
 };

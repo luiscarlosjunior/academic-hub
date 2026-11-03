@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<script>try{if(localStorage.getItem('academic-hub:tema')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabelas-verdade e tautologias · Lógica · AcademicHub</title>
+<meta name="description" content="Como construir tabelas-verdade, classificar fórmulas em tautologia, contradição ou contingência, com exemplos e um jogo de preenchimento de linhas.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css?v=tema5">
+<link rel="stylesheet" href="../../../assets/css/logica.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∴</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="log/02-tabelas-verdade-tautologias">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
+
+<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-amber-400 mr-2"></i>Tópico 2 · Tabelas-verdade e tautologias</h2>
+  <div class="ah-prose">
+    <p>Uma <strong>tabela-verdade</strong> lista todos os valores possíveis das variáveis e calcula, linha a linha, o valor da fórmula. Com n variáveis, há 2<sup>n</sup> linhas. É um procedimento <strong>mecânico</strong>: não exige inspiração, só método. Por isso é a primeira ferramenta de qualquer curso de lógica computacional.</p>
+  </div>
+</section>
+
+<section id="classes" data-toc="Classificação das fórmulas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-tags text-sky-400 mr-2"></i>Tautologia, contradição e contingência</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Tautologia</strong>: verdadeira em todas as linhas. Ex.: p ∨ ¬p (lei do terceiro excluído).</li>
+      <li><strong>Contradição</strong>: falsa em todas as linhas. Ex.: p ∧ ¬p (não contradição).</li>
+      <li><strong>Contingência</strong>: verdadeira em algumas linhas e falsa em outras. Ex.: p → q.</li>
+    </ul>
+    <p>Duas fórmulas são <strong>logicamente equivalentes</strong> quando têm a mesma coluna de valores; isso equivale a dizer que o bicondicional entre elas é uma tautologia.</p>
+  </div>
+</section>
+
+<section id="exemplo" data-toc="Exemplo resolvido" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen text-emerald-400 mr-2"></i>Exemplo resolvido: (p → q) ∨ (q → p)</h2>
+  <div class="ah-prose">
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code>p  q | p→q | q→p | (p→q) ∨ (q→p)
+V  V |  V  |  V  |        V
+V  F |  F  |  V  |        V
+F  V |  V  |  F  |        V
+F  F |  V  |  V  |        V</code></pre>
+    <p>A última coluna é V em todas as linhas: é uma tautologia. Intuitivamente, para quaisquer p e q, uma das duas implicações sempre vale. A fonte mais comum de erro é a implicação, então confira essa coluna primeiro.</p>
+  </div>
+</section>
+
+<section id="algoritmo" data-toc="Algoritmo e custo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-check text-violet-400 mr-2"></i>Algoritmo e custo</h2>
+  <div class="ah-prose">
+    <p>Uma ordem prática é a binária: varie a última variável mais depressa, como contar em binário (V = 1, F = 0). Assim nenhuma combinação é esquecida.</p>
+    <pre class="ah-card p-4 text-xs text-slate-300 overflow-x-auto"><code># Python: testa tautologia por força bruta
+from itertools import product
+
+def tautologia(f, n):
+    return all(f(*v) for v in product([True, False], repeat=n))
+
+print(tautologia(lambda p, q: (not p or q) or (not q or p), 2))   # True</code></pre>
+    <p class="ah-callout ah-callout-info"><i class="fa-solid fa-circle-info"></i><span>O custo é 2<sup>n</sup>. Com 30 variáveis, são mais de um bilhão de linhas. Essa explosão exponencial é o motivo pelo qual o problema SAT é difícil, assunto de complexidade.</span></p>
+  </div>
+</section>
+
+<section id="jogo" data-toc="Jogo: preencha a tabela" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gamepad text-amber-400 mr-2"></i>Jogo: Preencha a Tabela</h2>
+  <p class="text-sm text-slate-400 mb-4">Marque V ou F em cada linha e confira. Cada linha certa vale 5 pontos. Depois, classifique a fórmula para ganhar 20 pontos extras.</p>
+  <div id="lg-jogo"></div>
+</section>
+
+<section id="mercado" data-toc="No mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-sky-400 mr-2"></i>No mercado de trabalho</h2>
+  <div class="ah-prose">
+    <p>Tabelas de decisão de regras de negócio são tabelas-verdade. Na área de testes, a cobertura MC/DC (Modified Condition/Decision Coverage) exige testar cada condição de forma independente, e a DO-178C, norma de software embarcado em aviação, a exige para os componentes de nível A. Em verificação de hardware, times usam solvers SAT para provar equivalência entre circuitos.</p>
+    <p>Referência: CHILENSKI, John Joseph; MILLER, Steven P. “Applicability of modified condition/decision coverage to software testing”. <em>Software Engineering Journal</em>, 1994.</p>
+  </div>
+</section>
+
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências deste tópico</h2>
+  <ul class="space-y-2 text-sm">
+    <li class="text-slate-300 leading-relaxed">HUTH, Michael; RYAN, Mark. <em>Logic in Computer Science</em>. 2. ed. Cambridge: Cambridge University Press, 2004. Seção 1.2.</li>
+    <li class="text-slate-300 leading-relaxed">ENDERTON, Herbert B. <em>A Mathematical Introduction to Logic</em>. 2. ed. San Diego: Academic Press, 2001. Capítulo 1.</li>
+  </ul>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js?v=tema3"></script>
+<script src="../../../assets/js/logica.js"></script>
+<script>
+LG.tabela(document.getElementById('lg-jogo'), {
+  vars: ['p', 'q'],
+  f: function (v) { return (!v.p || v.q) || (!v.q || v.p); },
+  coluna: '(p → q) ∨ (q → p)',
+  texto: 'Preencha o valor da fórmula <strong>(p → q) ∨ (q → p)</strong> em cada linha.',
+  explica: 'Uma das duas implicações sempre vale, por isso a fórmula é uma tautologia.'
+});
+</script>
+</body>
+</html>
