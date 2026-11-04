@@ -422,7 +422,7 @@ export async function atualizarComponente(c: Componente, gravar: (c: Componente)
   <h3 class="ah-h3 mt-8 mb-3">Caso 1 · Disjuntor na biblioteca Hystrix (padrão: disjuntor)</h3>
   <div class="ah-prose">
     <p>
-      A Netflix desenvolveu e publicou, em 2012, a biblioteca Hystrix, que implementa o padrão de disjuntor, isolamento de chamadas e fallback
+      A Netflix desenvolveu e publicou a biblioteca Hystrix, que implementa o padrão de disjuntor, isolamento de chamadas e fallback
       para dependências remotas. A biblioteca foi adotada amplamente e influenciou a forma como equipes de microsserviços tratam falhas de
       dependências. Em 2018, a Netflix anunciou que o projeto entraria em modo de manutenção e recomendou alternativas mais recentes, como a
       biblioteca Resilience4j.
@@ -437,7 +437,7 @@ export async function atualizarComponente(c: Componente, gravar: (c: Componente)
   <h3 class="ah-h3 mt-8 mb-3">Caso 2 · Migração gradual de sistemas legados (padrão: estrangulador)</h3>
   <div class="ah-prose">
     <p>
-      O padrão estrangulador foi descrito por Martin Fowler (2004) e é recomendado em orientações de migração publicadas pela AWS. O processo
+      O padrão estrangulador foi descrito por Martin Fowler (2004) e é discutido em guias de migração da AWS. O processo
       típico começa pela identificação de uma funcionalidade de baixo risco, a implementação do novo serviço, a comparação de resultados em
       paralelo e a transferência do tráfego por etapas. Trata-se de um caso documentado de forma geral pela literatura e pela documentação de
       arquitetura, e não de um único caso de empresa.
@@ -534,6 +534,53 @@ export async function atualizarComponente(c: Componente, gravar: (c: Componente)
   </div>
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-orange-400 mr-2"></i>Aprofundamento · Idempotência na prática: quantas entregas viram efeitos</h2>
+  <div class="ah-prose">
+    <p>Entregas repetidas são normais em sistemas de mensageria. A idempotência garante que a repetição não se transforme em efeito duplicado, e a contagem abaixo mostra exatamente o que acontece.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">JavaScript (Node) · entregas repetidas e efeitos aplicados</p>
+<pre class="ah-code"><code>const entregas = [{id:'pedido-8842'},{id:'pedido-8843'},{id:'pedido-8842'},{id:'pedido-8844'},{id:'pedido-8843'}];
+const processados = new Set(); let efeitos = 0;
+for (const e of entregas) { if (processados.has(e.id)) continue; processados.add(e.id); efeitos++; }
+console.log('entregas recebidas:', entregas.length, '| efeitos aplicados:', efeitos);
+console.log('pedidos distintos:', processados.size);</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída real · entregas repetidas e efeitos aplicados</p>
+<pre class="ah-code"><code>entregas recebidas: 5 | efeitos aplicados: 3
+pedidos distintos: 3</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Cinco entregas chegaram, mas apenas três pedidos distintos existem. Com o registro de identificadores processados, cada pedido produz um único efeito. Sem esse registro, os três pedidos duplicados seriam cobrados ou enviados mais de uma vez.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Usar o horário de chegada como identificador: duas entregas da mesma mensagem têm horários diferentes.</li>
+      <li>Registrar o identificador só depois do efeito: uma falha entre as duas etapas causa duplicação.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Padrão</dt>
+      <dd class="text-slate-300 mb-3">Solução recorrente para um problema recorrente, descrita por contexto, problema, solução e consequências.</dd>
+      <dt class="font-semibold text-white">Saga</dt>
+      <dd class="text-slate-300 mb-3">Sequência de transações locais com compensações que desfazem passos anteriores quando uma falha ocorre.</dd>
+      <dt class="font-semibold text-white">Compensação</dt>
+      <dd class="text-slate-300 mb-3">Ação inversa que desfaz o efeito de um passo concluído, sem reverter a transação original.</dd>
+      <dt class="font-semibold text-white">Estrangulador</dt>
+      <dd class="text-slate-300 mb-3">Migração gradual de um sistema legado por meio de um roteador que transfere funcionalidades uma a uma.</dd>
+      <dt class="font-semibold text-white">Disjuntor</dt>
+      <dd class="text-slate-300 mb-3">Componente que bloqueia chamadas a uma dependência que falha de forma repetida, respondendo com fallback.</dd>
+      <dt class="font-semibold text-white">Fan-out</dt>
+      <dd class="text-slate-300 mb-3">Entrega de um mesmo evento a vários consumidores, geralmente com um tópico que alimenta várias filas.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
@@ -579,7 +626,7 @@ export async function atualizarComponente(c: Componente, gravar: (c: Componente)
     <li>GAMMA, Erich; HELM, Richard; JOHNSON, Ralph; VLISSIDES, John. <em>Design Patterns: Elements of Reusable Object-Oriented Software</em>. Reading: Addison-Wesley, 1994.</li>
     <li>GARCIA-MOLINA, Hector; SALEM, Kenneth. Sagas. In: <em>Proceedings of the 1987 ACM SIGMOD International Conference on Management of Data</em>. New York: ACM, 1987.</li>
     <li>HOHPE, Gregor; WOOLF, Bobby. <em>Enterprise Integration Patterns</em>. Boston: Addison-Wesley, 2003.</li>
-    <li>FOWLER, Martin. <em>StranglerFigApplication</em>. martinfowler.com, 2004.</li>
+    <li>FOWLER, Martin. <em>StranglerFigApplication</em>. martinfowler.com/bliki/StranglerFigApplication.html, 2004.</li>
     <li>NYGARD, Michael T. <em>Release It!: Design and Deploy Production-Ready Software</em>. Raleigh: Pragmatic Bookshelf, 2007.</li>
     <li>AWS. <em>AWS Prescriptive Guidance</em>, seções sobre padrões de migração e de integração. docs.aws.amazon.com/prescriptive-guidance.</li>
     <li>AWS. <em>Amazon SNS Developer Guide</em>, seção sobre fan-out para filas Amazon SQS. docs.aws.amazon.com/sns.</li>

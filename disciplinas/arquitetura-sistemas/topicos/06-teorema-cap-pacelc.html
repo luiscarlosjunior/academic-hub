@@ -138,6 +138,58 @@ N=5 W=3 R=3 garante interseção: true</code></pre>
 
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundamento · Quais combinações de quórum garantem a leitura atual</h2>
+  <div class="ah-prose">
+    <p>Com N réplicas, a escolha de W e R define se a leitura alcança a escrita mais recente. Enumerar todas as combinações mostra a fronteira entre garantia e risco.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · combinações de quórum para N = 3</p>
+<pre class="ah-code"><code>const N = 3; const combos = [];
+for (let W = 1; W &lt;= N; W++) for (let R = 1; R &lt;= N; R++) combos.push([W, R, W + R &gt; N]);
+for (const [W, R, ok] of combos) console.log('W=' + W, 'R=' + R, ok ? 'interseção garantida' : 'sem garantia');</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · combinações de quórum para N = 3</p>
+<pre class="ah-code"><code>W=1 R=1 sem garantia
+W=1 R=2 sem garantia
+W=1 R=3 interseção garantida
+W=2 R=1 sem garantia
+W=2 R=2 interseção garantida
+W=2 R=3 interseção garantida
+W=3 R=1 interseção garantida
+W=3 R=2 interseção garantida
+W=3 R=3 interseção garantida</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Com N = 3, apenas as combinações em que W + R é maior que 3 garantem interseção com a escrita mais recente. A combinação W = 1, R = 1 é a mais rápida e a que não oferece garantia. A escolha é uma troca entre latência e consistência, exatamente o que o PACELC descreve na operação normal.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Assumir que W = 2 e R = 1 garante consistência com N = 3: a soma é 3, não maior que 3.</li>
+      <li>Confundir quórum com consenso: o quórum não elege líder nem garante ordem total das escritas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-violet-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Consistência</dt>
+      <dd class="text-slate-300 mb-3">Toda leitura devolve a escrita mais recente ou um erro. Chamada de linearizabilidade no artigo de Gilbert e Lynch.</dd>
+      <dt class="font-semibold text-white">Disponibilidade</dt>
+      <dd class="text-slate-300 mb-3">Todo nó não falho responde a toda requisição, sem garantia de que a resposta seja a mais recente.</dd>
+      <dt class="font-semibold text-white">Partição de rede</dt>
+      <dd class="text-slate-300 mb-3">Situação em que mensagens entre nós são perdidas, separando-os.</dd>
+      <dt class="font-semibold text-white">Quórum</dt>
+      <dd class="text-slate-300 mb-3">Número de réplicas que confirmam uma escrita (W) ou consultadas numa leitura (R). Com W + R maior que N, há interseção.</dd>
+      <dt class="font-semibold text-white">PACELC</dt>
+      <dd class="text-slate-300 mb-3">Extensão do CAP que acrescenta o trade-off entre latência e consistência na operação normal.</dd>
+      <dt class="font-semibold text-white">Consistência eventual</dt>
+      <dd class="text-slate-300 mb-3">Garantia de que, sem novas escritas, todas as réplicas convergem para o mesmo valor.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

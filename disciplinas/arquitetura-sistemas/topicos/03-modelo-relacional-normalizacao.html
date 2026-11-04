@@ -56,13 +56,13 @@
 <section id="teoria" data-toc="Teoria: dependências funcionais e formas normais" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-open text-violet-400 mr-2"></i>Teoria · formas normais</h2>
   <div class="ah-prose">
-    <p>Uma <strong>dependência funcional</strong> X → Y significa que, para cada valor de X, há um único valor de Y. Codd (1970) e, em seguida, Codd (1971) formalizaram as três primeiras formas normais a partir dessas dependências:</p>
+    <p>Uma <strong>dependência funcional</strong> X → Y significa que, para cada valor de X, há um único valor de Y. Codd (1970) e, em seguida, Codd (1972) formalizaram as três primeiras formas normais a partir dessas dependências:</p>
     <ul>
       <li><strong>1FN:</strong> todos os atributos são atômicos, sem listas ou grupos repetidos, e cada linha é identificada por uma chave.</li>
       <li><strong>2FN:</strong> está em 1FN e nenhum atributo não chave depende apenas de parte de uma chave composta.</li>
       <li><strong>3FN:</strong> está em 2FN e nenhum atributo não chave depende de outro atributo não chave (dependência transitiva).</li>
     </ul>
-    <p>Kent (1983), no artigo clássico <em>A Simple Guide to Five Normal Forms in Relational Database Theory</em>, popularizou a visão de que cada atributo deve depender “da chave, da chave inteira e de nada além da chave”. Date (2004), em <em>An Introduction to Database Systems</em>, apresenta as formas normais superiores e os critérios para decompor relações sem perda de informação.</p>
+    <p>Kent (1983), no artigo clássico <em>A Simple Guide to Five Normal Forms in Relational Database Theory</em>, popularizou a visão de que cada atributo deve depender “da chave, da chave inteira e de nada além da chave”. Date (2003), em <em>An Introduction to Database Systems</em>, apresenta as formas normais superiores e os critérios para decompor relações sem perda de informação.</p>
   </div>
 
 </section>
@@ -152,6 +152,48 @@ Normalizado: total por cliente
 
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundamento · Verificando uma dependência funcional com SQL</h2>
+  <div class="ah-prose">
+    <p>Antes de decompor uma tabela, é útil verificar se a dependência suposta realmente existe nos dados. Uma consulta que procura valores conflitantes para a mesma chave revela violações.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">SQL · consulta de verificação (ilustrativo)</p>
+<pre class="ah-code"><code>-- o cep determina a cidade? procura ceps com mais de uma cidade
+SELECT cep, COUNT(DISTINCT cidade) AS cidades
+FROM enderecos
+GROUP BY cep
+HAVING COUNT(DISTINCT cidade) &gt; 1;</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Se a consulta retornar linhas, a dependência cep → cidade não se sustenta nos dados atuais, e a decomposição em uma tabela separada perderia informação. Se não retornar nada, a dependência é consistente com os dados observados, o que não prova que ela vale em todos os casos, mas é um teste útil.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Confiar apenas na intuição sobre a dependência: a consulta é mais barata que uma correção posterior.</li>
+      <li>Confundir dependência nos dados atuais com dependência do domínio: a regra de negócio deve ser confirmada com especialistas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-violet-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Relação</dt>
+      <dd class="text-slate-300 mb-3">Tabela que representa um conjunto de fatos sobre uma entidade ou relacionamento.</dd>
+      <dt class="font-semibold text-white">Dependência funcional</dt>
+      <dd class="text-slate-300 mb-3">Relação X → Y em que cada valor de X determina um único valor de Y.</dd>
+      <dt class="font-semibold text-white">Anomalia</dt>
+      <dd class="text-slate-300 mb-3">Inconsistência causada por redundância: inserção, atualização ou remoção que deixa os dados contraditórios.</dd>
+      <dt class="font-semibold text-white">Forma normal</dt>
+      <dd class="text-slate-300 mb-3">Critério que uma tabela deve atender para evitar anomalias. As principais são 1FN, 2FN e 3FN.</dd>
+      <dt class="font-semibold text-white">Desnormalização</dt>
+      <dd class="text-slate-300 mb-3">Repetição deliberada de dados para acelerar consultas, aceitando o risco de anomalias.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
@@ -196,9 +238,9 @@ Normalizado: total por cliente
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
   <ul class="ah-prose text-sm space-y-3">
     <li>CODD, Edgar F. A relational model of data for large shared data banks. <em>Communications of the ACM</em>, v. 13, n. 6, 1970.</li>
-    <li>CODD, Edgar F. Further normalization of the data base relational model. In: <em>Data Base Systems</em>. Englewood Cliffs: Prentice-Hall, 1971.</li>
-    <li>KENT, William. A simple guide to five normal forms in relational database theory. <em>Communications of the ACM</em>, v. 26, n. 2, 1983.</li>
-    <li>DATE, C. J. <em>An Introduction to Database Systems</em>. 8. ed. Boston: Addison-Wesley, 2004.</li>
+    <li>CODD, Edgar F. Further normalization of the data base relational model. In: RUSTIN, Randall J. (ed.). <em>Data Base Systems</em>: Courant Computer Science Symposia Series 6. Englewood Cliffs: Prentice-Hall, 1972.</li>
+    <li>KENT, William. A simple guide to five normal forms in relational database theory. <em>Communications of the ACM</em>, v. 26, n. 2, p. 120–125, 1983.</li>
+    <li>DATE, C. J. <em>An Introduction to Database Systems</em>. 8. ed. Boston: Pearson/Addison-Wesley, 2003.</li>
     <li>KIMBALL, Ralph; ROSS, Margy. <em>The Data Warehouse Toolkit</em>. 3. ed. Indianapolis: Wiley, 2013.</li>
   </ul>
 

@@ -358,6 +358,54 @@ ORDER BY produtos DESC;</code></pre>
   </div>
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-orange-400 mr-2"></i>Aprofundamento · Por que uma chave de partição de baixa cardinalidade cria um gargalo</h2>
+  <div class="ah-prose">
+    <p>No DynamoDB e em outros bancos particionados, a distribuição da carga depende da chave. Uma chave com poucos valores concentra as operações em uma única partição, mesmo que o banco tenha capacidade total de sobra.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">JavaScript (Node) · distribuição de chaves por partição</p>
+<pre class="ah-code"><code>const pkBaixa = Array.from({length: 1000}, () =&gt; 'status-ativo');
+const pkAlta = Array.from({length: 1000}, (_, i) =&gt; 'pedido-' + i);
+const hashPart = (s, n) =&gt; { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) &gt;&gt;&gt; 0; return h % n; };
+const dist = arr =&gt; { const c = Array(10).fill(0); arr.forEach(s =&gt; c[hashPart(s,10)]++); return c; };
+console.log('chave de baixa cardinalidade, 10 partições:', dist(pkBaixa).join(' '));
+console.log('chave de alta cardinalidade, 10 partições:', dist(pkAlta).join(' '));</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída real · distribuição de chaves por partição</p>
+<pre class="ah-code"><code>chave de baixa cardinalidade, 10 partições: 0 0 1000 0 0 0 0 0 0 0
+chave de alta cardinalidade, 10 partições: 100 100 100 100 100 100 100 100 100 100</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Com a chave status-ativo, todas as 1.000 operações caem na mesma partição: a partição fica sobrecarregada. Com identificadores de pedido distintos, a carga se distribui igualmente pelas dez partições, com 100 operações cada. A escolha da chave é uma decisão de desempenho, não apenas de modelagem.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Usar booleanos ou estados como chave de partição.</li>
+      <li>Concentrar toda a escrita de um dia em uma chave de data, criando um ponto quente a cada virada de dia.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Durabilidade</dt>
+      <dd class="text-slate-300 mb-3">Probabilidade de um dado não ser perdido. Difere da disponibilidade, que é a chance de o serviço responder agora.</dd>
+      <dt class="font-semibold text-white">Classe de armazenamento</dt>
+      <dd class="text-slate-300 mb-3">Nível de custo de guarda e de acesso do S3, como Standard, Standard-IA e Glacier.</dd>
+      <dt class="font-semibold text-white">Chave de partição</dt>
+      <dd class="text-slate-300 mb-3">Atributo que decide em qual partição um item é guardado. Deve ter muitos valores distintos para distribuir a carga.</dd>
+      <dt class="font-semibold text-white">Multi-AZ</dt>
+      <dd class="text-slate-300 mb-3">Implantação do banco com um standby síncrono em outra zona, com failover automático.</dd>
+      <dt class="font-semibold text-white">Réplica de leitura</dt>
+      <dd class="text-slate-300 mb-3">Cópia assíncrona do banco, usada para escalar leituras. Não é promovida automaticamente.</dd>
+      <dt class="font-semibold text-white">Recuperação pontual</dt>
+      <dd class="text-slate-300 mb-3">Restauração do estado do banco para um momento anterior, dentro de uma janela de retenção.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

@@ -158,6 +158,57 @@ chaves que mudariam com hash modular (hash % N), de 3 para 4 servidores: 762 de 
 
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundamento · Balanceamento em nginx: escolhendo a regra</h2>
+  <div class="ah-prose">
+    <p>A regra de distribuição é uma configuração concreta. No nginx, a diretiva de algoritmo define como cada requisição é encaminhada, e a escolha depende da duração das requisições e da necessidade de afinidade.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">nginx · configuração de balanceamento (ilustrativo)</p>
+<pre class="ah-code"><code>upstream catalogo {
+    least_conn;                # menor número de conexões ativas
+    server 10.0.1.10:8080;
+    server 10.0.2.10:8080;
+    server 10.0.3.10:8080;
+}
+
+server {
+    location / {
+        proxy_pass http://catalogo;
+    }
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Com least_conn, o nginx encaminha a requisição ao servidor com menos conexões ativas, o que é adequado quando as requisições têm duração variável. Para afinidade por cliente, a alternativa é o hash por chave, que mantém a sessão na mesma réplica.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Usar round robin com requisições de duração muito diferente: um servidor pode acumular requisições lentas.</li>
+      <li>Esquecer a verificação de saúde: o balanceador continua enviando tráfego a um servidor caído.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-violet-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Escala vertical</dt>
+      <dd class="text-slate-300 mb-3">Aumento da capacidade de uma máquina. Tem limite físico e cria um ponto único de falha.</dd>
+      <dt class="font-semibold text-white">Escala horizontal</dt>
+      <dd class="text-slate-300 mb-3">Aumento da capacidade pela adição de máquinas, que exige distribuição de carga e de estado.</dd>
+      <dt class="font-semibold text-white">Balanceador de carga</dt>
+      <dd class="text-slate-300 mb-3">Componente que escolhe a réplica que atende cada requisição.</dd>
+      <dt class="font-semibold text-white">Hash consistente</dt>
+      <dd class="text-slate-300 mb-3">Técnica que posiciona nós e chaves num anel, limitando a migração de chaves quando o cluster muda.</dd>
+      <dt class="font-semibold text-white">Nó virtual</dt>
+      <dd class="text-slate-300 mb-3">Múltiplas posições de um mesmo servidor no anel, para equilibrar a carga.</dd>
+      <dt class="font-semibold text-white">Ponto quente (hot key)</dt>
+      <dd class="text-slate-300 mb-3">Chave que recebe tráfego desproporcional, mesmo com boa distribuição geral.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

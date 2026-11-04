@@ -267,7 +267,7 @@ Medição: custo mensal e número de achados abertos, comparados à revisão ant
   <div class="ah-prose">
     <p>
       Em 2019, a instituição financeira Capital One sofreu um incidente em que dados de cerca de 100 milhões de clientes, nos Estados Unidos e
-      no Canadá, foram acessados por uma pessoa externa. Segundo o relatório público da empresa, uma aplicação web com configuração inadequada
+      no Canadá, foram acessados por uma pessoa externa. Segundo a descrição pública do incidente, uma aplicação web com configuração inadequada
       de firewall de aplicação permitiu uma requisição que alcançou o serviço de metadados da instância de computação. Dessa forma, foram
       obtidas credenciais temporárias de um papel de acesso com permissões excessivas, que deram acesso a buckets de armazenamento.
     </p>
@@ -283,34 +283,38 @@ Medição: custo mensal e número de achados abertos, comparados à revisão ant
   <h3 class="ah-h3 mt-8 mb-3">Caso 2 · Interrupção regional do Amazon S3 em 2017 (pilar: confiabilidade)</h3>
   <div class="ah-prose">
     <p>
-      Em 28 de fevereiro de 2017, uma interrupção afetou o Amazon S3 na região us-east-1 por algumas horas. O relatório pós-evento publicado
+      Em 28 de fevereiro de 2017, uma interrupção afetou o Amazon S3 na região us-east-1 por várias horas. O relatório pós-evento publicado
       pela AWS atribui o início do problema a um comando de manutenção executado com um parâmetro incorreto, que removeu um conjunto de
-      servidores maior do que o pretendido. A recuperação exigiu a reinicialização de subsistemas que não eram usados havia anos, o que
-      alongou o tempo de restabelecimento.
+      servidores maior do que o pretendido. A remoção obrigou o reinício completo dos subsistemas de índice e de alocação, e enquanto isso
+      o S3 nessa região não atendia às requisições normais de API.
     </p>
     <p>
       <strong>Lições relacionadas aos pilares.</strong> No pilar de confiabilidade, o caso mostra a importância de limitar o <em>raio de
-      explosão</em> das mudanças: uma ferramenta de operação deveria impedir que uma única execução removesse uma parcela tão grande de
-      capacidade. No pilar de excelência operacional, a resposta da AWS incluiu a alteração das ferramentas para remover capacidade de forma
-      gradual e a revisão dos procedimentos de reinicialização. A lição geral é que o próprio processo de manutenção é uma fonte de risco, e
-      deve ser projetado com a mesma atenção que a aplicação.
+      explosão</em> das mudanças: uma ferramenta de operação deve impedir que uma única execução remova uma parcela tão grande de capacidade.
+      No pilar de excelência operacional, o relatório pós-evento descreve também a dependência do painel de status da própria AWS em relação
+      ao S3, que atrasou as atualizações aos clientes durante o incidente, e a mudança posterior da console desse painel para várias regiões.
+      A lição geral é que o próprio processo de manutenção e as ferramentas de comunicação são fontes de risco, e precisam ser projetados com
+      a mesma atenção que a aplicação.
     </p>
   </div>
 
   <h3 class="ah-h3 mt-8 mb-3">Caso 3 · Revisão de custos de um serviço de monitoramento (pilar: otimização de custos)</h3>
   <div class="ah-prose">
     <p>
-      Em 2023, a equipe do Amazon Prime Video publicou um relato técnico em que descreveu a migração de um componente de monitoramento de
-      vídeo, originalmente construído com funções sem servidor e serviços distribuídos, para uma arquitetura mais concentrada. Segundo o
-      relato, a mudança reduziu os custos desse componente em cerca de 90%. O texto recebeu contestações da comunidade, que apontaram que o
-      caso não se generaliza para todas as cargas, e a própria empresa esclareceu que o aprendizado se referia ao contexto específico daquele
-      componente.
+      Em março de 2023, a equipe do Amazon Prime Video publicou no blog técnico da empresa um relato em que descreveu a redução de custos
+      de um componente de monitoramento de qualidade de stream. Segundo o relato, a reorganização do componente reduziu os custos de
+      infraestrutura em mais de 90%. A mudança abrangeu apenas essa ferramenta, e não a plataforma de vídeo como um todo.
+    </p>
+    <p>
+      O caso gerou debate. Adrian Cockcroft, ex-vice-presidente da Amazon, argumentou que o relato usou terminologia imprecisa: a equipe não
+      voltou a um monólito, mas refatorou a implementação inicial, que combinava muitas operações pequenas sem servidor e acesso intenso ao
+      S3. Por isso, a conclusão não se generaliza para outras cargas.
     </p>
     <p>
       <strong>Lições relacionadas aos pilares.</strong> No pilar de otimização de custos, o caso mostra que a escolha arquitetural tem efeito
-      direto sobre a fatura, e que a revisão periódica pode revelar decisões que deixaram de ser adequadas. Ao mesmo tempo, ilustra um cuidado
-      metodológico essencial: a generalização a partir de um caso isolado é um erro comum. A decisão deve ser tomada com medição da própria
-      carga, e não com base no relato de outra organização.
+      direto sobre a fatura, e que a revisão periódica pode revelar decisões que deixaram de ser adequadas. Ele também ilustra um cuidado
+      metodológico: generalizar a partir de um caso isolado é um erro comum. A decisão deve ser tomada com medição da própria carga, e não
+      com base no relato de outra organização.
     </p>
   </div>
 </section>
@@ -387,6 +391,47 @@ Medição: custo mensal e número de achados abertos, comparados à revisão ant
   </div>
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-orange-400 mr-2"></i>Aprofundamento · Registrando um trade-off com números</h2>
+  <div class="ah-prose">
+    <p>Um trade-off declarado com números deixa de ser opinião. Uma tabela simples com alternativas, custo e efeito em cada pilar mostra por que a decisão foi tomada e quanto ela custa.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Markdown · tabela de decisão (valores hipotéticos)</p>
+<pre class="ah-code"><code>| Alternativa | Custo mensal (hipotético) | Segurança | Latência | Decisão |
+|---|---|---|---|---|
+| Criptografar só dados sensíveis | R$ 200 | parcial | +2 ms | aceita para dados não pessoais |
+| Criptografar tudo | R$ 350 | total | +5 ms | exigida para dados pessoais |</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> A tabela deixa explícito o que se paga por cada decisão. Os valores são hipotéticos, mas a estrutura é a que importa: cada alternativa tem um custo, um efeito em cada pilar e uma justificativa ligada ao contexto de dados.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Declarar uma decisão sem as alternativas recusadas.</li>
+      <li>Tratar um trade-off como definitivo, sem data para revisão quando o contexto mudar.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Pilar</dt>
+      <dd class="text-slate-300 mb-3">Uma das seis áreas de avaliação do Well-Architected: excelência operacional, segurança, confiabilidade, eficiência de desempenho, otimização de custos e sustentabilidade.</dd>
+      <dt class="font-semibold text-white">Princípio de projeto</dt>
+      <dd class="text-slate-300 mb-3">Afirmação geral de boa prática associada a um pilar.</dd>
+      <dt class="font-semibold text-white">Trade-off</dt>
+      <dd class="text-slate-300 mb-3">Compromisso em que a melhoria de um atributo implica custo em outro. Deve ser declarado e registrado.</dd>
+      <dt class="font-semibold text-white">Registro de riscos</dt>
+      <dd class="text-slate-300 mb-3">Tabela com achados, impacto, probabilidade, responsável e prazo, que organiza as ações de uma revisão.</dd>
+      <dt class="font-semibold text-white">Raio de explosão</dt>
+      <dd class="text-slate-300 mb-3">Alcance de uma falha ou de uma mudança. Limitá-lo reduz o efeito de um erro.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
@@ -430,7 +475,7 @@ Medição: custo mensal e número de achados abertos, comparados à revisão ant
   <ul class="ah-prose text-sm space-y-3">
     <li>AWS. <em>AWS Well-Architected Framework</em>. Documento oficial, com os seis pilares e seus princípios. docs.aws.amazon.com/wellarchitected.</li>
     <li>AWS. <em>AWS Well-Architected Tool</em>. Documentação da ferramenta de revisão disponível no console. docs.aws.amazon.com/wellarchitected.</li>
-    <li>AMAZON WEB SERVICES. <em>Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region</em>. Relatório pós-evento, 2017.</li>
+    <li>AMAZON WEB SERVICES. <em>Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region</em>. Relatório pós-evento, 28 fev. 2017. aws.amazon.com/message/41926.</li>
     <li>CAPITAL ONE. Comunicado público sobre o incidente de segurança de 2019 e documentação correlata. capitalone.com.</li>
     <li>AMAZON WEB SERVICES. Relato técnico sobre a revisão de custos de um serviço de monitoramento de vídeo, publicado em 2023 no blog oficial da AWS.</li>
     <li>BASS, Len; CLEMENTS, Paul; KAZMAN, Rick. <em>Software Architecture in Practice</em>. 3. ed. Upper Saddle River: Addison-Wesley, 2012. Capítulos sobre atributos de qualidade e táticas arquiteturais.</li>

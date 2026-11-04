@@ -330,6 +330,53 @@ echo "OK: nenhuma cor literal fora dos tokens."</code></pre>
   </div>
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-orange-400 mr-2"></i>Aprofundamento · Validando pares de cor dos tokens com cálculo real</h2>
+  <div class="ah-prose">
+    <p>Um token semântico só é útil se os pares de cor que ele forma passam no contraste mínimo. A validação pode ser feita no próprio pipeline, antes de qualquer componente ser construído.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">JavaScript (Node) · razão de contraste dos tokens</p>
+<pre class="ah-code"><code>const lum = h =&gt; { const c=[1,3,5].map(i=&gt;parseInt(h.slice(i,i+2),16)/255).map(v=&gt;v&lt;=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)); return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]; };
+const razao=(a,b)=&gt;{const x=lum(a),y=lum(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);};
+const pares=[['texto sobre branco (semântico text)','#0f172a','#ffffff'],['ação primária sobre branco','#2563eb','#ffffff'],['texto sobre fundo escuro','#f8fafc','#0f172a']];
+for (const [nome,fg,bg] of pares) console.log(nome.padEnd(34), razao(fg,bg).toFixed(2)+':1', razao(fg,bg)&gt;=4.5?'passa 4,5:1':'reprova 4,5:1');</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída real · razão de contraste dos tokens</p>
+<pre class="ah-code"><code>texto sobre branco (semântico text) 17.85:1 passa 4,5:1
+ação primária sobre branco         5.17:1 passa 4,5:1
+texto sobre fundo escuro           17.06:1 passa 4,5:1</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> O script calcula a luminância relativa de cada cor e a razão entre texto e fundo, pela fórmula do WCAG. O resultado indica se o par está dentro do critério 4,5:1 para texto normal. Como a validação ocorre sobre os tokens, a correção acontece uma vez, e não em cada componente.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Validar só o componente final: o problema se repete em todos os usos do token.</li>
+      <li>Ignorar o tema escuro: o mesmo par precisa ser validado nos dois temas.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Token primitivo</dt>
+      <dd class="text-slate-300 mb-3">Valor bruto, sem intenção de uso, como azul.600 = #2563eb.</dd>
+      <dt class="font-semibold text-white">Token semântico</dt>
+      <dd class="text-slate-300 mb-3">Token que expressa intenção, como cor.acao.primaria, e aponta para um primitivo.</dd>
+      <dt class="font-semibold text-white">Token de componente</dt>
+      <dd class="text-slate-300 mb-3">Token específico de um componente, que aponta para um semântico. Ex.: botao.primario.fundo.</dd>
+      <dt class="font-semibold text-white">Style Dictionary</dt>
+      <dd class="text-slate-300 mb-3">Ferramenta que lê tokens e gera saídas para CSS, iOS, Android e outras plataformas a partir do mesmo arquivo.</dd>
+      <dt class="font-semibold text-white">DTCG</dt>
+      <dd class="text-slate-300 mb-3">Formato de referência para tokens do W3C Design Tokens Community Group, com $value e $type.</dd>
+      <dt class="font-semibold text-white">Tema</dt>
+      <dd class="text-slate-300 mb-3">Conjunto de mapeamentos semânticos para um contexto visual, como claro e escuro.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

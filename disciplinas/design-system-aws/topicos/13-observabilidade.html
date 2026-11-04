@@ -357,6 +357,214 @@ Alarme "Erros5xxAlto" em ALARME. A documentação responde com erro para parte d
   </div>
 </section>
 
+<section id="aprof-sinais" data-toc="Aprofundamento 1: quais sinais medir" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-list-check text-orange-400 mr-2"></i>Aprofundamento 1 · Quais sinais medir: RED e USE</h2>
+  <div class="ah-prose">
+    <p>Antes de criar qualquer alarme ou painel, é preciso escolher o que medir. Dois métodos práticos organizam essa escolha. O método <strong>RED</strong>, descrito por Tom Wilkie, aplica-se a <em>serviços</em> e mede três coisas: <strong>taxa</strong> de requisições, <strong>erros</strong> e <strong>duração</strong>. O método <strong>USE</strong>, descrito por Brendan Gregg, aplica-se a <em>recursos</em> (CPU, disco, conexões de rede, filas) e mede <strong>utilização</strong>, <strong>saturação</strong> e <strong>erros</strong>.</p>
+    <p>Os dois métodos respondem a perguntas diferentes. RED responde “o serviço atende bem o usuário?”. USE responde “algum recurso está no limite e explica o problema?”. Um incidente costuma começar com um sinal RED ruim e termina com um sinal USE que aponta a causa.</p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Método</th><th>Sinal</th><th>Pergunta</th><th>Exemplo no catálogo de produtos</th></tr></thead>
+      <tbody>
+        <tr><td>RED</td><td>Taxa</td><td>Quantas requisições por segundo chegam?</td><td>requisições/s na rota <code>/produtos</code></td></tr>
+        <tr><td>RED</td><td>Erros</td><td>Qual fração termina em erro?</td><td>% de respostas 5xx</td></tr>
+        <tr><td>RED</td><td>Duração</td><td>Quanto tempo as requisições levam?</td><td>percentil 95 da duração</td></tr>
+        <tr><td>USE</td><td>Utilização</td><td>Quanto do recurso está em uso?</td><td>CPU do banco a 85%</td></tr>
+        <tr><td>USE</td><td>Saturação</td><td>Há trabalho esperando na fila?</td><td>conexões aguardando no pool</td></tr>
+        <tr><td>USE</td><td>Erros</td><td>O recurso falha?</td><td>erros de conexão recusada</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> os dois métodos limitam o número de sinais. Medir tudo gera painéis que ninguém lê. Medir o conjunto mínimo de RED e USE cobre a maioria dos incidentes e deixa claro quando um sinal novo é realmente necessário.</p>
+  </div>
+
+</section>
+
+<section id="aprof-emf" data-toc="Aprofundamento 2: logs estruturados e EMF" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-code text-orange-400 mr-2"></i>Aprofundamento 2 · Logs estruturados e métricas a partir de logs</h2>
+  <div class="ah-prose">
+    <p>Um log estruturado é uma linha em JSON com campos previsíveis. Ele substitui a mensagem em texto livre, como <em>“produto 42 demorou 412 ms”</em>, que exige expressões regulares para ser analisada. Com campos fixos, a mesma informação pode ser consultada, agregada e transformada em métrica.</p>
+    <p>O <strong>Embedded Metric Format (EMF)</strong> da CloudWatch permite gerar métricas diretamente de um log JSON. Um bloco especial, chamado <code>_aws</code>, declara quais campos são métricas e quais são dimensões. Assim, uma única linha de log produz o registro de log completo e a métrica agregada, sem uma chamada extra à API.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">JSON · log em EMF</p>
+<pre class="ah-code"><code>{
+  "_aws": {
+    "Timestamp": 1730700000000,
+    "CloudWatchMetrics": [{
+      "Namespace": "Catalogo",
+      "Dimensions": [["Servico", "Rota"]],
+      "Metrics": [{ "Name": "DuracaoMs", "Unit": "Milliseconds" }]
+    }]
+  },
+  "Servico": "catalogo-api",
+  "Rota": "/produtos",
+  "DuracaoMs": 412,
+  "requestId": "3f9c1a2e-7b40",
+  "nivel": "INFO"
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a métrica <code>DuracaoMs</code> é agregada pelas dimensões <code>Servico</code> e <code>Rota</code>, que têm poucos valores possíveis. O campo <code>requestId</code> fica apenas no log: ele é único por requisição, e transformá-lo em dimensão criaria uma série nova para cada chamada, como veremos no aprofundamento 5. Para investigar uma requisição específica, filtra-se o log pelo <code>requestId</code>.</p>
+  </div>
+
+</section>
+
+<section id="aprof-rastros" data-toc="Aprofundamento 3: rastros distribuídos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-orange-400 mr-2"></i>Aprofundamento 3 · Rastros distribuídos: trace, span e propagação</h2>
+  <div class="ah-prose">
+    <p>Um <strong>rastro</strong> (trace) representa uma requisição completa, do usuário até a última dependência. Ele é formado por <strong>spans</strong>: intervalos de tempo com nome, início, duração, atributos e um span pai. Todos os spans de uma requisição compartilham o mesmo <em>trace ID</em>. Para que essa ligação atravesse serviços, o identificador viaja nos cabeçalhos HTTP, segundo a recomendação W3C Trace Context (2021), no formato:</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Cabeçalho HTTP · traceparent</p>
+<pre class="ah-code"><code>traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+             │  └── trace ID (32 hex)           └── span ID (16 hex) └── flags</code></pre>
+  <div class="ah-prose mt-3">
+    <p>A instrumentação padrão de mercado é o <strong>OpenTelemetry</strong>, um projeto aberto que define a API, o formato e o protocolo de exportação. O código abaixo cria um span em torno da busca no banco e registra o identificador do produto como atributo.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">TypeScript · instrumentação com a API do OpenTelemetry</p>
+<pre class="ah-code"><code>import { trace } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('catalogo');
+
+export async function buscarProduto(id: string) {
+  return tracer.startActiveSpan('buscarProduto', async (span) =&gt; {
+    try {
+      span.setAttribute('produto.id', id);
+      return await banco.buscar(id);   // banco: dependência ilustrativa
+    } catch (erro) {
+      span.recordException(erro as Error);
+      throw erro;
+    } finally {
+      span.end();
+    }
+  });
+}</code></pre>
+  <div class="ah-stage" style="height:300px"><canvas id="cvObs1" style="height:300px"></canvas></div>
+  <div id="ctlObs1" class="mt-4"></div>
+  <div id="capObs1" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> o <code>finally</code> garante que o span é encerrado mesmo em erro, sem o que a duração ficaria incorreta. O waterfall acima mostra a leitura típica de um rastro: o caminho crítico é a sequência de spans que determina a latência total. Otimizar um span fora desse caminho não reduz a latência percebida pelo usuário.</p>
+    <p><strong>Amostragem.</strong> Rastrear 100% das requisições costuma ser caro. Com amostragem de 1% sobre 50 requisições por segundo, obtém-se 0,5 rastro por segundo, ou 43.200 rastros por dia (cálculo direto). Amostragem na entrada (head-based) decide sem olhar o resultado; amostragem na cauda (tail-based) guarda os rastros lentos ou com erro, o que preserva os casos interessantes.</p>
+  </div>
+
+</section>
+
+<section id="aprof-percentis" data-toc="Aprofundamento 4: média, percentis e distribuição" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-column text-orange-400 mr-2"></i>Aprofundamento 4 · A média engana: percentis e distribuição</h2>
+  <div class="ah-prose">
+    <p>A média é a estatística mais simples e a mais enganosa para latência. Ela mistura a experiência típica com a cauda. Percentis mostram a fração das requisições que ficou abaixo de um valor: o p50 é a mediana, o p95 mostra a experiência dos 5% mais lentos e o p99 mostra a cauda extrema. Dean e Barroso (2013) mostram que, em sistemas com fan-out, a cauda domina a latência percebida.</p>
+    <p>O exemplo abaixo usa 100 requisições: 95 levam 100 ms e 5 levam 2.000 ms. O código foi executado no Node.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">JavaScript (Node) · média e percentis (método do posto mais próximo)</p>
+<pre class="ah-code"><code>const lat = [...Array(95).fill(100), ...Array(5).fill(2000)];
+const ord = [...lat].sort((a, b) =&gt; a - b);
+const media = lat.reduce((s, x) =&gt; s + x, 0) / lat.length;
+const pct = p =&gt; ord[Math.ceil(p / 100 * ord.length) - 1];
+
+console.log('média:', media, 'ms | p50:', pct(50), 'ms | p95:', pct(95), 'ms | p99:', pct(99), 'ms');</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída real · execução em Node</p>
+<pre class="ah-code"><code>média: 195 ms | p50: 100 ms | p95: 100 ms | p99: 2000 ms</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a média de 195 ms não corresponde a nenhuma requisição real: ninguém levou 195 ms. O p95 de 100 ms parece saudável e esconde que 5% dos usuários esperaram 2 segundos. Só o p99 revela a cauda. Um painel de latência deve mostrar p50, p95 e p99 juntos, ou um histograma, nunca apenas a média.</p>
+  </div>
+
+</section>
+
+<section id="aprof-cardinalidade" data-toc="Aprofundamento 5: cardinalidade e custo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-orange-400 mr-2"></i>Aprofundamento 5 · Cardinalidade e custo</h2>
+  <div class="ah-prose">
+    <p><strong>Cardinalidade</strong> é o número de combinações distintas de valores das dimensões de uma métrica. Cada combinação é uma <em>série temporal</em> separada, armazenada e cobrada. Com dimensões de poucos valores, o total é pequeno e previsível. Uma dimensão com valores ilimitados, como o identificador do usuário, multiplica tudo por esse número.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Cálculo · séries de uma métrica</p>
+<pre class="ah-code"><code>rotas × status × regiões = 50 × 5 × 3 = 750 séries
+mesmo produto com user_id (1.000.000 usuários) = 750 × 1.000.000 = 7,50 × 10^8 séries</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Por que funciona:</strong> a conta mostra que um único campo mal escolhido aumenta o custo em seis ordens de grandeza. A regra prática é: dimensões de métrica devem ter um conjunto fechado de valores. Identificadores de usuário, de pedido ou de requisição pertencem ao log, onde são pesquisados um a um, e não ao conjunto de métricas.</p>
+    <p><strong>Retenção de logs.</strong> O custo de logs cresce com o volume e com o tempo guardado. Com 10 GB por dia e retenção de 30 dias, há 300 GB armazenados. A política de retenção deve ser decidida por tipo de log: depuração pode expirar em dias, e auditoria segue o prazo legal.</p>
+  </div>
+
+</section>
+
+<section id="aprof-queima" data-toc="Aprofundamento 6: alertas de queima do orçamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-fire text-orange-400 mr-2"></i>Aprofundamento 6 · Alertas de queima do orçamento (burn rate)</h2>
+  <div class="ah-prose">
+    <p>A <strong>taxa de queima</strong> (burn rate) indica a velocidade com que o orçamento de erro está sendo consumido. Uma queima de 1x significa que, mantido o ritmo atual, o orçamento se esgota exatamente no fim do período. Uma queima de 14,4x esgota o orçamento mensal em cerca de dois dias.</p>
+    <p>A fórmula é direta: <strong>queima = taxa de erro observada ÷ (1 − SLO)</strong>. Com 1.200 falhas em 1.000.000 de requisições, a taxa de erro é 0,12%. Como o orçamento de um SLO de 99,9% é 0,1%, a queima instantânea é 1,20x (cálculo executado). A tabela abaixo mostra quanto orçamento cada alerta de queima consome, calculado pela fórmula: consumo = queima × horas da janela ÷ 720 horas do mês.</p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Queima</th><th>Janela</th><th>Orçamento consumido</th><th>Ação sugerida</th></tr></thead>
+      <tbody>
+        <tr><td>14,4x</td><td>1 hora</td><td>2,0%</td><td>Alerta de página (ação imediata)</td></tr>
+        <tr><td>6x</td><td>6 horas</td><td>5,0%</td><td>Alerta de ticket (atenção em horário comercial)</td></tr>
+        <tr><td>1x</td><td>72 horas</td><td>10,0%</td><td>Investigar a tendência</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-stage" style="height:280px"><canvas id="cvObs2" style="height:280px"></canvas></div>
+  <div id="ctlObs2" class="mt-4"></div>
+  <div id="capObs2" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Janelas múltiplas.</strong> O SRE Workbook (Beyer et al., 2018) recomenda combinar uma janela curta e uma longa no mesmo alarme. Por exemplo, disparar apenas quando a queima de 14,4x aparece em 5 minutos <em>e</em> em 1 hora. A janela curta garante detecção rápida; a longa evita que um pico de poucos minutos acorde alguém. Esse desenho reduz falsos alarmes sem atrasar a resposta a uma falha real.</p>
+    <p><strong>Por que funciona:</strong> o alarme deixa de perguntar “a taxa de erro está alta?” e passa a perguntar “estamos gastando o orçamento mais rápido do que o planejado?”. A segunda pergunta conecta o alerta ao objetivo de negócio, e por isso vale mais.</p>
+  </div>
+
+</section>
+
+<section id="aprof-dashboard" data-toc="Aprofundamento 7: painéis que respondem perguntas" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-gauge text-orange-400 mr-2"></i>Aprofundamento 7 · Painéis que respondem perguntas</h2>
+  <div class="ah-prose">
+    <p>Beyer et al. (2016), no livro <em>Site Reliability Engineering</em>, recomendam quatro sinais dourados para qualquer serviço: <strong>latência</strong>, <strong>tráfego</strong>, <strong>erros</strong> e <strong>saturação</strong>. Um painel que mostre esses quatro sinais na mesma tela, com o mesmo intervalo de tempo, permite correlacionar causa e efeito em segundos.</p>
+    <p>Um painel útil segue três regras. Primeiro, cada gráfico responde a uma pergunta escrita no título, como “o p95 do catálogo está dentro de 300 ms?”. Segundo, cada painel de erro tem um link para o runbook correspondente. Terceiro, a escala e o intervalo são fixos entre os painéis da mesma página, para que a comparação visual seja honesta.</p>
+  </div>
+
+</section>
+
+<section id="aprof-erros" data-toc="Aprofundamento 8: erros comuns em observabilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-orange-400 mr-2"></i>Aprofundamento 8 · Erros comuns</h2>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Alarmar a causa, e não o sintoma:</strong> um alarme de CPU alta pode disparar sem que nenhum usuário seja afetado. O sintoma (erro ou latência percebida pelo usuário) deve acordar uma pessoa; a causa ajuda no diagnóstico.</li>
+      <li><strong>Usar média para latência:</strong> esconde a cauda, como mostrado no aprofundamento 4.</li>
+      <li><strong>Cardinalidade alta:</strong> identificadores como user_id em dimensões de métrica, como visto no aprofundamento 5.</li>
+      <li><strong>Logs sem identificador de requisição:</strong> impossível reconstruir o que aconteceu com uma requisição específica.</li>
+      <li><strong>Retenção ilimitada:</strong> o custo cresce sem limite; a retenção deve ser decidida por tipo de log.</li>
+      <li><strong>Alarme sem runbook:</strong> quem recebe o aviso não sabe o que fazer às três da manhã.</li>
+      <li><strong>Painel sem decisão:</strong> gráficos que ninguém consulta durante um incidente são custo sem valor.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Métrica</dt>
+      <dd class="text-slate-300 mb-3">Valor numérico agregado ao longo do tempo, barato de armazenar e bom para alarmes e tendências.</dd>
+      <dt class="font-semibold text-white">Log</dt>
+      <dd class="text-slate-300 mb-3">Registro de um evento individual, com contexto. Quando estruturado, pode ser consultado e agregado.</dd>
+      <dt class="font-semibold text-white">Trace e span</dt>
+      <dd class="text-slate-300 mb-3">Trace: a trajetória completa de uma requisição. Span: um intervalo dessa trajetória, com nome, duração e atributos.</dd>
+      <dt class="font-semibold text-white">SLI</dt>
+      <dd class="text-slate-300 mb-3">Indicador de nível de serviço: medida do que o usuário percebe, como a fração de requisições bem-sucedidas.</dd>
+      <dt class="font-semibold text-white">SLO</dt>
+      <dd class="text-slate-300 mb-3">Objetivo de nível de serviço: meta acordada para um SLI, como 99,9% em 30 dias.</dd>
+      <dt class="font-semibold text-white">Orçamento de erro</dt>
+      <dd class="text-slate-300 mb-3">Diferença entre 100% e o SLO. Quantidade de falha que o time pode tolerar no período.</dd>
+      <dt class="font-semibold text-white">Taxa de queima (burn rate)</dt>
+      <dd class="text-slate-300 mb-3">Velocidade de consumo do orçamento de erro, dada por taxa de erro ÷ (1 − SLO). Queima de 1x esgota o orçamento exatamente no fim do período.</dd>
+      <dt class="font-semibold text-white">RED e USE</dt>
+      <dd class="text-slate-300 mb-3">RED (taxa, erros, duração) mede serviços; USE (utilização, saturação, erros) mede recursos.</dd>
+      <dt class="font-semibold text-white">Cardinalidade</dt>
+      <dd class="text-slate-300 mb-3">Número de combinações distintas de valores das dimensões de uma métrica. Cada combinação é uma série cobrada separadamente.</dd>
+      <dt class="font-semibold text-white">Runbook</dt>
+      <dd class="text-slate-300 mb-3">Roteiro de resposta a um alerta, com passos, comandos e condição para escalar.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
@@ -394,6 +602,21 @@ Alarme "Erros5xxAlto" em ALARME. A documentação responde com erro para parte d
   </ul>
 </section>
 
+<section id="referencias-aprof" data-toc="Referências do aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências do aprofundamento</h2>
+  <ul class="ah-prose text-sm space-y-3">
+    <li>BEYER, Betsy et al. <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly Media, 2016. Capítulos sobre sinais dourados e monitoramento.</li>
+    <li>BEYER, Betsy et al. <em>The Site Reliability Workbook</em>. Sebastopol: O'Reilly Media, 2018. Capítulo sobre alertas baseados em SLO e janelas múltiplas.</li>
+    <li>SRIDHARAN, Cindy. <em>Distributed Systems Observability</em>. Sebastopol: O'Reilly Media, 2018.</li>
+    <li>DEAN, Jeffrey; BARROSO, Luiz André. The tail at scale. <em>Communications of the ACM</em>, v. 56, n. 2, 2013.</li>
+    <li>WILKIE, Tom. The RED Method: key metrics for microservices architecture. Blog Grafana Labs, 2018.</li>
+    <li>GREGG, Brendan. The USE Method. brendangregg.com, 2012.</li>
+    <li>W3C. <em>Trace Context</em>. Recomendação, 2021. w3.org/TR/trace-context.</li>
+    <li>OPENTELEMETRY. <em>Documentação oficial</em>. opentelemetry.io.</li>
+    <li>AWS. <em>Amazon CloudWatch User Guide</em>, seção sobre Embedded Metric Format. docs.aws.amazon.com/AmazonCloudWatch.</li>
+  </ul>
+</section>
+
 <section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-orange-400 mr-2"></i>Referências</h2>
   <ul class="ah-prose text-sm space-y-3">
@@ -417,6 +640,31 @@ Alarme "Erros5xxAlto" em ALARME. A documentação responde com erro para parte d
 <script>
 (function () {
   'use strict';
+  DSA.criaConceito('obs1', {
+    canvas: 'cvObs1',
+    rotulos: ['GET /catalogo (raiz, 480 ms)', 'Autenticação (12 ms)', 'Cache Redis (3 ms, miss)', 'Consulta ao banco (410 ms)', 'Renderização (55 ms)'],
+    con: [[0, 1], [0, 2], [2, 3], [0, 4]],
+    quadros: [
+      [[0], 'O span raiz representa a requisição inteira. Todos os spans filhos compartilham o mesmo trace ID.'],
+      [[1], 'A autenticação leva 12 ms, pouco relevante para a latência total.'],
+      [[2, 3], 'O cache não tem o dado (miss), e a aplicação consulta o banco. Esse é o caminho crítico.'],
+      [[3], 'A consulta ao banco leva 410 ms: é o gargalo. Otimizar índices ou reduzir a consulta tem efeito direto no p95.'],
+      [[4], 'Somados os filhos, 12 + 3 + 410 + 55 = 480 ms, coerente com a raiz. O tempo de cada span explica o total.']
+    ]
+  });
+  DSA.criaConceito('obs2', {
+    canvas: 'cvObs2',
+    rotulos: ['Orçamento: 43,2 min/mês', 'Queima 14,4x por 1 h: 2% consumido', 'Queima 6x por 6 h: 5% consumido', 'Queima 1x por 72 h: 10% consumido'],
+    con: [[0, 1], [0, 2], [0, 3]],
+    quadros: [
+      [[0], 'O orçamento mensal de um SLO de 99,9% é de 43,2 minutos de indisponibilidade equivalente.'],
+      [[1], 'Uma queima de 14,4x durante 1 hora consome 2% do orçamento. É um alerta de página: exige ação imediata.'],
+      [[2], 'Uma queima de 6x por 6 horas consome 5%. É um alerta de ticket: atenção em horário comercial.'],
+      [[3], 'Uma queima de 1x por 3 dias consome 10%. Não é um incidente grave, mas a tendência precisa ser investigada.']
+    ]
+  });
+  DSA.monta('obs1');
+  DSA.monta('obs2');
   DSA.monta('con13');
   DSA.monta('observabilidade');
 })();

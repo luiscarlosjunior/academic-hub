@@ -385,6 +385,54 @@ echo "$PAYLOAD" | base64 --decode 2>/dev/null | jq '{sub, aud, ref}'</code></pre
   </div>
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-orange-400 mr-2"></i>Aprofundamento · Quanto o fail-fast economiza no pipeline</h2>
+  <div class="ah-prose">
+    <p>A ordem das etapas tem efeito mensurável. Quando o passo mais barato falha, todos os passos caros são evitados, e o tempo perdido com um erro simples cai drasticamente.</p>
+  </div>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">JavaScript (Node) · tempo com e sem falha precoce</p>
+<pre class="ah-code"><code>const etapas = { lint: 10, unit: 120, visual: 480, build: 90, deploy: 60 };
+const total = Object.values(etapas).reduce((a,b)=&gt;a+b,0);
+console.log('tempo total sem falha:', total, 's');
+console.log('tempo se o lint falhar (fail-fast):', etapas.lint, 's');
+console.log('tempo economizado:', total - etapas.lint, 's (' + ((total-etapas.lint)/total*100).toFixed(1) + '%)');</code></pre>
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Saída real · tempo com e sem falha precoce</p>
+<pre class="ah-code"><code>tempo total sem falha: 760 s
+tempo se o lint falhar (fail-fast): 10 s
+tempo economizado: 750 s (98.7%)</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Sem falha, o pipeline leva 760 segundos. Se o lint falha, o pipeline para em 10 segundos, economizando 98,7% do tempo. Em uma equipe que faz dezenas de pull requests por dia, essa diferença se acumula em horas de espera.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Executar testes visuais antes do lint: o erro de formatação só aparece após minutos de execução.</li>
+      <li>Não paralelizar etapas independentes, o que mantém o tempo total maior que o necessário.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Pipeline</dt>
+      <dd class="text-slate-300 mb-3">Sequência automatizada de etapas que valida e publica uma mudança.</dd>
+      <dt class="font-semibold text-white">Fail-fast</dt>
+      <dd class="text-slate-300 mb-3">Ordenação das etapas do mais barato para o mais caro, para que falhas simples interrompam o pipeline cedo.</dd>
+      <dt class="font-semibold text-white">OIDC</dt>
+      <dd class="text-slate-300 mb-3">Protocolo que permite trocar um token de identidade do provedor (GitHub) por credenciais temporárias da AWS.</dd>
+      <dt class="font-semibold text-white">Trust policy</dt>
+      <dd class="text-slate-300 mb-3">Política do papel IAM que define quem pode assumi-lo, com condições sobre repositório, branch ou environment.</dd>
+      <dt class="font-semibold text-white">Teste visual</dt>
+      <dd class="text-slate-300 mb-3">Comparação de capturas de tela com uma referência aprovada, que detecta mudanças não intencionais.</dd>
+      <dt class="font-semibold text-white">Environment com aprovação</dt>
+      <dd class="text-slate-300 mb-3">Ambiente do GitHub que exige revisores antes de liberar um deploy.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-orange-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

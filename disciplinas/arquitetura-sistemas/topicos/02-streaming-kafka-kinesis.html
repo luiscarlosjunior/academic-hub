@@ -174,6 +174,54 @@ await kinesis.send(new PutRecordCommand({
 
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundamento · Como a chave distribui eventos entre partições</h2>
+  <div class="ah-prose">
+    <p>A chave de partição decide para qual partição cada evento vai. A função de hash usada pelo produtor é determinística: a mesma chave cai sempre na mesma partição, o que mantém a ordem por chave.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · distribuição de chaves por partição</p>
+<pre class="ah-code"><code>const h = s =&gt; { let x = 0; for (const c of s) x = (x * 31 + c.charCodeAt(0)) &gt;&gt;&gt; 0; return x; };
+const chaves = ['cliente-17','cliente-42','cliente-8','cliente-3','cliente-99','cliente-7','cliente-21','cliente-64','cliente-5'];
+const p = 3; const c = Array(p).fill(0);
+chaves.forEach(k =&gt; { c[h(k) % p]++; });
+c.forEach((n, i) =&gt; console.log('partição', i, '=&gt;', n, 'eventos'));</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · distribuição de chaves por partição</p>
+<pre class="ah-code"><code>partição 0 =&gt; 4 eventos
+partição 1 =&gt; 3 eventos
+partição 2 =&gt; 2 eventos</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Nove clientes foram distribuídos em três partições com 4, 3 e 2 eventos. A distribuição não é perfeita porque o número de chaves é pequeno; com milhares de chaves, a diferença tende a diminuir. Como a função é determinística, cada cliente mantém sua ordem de eventos.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Escolher uma chave com poucos valores, o que concentra eventos em poucas partições.</li>
+      <li>Aumentar o número de partições depois de criado o tópico: a regra de hash muda para as novas chaves e a ordem por chave antiga se perde.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-violet-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Log</dt>
+      <dd class="text-slate-300 mb-3">Sequência ordenada e imutável de registros, em que cada um recebe uma posição.</dd>
+      <dt class="font-semibold text-white">Partição</dt>
+      <dd class="text-slate-300 mb-3">Subdivisão de um tópico. A ordem é garantida apenas dentro de uma partição.</dd>
+      <dt class="font-semibold text-white">Offset</dt>
+      <dd class="text-slate-300 mb-3">Posição de uma mensagem dentro de uma partição.</dd>
+      <dt class="font-semibold text-white">Grupo de consumidores</dt>
+      <dd class="text-slate-300 mb-3">Conjunto de consumidores que dividem as partições de um tópico entre si.</dd>
+      <dt class="font-semibold text-white">Retenção</dt>
+      <dd class="text-slate-300 mb-3">Tempo em que os eventos permanecem no log antes de expirar.</dd>
+      <dt class="font-semibold text-white">Replay</dt>
+      <dd class="text-slate-300 mb-3">Releitura de eventos antigos a partir de um offset anterior, possível enquanto a retenção permitir.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

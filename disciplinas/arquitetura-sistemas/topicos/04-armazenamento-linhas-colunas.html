@@ -138,6 +138,50 @@ VALUES (8842, 17, 'Sul', DATE '2026-10-31', 129.90);</code></pre>
 
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundamento · Compressão por execução em uma coluna</h2>
+  <div class="ah-prose">
+    <p>Colunas com valores repetidos de forma contígua comprimem muito bem. A codificação por execução (run-length) guarda cada valor com a quantidade de repetições, e a eficácia depende da ordenação dos dados.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · codificação por execução</p>
+<pre class="ah-code"><code>const coluna = ['SP','SP','SP','RJ','RJ','MG','MG','MG','MG','SP'];
+const rle = arr =&gt; { const out = []; for (const v of arr) { if (out.length &amp;&amp; out[out.length-1][0] === v) out[out.length-1][1]++; else out.push([v,1]); } return out; };
+console.log('valores:', coluna.length, '| pares (valor, repetições):', JSON.stringify(rle(coluna)));
+console.log('após ordenar, pares:', rle([...coluna].sort()).length);</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · codificação por execução</p>
+<pre class="ah-code"><code>valores: 10 | pares (valor, repetições): [["SP",3],["RJ",2],["MG",4],["SP",1]]
+após ordenar, pares: 3</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> Uma coluna de dez valores vira quatro pares. Ao ordenar a mesma coluna, o número de pares cai para três. A codificação é mais eficaz quando valores iguais ficam juntos, por isso bancos colunares costumam ordenar as colunas de maior repetição.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Assumir que toda coluna comprime igualmente: colunas de identificadores únicos quase não comprimem.</li>
+      <li>Esquecer o custo de manter a ordenação durante inserções e atualizações.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-violet-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">OLTP</dt>
+      <dd class="text-slate-300 mb-3">Processamento transacional: muitas operações pequenas de leitura e escrita de registros.</dd>
+      <dt class="font-semibold text-white">OLAP</dt>
+      <dd class="text-slate-300 mb-3">Processamento analítico: poucas consultas que agregam grandes volumes de dados.</dd>
+      <dt class="font-semibold text-white">Layout por linhas</dt>
+      <dd class="text-slate-300 mb-3">Armazenamento em que todos os campos de um registro ficam juntos.</dd>
+      <dt class="font-semibold text-white">Projeção (colunar)</dt>
+      <dd class="text-slate-300 mb-3">Leitura apenas das colunas que a consulta usa.</dd>
+      <dt class="font-semibold text-white">Compressão por execução</dt>
+      <dd class="text-slate-300 mb-3">Codificação de valores repetidos por seu valor e número de repetições. Eficaz quando valores iguais estão juntos.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">

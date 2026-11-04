@@ -140,6 +140,51 @@ console.log('saldo reconstruído a partir do log:', saldo(eventos));</code></pre
 
 </section>
 
+<section id="aprof-geral" data-toc="Aprofundamento" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass-plus text-violet-400 mr-2"></i>Aprofundamento · Projeções por conta a partir do log</h2>
+  <div class="ah-prose">
+    <p>Uma projeção é uma visão do log otimizada para uma consulta. Várias projeções podem ser construídas a partir do mesmo log, cada uma para uma pergunta diferente, sem alterar os eventos originais.</p>
+  </div>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">JavaScript (Node) · projeção de saldos por conta</p>
+<pre class="ah-code"><code>const eventos = [{tipo:'Depositado',conta:'A',valor:100},{tipo:'Sacado',conta:'A',valor:30},{tipo:'Depositado',conta:'B',valor:50}];
+const projecao = {};
+for (const e of eventos) { projecao[e.conta] = (projecao[e.conta] || 0) + (e.tipo === 'Depositado' ? e.valor : -e.valor); }
+console.log('projeção de saldos:', JSON.stringify(projecao));</code></pre>
+  <p class="text-xs font-bold text-violet-300 mt-5 mb-2">Saída real · projeção de saldos por conta</p>
+<pre class="ah-code"><code>projeção de saldos: {"A":70,"B":50}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p><strong>Como ler o resultado:</strong> O log tem três eventos e a projeção calcula o saldo de cada conta: A tem 70 e B tem 50. Se o time precisar de outra visão, como o total movimentado por região, basta criar outra projeção sobre o mesmo log. A projeção é descartável: pode ser reconstruída a qualquer momento.</p>
+  </div>
+  <h3 class="ah-h3 mt-6 mb-2">Erros comuns</h3>
+  <div class="ah-prose text-sm">
+    <ul>
+      <li>Tratar a projeção como fonte da verdade: a verdade é o log, e a projeção pode estar desatualizada.</li>
+      <li>Criar projeções sem medir o atraso entre o log e a leitura, o que causa comportamento inesperado na interface.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-violet-400 mr-2"></i>Conceitos-chave</h2>
+  <div class="ah-prose">
+    <p>Os termos abaixo aparecem ao longo deste tópico. Leia-os antes das animações e dos exemplos, e volte a eles sempre que um termo novo surgir.</p>
+  </div>
+  <dl class="mt-4 text-sm leading-relaxed">
+      <dt class="font-semibold text-white">Evento</dt>
+      <dd class="text-slate-300 mb-3">Fato já ocorrido, nomeado no passado (como Depositado), que não é alterado depois de registrado.</dd>
+      <dt class="font-semibold text-white">Log de eventos</dt>
+      <dd class="text-slate-300 mb-3">Sequência de eventos imutáveis que é a fonte da verdade do estado.</dd>
+      <dt class="font-semibold text-white">Projeção</dt>
+      <dd class="text-slate-300 mb-3">Visão do log otimizada para uma consulta. Pode ser descartada e reconstruída.</dd>
+      <dt class="font-semibold text-white">Snapshot</dt>
+      <dd class="text-slate-300 mb-3">Estado guardado num ponto do log, para acelerar a reconstrução sem reprocessar tudo.</dd>
+      <dt class="font-semibold text-white">CQRS</dt>
+      <dd class="text-slate-300 mb-3">Separação entre o modelo que recebe comandos de escrita e o modelo que atende consultas.</dd>
+      <dt class="font-semibold text-white">Consistência eventual</dt>
+      <dd class="text-slate-300 mb-3">Atraso entre a gravação de um evento e a sua aparição numa projeção de leitura.</dd>
+  </dl>
+</section>
+
 <section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-circle-question text-violet-400 mr-2"></i>Teste seus conhecimentos</h2>
   <div class="space-y-5">
@@ -183,7 +228,7 @@ console.log('saldo reconstruído a partir do log:', saldo(eventos));</code></pre
 <section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-violet-400 mr-2"></i>Referências</h2>
   <ul class="ah-prose text-sm space-y-3">
-    <li>FOWLER, Martin. Event Sourcing. martinfowler.com, 2005.</li>
+    <li>FOWLER, Martin. Event Sourcing. martinfowler.com/eaaDev/EventSourcing.html, 2005.</li>
     <li>YOUNG, Greg. CQRS Documents. 2010. Disponível em cqrs.files.wordpress.com.</li>
     <li>KLEPPMANN, Martin. <em>Designing Data-Intensive Applications</em>. Sebastopol: O'Reilly Media, 2017. Capítulo sobre derivação de dados a partir de logs.</li>
     <li>AWS. <em>Prescriptive Guidance</em>, seções sobre padrões de dados orientados a eventos. docs.aws.amazon.com/prescriptive-guidance.</li>
