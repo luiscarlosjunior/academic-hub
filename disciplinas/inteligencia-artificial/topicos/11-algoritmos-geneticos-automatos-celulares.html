@@ -44,6 +44,23 @@
       conseguir <em>pontuar</em> uma solução candidata. É o método de escolha quando o espaço de busca é
       gigante, acidentado e mal comportado.
     </p>
+    <p>
+      As duas ideias têm história longa. John von Neumann estudou autômatos autorreprodutivos nos anos 1940
+      (publicado em 1966). John Holland formalizou os algoritmos genéticos em <em>Adaptation in Natural and
+      Artificial Systems</em> (1975). Martin Gardner apresentou o Jogo da Vida de John Conway na
+      <em>Scientific American</em> em 1970, e Stephen Wolfram estudou os autômatos elementares de forma
+      sistemática, reunindo o resultado em <em>A New Kind of Science</em> (2002).
+    </p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Situação</th><th>Por que a técnica ajuda</th><th>Cuidado</th></tr></thead>
+      <tbody>
+        <tr><td>Espaço de soluções enorme, sem fórmula</td><td>AG explora o espaço com uma população, sem derivada</td><td>não garante o ótimo global</td></tr>
+        <tr><td>Função com ruído, descontínua ou com platôs</td><td>só precisa pontuar cada candidata</td><td>cada avaliação pode ser cara</td></tr>
+        <tr><td>Padrão global que surge de regras locais</td><td>autômato celular modela a interação sem um controlador</td><td>é difícil achar a regra que produz um padrão alvo</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -173,6 +190,83 @@
   </div>
 </section>
 
+<!-- ============================ OPERADORES EM DETALHE ============================ -->
+<section id="operadores" data-toc="Cruzamento e mutação em detalhe" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scissors text-indigo-400 mr-2"></i>Cruzamento e mutação, passo a passo</h2>
+  <p class="ah-lead text-sm mb-5">
+    Os dois operadores fazem trabalhos diferentes. O <strong>cruzamento</strong> recombina o que já existe na
+    população; a <strong>mutação</strong> cria o que ainda não existia. Use o botão “Próximo” para acompanhar um
+    cruzamento de um ponto com os pais do exemplo resolvido desta página.
+  </p>
+
+  <div class="ah-stepper">
+    <pre class="ah-code ah-stepper-code"><code>def cruzar(pai1, pai2, corte):
+    filho1 = pai1[:corte] + pai2[corte:]
+    filho2 = pai2[:corte] + pai1[corte:]
+    return filho1, filho2</code></pre>
+    <script type="application/json" class="ah-steps">[
+      {"linha": 0, "titulo": "Entrada: dois pais e um ponto de corte", "texto": "Os pais são 11001 (azul) e 01111 (âmbar), e o corte fica depois do 2º bit. Cada filho herda um pedaço de cada pai.", "visual": "<div class='font-mono text-sm space-y-1'><div><span class='text-slate-500'>pai 1:</span> <span class='text-sky-300'>11</span><span class='text-slate-600'>|</span><span class='text-sky-300'>001</span></div><div><span class='text-slate-500'>pai 2:</span> <span class='text-amber-300'>01</span><span class='text-slate-600'>|</span><span class='text-amber-300'>111</span></div></div>"},
+      {"linha": 1, "titulo": "Filho 1: início do pai 1 + final do pai 2", "texto": "pai1[:2] é 11 e pai2[2:] é 111. Juntos formam 11111, que é o máximo do OneMax de 5 bits.", "visual": "<div class='font-mono text-sm'>filho 1: <span class='text-sky-300'>11</span><span class='text-amber-300'>111</span> = <b class='text-emerald-300'>11111</b> (aptidão 5)</div>"},
+      {"linha": 2, "titulo": "Filho 2: início do pai 2 + final do pai 1", "texto": "pai2[:2] é 01 e pai1[2:] é 001. Resulta em 01001, com aptidão 2.", "visual": "<div class='font-mono text-sm'>filho 2: <span class='text-amber-300'>01</span><span class='text-sky-300'>001</span> = <b class='text-emerald-300'>01001</b> (aptidão 2)</div>"},
+      {"linha": 3, "titulo": "Retorno dos dois filhos", "texto": "O filho 1 juntou o início de um pai com o final do outro. É assim que partes boas de soluções diferentes se combinam.", "visual": "<div class='font-mono text-sm space-y-1'><div>filho 1 = 11111 · aptidão 5</div><div>filho 2 = 01001 · aptidão 2</div></div>"},
+      {"linha": -1, "titulo": "Mutação: cada bit pode inverter", "texto": "Com taxa de 1% por bit, nenhum bit mudou neste caso. Se o quarto bit do filho 2 fosse invertido, ele viraria 01011.", "visual": "<div class='font-mono text-sm'>sem mutação: <span class='text-emerald-300'>11111</span> e <span class='text-emerald-300'>01001</span></div>"}
+    ]</script>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Variantes de cruzamento e mutação</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    A escolha do operador depende da representação. Um cruzamento de um ponto, por exemplo, faz sentido para bits,
+    mas quebra uma permutação de cidades, porque repete cidades e deixa outras de fora.
+  </p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Operador</th><th>Representação</th><th>Como funciona</th><th>Quando usar</th></tr></thead>
+      <tbody>
+        <tr><td>Um ponto</td><td>binária</td><td>corta os pais em uma posição e troca as caudas</td><td>didático; preserva blocos contíguos</td></tr>
+        <tr><td>Dois pontos</td><td>binária</td><td>troca o trecho entre dois cortes</td><td>mistura blocos sem favorecer as extremidades</td></tr>
+        <tr><td>Uniforme</td><td>binária</td><td>cada bit vem de um pai, por sorteio</td><td>boa mistura, mas quebra blocos longos</td></tr>
+        <tr><td>Ordem (OX)</td><td>permutação</td><td>copia um trecho de um pai e preenche o resto na ordem do outro</td><td>rotas e sequências, sem repetir elementos</td></tr>
+        <tr><td>PMX</td><td>permutação</td><td>troca trechos e corrige duplicatas por mapeamento</td><td>alternativa ao OX quando a posição importa</td></tr>
+        <tr><td>SBX</td><td>real</td><td>imita o cruzamento de um ponto com valores reais, com dispersão controlada por parâmetro</td><td>otimização contínua</td></tr>
+        <tr><td>Mutação bit a bit</td><td>binária</td><td>inverte cada bit com probabilidade p</td><td>padrão; use p ≈ 1/n</td></tr>
+        <tr><td>Mutação gaussiana</td><td>real</td><td>soma um ruído normal ao valor</td><td>refinamento local em otimização contínua</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Exemplo resolvido 2: cruzamento de permutações (OX)</h3>
+  <div class="ah-prose">
+    <p>
+      Imagine um robô que visita oito pontos. Cada rota é uma permutação das letras A a H. Os pais são
+      <code>ABCDEFGH</code> e <code>HGFEDCBA</code>, e o trecho copiado do pai 1 vai da posição 2 à 4 (C, D, E).
+      As posições restantes são preenchidas com as letras do pai 2, na ordem em que aparecem nele, sem repetir
+      as já usadas: H, G, F, B, A. Resulta em <strong>HGCDEFBA</strong>, que é uma rota válida.
+    </p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">def ox(p1, p2, i, j):
+    filho = [None] * len(p1)
+    filho[i:j+1] = p1[i:j+1]
+    resto = [g for g in p2 if g not in filho[i:j+1]]
+    pos = [k for k in range(len(p1)) if not (i &lt;= k &lt;= j)]
+    for k, g in zip(pos, resto):
+        filho[k] = g
+    return filho
+
+p1 = list("ABCDEFGH"); p2 = list("HGFEDCBA")
+print("pai 1:  ", "".join(p1)); print("pai 2:  ", "".join(p2))
+print("filho:  ", "".join(ox(p1, p2, 2, 4)))</pre>
+  <div class="ah-prose">
+    <p><strong>Saída real do programa</strong> (executado com Python 3):</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">pai 1:   ABCDEFGH
+pai 2:   HGFEDCBA
+filho:   HGCDEFBA</pre>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Teste você mesmo: troque o corte para (0, 3) e confira se o filho continua sendo uma permutação, com as oito letras uma vez cada.</div>
+  </div>
+</section>
+
 <!-- ============================ AUTÔMATOS CELULARES ============================ -->
 <section id="life" data-toc="Autômatos celulares" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-border-all text-indigo-400 mr-2"></i>Autômatos celulares: complexidade a partir do nada</h2>
@@ -219,6 +313,81 @@
   </div>
 </section>
 
+<!-- ============================ JOGO DA VIDA EM PYTHON ============================ -->
+<section id="vida-python" data-toc="Jogo da Vida em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-table-cells text-indigo-400 mr-2"></i>Jogo da Vida em Python: um planador andando</h2>
+  <p class="ah-lead text-sm mb-5">
+    O planador é o padrão mais famoso do Jogo da Vida: cinco células que se deslocam pela grade e voltam a ter a
+    mesma forma a cada quatro gerações. Nenhuma célula “sabe” que está no planador. A forma se mantém porque a
+    regra local se repete em cada célula.
+  </p>
+  <div class="ah-prose">
+    <p>
+      Primeiro, a regra de cada célula. Uma célula <strong>morta</strong> com exatamente 3 vizinhas vivas nasce.
+      Uma célula <strong>viva</strong> com 2 ou 3 vizinhas continua viva e, com qualquer outro número, morre.
+      Na grade do exemplo, a célula da linha 1, coluna 0 está morta e tem 3 vizinhas vivas: (0,1), (2,0) e (2,1).
+      Ela nasce na geração seguinte. Já a célula (2,0) está viva com uma única vizinha, (2,1), e morre por solidão.
+    </p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">def proxima_geracao(grade):
+    linhas, colunas = len(grade), len(grade[0])
+    nova = [[0] * colunas for _ in range(linhas)]
+    for r in range(linhas):
+        for c in range(colunas):
+            vizinhas = sum(grade[(r + dr) % linhas][(c + dc) % colunas]
+                           for dr in (-1, 0, 1) for dc in (-1, 0, 1)
+                           if (dr, dc) != (0, 0))
+            if grade[r][c] == 1:
+                nova[r][c] = 1 if vizinhas in (2, 3) else 0
+            else:
+                nova[r][c] = 1 if vizinhas == 3 else 0
+    return nova
+
+def mostra(g):
+    for linha in g:
+        print("".join("#" if c else "." for c in linha))
+    print()
+
+# planador num tabuleiro 6x6
+g = [[0]*6 for _ in range(6)]
+for r, c in [(0,1),(1,2),(2,0),(2,1),(2,2)]:
+    g[r][c] = 1
+for geracao in range(3):
+    print("geracao", geracao)
+    mostra(g)
+    g = proxima_geracao(g)</pre>
+  <div class="ah-prose">
+    <p><strong>Saída real do programa:</strong></p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">geracao 0
+.#....
+..#...
+###...
+......
+......
+......
+
+geracao 1
+......
+#.#...
+.##...
+.#....
+......
+......
+
+geracao 2
+......
+..#...
+#.#...
+.##...
+......
+......</pre>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>A grade é <strong>toroidal</strong>: as bordas se ligam, por isso o operador <code>% linhas</code> e <code>% colunas</code>. Em uma grade com bordas fixas, o planador sumiria ao chegar na borda.</div>
+  </div>
+</section>
+
 <!-- ============================ REGRA ELEMENTAR ============================ -->
 <section id="regra" data-toc="Autômatos de uma dimensão" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-barcode text-indigo-400 mr-2"></i>As 256 regras elementares</h2>
@@ -246,6 +415,59 @@
   <div class="ah-stage"><canvas id="caCanvas" style="height:300px"></canvas></div>
   <div id="ca-tabela" class="flex flex-wrap gap-2 mt-4 justify-center"></div>
   <p id="ca-nota" class="text-xs text-slate-400 mt-4 leading-relaxed text-center"></p>
+</section>
+
+<!-- ============================ AUTÔMATO DE UMA DIMENSÃO EM PYTHON ============================ -->
+<section id="elementar-python" data-toc="Autômato de uma dimensão em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-indigo-400 mr-2"></i>Regras 90 e 30 em Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    Em uma dimensão, a regra é uma tabela de 8 linhas. O número da regra é essa tabela escrita em binário. Assim,
+    a regra 90 (01011010 em binário) e a regra 30 (00011110) cabem em uma única linha de código.
+  </p>
+  <div class="ah-prose">
+    <p>
+      A regra 90 faz a célula central mudar quando <em>exatamente um</em> vizinho está vivo. Isso é uma soma
+      módulo 2 (XOR), e por isso o padrão repete a estrutura do triângulo de Pascal módulo 2. A regra 30 é diferente:
+      mesmo a partir de uma única célula, o padrão fica irregular. Wolfram usou essa regra, em 1986, como gerador de
+      números pseudoaleatórios, e ela já foi usada no Mathematica para essa finalidade.
+    </p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">def passo(linha, regra):
+    n = len(linha)
+    return [(regra >> ((linha[(x-1) % n] << 2) | (linha[x] << 1) | linha[(x+1) % n])) & 1
+            for x in range(n)]
+
+for regra in (90, 30):
+    linha = [0]*11
+    linha[5] = 1
+    print(f"regra {regra}")
+    for _ in range(6):
+        print("".join("#" if c else "." for c in linha))
+        linha = passo(linha, regra)
+    print()</pre>
+  <div class="ah-prose">
+    <p><strong>Saída real do programa:</strong></p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">regra 90
+.....#.....
+....#.#....
+...#...#...
+..#.#.#.#..
+.#.......#.
+#.#.....#.#
+
+regra 30
+.....#.....
+....###....
+...##..#...
+..##.####..
+.##..#...#.
+##.####.###
+</pre>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Mude a linha 5 para outra posição, ou comece com duas células vivas, e observe o que acontece com a regra 90 e com a regra 30. Em um autômato, o início importa tanto quanto a regra.</div>
+  </div>
 </section>
 
 <!-- ============================ UM EXEMPLO RESOLVIDO: UMA GERAÇÃO DE UM ALGORITMO GENÉTICO ============================ -->
@@ -297,6 +519,98 @@ perto de 1/n por bit) e variar um parâmetro por vez, comparando a melhor aptid�
   </div>
 </section>
 
+<!-- ============================ AG COMPLETO EM PYTHON ============================ -->
+<section id="exemplo-codigo-ag" data-toc="Exemplo executável: AG em Python" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-terminal text-indigo-400 mr-2"></i>Exemplo executável: um AG completo em Python</h2>
+  <p class="ah-lead text-sm mb-5">
+    O programa abaixo resolve o OneMax com 16 bits, ou seja, procura a string com mais 1s. Ele usa os quatro
+    ingredientes do ciclo: seleção por torneio, cruzamento de um ponto, mutação bit a bit e elitismo. A semente
+    do gerador aleatório é fixa, então a execução se repete igual.
+  </p>
+  <pre class="ah-code text-[11px] my-4">import random
+
+random.seed(7)  # semente fixa: a mesma execução sempre dá o mesmo resultado
+
+BITS, POP, GERACOES = 16, 8, 6
+TAXA_MUTACAO = 1 / BITS
+
+def aptidao(cromossomo):
+    return sum(cromossomo)  # OneMax: quanto mais 1s, melhor
+
+def torneio(pop, k=3):
+    return max(random.sample(pop, k), key=aptidao)
+
+def cruzar(p1, p2):
+    corte = random.randint(1, BITS - 1)
+    return p1[:corte] + p2[corte:]
+
+def mutar(c):
+    return [b ^ 1 if random.random() < TAXA_MUTACAO else b for b in c]
+
+pop = [[random.randint(0, 1) for _ in range(BITS)] for _ in range(POP)]
+
+for g in range(GERACOES + 1):
+    apts = [aptidao(c) for c in pop]
+    print(f"geracao {g}: melhor={max(apts)}  media={sum(apts)/POP:.2f}")
+    if g == GERACOES:
+        break
+    elite = max(pop, key=aptidao)
+    nova = [elite[:]]
+    while len(nova) < POP:
+        nova.append(mutar(cruzar(torneio(pop), torneio(pop))))
+    pop = nova
+
+melhor = max(pop, key=aptidao)
+print("melhor cromossomo:", "".join(map(str, melhor)), "aptidao:", aptidao(melhor))</pre>
+  <div class="ah-prose">
+    <p><strong>Saída real do programa:</strong></p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">geracao 0: melhor=11  media=7.88
+geracao 1: melhor=11  media=9.50
+geracao 2: melhor=11  media=10.00
+geracao 3: melhor=11  media=10.00
+geracao 4: melhor=11  media=10.25
+geracao 5: melhor=12  media=11.12
+geracao 6: melhor=13  media=11.75
+melhor cromossomo: 1111111011010111 aptidao: 13</pre>
+  <div class="ah-prose">
+    <p>
+      Leia a saída com calma. A média sobe de forma quase contínua, porque o torneio favorece os indivíduos com mais
+      1s. O melhor indivíduo fica parado várias gerações e só melhora de novo quando uma mutação ou um cruzamento
+      produz algo melhor. Com 8 indivíduos e 6 gerações, o resultado ainda está longe do ótimo (16). Aumente a população
+      e o número de gerações e compare: é esse tipo de experimento que se faz de verdade.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Como um número real vira cromossomo</h3>
+  <div class="ah-prose">
+    <p>
+      O simulador desta página não otimiza bits diretamente. Ele decodifica 16 bits em um número <em>x</em> entre 0 e 1,
+      dividindo o inteiro representado pelo máximo possível. O cromossomo <code>1011100001010010</code> representa
+      47186, e 47186 / 65535 = 0,7200. A aptidão é a altura da curva no ponto x.
+    </p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>x decodificado</th><th>Aptidão aproximada</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>0,72</td><td>0,98</td><td>máximo global</td></tr>
+        <tr><td>0,25</td><td>0,76</td><td>pico local</td></tr>
+        <tr><td>0,45</td><td>0,59</td><td>pico local estreito</td></tr>
+        <tr><td>0,92</td><td>0,53</td><td>pico local</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      Repare que a codificação binária direta tem um problema: 0111 e 1000 são vizinhos em valor, mas diferem em
+      quatro bits. Um pequeno passo no número pode exigir uma mudança grande no cromossomo. O <strong>código de Gray</strong>
+      resolve isso, porque garante que valores vizinhos diferem em um único bit.
+    </div>
+  </div>
+</section>
+
 <!-- ============================ ALGORITMOS GENÉTICOS E AUTÔMATOS NO DIA A DIA ============================ -->
 <section id="no-dia-a-dia" data-toc="No dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-border-all text-indigo-400 mr-2"></i>Algoritmos genéticos e autômatos no dia a dia</h2>
@@ -330,11 +644,140 @@ uma célula morta com exatamente 3 vizinhas vivas nasce. Um passo da simulação
   </div>
 </section>
 
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros-comuns" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-indigo-400 mr-2"></i>Erros comuns ao usar um algoritmo genético</h2>
+  <p class="ah-lead text-sm mb-5">A maioria dos AGs que não funcionam falha por motivos conhecidos. Verifique estes pontos antes de culpar o método.</p>
+  <ol class="space-y-3 my-4">
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">1. Aptidão que mede a coisa errada</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Se a aptidão premia um atalho, o AG o encontra com eficiência e entrega uma solução inútil. Teste a função de aptidão sozinha antes de rodar o algoritmo.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">2. Uma única execução</div>
+      <p class="text-xs text-slate-400 leading-relaxed">AGs são aleatórios. Um resultado bom em uma semente pode ser sorte. Rode de 20 a 30 sementes diferentes e compare médias e variâncias.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">3. Sem elitismo</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Sem cópia dos melhores, a melhor solução pode se perder de uma geração para a outra. Um ou dois indivíduos de elite costumam bastar.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">4. Operador incompatível com a representação</div>
+      <p class="text-xs text-slate-400 leading-relaxed">O cruzamento de um ponto aplicado a uma permutação gera repetições e ausências. A rota fica inválida, e o AG passa a gastar tempo consertando soluções.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">5. Restrições ignoradas</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Soluções inviáveis precisam ser penalizadas na aptidão ou reparadas. Se nada disso for feito, o AG otimiza em cima de soluções que não podem ser usadas.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================ EXERCÍCIOS ============================ -->
+<section id="exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-indigo-400 mr-2"></i>Exercícios com gabarito</h2>
+  <p class="ah-lead text-sm mb-5">Tente resolver antes de abrir a resposta. Os exercícios usam só o que foi visto nesta página.</p>
+  <div class="space-y-3">
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Cruzamento de um ponto</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Os pais são 10110 e 01001, e o corte fica depois do 3º bit. Quais são os dois filhos?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> filho 1 = 101 + 01 = <strong>10101</strong>; filho 2 = 010 + 10 = <strong>01010</strong>.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Taxa de mutação 1/n</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Um cromossomo tem 20 bits e a taxa de mutação é 1/20 por bit. Em média, quantos bits mudam por indivíduo?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> 20 × 1/20 = <strong>1 bit</strong>. Esse é o motivo da recomendação de 1/n.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Elitismo e a melhor solução</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Por que, com elitismo, a melhor aptidão nunca piora de uma geração para a seguinte?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> o melhor indivíduo é copiado sem alteração para a próxima geração. Os operadores só geram os demais indivíduos, então a melhor aptidão só pode subir ou ficar igual.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">4. Rota de entregas</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Uma rota visita 8 cidades, uma vez cada. Por que o cruzamento de um ponto, usado com bits, não serve para essa representação?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> o cruzamento copia trechos de cada pai sem olhar o conteúdo, então pode repetir cidades e deixar outras de fora. Use OX ou PMX, que preservam a permutação.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">5. Espaço de busca</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Quantos cromossomos distintos existem com 16 bits? E qual é o tamanho do espaço de busca se a solução fosse uma permutação de 8 cidades?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> 2<sup>16</sup> = <strong>65 536</strong> cromossomos binários; 8! = <strong>40 320</strong> permutações. Mesmo nesses tamanhos pequenos, testar tudo já fica caro, e isso justifica a busca heurística.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ============================ MERCADO DE TRABALHO ============================ -->
+<section id="mercado" data-toc="No mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-indigo-400 mr-2"></i>Onde algoritmos genéticos e autômatos aparecem no trabalho</h2>
+  <p class="ah-lead text-sm mb-5">Computação evolutiva e autômatos celulares não são só temas de pesquisa. Eles aparecem em engenharia, planejamento, aprendizado de máquina e jogos. A tabela indica onde cada um aparece e a referência que sustenta a técnica.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Área</th><th>Uso típico</th><th>Referência</th></tr></thead>
+      <tbody>
+        <tr><td>Engenharia e design generativo</td><td>antenas e peças com restrições físicas, otimizadas por simulação</td><td>Hornby et al. (2006), antena evoluída para a missão ST5 da NASA</td></tr>
+        <tr><td>Planejamento</td><td>grades horárias de escolas e universidades, escalas de funcionários</td><td>Burke e Petrovic (2002), <em>European Journal of Operational Research</em></td></tr>
+        <tr><td>Logística</td><td>roteirização de veículos com janelas de tempo</td><td>Vidal et al. (2013), <em>Computers &amp; Operations Research</em></td></tr>
+        <tr><td>Aprendizado de máquina</td><td>ajuste de hiperparâmetros, busca de arquiteturas de redes e geração de algoritmos</td><td>Jaderberg et al. (2017), Real et al. (2019), Real et al. (2020)</td></tr>
+        <tr><td>Simulação de tráfego</td><td>modelo de rodovia em que cada célula representa um trecho de 7,5 m</td><td>Nagel e Schreckenberg (1992), <em>Journal de Physique I</em></td></tr>
+        <tr><td>Simulação de incêndios</td><td>propagação do fogo em uma floresta, com árvores e células vazias</td><td>Drossel e Schwabl (1992), <em>Physical Review Letters</em></td></tr>
+        <tr><td>Jogos</td><td>geração procedural de cavernas e mapas com regras de vizinhança</td><td>técnica comum na indústria de jogos; a base teórica está em Wolfram (2002)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Na prática, um profissional usa AG quando já tem uma simulação ou uma função de avaliação confiável e precisa
+      explorar muitas combinações de parâmetros. O trabalho real está em definir a aptidão, testar a representação e
+      interpretar o resultado, não em programar os operadores, que as bibliotecas já oferecem. Para o autômato, o ganho
+      está em modelar fenômenos locais, como trânsito e propagação, de forma simples e auditável.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Em entrevistas, a pergunta comum é “quando não usar um AG?”. Resposta direta: quando existe um método exato eficiente, quando a avaliação é cara demais para milhares de chamadas, ou quando o problema tem gradiente bem comportado.</div>
+  </div>
+</section>
+
+<!-- ============================ REFERÊNCIAS ============================ -->
+<section id="referencias" data-toc="Referências desta aula" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-indigo-400 mr-2"></i>Referências desta aula</h2>
+  <div class="ah-prose text-sm">
+    <p><strong>Fundamentos e algoritmos genéticos</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>HOLLAND, J. H. <em>Adaptation in Natural and Artificial Systems</em>. University of Michigan Press, 1975.</li>
+      <li>GOLDBERG, D. E. <em>Genetic Algorithms in Search, Optimization and Machine Learning</em>. Addison-Wesley, 1989.</li>
+      <li>MITCHELL, M. <em>An Introduction to Genetic Algorithms</em>. MIT Press, 1996.</li>
+      <li>EIBEN, A. E.; SMITH, J. E. <em>Introduction to Evolutionary Computing</em>. 2. ed. Springer, 2015.</li>
+      <li>DAVIS, L. Applying adaptive algorithms to epistatic domains. In: <em>International Joint Conference on Artificial Intelligence</em>, 1985. (operador OX)</li>
+      <li>DEB, K.; AGRAWAL, R. B. Simulated binary crossover for continuous search space. <em>Complex Systems</em>, v. 9, n. 2, 1995. (operador SBX)</li>
+      <li>DEB, K. et al. A fast and elitist multiobjective genetic algorithm: NSGA-II. <em>IEEE Transactions on Evolutionary Computation</em>, v. 6, n. 2, 2002.</li>
+    </ul>
+    <p class="mt-4"><strong>Autômatos celulares</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>VON NEUMANN, J. <em>Theory of Self-Reproducing Automata</em>. Ed. A. W. Burks. University of Illinois Press, 1966.</li>
+      <li>GARDNER, M. Mathematical Games: the fantastic combinations of John Conway's new solitaire game “life”. <em>Scientific American</em>, v. 223, 1970.</li>
+      <li>WOLFRAM, S. Random sequence generation by cellular automata. <em>Advances in Applied Mathematics</em>, v. 7, 1986.</li>
+      <li>WOLFRAM, S. <em>A New Kind of Science</em>. Wolfram Media, 2002.</li>
+      <li>COOK, M. Universality in elementary cellular automata. <em>Complex Systems</em>, v. 15, n. 1, 2004. (regra 110 é Turing-completa)</li>
+      <li>NAGEL, K.; SCHRECKENBERG, M. A cellular automaton model for freeway traffic. <em>Journal de Physique I</em>, v. 2, n. 12, 1992.</li>
+      <li>DROSSEL, B.; SCHWABL, F. Self-organized critical forest-fire model. <em>Physical Review Letters</em>, v. 69, n. 11, 1992.</li>
+    </ul>
+    <p class="mt-4"><strong>Aplicações e aprendizado de máquina</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>BURKE, E. K.; PETROVIC, S. Recent research directions in automated timetabling. <em>European Journal of Operational Research</em>, v. 140, n. 2, 2002.</li>
+      <li>VIDAL, T. et al. A hybrid genetic algorithm with adaptive diversity management for a large class of vehicle routing problems with time-windows. <em>Computers &amp; Operations Research</em>, v. 40, n. 1, 2013.</li>
+      <li>HORNBY, G. S. et al. Automated antenna design with evolutionary algorithms. In: <em>AIAA Space 2006</em>.</li>
+      <li>JADERBERG, M. et al. Population based training of neural networks. arXiv:1711.09846, 2017.</li>
+      <li>REAL, E. et al. Regularized evolution for image classifier architecture search. In: <em>AAAI Conference on Artificial Intelligence</em>, 2019.</li>
+      <li>REAL, E. et al. AutoML-Zero: evolving machine learning algorithms from scratch. In: <em>International Conference on Machine Learning</em>, 2020.</li>
+    </ul>
+  </div>
+</section>
+
 <!-- ============================ QUIZ ============================ -->
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#221b47)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
-  <p class="text-xs text-slate-400 mb-6">Quatro perguntas sobre computação evolutiva.</p>
+  <p class="text-xs text-slate-400 mb-6">Seis perguntas sobre computação evolutiva e autômatos celulares.</p>
 
   <div class="space-y-5">
     <div class="ah-quiz ah-card p-5" data-answer="1">
@@ -380,6 +823,29 @@ uma célula morta com exatamente 3 vizinhas vivas nasce. Um passo da simulação
       <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
         Nenhuma célula “sabe” o que é um planador, mas planadores aparecem e atravessam a grade. E o
         comportamento de longo prazo é <em>indecidível</em> no caso geral: não há atalho, é preciso simular.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">5. Qual é o papel do elitismo em um AG?</p>
+      <button class="ah-quiz-opt">Copiar os melhores indivíduos, sem alteração, para a próxima geração</button>
+      <button class="ah-quiz-opt">Eliminar aleatoriamente os indivíduos de aptidão baixa</button>
+      <button class="ah-quiz-opt">Fixar o tamanho da população em todas as gerações</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Com elitismo, a melhor aptidão nunca piora. Sem ele, o melhor indivíduo pode ser perdido por azar na
+        seleção ou no cruzamento. O custo é reduzir um pouco a diversidade, por isso o elitismo costuma ser pequeno.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">6. A regra 90 de um autômato unidimensional, a partir de uma única célula viva, desenha:</p>
+      <button class="ah-quiz-opt">Um triângulo de Sierpiński</button>
+      <button class="ah-quiz-opt">Uma espiral contínua</button>
+      <button class="ah-quiz-opt">Ruído sem nenhuma estrutura</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Na regra 90, a célula muda quando exatamente um vizinho está vivo, o que é uma soma módulo 2. O resultado
+        é o triângulo de Sierpiński, o mesmo padrão que aparece no triângulo de Pascal módulo 2. Compare com a
+        regra 30 na seção de código, que gera um padrão irregular a partir da mesma célula.
       </p>
     </div>
   </div>

@@ -928,15 +928,15 @@ const AH_DATA = {
       descricao:
         'Como a engenharia de software e a IA generativa trabalham juntas: o que a pesquisa mostra, como LLMs e agentes geram código, o método para especificar, contextualizar, gerar e verificar, como liderar a adoção no ciclo inteiro e como construir, publicar e operar sistemas na AWS com IA.',
       topicos: [
-        { id: '01-ia-no-ciclo-inteiro', titulo: 'Aula 1 · IA no ciclo inteiro: usar em tudo, com critério', icone: 'fa-arrows-spin',
-          resumo: 'Aula magna sobre adoção de IA em engenharia, DevOps e FinOps: evidências, a matemática do gargalo, 16 casos de empresas, cultura, governança, métricas e um plano de 90 dias.',
-          tags: ['Adoção', 'Evidências', 'Liderança'], nivel: 'Fundamental', minutos: 150 },
-        { id: '02-engenharia-software-ia-juntas', titulo: 'Aula 2 · Engenharia de software e IA trabalhando juntas', icone: 'fa-handshake',
-          resumo: 'Como funciona, como fazer e como aplicar: do "No Silver Bullet" aos agentes de código, o ciclo especificar-contextualizar-gerar-verificar, oráculos de teste, segurança e medição, com base em livros e artigos acadêmicos.',
-          tags: ['Método', 'Verificação', 'Pesquisa'], nivel: 'Intermediário', minutos: 150 },
-        { id: '03-engenharia-software-aws-ia', titulo: 'Aula 3 · Engenharia de software na AWS com IA', icone: 'fa-cloud',
-          resumo: 'Nuvem, responsabilidade compartilhada e Well-Architected; infraestrutura como código gerada por IA e como revisá-la; agentes com menor privilégio; um assistente com Bedrock e RAG; custos, operação e LGPD.',
-          tags: ['AWS', 'IaC', 'Bedrock'], nivel: 'Intermediário', minutos: 150 }
+        { id: '01-ia-no-ciclo-inteiro', titulo: 'Parte 1 · IA no ciclo inteiro: usar em tudo, com critério', icone: 'fa-arrows-spin',
+          resumo: 'Como adotar IA em engenharia, DevOps e FinOps: evidências, a matemática do gargalo, 16 casos de empresas, mitos e fatos, um dia de trabalho com IA, cultura, governança, métricas e um plano de 90 dias.',
+          tags: ['Adoção', 'Evidências', 'Liderança'], nivel: 'Fundamental', minutos: 90 },
+        { id: '02-engenharia-software-ia-juntas', titulo: 'Parte 2 · Engenharia de software e IA trabalhando juntas', icone: 'fa-handshake',
+          resumo: 'Como funciona, como fazer e como aplicar: do "No Silver Bullet" aos agentes de código, o ciclo especificar-contextualizar-gerar-verificar, oráculos de teste, coesão, débito técnico, pirâmide de testes, refatoração, segurança e medição.',
+          tags: ['Método', 'Verificação', 'Pesquisa'], nivel: 'Intermediário', minutos: 90 },
+        { id: '03-engenharia-software-aws-ia', titulo: 'Parte 3 · Engenharia de software na AWS com IA', icone: 'fa-cloud',
+          resumo: 'Nuvem, responsabilidade compartilhada e Well-Architected; infraestrutura como código gerada por IA; agentes com menor privilégio; idempotência, consistência eventual e outros conceitos de sistemas distribuídos; um assistente com Bedrock e RAG; custos, operação e LGPD.',
+          tags: ['AWS', 'IaC', 'Bedrock'], nivel: 'Intermediário', minutos: 90 }
       ]
     },
     {
