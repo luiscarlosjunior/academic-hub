@@ -536,6 +536,586 @@ mesmo produto com user_id (1.000.000 usuários) = 750 × 1.000.000 = 7,50 × 10^
 
 </section>
 
+<section id="projeto-visao" data-toc="Projeto: o que observar e por quê" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-project text-orange-400 mr-2"></i>Guia de projeto · O que um projeto de observabilidade precisa ter</h2>
+  <div class="ah-prose">
+    <p>
+      As operações anteriores tratam de partes isoladas: o orçamento, o alarme, a consulta e o runbook. Um projeto real precisa de todas
+      essas partes ao mesmo tempo, montadas em uma ordem que faça sentido. Esta seção responde, para o design system, a cinco perguntas:
+      <strong>o que</strong> deve existir, <strong>por que</strong> cada parte existe, <strong>o que</strong> medir, <strong>como</strong> medir e
+      <strong>como</strong> consultar o resultado.
+    </p>
+    <p>
+      <strong>Conceitos que organizam o projeto.</strong> <em>Instrumentação</em> é o ato de fazer o código emitir sinais (métricas, logs e
+      traces). <em>Telemetria</em> é o conjunto desses sinais em trânsito. O <em>coletor</em> recebe a telemetria, normaliza os dados e os
+      envia a um destino. O <em>destino</em> (backend) armazena e permite consultar os sinais, como o CloudWatch ou o X-Ray na AWS. Um
+      <em>painel</em> é uma visualização fixa de sinais, e um <em>alarme</em> é uma regra que transforma um sinal em decisão.
+    </p>
+    <p>
+      <strong>Princípios.</strong> Quatro princípios orientam as escolhas deste guia:
+    </p>
+    <ol>
+      <li><strong>Medir o que o usuário percebe antes do que o servidor consome.</strong> Uma CPU a 20% não garante que a página carregue.</li>
+      <li><strong>Todo sinal deve responder a uma pergunta ou acionar uma ação.</strong> Sinal que não se encaixa em nenhuma das duas é custo sem valor.</li>
+      <li><strong>Toda requisição deve ser rastreável de ponta a ponta</strong> por um identificador comum, presente nos logs e nos traces.</li>
+      <li><strong>O custo de observar é requisito de projeto.</strong> Retenção, amostragem e cardinalidade são definidas antes da produção, e não depois da primeira fatura.</li>
+    </ol>
+    <p>
+      Os <strong>quatro sinais dourados</strong>, descritos no livro <em>Site Reliability Engineering</em> do Google, são a base comum do
+      método RED e do método USE: <em>latência</em>, <em>tráfego</em>, <em>erros</em> e <em>saturação</em>. Eles servem de checagem: se um
+      serviço não tem os quatro, há uma lacuna de observação.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Camada</th><th>O que observar</th><th>Fontes típicas na AWS</th></tr></thead>
+      <tbody>
+        <tr><td>Usuário</td><td>Velocidade, estabilidade visual e erros no navegador</td><td>CloudWatch RUM, CloudWatch Synthetics</td></tr>
+        <tr><td>Borda e entrega</td><td>Erros e acertos de cache na CDN</td><td>Métricas do CloudFront</td></tr>
+        <tr><td>Serviço e API</td><td>Taxa, erros e duração das requisições</td><td>API Gateway, ALB, métricas da aplicação</td></tr>
+        <tr><td>Computação</td><td>Invocações, falhas, limitação e recursos</td><td>Métricas do Lambda, Container Insights</td></tr>
+        <tr><td>Dados</td><td>Latência, limitação, conexões e réplicas</td><td>DynamoDB, RDS, ElastiCache</td></tr>
+        <tr><td>Mensageria e orquestração</td><td>Idade da fila, mensagens com falha e execuções</td><td>SQS, EventBridge, Step Functions</td></tr>
+        <tr><td>Plataforma e segurança</td><td>Eventos de auditoria, custo e configuração</td><td>CloudTrail, AWS Config, Budgets</td></tr>
+        <tr><td>Processo de entrega</td><td>Frequência de deploys, falhas e tempo de recuperação</td><td>Pipeline de CI/CD e registro de incidentes</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="projeto-passos" data-toc="Projeto: como fazer, em sete passos" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-route text-orange-400 mr-2"></i>Como fazer: sete passos em ordem</h2>
+  <div class="ah-prose">
+    <p>
+      A ordem importa. Cada passo depende do anterior: não há alarme útil sem um SLO, e não há SLO sem uma jornada do usuário que o defina.
+      Ao lado de cada passo está o motivo, porque a ordem é uma decisão de engenharia e não um procedimento.
+    </p>
+    <ol>
+      <li>
+        <strong>Definir as jornadas críticas.</strong> Liste o que o usuário faz no design system: abrir a documentação, instalar um pacote,
+        publicar uma versão. <em>Por quê:</em> sem jornada, não há medida que tenha significado para o usuário.
+      </li>
+      <li>
+        <strong>Escrever SLI e SLO por jornada</strong>, com disponibilidade e latência. <em>Por quê:</em> o SLO transforma a medida em uma meta
+        com orçamento de erro, que orienta a decisão entre lançar funcionalidade e estabilizar.
+      </li>
+      <li>
+        <strong>Instrumentar a aplicação</strong> com OpenTelemetry para traces e métricas, e com logs estruturados que carregam o identificador
+        da requisição. <em>Por quê:</em> o padrão aberto permite trocar o destino dos dados sem reescrever o código.
+      </li>
+      <li>
+        <strong>Padronizar nomes, unidades e atributos.</strong> Duração em segundos, contadores terminando em <code>_total</code>, rótulos com
+        valores limitados. <em>Por quê:</em> consultas, painéis e alarmes só funcionam quando os nomes são estáveis entre serviços.
+      </li>
+      <li>
+        <strong>Coletar e armazenar com retenção por tipo de sinal.</strong> <em>Por quê:</em> o armazenamento de logs não expira por padrão
+        em muitos destinos, e o custo cresce sem limite se a retenção não for decidida.
+      </li>
+      <li>
+        <strong>Criar painéis por pergunta e alarmes por sintoma, cada um com runbook.</strong> <em>Por quê:</em> um incidente exige decisão
+        rápida, e a decisão precisa de uma pergunta clara e de um caminho descrito.
+      </li>
+      <li>
+        <strong>Testar a própria observabilidade.</strong> Provoque falhas controladas (um <em>game day</em>), mantenha canários sintéticos e
+        revise os alarmes todo mês. <em>Por quê:</em> um alarme que nunca disparou em teste pode falhar justamente quando é necessário.
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="conceito-obs3" data-toc="Animação: do código ao runbook" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h3 mb-3"><i class="fa-solid fa-play text-orange-400 mr-2"></i>Animação do fluxo de observabilidade</h2>
+  <p class="ah-lead text-sm mb-4">Do código emissor ao runbook de quem está de plantão. Avance pelos quadros e acompanhe cada etapa da legenda.</p>
+  <div class="ah-stage" style="height:300px"><canvas id="cvObs3" style="height:300px"></canvas></div>
+  <div id="ctlObs3" class="mt-4"></div>
+  <div id="capObs3" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+</section>
+
+<section id="projeto-medir" data-toc="Projeto: o que medir e como medir" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-ruler-combined text-orange-400 mr-2"></i>O que medir e como medir, camada a camada</h2>
+  <div class="ah-prose">
+    <p>
+      Antes das tabelas, três tipos de medida precisam ficar claros, porque cada um serve a um uso diferente:
+    </p>
+    <ul>
+      <li><strong>Contador:</strong> só cresce, e representa um total de eventos (requisições, erros). Para obter uma taxa, calcula-se a variação por unidade de tempo.</li>
+      <li><strong>Medidor:</strong> sobe e desce, e representa um estado no instante (conexões abertas, tamanho da fila).</li>
+      <li><strong>Histograma:</strong> distribui observações em faixas de valor. É o tipo que permite calcular percentis (p50, p95, p99), por isso é o tipo correto para latência. Uma média não substitui um histograma, como visto no aprofundamento 4.</li>
+    </ul>
+    <p>
+      Cada tabela a seguir indica o sinal, o tipo, a fonte e a pergunta que o sinal responde. Os nomes são os do CloudWatch quando existe um
+      serviço gerenciado; quando a medida é da aplicação, o nome segue a convenção do OpenTelemetry. Os limiares citados são exemplos, e devem
+      ser calibrados com o histórico de cada projeto.
+    </p>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">1. Experiência do usuário</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sinal</th><th>Tipo</th><th>Como medir</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>LCP (maior elemento visível)</td><td>Histograma</td><td>CloudWatch RUM, percentil 75. Bom até 2,5 s</td><td>A página aparece rápido para o visitante?</td></tr>
+        <tr><td>INP (resposta à interação)</td><td>Histograma</td><td>CloudWatch RUM, percentil 75. Bom até 200 ms</td><td>Os cliques e as teclas respondem a tempo?</td></tr>
+        <tr><td>CLS (estabilidade visual)</td><td>Medidor</td><td>CloudWatch RUM, percentil 75. Bom até 0,1</td><td>O conteúdo se move enquanto o usuário lê?</td></tr>
+        <tr><td>Erros de JavaScript por página</td><td>Contador</td><td>CloudWatch RUM, filtrado por versão</td><td>Uma versão nova quebrou algum componente?</td></tr>
+        <tr><td>Disponibilidade sintética</td><td>Contador de sucesso</td><td>Canário do CloudWatch Synthetics, em intervalo fixo e de fora da infraestrutura</td><td>O site responde para alguém de fora da rede?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">2. Borda e entrega (CloudFront)</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sinal</th><th>Tipo</th><th>Como medir</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Taxa de erro 5xx</td><td>Razão</td><td>Métrica <code>5xxErrorRate</code> da distribuição</td><td>A CDN entrega erro ao usuário?</td></tr>
+        <tr><td>Taxa de acerto de cache</td><td>Razão</td><td>Métrica adicional <code>CacheHitRate</code> (paga)</td><td>O cache está protegendo a origem?</td></tr>
+        <tr><td>Requisições e bytes transferidos</td><td>Contador</td><td><code>Requests</code> e <code>BytesDownloaded</code></td><td>Qual o volume de tráfego, e qual o custo associado?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">3. Serviço e API (método RED)</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sinal RED</th><th>Métrica no API Gateway / ALB</th><th>Métrica da aplicação (OpenTelemetry)</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Taxa</td><td><code>Count</code> (API Gateway) ou <code>RequestCount</code> (ALB)</td><td>Contador <code>http.server.request.duration</code>, contado por rota</td><td>Quantas requisições por segundo chegam?</td></tr>
+        <tr><td>Erros</td><td><code>5XXError</code> (API Gateway) ou <code>HTTPCode_Target_5XX_Count</code> (ALB)</td><td>Mesmo histograma, filtrado pelo código de status</td><td>Qual fração termina em erro?</td></tr>
+        <tr><td>Duração</td><td><code>Latency</code> e <code>IntegrationLatency</code> (API Gateway); <code>TargetResponseTime</code> (ALB)</td><td>Histograma de duração, com percentis p50, p95 e p99</td><td>Quanto tempo leva cada requisição, e onde o tempo vai?</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que a diferença entre <code>Latency</code> e <code>IntegrationLatency</code> importa:</strong> a primeira inclui o tempo gasto
+      pelo próprio gateway, e a segunda só o tempo da integração com o backend. Se a primeira cresce e a segunda não, o problema está na borda,
+      e não na aplicação.
+    </p>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">4. Computação (Lambda e contêineres)</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sinal</th><th>Método</th><th>Como medir</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Erros e limitações (<code>Errors</code>, <code>Throttles</code>)</td><td>RED (erros) e USE (saturação)</td><td>Métricas padrão do Lambda</td><td>A função falha, ou atinge o limite de concorrência?</td></tr>
+        <tr><td>Duração p95 (<code>Duration</code>)</td><td>RED (duração)</td><td>Estatística de percentil no CloudWatch</td><td>A cauda da execução cresce?</td></tr>
+        <tr><td>Concorrência em uso (<code>ConcurrentExecutions</code>)</td><td>USE (utilização)</td><td>Comparada ao limite da conta ou da função</td><td>Quanto da capacidade está ocupada?</td></tr>
+        <tr><td>Idade do iterador (<code>IteratorAge</code>)</td><td>Atraso</td><td>Funções disparadas por stream (Kinesis ou DynamoDB)</td><td>O processamento acompanha a chegada dos eventos?</td></tr>
+        <tr><td>CPU e memória de contêineres</td><td>USE (utilização e saturação)</td><td>Container Insights (ECS e EKS)</td><td>Algum contêiner está perto do limite de recursos?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">5. Dados (DynamoDB, RDS e ElastiCache)</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Serviço</th><th>Sinal</th><th>Tipo de método</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>DynamoDB</td><td><code>ThrottledRequests</code> e <code>SystemErrors</code></td><td>USE (saturação e erros)</td><td>A tabela recusa requisições por falta de capacidade?</td></tr>
+        <tr><td>DynamoDB</td><td><code>SuccessfulRequestLatency</code></td><td>RED (duração)</td><td>O acesso à tabela está lento para as requisições bem-sucedidas?</td></tr>
+        <tr><td>RDS</td><td><code>DatabaseConnections</code> e <code>CPUUtilization</code></td><td>USE (saturação e utilização)</td><td>O banco está no limite de conexões ou de processamento?</td></tr>
+        <tr><td>RDS (réplica)</td><td><code>ReplicaLag</code></td><td>Atraso</td><td>A leitura em réplica vê dados atualizados?</td></tr>
+        <tr><td>ElastiCache</td><td><code>CacheHits</code>, <code>CacheMisses</code> e <code>Evictions</code></td><td>Razão e saturação</td><td>O cache acerta? Há despejo por falta de memória?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">6. Mensageria e orquestração</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Serviço</th><th>Sinal</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>SQS</td><td><code>ApproximateAgeOfOldestMessage</code></td><td>A mensagem mais antiga da fila está esperando há quanto tempo? É o sinal mais direto de atraso no consumo.</td></tr>
+        <tr><td>SQS</td><td><code>ApproximateNumberOfMessagesVisible</code> (fila principal e DLQ)</td><td>A fila cresce de forma sustentada? A fila de mensagens com falha recebe itens?</td></tr>
+        <tr><td>EventBridge</td><td><code>FailedInvocations</code></td><td>Algum destino de regra deixou de receber eventos?</td></tr>
+        <tr><td>Step Functions</td><td><code>ExecutionsFailed</code> e <code>ExecutionsTimedOut</code></td><td>Quais fluxos falham ou excedem o tempo máximo?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">7. Processo de entrega (métricas DORA)</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Métrica</th><th>Como medir</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Frequência de implantação</td><td>Contagem de deploys bem-sucedidos em produção, por semana</td><td>Com que frequência o time entrega valor?</td></tr>
+        <tr><td>Tempo de entrada em produção (<em>lead time</em>)</td><td>Tempo entre o commit e o deploy em produção</td><td>Quanto tempo uma mudança leva para chegar ao usuário?</td></tr>
+        <tr><td>Taxa de falha em mudanças</td><td>Razão entre deploys que exigiram correção ou reversão e o total</td><td>Quantas mudanças quebram algo?</td></tr>
+        <tr><td>Tempo de restauração (MTTR)</td><td>Tempo entre o início do incidente e o restabelecimento do serviço</td><td>Quanto tempo o usuário fica prejudicado?</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      As quatro métricas acima vêm do programa de pesquisa descrito no livro <em>Accelerate</em> (Forsgren, Humble e Kim, 2018). A
+      justificativa para medir o processo é que ele é o que o time controla diretamente: a velocidade de entrega e a estabilidade tendem a
+      crescer juntas quando o processo é bom, e não em oposição.
+    </p>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">8. Custo, segurança e configuração</p>
+  <div class="overflow-x-auto ah-card">
+    <table class="ah-table">
+      <thead><tr><th>Sinal</th><th>Como medir</th><th>Pergunta que responde</th></tr></thead>
+      <tbody>
+        <tr><td>Custo por serviço e por ambiente</td><td>Tags de alocação de custo e alertas do AWS Budgets em 80% e 100% do previsto</td><td>O gasto está dentro do planejado?</td></tr>
+        <tr><td>Volume de ingestão de logs</td><td>Métrica de bytes ingeridos por grupo de logs, com alarme de crescimento</td><td>Algum serviço passou a registrar muito mais do que o normal?</td></tr>
+        <tr><td>Falhas de autenticação</td><td>Filtro de métrica sobre eventos do CloudTrail e logs de acesso</td><td>Há tentativas repetidas de acesso indevido?</td></tr>
+        <tr><td>Alteração de configuração crítica</td><td>Filtro de métrica no CloudTrail para desativação de auditoria ou mudança de política</td><td>Alguém desligou a própria trilha de auditoria?</td></tr>
+        <tr><td>Desvio de configuração</td><td>Regras do AWS Config para recursos fora do padrão</td><td>Um recurso foi criado sem criptografia ou sem tags?</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="projeto-instrumentar" data-toc="Projeto: como instrumentar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-orange-400 mr-2"></i>Como instrumentar: código comentado</h2>
+  <div class="ah-prose">
+    <p>
+      Os exemplos a seguir mostram o mínimo para uma aplicação Node.js emitir traces, métricas e logs correlacionados. Eles usam o SDK do
+      OpenTelemetry, que é o padrão aberto de instrumentação. Os nomes de serviço e de endpoint são configurados por variáveis de ambiente, para
+      que o mesmo código rode em desenvolvimento, homologação e produção sem alteração.
+    </p>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Passo 1 · Inicialização (executada antes da aplicação)</p>
+<pre class="ah-code"><code>// instrumentation.ts: carregado antes do restante da aplicação
+// Variáveis de ambiente usadas pelo SDK:
+//   OTEL_SERVICE_NAME=catalogo-api
+//   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318   (coletor local ou ADOT)
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+
+const sdk = new NodeSDK({
+  // Sem argumentos: o exportador lê o endpoint das variáveis de ambiente.
+  traceExporter: new OTLPTraceExporter(),
+  // Instrumenta automaticamente HTTP, cliente de banco e outras bibliotecas comuns.
+  instrumentations: [getNodeAutoInstrumentations()],
+});
+
+sdk.start();</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Passo 2 · Métrica de duração com rótulos limitados</p>
+<pre class="ah-code"><code>import { metrics } from '@opentelemetry/api';
+
+const meter = metrics.getMeter('catalogo');
+
+// Histograma: permite calcular p50, p95 e p99 no destino.
+const duracao = meter.createHistogram('catalogo.consulta.duracao', {
+  unit: 's',                       // unidade em segundos, como a convenção pede
+  description: 'Duração da consulta ao catálogo',
+});
+
+async function consultaProdutos(categoria: string) {
+  const inicio = performance.now();
+  let resultado: 'ok' | 'erro' = 'ok';
+  try {
+    return await buscaNoBanco(categoria);
+  } catch (erro) {
+    resultado = 'erro';
+    throw erro;
+  } finally {
+    // Rótulos com poucos valores possíveis: rota e resultado.
+    // Nunca use user_id ou o texto da busca como rótulo (cardinalidade alta).
+    duracao.record((performance.now() - inicio) / 1000, {
+      rota: '/produtos',
+      resultado,
+    });
+  }
+}</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Passo 3 · Log estruturado com identificadores de correlação</p>
+<pre class="ah-code"><code>import { trace } from '@opentelemetry/api';
+
+// Cada linha de log é um objeto JSON. O traceId liga o log ao rastro.
+export function log(
+  nivel: 'INFO' | 'WARN' | 'ERROR',
+  mensagem: string,
+  campos: Record&lt;string, unknown&gt; = {},
+) {
+  const contexto = trace.getActiveSpan()?.spanContext();
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    nivel,
+    servico: 'catalogo-api',
+    mensagem,
+    traceId: contexto?.traceId,
+    spanId: contexto?.spanId,
+    ...campos,            // ex.: { rota: '/produtos', duracaoMs: 412, status: 200 }
+  }));
+}</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Passo 4 · Métrica por EMF, sem coletor (exemplo de payload no log)</p>
+<pre class="ah-code"><code>{
+  "_aws": {
+    "Timestamp": 1767225600000,
+    "CloudWatchMetrics": [{
+      "Namespace": "DesignSystem/Publicacao",
+      "Dimensions": [["Ambiente", "Servico"]],
+      "Metrics": [{ "Name": "DuracaoPublicacaoMs", "Unit": "Milliseconds" }]
+    }]
+  },
+  "Ambiente": "producao",
+  "Servico": "publicador",
+  "DuracaoPublicacaoMs": 912,
+  "requestId": "3f9c1a2e-7b40-4d8e-9a11-0c5b2e7d9f10"
+}</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> o bloco <code>_aws</code> diz ao CloudWatch que a linha de log também é uma métrica. A aplicação não
+      precisa de um cliente de métricas, e o campo <code>requestId</code> continua disponível para a investigação no próprio log. A escolha entre
+      EMF e OpenTelemetry é de projeto: EMF reduz componentes, e OpenTelemetry padroniza e facilita a troca de destino.
+    </p>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Passo 5 · Teste de alarme (verificar antes de confiar)</p>
+  <div class="ah-prose text-sm">
+    <p>
+      Em homologação, injete erros em uma fração pequena das requisições (por exemplo, 5%) durante alguns minutos, e confirme que o alarme de
+      queima dispara no tempo esperado e que o runbook indicado é o correto. Um alarme que nunca foi testado é uma hipótese, e não uma garantia.
+      A injeção pode ser feita com uma ferramenta de falhas controladas ou com um parâmetro de configuração que a própria aplicação reconheça.
+    </p>
+  </div>
+</section>
+
+<section id="projeto-consultas" data-toc="Projeto: como consultar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-orange-400 mr-2"></i>Como consultar: os três idiomas do projeto</h2>
+  <div class="ah-prose">
+    <p>
+      Um projeto usa três linguagens de consulta com finalidades diferentes. <strong>Logs Insights</strong> pesquisa eventos individuais e
+      calcula estatísticas sobre eles, e é a ferramenta de investigação. <strong>Metrics Insights</strong> consulta as métricas do CloudWatch
+      com sintaxe semelhante a SQL, e serve a painéis. <strong>PromQL</strong> é a linguagem do Prometheus, usada quando o projeto adota um
+      destino compatível com essa linguagem. As consultas abaixo respondem às perguntas das tabelas da seção anterior.
+    </p>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Logs Insights · erros 5xx por rota na última hora</p>
+<pre class="ah-code"><code>fields @timestamp, rota, status
+| filter status &gt;= 500
+| stats count(*) as erros by rota
+| sort erros desc
+| limit 10</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Logs Insights · percentis de duração por rota</p>
+<pre class="ah-code"><code>filter ispresent(duracaoMs)
+| stats count(*) as chamadas, pct(duracaoMs, 50) as mediana, pct(duracaoMs, 95) as p95, pct(duracaoMs, 99) as p99 by rota
+| sort p95 desc</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Logs Insights · todos os eventos de uma requisição, pelo rastro</p>
+<pre class="ah-code"><code>filter traceId = "4bf92f3577b34da6a3ce929d0e0e4736"
+| fields @timestamp, servico, mensagem, duracaoMs, status
+| sort @timestamp asc</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Logs Insights · volume de erros em intervalos de cinco minutos</p>
+<pre class="ah-code"><code>filter nivel = "ERROR"
+| stats count(*) as erros by bin(5m)
+| sort @timestamp asc</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Metrics Insights · erros de Lambda por função</p>
+<pre class="ah-code"><code>SELECT SUM(Errors) FROM SCHEMA("AWS/Lambda", FunctionName) GROUP BY FunctionName</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">PromQL · SLI de disponibilidade em 30 dias (rótulos de exemplo)</p>
+<pre class="ah-code"><code># Proporção de requisições bem-sucedidas, com as métricas da aplicação do passo 2 da seção de instrumentação
+1 - (
+  sum(rate(catalogo_requisicoes_total{resultado="erro"}[30d]))
+  /
+  sum(rate(catalogo_requisicoes_total[30d]))
+)</code></pre>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">PromQL · p95 por rota, com histograma</p>
+<pre class="ah-code"><code>histogram_quantile(0.95,
+  sum by (le, rota) (rate(catalogo_consulta_duracao_bucket[5m]))
+)</code></pre>
+  <div class="ah-prose mt-3 text-sm">
+    <p>
+      <strong>Por que funciona:</strong> as consultas de percentil usam o histograma, e nunca a média. A janela de cinco minutos suaviza
+      oscilações, enquanto o SLI de 30 dias mede o período inteiro. Os nomes de métrica e de rótulo acima são exemplos, e mudam conforme a
+      convenção de nomes do passo 4 de “Como fazer”.
+    </p>
+  </div>
+</section>
+
+<section id="projeto-alertas" data-toc="Projeto: quando alertar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bell text-orange-400 mr-2"></i>Quando alertar: severidade, ação e regras</h2>
+  <div class="ah-prose">
+    <p>
+      Um alerta existe para provocar uma ação. Por isso, a primeira decisão é a severidade, que define <em>quem</em> é avisado e <em>com que
+      urgência</em>. A regra prática é separar alerta de <strong>página</strong> (acorda uma pessoa agora, porque o usuário está sendo afetado)
+      de alerta de <strong>ticket</strong> (vira trabalho para o próximo dia útil). O detalhamento das janelas de queima está em
+      <a href="#aprof-queima">aprofundamento 6</a>.
+    </p>
+  </div>
+  <div class="overflow-x-auto ah-card mt-4">
+    <table class="ah-table">
+      <thead><tr><th>Alerta</th><th>Condição (exemplo)</th><th>Severidade</th><th>Ação esperada</th></tr></thead>
+      <tbody>
+        <tr><td>Queima rápida do SLO</td><td>Queima de 14,4x na janela de 1 h, confirmada em 5 min</td><td>Página</td><td>Mitigar em minutos, com o runbook de disponibilidade</td></tr>
+        <tr><td>Queima moderada do SLO</td><td>Queima de 6x na janela de 6 h, confirmada em 30 min</td><td>Página ou ticket urgente, conforme o horário</td><td>Investigar a causa antes que o orçamento acabe</td></tr>
+        <tr><td>Tendência de consumo</td><td>Queima de 1x por 3 dias, confirmada em 6 h</td><td>Ticket</td><td>Revisar na reunião semanal</td></tr>
+        <tr><td>Latência acima da meta</td><td>p95 de uma jornada acima do limite por 15 min consecutivos</td><td>Ticket, ou página se o SLO for de latência</td><td>Localizar o span lento no rastro</td></tr>
+        <tr><td>Mensagens com falha</td><td>Fila de mensagens com falha com itens por mais de 15 min</td><td>Ticket</td><td>Analisar o motivo e reprocessar</td></tr>
+        <tr><td>Consumo atrasado</td><td>Idade da mensagem mais antiga acima do limite de atraso aceito</td><td>Página se afeta o usuário</td><td>Escalar consumidores ou verificar erros</td></tr>
+        <tr><td>Limitação no banco</td><td><code>ThrottledRequests</code> maior que zero de forma sustentada</td><td>Ticket</td><td>Ajustar capacidade ou o padrão de acesso</td></tr>
+        <tr><td>Certificado a vencer</td><td>Métrica <code>DaysToExpiry</code> do ACM abaixo de 14 dias</td><td>Ticket</td><td>Confirmar que a renovação automática ocorreu</td></tr>
+        <tr><td>Orçamento de custo</td><td>AWS Budgets em 80% e 100% do previsto</td><td>Ticket e aviso ao responsável</td><td>Revisar o que cresceu e o motivo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-xs font-bold text-orange-300 mt-5 mb-2">Regras de higiene de alertas</p>
+  <div class="ah-prose">
+    <ul>
+      <li><strong>Só a página acorda pessoas.</strong> Tudo o que não exige ação em minutos vai para ticket, mesmo que seja importante.</li>
+      <li><strong>Todo alerta aponta para um runbook e tem um dono.</strong> Sem dono, o alerta nunca é ajustado e vira ruído.</li>
+      <li><strong>Calibre com histórico.</strong> Antes de publicar um limiar, consulte a métrica dos últimos 30 dias e escolha um valor que separe o normal do anormal.</li>
+      <li><strong>Revise todo mês.</strong> Alerta que disparou sem ação deve ser ajustado ou removido. Alerta que nunca disparou deve ser testado (passo 5 da instrumentação).</li>
+      <li><strong>Agrupe e suprima.</strong> Um incidente que afeta vários serviços deve gerar uma página, e não uma por serviço.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="projeto-custos" data-toc="Projeto: custo, retenção e amostragem" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-coins text-orange-400 mr-2"></i>Custo, retenção e amostragem</h2>
+  <div class="ah-prose">
+    <p>
+      Observar tem custo proporcional a três grandezas: o volume de logs ingeridos, o número de séries de métricas (cardinalidade) e o número de
+      traces armazenados. Cada uma pode ser controlada por uma decisão de projeto.
+    </p>
+    <ul>
+      <li>
+        <strong>Retenção por tipo de log.</strong> Por padrão, o CloudWatch Logs mantém os grupos de logs indefinidamente, e a retenção precisa
+        ser configurada. Uma política possível: logs de depuração por poucos dias; logs de aplicação por um mês; registros de auditoria por mais
+        tempo, exportados para o S3 com ciclo de vida. Os prazos exatos dependem de requisitos legais e de operação, e devem ser documentados.
+      </li>
+      <li>
+        <strong>Nível de log.</strong> Em produção, o nível padrão deve ser <code>INFO</code>. <code>DEBUG</code> é ativado por tempo limitado,
+        em um serviço específico, e desligado depois.
+      </li>
+      <li>
+        <strong>Amostragem de traces.</strong> Guardar todos os rastros costuma ser caro. A amostragem <em>no início</em> (head sampling) decide
+        logo na entrada: é simples e barata, mas pode descartar justamente a requisição que falhou. A amostragem <em>no fim</em> (tail sampling)
+        decide com o rastro completo, e pode manter todas as requisições com erro e as mais lentas. Exige um coletor com estado, e por isso é
+        mais complexa de operar.
+      </li>
+      <li>
+        <strong>Cardinalidade.</strong> Cada combinação de valores de rótulo é uma série cobrada. Um rótulo com identificador de usuário pode
+        multiplicar o custo por milhões, como visto no aprofundamento 5.
+      </li>
+      <li>
+        <strong>Filtrar cedo.</strong> Remover campos inúteis e eventos repetitivos no coletor reduz o volume antes de ele ser armazenado.
+      </li>
+    </ul>
+    <p>
+      <strong>Por que medir o próprio custo de observar:</strong> a observabilidade é um serviço como qualquer outro, e precisa de orçamento. Um
+      alarme de crescimento do volume de logs é um sinal de que um serviço mudou seu comportamento, mesmo antes de qualquer erro aparecer.
+    </p>
+  </div>
+</section>
+
+<section id="projeto-seguranca" data-toc="Projeto: dados sensíveis e auditoria" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-user-shield text-orange-400 mr-2"></i>Dados sensíveis, acesso e auditoria</h2>
+  <div class="ah-prose">
+    <p>
+      Logs e traces são cópias de dados da aplicação, e portanto herdam suas obrigações de privacidade. No Brasil, a Lei Geral de Proteção de
+      Dados (Lei 13.709, de 2018) exige que o tratamento seja limitado ao necessário (art. 6º, III) e que sejam adotadas medidas de segurança
+      (art. 46). Na prática, isso significa três regras:
+    </p>
+    <ul>
+      <li>
+        <strong>Não registrar dados pessoais nem segredos.</strong> E-mail, CPF, tokens, senhas e o cabeçalho <code>Authorization</code> não
+        devem aparecer em nenhum log ou span. O mascaramento deve acontecer na origem, na aplicação. Confiar apenas em um filtro no destino é
+        insuficiente, porque o dado já terá saído do processo.
+      </li>
+      <li>
+        <strong>Restringir quem lê.</strong> O acesso a logs de produção segue o princípio do menor privilégio, e é concedido por papel, com
+        registro de quem consultou. Uma política de proteção de dados do CloudWatch Logs pode mascarar campos sensíveis para quem não tem permissão
+        especial.
+      </li>
+      <li>
+        <strong>Auditar a própria trilha.</strong> O CloudTrail registra chamadas à API da AWS. Filtros de métrica devem alertar sobre
+        desativação do CloudTrail, alteração de política de retenção e uso do usuário root. Esses alertas são parte do conjunto que o
+        CIS AWS Foundations Benchmark recomenda.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section id="projeto-operacao" data-toc="Projeto: operar e melhorar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-users-gear text-orange-400 mr-2"></i>Operar: resposta a incidentes e melhoria contínua</h2>
+  <div class="ah-prose">
+    <p>
+      A observabilidade só produz valor quando alguém age sobre ela. O ciclo de operação tem seis etapas, e cada uma tem uma pergunta
+      típica:
+    </p>
+    <ol>
+      <li><strong>Detectar.</strong> O alarme ou o cliente percebe a falha? Quanto tempo se passou desde o início? (MTTD, tempo médio de detecção.)</li>
+      <li><strong>Triar.</strong> Qual a severidade e quem é o dono do serviço afetado?</li>
+      <li><strong>Mitigar.</strong> Restaurar o serviço antes de corrigir a causa. Reverter a última mudança costuma ser a ação mais rápida.</li>
+      <li><strong>Comunicar.</strong> Atualizar a página de status em intervalos definidos, mesmo quando não há novidade.</li>
+      <li><strong>Resolver.</strong> Corrigir a causa e confirmar, pelos sinais, que o indicador voltou ao normal.</li>
+      <li><strong>Revisar.</strong> Escrever um relato pós-incidente sem culpados, com ações preventivas, responsáveis e prazos. (MTTR, tempo médio de restauração.)</li>
+    </ol>
+    <p>
+      <strong>Plantão.</strong> O plantão tem rodízio definido, escalonamento para a próxima pessoa quando não há resposta em um prazo, e uma
+      passagem de turno com o estado dos incidentes abertos. A carga do plantão é um indicador: se a equipe é acordada com frequência por
+      alertas sem ação, o problema está nos alertas, e não nas pessoas.
+    </p>
+    <p>
+      <strong>Testes da operação.</strong> Três práticas mantêm a capacidade de resposta. O <em>game day</em> é uma simulação planejada de
+      falha, em que o time segue o runbook e registra o que faltou. O canário sintético verifica a jornada do usuário de forma contínua. E a
+      revisão mensal de alarmes e painéis remove o que não gerou decisão. Um painel que ninguém consultou nos últimos três meses é candidato a
+      remoção.
+    </p>
+  </div>
+</section>
+
+<section id="projeto-checklist" data-toc="Projeto: checklist de observabilidade" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-orange-400 mr-2"></i>Checklist de observabilidade do projeto</h2>
+  <p class="text-sm text-slate-300 mb-4">Use esta lista antes de considerar um serviço pronto para produção. Cada item tem um motivo, e a ausência de qualquer um deles deve ser justificada e registrada.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+    <div class="ah-card p-4">
+      <p class="font-semibold text-white mb-2">Medição e metas</p>
+      <ul class="space-y-1 text-slate-300">
+        <li>☐ Jornadas críticas listadas (motivo: definem o que medir).</li>
+        <li>☐ SLI e SLO escritos para cada jornada, com orçamento em minutos (motivo: decisão de risco).</li>
+        <li>☐ Método RED aplicado ao serviço e USE aos recursos (motivo: cobertura de sinais).</li>
+        <li>☐ Latência medida por histograma, com p50, p95 e p99 (motivo: a média esconde a cauda).</li>
+      </ul>
+    </div>
+    <div class="ah-card p-4">
+      <p class="font-semibold text-white mb-2">Instrumentação</p>
+      <ul class="space-y-1 text-slate-300">
+        <li>☐ Traces com propagação do cabeçalho traceparent entre serviços (motivo: seguir a requisição).</li>
+        <li>☐ Logs estruturados em JSON, com traceId e requestId (motivo: correlação na investigação).</li>
+        <li>☐ Nomes, unidades e rótulos padronizados (motivo: consultas estáveis).</li>
+        <li>☐ Rótulos com valores limitados, sem identificadores de usuário (motivo: custo e cardinalidade).</li>
+        <li>☐ Dados pessoais e segredos mascarados na origem (motivo: LGPD e segurança).</li>
+      </ul>
+    </div>
+    <div class="ah-card p-4">
+      <p class="font-semibold text-white mb-2">Alertas e resposta</p>
+      <ul class="space-y-1 text-slate-300">
+        <li>☐ Alertas de página apenas para sintoma do usuário (motivo: evitar ruído).</li>
+        <li>☐ Duas janelas de avaliação e limiar calibrado com histórico (motivo: evitar falso positivo).</li>
+        <li>☐ Runbook e dono para cada alerta (motivo: resposta sem improviso).</li>
+        <li>☐ Teste de alarme em homologação (motivo: confirmar que dispara).</li>
+      </ul>
+    </div>
+    <div class="ah-card p-4">
+      <p class="font-semibold text-white mb-2">Custo, retenção e auditoria</p>
+      <ul class="space-y-1 text-slate-300">
+        <li>☐ Retenção definida por tipo de log, sem o padrão de não expirar (motivo: custo).</li>
+        <li>☐ Estratégia de amostragem de traces documentada (motivo: custo e captura de erros).</li>
+        <li>☐ Alerta de custo no AWS Budgets e de volume de logs (motivo: detectar mudanças de comportamento).</li>
+        <li>☐ CloudTrail ativo, com alertas para desativação e alteração de política (motivo: integridade da auditoria).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section id="conceitos-chave" data-toc="Conceitos-chave" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book-bookmark text-orange-400 mr-2"></i>Conceitos-chave</h2>
   <div class="ah-prose">
@@ -562,6 +1142,32 @@ mesmo produto com user_id (1.000.000 usuários) = 750 × 1.000.000 = 7,50 × 10^
       <dd class="text-slate-300 mb-3">Número de combinações distintas de valores das dimensões de uma métrica. Cada combinação é uma série cobrada separadamente.</dd>
       <dt class="font-semibold text-white">Runbook</dt>
       <dd class="text-slate-300 mb-3">Roteiro de resposta a um alerta, com passos, comandos e condição para escalar.</dd>
+      <dt class="font-semibold text-white">Instrumentação e telemetria</dt>
+      <dd class="text-slate-300 mb-3">Instrumentação é o código que faz a aplicação emitir sinais. Telemetria é o conjunto desses sinais em trânsito.</dd>
+      <dt class="font-semibold text-white">OpenTelemetry</dt>
+      <dd class="text-slate-300 mb-3">Padrão aberto para instrumentar aplicações e enviar métricas, logs e traces a qualquer destino compatível, sem reescrever o código.</dd>
+      <dt class="font-semibold text-white">Coletor</dt>
+      <dd class="text-slate-300 mb-3">Componente que recebe a telemetria, normaliza os dados e os envia ao destino. Na AWS, pode ser o ADOT (AWS Distro for OpenTelemetry).</dd>
+      <dt class="font-semibold text-white">Histograma</dt>
+      <dd class="text-slate-300 mb-3">Tipo de métrica que distribui observações em faixas de valor. Permite calcular percentis, e é o tipo adequado para latência.</dd>
+      <dt class="font-semibold text-white">Sinais dourados</dt>
+      <dd class="text-slate-300 mb-3">Latência, tráfego, erros e saturação, indicados pelo livro <em>Site Reliability Engineering</em> como o mínimo a observar em um serviço.</dd>
+      <dt class="font-semibold text-white">Amostragem (head e tail)</dt>
+      <dd class="text-slate-300 mb-3">Head: decide ao iniciar a requisição, é barata e pode perder erros. Tail: decide com o rastro completo, e pode manter todos os erros e as requisições mais lentas.</dd>
+      <dt class="font-semibold text-white">Real User Monitoring (RUM)</dt>
+      <dd class="text-slate-300 mb-3">Medição de desempenho feita no navegador do próprio usuário, com dados reais de acesso.</dd>
+      <dt class="font-semibold text-white">Canário sintético</dt>
+      <dd class="text-slate-300 mb-3">Script que percorre uma jornada do usuário em intervalo fixo, de fora da aplicação, para detectar falhas antes que um usuário as perceba.</dd>
+      <dt class="font-semibold text-white">Página e ticket</dt>
+      <dd class="text-slate-300 mb-3">Níveis de alerta: página acorda uma pessoa agora, porque o usuário é afetado; ticket vira trabalho para o próximo dia útil.</dd>
+      <dt class="font-semibold text-white">Game day</dt>
+      <dd class="text-slate-300 mb-3">Simulação planejada de falha, em que o time segue o runbook e registra o que faltou, para testar a resposta antes do incidente real.</dd>
+      <dt class="font-semibold text-white">Métricas DORA</dt>
+      <dd class="text-slate-300 mb-3">Frequência de implantação, tempo de entrada em produção, taxa de falha em mudanças e tempo de restauração. Medem a saúde do processo de entrega.</dd>
+      <dt class="font-semibold text-white">MTTD e MTTR</dt>
+      <dd class="text-slate-300 mb-3">Tempo médio para detectar (MTTD) e tempo médio para restaurar o serviço (MTTR) após um incidente.</dd>
+      <dt class="font-semibold text-white">Relato pós-incidente</dt>
+      <dd class="text-slate-300 mb-3">Documento sem culpados que descreve a cronologia, a causa e as ações preventivas, com responsável e prazo para cada uma.</dd>
   </dl>
 </section>
 
@@ -614,6 +1220,13 @@ mesmo produto com user_id (1.000.000 usuários) = 750 × 1.000.000 = 7,50 × 10^
     <li>W3C. <em>Trace Context</em>. Recomendação, 2021. w3.org/TR/trace-context.</li>
     <li>OPENTELEMETRY. <em>Documentação oficial</em>. opentelemetry.io.</li>
     <li>AWS. <em>Amazon CloudWatch User Guide</em>, seção sobre Embedded Metric Format. docs.aws.amazon.com/AmazonCloudWatch.</li>
+    <li>FORSGREN, Nicole; HUMBLE, Jez; KIM, Gene. <em>Accelerate: The Science of Lean Software and DevOps</em>. Portland: IT Revolution Press, 2018. Fonte das métricas DORA.</li>
+    <li>MAJORS, Charity; FONG-JONES, Liz; MIRANDA, George. <em>Observability Engineering</em>. Sebastopol: O'Reilly Media, 2022.</li>
+    <li>SIGELMAN, Benjamin H. et al. <em>Dapper, a Large-Scale Distributed Systems Tracing Infrastructure</em>. Google Technical Report, 2010. Origem do modelo de traces adotado pelo OpenTelemetry.</li>
+    <li>GREGG, Brendan. <em>Systems Performance: Enterprise and the Cloud</em>. 2. ed. Boston: Addison-Wesley, 2020. Base do método USE.</li>
+    <li>GOOGLE. <em>Web Vitals</em>. web.dev/articles/vitals. Limiares de LCP, INP e CLS usados nesta página.</li>
+    <li>BRASIL. <em>Lei nº 13.709, de 14 de agosto de 2018</em> (Lei Geral de Proteção de Dados Pessoais). Artigos 6º e 46.</li>
+    <li>CIS. <em>CIS Amazon Web Services Foundations Benchmark</em>. cisecurity.org. Recomendações de alertas sobre o CloudTrail.</li>
   </ul>
 </section>
 
@@ -663,8 +1276,21 @@ mesmo produto com user_id (1.000.000 usuários) = 750 × 1.000.000 = 7,50 × 10^
       [[3], 'Uma queima de 1x por 3 dias consome 10%. Não é um incidente grave, mas a tendência precisa ser investigada.']
     ]
   });
+  DSA.criaConceito('obs3', {
+    canvas: 'cvObs3',
+    rotulos: ['Aplicação instrumentada (OpenTelemetry)', 'Coletor (ADOT)', 'Métricas, logs e traces', 'Painel e alarme de queima', 'Notificação e runbook'],
+    con: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    quadros: [
+      [[0], 'A aplicação emite sinais a partir do código. A instrumentação é o ponto de partida: sem ela, nenhuma etapa seguinte existe.'],
+      [[1], 'O coletor recebe os sinais, normaliza nomes e envia ao destino. Trocar o destino não exige alterar o código da aplicação.'],
+      [[2], 'Os sinais chegam ao armazenamento: métricas para tendências e alarmes, logs para investigação, traces para localizar o gargalo.'],
+      [[3], 'Um painel responde a uma pergunta. Um alarme de queima transforma o sinal em decisão, de acordo com o orçamento de erro.'],
+      [[4], 'O alerta chega ao plantão com um link para o runbook. Sem runbook, o alerta vira ruído, e o time aprende a ignorá-lo.']
+    ]
+  });
   DSA.monta('obs1');
   DSA.monta('obs2');
+  DSA.monta('obs3');
   DSA.monta('con13');
   DSA.monta('observabilidade');
 })();
