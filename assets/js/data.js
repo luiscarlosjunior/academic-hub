@@ -936,7 +936,19 @@ const AH_DATA = {
           tags: ['Método', 'Verificação', 'Pesquisa'], nivel: 'Intermediário', minutos: 90 },
         { id: '03-engenharia-software-aws-ia', titulo: 'Parte 3 · Engenharia de software na AWS com IA', icone: 'fa-cloud',
           resumo: 'Nuvem, responsabilidade compartilhada e Well-Architected; infraestrutura como código gerada por IA; agentes com menor privilégio; idempotência, consistência eventual e outros conceitos de sistemas distribuídos; um assistente com Bedrock e RAG; custos, operação e LGPD.',
-          tags: ['AWS', 'IaC', 'Bedrock'], nivel: 'Intermediário', minutos: 90 }
+          tags: ['AWS', 'IaC', 'Bedrock'], nivel: 'Intermediário', minutos: 90 },
+        { id: '04-devops-com-ia', titulo: 'Parte 4 · DevOps com IA', icone: 'fa-arrows-spin',
+          resumo: 'A esteira de entrega com IA: as quatro métricas do DORA, onde a IA entra e onde a decisão é humana, diagnóstico de falhas, publicação gradual e custo por entrega aceita.',
+          tags: ['DevOps', 'DORA', 'CI/CD'], nivel: 'Intermediário', minutos: 60 },
+        { id: '05-finops-com-ia', titulo: 'Parte 5 · FinOps com IA', icone: 'fa-coins',
+          resumo: 'Custo unitário, custo de tokens e de modelos, custo por resultado aceito com um laboratório, anomalias de custo e os riscos de transformar custo em meta.',
+          tags: ['FinOps', 'Custo', 'Tokens'], nivel: 'Intermediário', minutos: 60 },
+        { id: '06-aiops', titulo: 'Parte 6 · AIOps', icone: 'fa-magnifying-glass-chart',
+          resumo: 'O que é AIOps e de onde vem o termo, as funções de detecção, redução de ruído, diagnóstico e ação, um serviço real da AWS, um incidente passo a passo e os limites da evidência.',
+          tags: ['AIOps', 'Operação', 'Incidentes'], nivel: 'Intermediário', minutos: 60 },
+        { id: '07-ia-com-aws', titulo: 'Parte 7 · IA com AWS', icone: 'fa-cloud-arrow-up',
+          resumo: 'Mapa dos serviços de IA da AWS, Amazon Q Developer e Kiro, tráfego privado para modelos com PrivateLink, governança, custo por cliente e um checklist de revisão.',
+          tags: ['AWS', 'Bedrock', 'Governança'], nivel: 'Intermediário', minutos: 60 }
       ]
     },
     {

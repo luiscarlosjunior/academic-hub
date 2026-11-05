@@ -1075,6 +1075,37 @@
     pinta();
   };
 
+  /* ------------------------------------------------------------------ */
+  /* custo: custo por resultado aceito, parando na primeira ou gerando k */
+  /* Com um juiz perfeito: parar na primeira aceita custa c/p por resultado. */
+  /* Gerar as k sempre custa k·c / (1 − (1 − p)^k).                        */
+  /* ------------------------------------------------------------------ */
+  IAS.custo = function (box) {
+    const ui = h('div', '',
+      '<div class="grid2"><div><label class="r">Chance de uma tentativa dar certo (p) <span class="pv"></span></label><input type="range" data-k="p" min="5" max="90" step="5" value="30"></div>' +
+      '<div><label class="r">Tentativas disponíveis (k) <span class="kv"></span></label><input type="range" data-k="k" min="1" max="20" step="1" value="5"></div></div>' +
+      '<div class="grid2" style="margin-top:6px"><div><label class="r">Custo de uma tentativa (c, em unidades) <span class="cv"></span></label><input type="range" data-k="c" min="1" max="10" step="1" value="1"></div>' +
+      '<div class="ias-note">c é genérico: pode ser tokens, minutos de máquina ou minutos de revisão. O que importa é a razão entre as duas estratégias.</div></div>' +
+      '<div class="ias-kpis"><div class="ias-kpi ok"><span>Parar na primeira que dá certo</span><b class="k-a"></b></div><div class="ias-kpi bad"><span>Gerar sempre as k</span><b class="k-b"></b></div><div class="ias-kpi"><span>Chance de ao menos uma certa</span><b class="k-p"></b></div></div>' +
+      '<p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    const v = k => +ui.querySelector('[data-k=' + k + ']').value;
+    function calc() {
+      const p = v('p') / 100, k = v('k'), c = v('c');
+      const ok = 1 - Math.pow(1 - p, k);
+      const parar = c / p, sempre = k * c / ok;
+      ui.querySelector('.pv').textContent = pct(p); ui.querySelector('.kv').textContent = k; ui.querySelector('.cv').textContent = c;
+      ui.querySelector('.k-a').textContent = dec(parar, 2);
+      ui.querySelector('.k-b').textContent = dec(sempre, 2);
+      ui.querySelector('.k-p').textContent = pct(ok, 1);
+      ui.querySelector('.nt').innerHTML = 'Parar na primeira que passa custa <strong>c ÷ p</strong> por resultado aceito, não importa quantas tentativas estavam disponíveis. Gerar as k sempre custa <strong>k·c ÷ chance de ao menos uma certa</strong>. ' +
+        (sempre > parar * 1.05 ? 'Aqui, gerar sempre sai <strong>' + dec(sempre / parar, 2) + '×</strong> mais caro por resultado aceito. ' : 'Aqui as duas estratégias custam quase o mesmo. ') +
+        'A conta supõe um juiz perfeito. Com testes fracos, parar cedo também pode aceitar um erro: a qualidade do juiz entra na conta.';
+    }
+    ui.addEventListener('input', calc);
+    calc();
+  };
+
   /* ---------------------------- inicialização ------------------------ */
   function init() {
     document.querySelectorAll('[data-ias]').forEach(box => {
