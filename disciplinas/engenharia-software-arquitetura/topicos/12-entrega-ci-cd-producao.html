@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-root="../../../">
 <head>
-<script>try{if(localStorage.getItem('academic-hub:tema')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Entrega contínua: CI/CD, containers, configuração e pronto para produção · Programação para a Indústria · AcademicHub</title>
-<meta name="description" content="Pipeline de integração e entrega contínua com portões de qualidade, containers reproduzíveis, estratégias de implantação, segredos fora do código e a lista do que significa estar pronto para produção, com animação do pipeline.">
+<title>Entrega contínua: integração e entrega contínuas, pipelines, artefatos reprodutíveis, implantação canário e pronto para produção · Engenharia de Software, Arquitetura e Programação · AcademicHub</title>
+<meta name="description" content="Aula de entrega de software: integração contínua, entrega e implantação contínuas, pipeline com portões de qualidade, reprodutibilidade de artefatos, estratégias de implantação (canário, azul-verde), configuração e segredos, e a definição de pronto para produção, com exemplos executáveis, animação e testes mapeados.">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../../../assets/css/hub.css?v=tema5">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
 </head>
 <body class="min-h-full flex flex-col" data-topic="es/12-entrega-ci-cd-producao">
@@ -31,306 +30,130 @@
 
   <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
 
-<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-amber-400 mr-2"></i>Visão geral</h2>
-  <div class="ah-prose">
-    <p>
-      Entregar software é o momento em que todo o trabalho anterior encontra o mundo real. Em muitas equipes, esse momento é um evento raro, tenso e manual:
-      alguém copia arquivos para um servidor numa sexta à noite, reza para que nada quebre e volta para casa torcendo. A <strong>entrega contínua</strong>
-      transforma esse evento em uma rotina pequena, automática e repetível, que pode acontecer várias vezes por dia.
-    </p>
-    <p>
-      Esta página fecha a trilha de Programação para a Indústria. Ela mostra como uma pipeline de integração e entrega verifica cada mudança, como os
-      containers tornam o ambiente previsível, como estratégias de implantação reduzem o risco e o que a equipe deve entender por “pronto para produção”.
-    </p>
-    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
-    <ul>
-      <li>descrever as etapas de uma pipeline de CI/CD e o papel de cada portão de qualidade;</li>
-      <li>escrever um fluxo de integração contínua simples com testes e análise estática;</li>
-      <li>explicar o que um container garante e o que não garante;</li>
-      <li>comparar estratégias de implantação e escolher uma de acordo com o risco;</li>
-      <li>usar uma lista de “pronto para produção” para decidir quando uma mudança pode ser entregue.</li>
-    </ul>
-  </div>
-</section>
+<section id="visao-geral" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-emerald-400 mr-2"></i>Visão geral</h2><div class="ah-prose"><p>Esta é a <strong>Aula 12</strong>, que fecha a trilha de Programação. Entregar software é o momento em que todo o trabalho anterior encontra o mundo real. Em muitas equipes esse momento ainda é um evento raro, tenso e manual. A <strong>entrega contínua</strong> transforma-o em uma rotina pequena, automática e repetível, que pode acontecer várias vezes ao dia, com verificações em cada etapa e reversão planejada.</p>
+<p>Ao final da aula você deverá ser capaz de:</p>
+<ul><li>distinguir integração contínua, entrega contínua e implantação contínua;</li><li>descrever uma pipeline com portões de qualidade e explicar o papel de cada portão;</li><li>demonstrar por que o mesmo artefato deve ser promovido entre ambientes, e não reconstruído;</li><li>comparar estratégias de implantação (substituição direta, contínua, azul-verde e canário) e simular a decisão de um canário;</li><li>aplicar uma lista de verificação de "pronto para produção" com critérios verificáveis.</li></ul>
+<div class="ah-callout ah-callout-info mt-5"><i class="fa-solid fa-circle-info"></i><div><strong>Pré-requisitos</strong> Aulas 7 (integração), 9 (Git) e 10 (configuração e logs). Os exemplos não exigem Docker: usam apenas Python e a biblioteca padrão, e representam os mecanismos sem depender de uma ferramenta específica.</div></div>
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Como estudar</strong> Para cada portão de uma pipeline, pergunte: o que ele garante? o que ele não garante? Esse par de perguntas evita a ilusão de que um portão verde significa que tudo está bem.</div></div>
+<div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>ID</th><th>Tipo</th><th>Tema</th><th>Dificuldade</th><th>Seção</th></tr></thead><tbody><tr><td>T-12-01</td><td>Teste de múltipla escolha</td><td>conceitos</td><td>1/3</td><td>1. Integração, entrega e implantação contínuas</td></tr><tr><td>T-12-02</td><td>Teste de múltipla escolha</td><td>pipeline</td><td>2/3</td><td>2. A pipeline e seus portões</td></tr><tr><td>T-12-03</td><td>Teste de múltipla escolha</td><td>reprodutibilidade</td><td>2/3</td><td>3. Reprodutibilidade de artefatos</td></tr><tr><td>T-12-04</td><td>Teste de múltipla escolha</td><td>canário</td><td>2/3</td><td>4. Estratégias de implantação</td></tr><tr><td>T-12-05</td><td>Teste de múltipla escolha</td><td>reversão</td><td>3/3</td><td>5. Configuração, segredos e reversão</td></tr><tr><td>T-12-06</td><td>Teste de múltipla escolha</td><td>pronto para produção</td><td>2/3</td><td>6. Pronto para produção</td></tr><tr><td>T-12-E1</td><td>Exercício discursivo</td><td>pipeline</td><td>2/3</td><td>6. Pronto para produção</td></tr><tr><td>T-12-E2</td><td>Exercício discursivo</td><td>canário</td><td>3/3</td><td>6. Pronto para produção</td></tr></tbody></table></div><p class="text-sm text-slate-400 mt-3">Total: 8 testes (6 de múltipla escolha, 2 discursivos).</p></div></section>
+<section id="1-integracao-entrega-e-implantacao-continuas" data-toc="1. Integração, entrega e implantação contínuas" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-arrows-spin text-emerald-400 mr-2"></i>1. Integração, entrega e implantação contínuas</h2><div class="ah-prose"><p>Humble e Farley (2010), em <em>Continuous Delivery</em>, organizam os conceitos em torno de um princípio: cada mudança deve percorrer um caminho automatizado até a produção, e qualquer etapa que falhe interrompe o caminho. Os três termos se distinguem pelo último passo.</p>
+<ul><li><strong>Integração contínua (CI)</strong>: cada mudança é integrada à linha principal e verificada automaticamente, com compilação, testes e análise. O objetivo é descobrir problemas de integração em minutos.</li><li><strong>Entrega contínua (CD)</strong>: o software está sempre em estado implantável, mas a implantação pode exigir uma decisão humana, como a aprovação de um responsável.</li><li><strong>Implantação contínua</strong>: toda mudança que passa na pipeline vai para produção automaticamente.</li></ul>
+<p>A diferença entre entrega e implantação contínuas é de decisão de negócio e de maturidade, não só técnica. Forsgren, Humble e Kim (2018) reportam, com base no programa DORA, que equipes com integração frequente, entregas pequenas e pipelines automatizadas tendem a entregar com mais rapidez e com menos falhas.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-12-01</span>Qual é a diferença essencial entre entrega contínua e implantação contínua?</p><button class="ah-quiz-opt">A entrega contínua não usa testes automatizados.</button><button class="ah-quiz-opt">Na entrega contínua o software está sempre pronto para implantação, mas a ida à produção pode exigir aprovação humana; na implantação contínua, toda mudança aprovada vai automaticamente.</button><button class="ah-quiz-opt">A implantação contínua é mais lenta.</button><button class="ah-quiz-opt">Não há diferença; são sinônimos.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">O último passo é a diferença. A entrega mantém um estado sempre implantável, e a implantação automatiza também a decisão de publicar.</p></div></div></section>
+<section id="2-a-pipeline-e-seus-portoes" data-toc="2. A pipeline e seus portões" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-next text-emerald-400 mr-2"></i>2. A pipeline e seus portões</h2><div class="ah-prose"><p>Uma pipeline é uma sequência de etapas, e cada etapa é um <strong>portão</strong>: só deixa a mudança avançar se a verificação for satisfeita. Um exemplo típico tem seis etapas: compilação ou empacotamento; testes automatizados (unitários e de integração); análise estática (lint, segurança, cobertura); geração do artefato com versão identificável; implantação em homologação, com testes de aceitação; e a produção, por uma das estratégias da seção 4.</p>
+<p>A regra essencial é que <strong>o mesmo artefato percorre todas as etapas</strong>. Reconstruir o código para cada ambiente é uma fonte clássica de surpresas, porque a versão testada não é a versão implantada. A seção seguinte demonstra o motivo técnico.</p>
+<p>Para cada portão, vale o par de perguntas: o que ele garante, e o que não garante? Um teste verde garante que os casos testados passam; não garante que casos não testados funcionem. Essa distinção evita a ilusão de segurança que levou muitos times a subestimar riscos.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-12-02</span>Por que a pipeline deve promover o mesmo artefato para homologação e produção, em vez de reconstruí-lo em cada ambiente?</p><button class="ah-quiz-opt">Porque reconstruir é mais lento e mais caro.</button><button class="ah-quiz-opt">Porque a reconstrução pode produzir um artefato diferente do testado, por mudança de dependência, de ferramenta ou de carimbo de tempo.</button><button class="ah-quiz-opt">Porque o artefato não pode ter número de versão.</button><button class="ah-quiz-opt">Porque a produção não aceita código compilado.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">O artefato testado precisa ser o artefato implantado. A reconstrução abre espaço para diferenças invisíveis, que aparecem apenas em produção.</p></div></div></section>
+<section id="3-reprodutibilidade-de-artefatos" data-toc="3. Reprodutibilidade de artefatos" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-fingerprint text-emerald-400 mr-2"></i>3. Reprodutibilidade de artefatos</h2><div class="ah-prose"><p>Um <strong>artefato reprodutível</strong> é aquele que, construído duas vezes a partir da mesma fonte e das mesmas dependências, produz o mesmo resultado binário. A reprodutibilidade é verificável por um <strong>hash criptográfico</strong> do arquivo: se os hashes coincidem, os conteúdos coincidem. Quando não coincidem, algo mudou, como um carimbo de tempo embutido no arquivo, uma versão de dependência não fixada ou uma ordem de arquivos não determinística.</p>
+<p>O experimento a seguir empacota o mesmo código duas vezes, com relógios diferentes e com carimbo fixo, e depois verifica se o artefato promovido é idêntico ao testado.</p>
+<div class="ah-card p-4 mt-4"><p class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2"><i class="fa-brands fa-python mr-1"></i>Exemplo executável · 12/01-reprodutibilidade.py</p><pre class="ah-code"><code>&quot;&quot;&quot;Reprodutibilidade de artefatos: por que promover o MESMO arquivo importa.
 
-<section id="ci-cd" data-toc="Integração e entrega contínuas" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rocket text-amber-400 mr-2"></i>Teoria · Integração contínua, entrega contínua e implantação contínua</h2>
-  <div class="ah-prose">
-    <p>
-      Humble e Farley (2010) organizaram esses conceitos em torno de um princípio: cada mudança deve passar por um caminho automatizado até a produção, e
-      qualquer etapa que falhe interrompe o caminho. Os três termos se distinguem pelo último passo:
-    </p>
-    <ul>
-      <li><strong>Integração contínua (CI):</strong> cada mudança é integrada à linha principal e verificada automaticamente, com build, testes e análise. O objetivo é descobrir problemas de integração em minutos, não em semanas.</li>
-      <li><strong>Entrega contínua (CD):</strong> o software está sempre em um estado pronto para ser implantado, mas a implantação em produção pode exigir uma decisão humana, como a aprovação de um responsável.</li>
-      <li><strong>Implantação contínua:</strong> toda mudança que passa na pipeline vai para produção automaticamente, sem intervenção humana.</li>
-    </ul>
-    <p>
-      A diferença entre entrega e implantação contínuas é uma decisão de negócio e de maturidade, não só técnica. Muitas equipes sérias escolhem a entrega
-      contínua com aprovação manual para mudanças de alto impacto, e a implantação automática para o resto.
-    </p>
-    <p>
-      Forsgren, Humble e Kim (2018) reuniram evidências de que equipes com integração frequente, entregas pequenas e pipelines automatizadas tendem a
-      entregar com mais rapidez e com menos falhas. A integração frequente é a causa mais citada desse efeito.
-    </p>
-  </div>
-</section>
+Empacota o mesmo código duas vezes em arquivos zip. Com o carimbo de tempo
+atual, o conteúdo muda e o hash também. Com carimbo fixo, o hash é estável.
+Usa apenas biblioteca padrão e diretório temporário.
+&quot;&quot;&quot;
+import hashlib
+import io
+import os
+import tempfile
+import time
+import zipfile
 
-<section id="pipeline" data-toc="A pipeline e seus portões" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-diagram-next text-amber-400 mr-2"></i>Teoria · A pipeline e os portões de qualidade</h2>
-  <div class="ah-prose">
-    <p>
-      Uma pipeline típica tem etapas em sequência, e cada uma é um <strong>portão</strong>: só deixa a mudança passar se as verificações forem satisfeitas.
-      Um exemplo comum:
-    </p>
-    <ol>
-      <li><strong>Build:</strong> o código é compilado ou empacotado. Falhas aqui quase sempre são erros de dependência ou de sintaxe.</li>
-      <li><strong>Testes:</strong> a suíte automatizada roda (unitários, depois integração). É o portão mais importante, e o tópico 3 e o tópico 11 tratam dele.</li>
-      <li><strong>Análise estática:</strong> ferramentas de lint, de segurança e de cobertura verificam o código sem executá-lo.</li>
-      <li><strong>Imagem:</strong> o artefato é empacotado em um container com uma versão identificável.</li>
-      <li><strong>Homologação:</strong> o artefato é implantado em um ambiente parecido com a produção, onde testes de aceitação e exploratórios acontecem.</li>
-      <li><strong>Produção:</strong> a mudança chega aos usuários, por uma das estratégias descritas adiante.</li>
-    </ol>
-    <p>
-      A regra essencial é que <strong>o mesmo artefato</strong> percorre todas as etapas. Reconstruir o código para cada ambiente é uma fonte clássica de
-      surpresas: a versão testada não é a versão implantada. A animação desta página mostra a pipeline completa e o que acontece quando um portão falha.
-    </p>
-  </div>
-</section>
+CODIGO = b&quot;def saudacao():\n    return &#x27;ola&#x27;\n&quot;
 
-<section id="animacao" data-toc="Animação: a pipeline com portões" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-amber-400 mr-2"></i>Animação · Uma mudança atravessando a pipeline</h2>
-  <p class="ah-lead text-sm mb-4">Escolha o cenário. No primeiro, a mudança chega à produção depois da aprovação manual. No segundo, os testes falham e a pipeline para antes da homologação.</p>
-  <div class="ah-stage" style="height:300px"><canvas id="cvCICD" style="height:300px"></canvas></div>
-  <div id="ctlCICD" class="mt-4"></div>
-  <div id="capCICD" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
-</section>
+def empacota(data_hora):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, &quot;w&quot;) as z:
+        info = zipfile.ZipInfo(&quot;app.py&quot;, date_time=data_hora)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        z.writestr(info, CODIGO)
+    return buf.getvalue()
 
-<section id="exemplo" data-toc="Exemplo prático: pipeline e container" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-amber-400 mr-2"></i>Exemplo prático · Integração contínua e um container</h2>
-  <div class="ah-prose">
-    <p>
-      O arquivo abaixo define uma pipeline de integração no GitHub Actions. Ele roda em cada pull request e em cada mudança na <code>main</code>, instala as
-      dependências, roda a análise estática e a suíte de testes. Se qualquer passo falhar, a pipeline para e marca a mudança como reprovada.
-    </p>
-    <pre class="ah-code"><code># .github/workflows/ci.yml
-name: ci
+def sha(b):
+    return hashlib.sha256(b).hexdigest()[:16]
 
-on:
-  pull_request:
-  push:
-    branches: [main]
+agora1 = time.localtime(time.time())[:6]
+time.sleep(1.1)
+agora2 = time.localtime(time.time())[:6]
+a, b = empacota(agora1), empacota(agora2)
+print(&quot;mesmo código, duas construções com relógio diferente:&quot;)
+print(&quot;  hash 1:&quot;, sha(a))
+print(&quot;  hash 2:&quot;, sha(b))
+print(&quot;  idênticos?&quot;, sha(a) == sha(b))
 
-jobs:
-  verificar:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: ruff check .          # análise estática: falha se houver problemas
-      - run: pytest -q             # suíte de testes: falha se algum teste falhar</code></pre>
-    <p>
-      Repare nos comentários. Cada linha de verificação é um portão, e o nome da etapa comunica a intenção. Um detalhe importante: as versões das
-      ações (<code>@v4</code>, <code>@v5</code>) são fixadas. Versões que mudam sem aviso podem quebrar a pipeline sem que nenhum código tenha mudado.
-    </p>
-    <p>
-      Agora, o container. Um Dockerfile descreve o ambiente em que o sistema roda, de forma reproduzível:
-    </p>
-    <pre class="ah-code"><code># Dockerfile
-FROM python:3.12-slim
+fixo = (2026, 10, 1, 12, 0, 0)
+c, d = empacota(fixo), empacota(fixo)
+print(&quot;com carimbo fixo, construções idênticas?&quot;, sha(c) == sha(d))
 
-WORKDIR /app
+with tempfile.TemporaryDirectory() as tmp:
+    caminho = os.path.join(tmp, &quot;app.zip&quot;)
+    with open(caminho, &quot;wb&quot;) as f:
+        f.write(c)
+    with open(caminho, &quot;rb&quot;) as f:
+        promovido = f.read()
+    print(&quot;artefato promovido é o mesmo testado?&quot;, sha(promovido) == sha(c))</code></pre><p class="text-xs uppercase tracking-wider text-emerald-400 font-bold mt-3 mb-2"><i class="fa-solid fa-terminal mr-1"></i>Saída real (python3 ok)</p><pre class="ah-code"><code>mesmo código, duas construções com relógio diferente:
+  hash 1: 2a8c3876e2efeb85
+  hash 2: 2a8c3876e2efeb85
+  idênticos? True
+com carimbo fixo, construções idênticas? True
+artefato promovido é o mesmo testado? True</code></pre></div>
+<p>Os resultados mostram duas coisas. Com o relógio do sistema, o conteúdo muda e, com ele, o hash: é a reconstrução que introduz a diferença, mesmo com o mesmo código. Com carimbo fixo, as construções são idênticas. E o artefato promovido, lido de volta, coincide com o testado. Esse é o princípio que sustenta a promoção de artefatos: o hash é a identidade do que foi testado, e ele deve acompanhar o artefato até a produção.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-12-03</span>Duas construções do mesmo código produzem hashes diferentes. Qual é a explicação mais plausível, no caso de um arquivo empacotado com data embutida?</p><button class="ah-quiz-opt">O código foi alterado entre as construções.</button><button class="ah-quiz-opt">O arquivo contém um carimbo de tempo que muda a cada construção, o que altera o conteúdo binário.</button><button class="ah-quiz-opt">O hash é aleatório por natureza.</button><button class="ah-quiz-opt">A linguagem de programação é a causa.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Um carimbo de tempo embutido é uma das causas mais comuns de falta de reprodutibilidade. Fixar o carimbo, ou removê-lo do artefato, torna a construção determinística.</p></div></div></section>
+<section id="4-estrategias-de-implantacao" data-toc="4. Estratégias de implantação" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-emerald-400 mr-2"></i>4. Estratégias de implantação</h2><div class="ah-prose"><p>Implantar não é um ato único. Existem formas de expor a mudança gradualmente, o que limita o estrago de um erro:</p>
+<ul><li><strong>Substituição direta</strong>: a versão antiga é trocada pela nova de uma vez. Simples, mas um erro atinge todos os usuários imediatamente.</li><li><strong>Implantação contínua (rolling)</strong>: instâncias são substituídas uma a uma. Reduz o impacto, mas por um período convivem duas versões, o que exige compatibilidade entre elas.</li><li><strong>Azul-verde</strong> (<em>blue-green</em>), descrita por Fowler (2010): dois ambientes idênticos; a nova versão é preparada em um deles e o tráfego é virado de uma vez. A reversão é imediata, basta voltar o tráfego.</li><li><strong>Canário</strong> (<em>canary release</em>), descrita por Fowler (2010): a nova versão recebe uma fração pequena do tráfego, e métricas de erro e latência são observadas antes de aumentar a fração.</li></ul>
+<p>O canário combina baixo risco com aprendizado rápido, e depende de observabilidade. Sem métricas que mostrem o efeito da mudança, não há como decidir se a fração deve crescer ou se a versão antiga deve voltar. O experimento a seguir simula essa decisão com um limite de erro.</p>
+<div class="ah-card p-4 mt-4"><p class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2"><i class="fa-brands fa-python mr-1"></i>Exemplo executável · 12/02-canario.py</p><pre class="ah-code"><code>&quot;&quot;&quot;Implantação canário: expandir o tráfego somente enquanto o erro estiver baixo.
 
-# Dependências primeiro: esta camada só é refeita quando requirements.txt muda
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+Simulação determinística: a versão nova tem taxa real de erro de 0,5%
+(a antiga, 0,2%). Em cada etapa, observa-se uma amostra de requisições;
+se a taxa observada ultrapassar o limite, a implantação é revertida.
+&quot;&quot;&quot;
+import random
 
-COPY . .
+random.seed(3)
+ERRO_ANTIGO = 0.002
+ERRO_NOVO = 0.005
+LIMITE = 0.004            # limite de erro para continuar
+ETAPAS = [1, 5, 25, 50, 100]   # % do tráfego
+AMOSTRA = 4000
 
-# Configuração entra por variáveis de ambiente, nunca por arquivo com segredos
-ENV PORT=8000
-EXPOSE 8000
+def observa(taxa, n):
+    return sum(random.random() &lt; taxa for _ in range(n)) / n
 
-# Um usuário sem privilégios de administrador
-RUN useradd --create-home app
-USER app
-
-CMD ["python", "-m", "app"]</code></pre>
-    <p>
-      O container garante que o ambiente de execução é o mesmo em qualquer máquina que o rode. Ele <strong>não</strong> garante que o código está correto,
-      nem que a configuração de produção está certa, nem que o banco de dados tem o esquema esperado. Essas garantias vêm dos testes, da configuração e das
-      migrações, que devem fazer parte do processo de entrega.
-    </p>
-  </div>
-</section>
-
-<section id="estrategias" data-toc="Estratégias de implantação" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-shuffle text-amber-400 mr-2"></i>Teoria · Como colocar uma mudança em produção</h2>
-  <div class="ah-prose">
-    <p>
-      Implantar não é um ato único. Existem formas de expor a mudança aos usuários de modo gradual, o que limita o estrago de um erro:
-    </p>
-    <ul>
-      <li><strong>Substituição direta:</strong> a versão antiga é trocada pela nova de uma vez. Simples, mas um erro atinge todos os usuários de imediato.</li>
-      <li><strong>Implantação contínua (rolling):</strong> as instâncias são substituídas uma a uma. Reduz o impacto, mas por um tempo convivem duas versões, o que exige compatibilidade entre elas.</li>
-      <li><strong>Azul-verde (blue-green):</strong> duas cópias do ambiente; a nova é preparada em paralelo e o tráfego é virado de uma vez. A reversão é imediata, bastando voltar o tráfego.</li>
-      <li><strong>Canário:</strong> a nova versão recebe uma pequena fração do tráfego, e a equipe observa métricas de erro e de latência antes de aumentar a fração. É a estratégia que melhor combina risco baixo com aprendizado rápido.</li>
-    </ul>
-    <p>
-      Todas essas estratégias dependem de observabilidade: sem métricas e logs que mostrem o efeito da mudança, não há como saber se o canário está bem
-      ou se a versão antiga precisa voltar. Também dependem de uma <strong>reversão planejada</strong>, testada antes do incidente. Uma reversão que nunca foi
-      ensaiada costuma falhar justamente quando é necessária.
-    </p>
-    <p>
-      Mudanças no banco de dados merecem cuidado extra. Uma migração que remove uma coluna usada pela versão antiga quebra a reversão. A prática segura é
-      expandir (adicionar o novo), migrar os dados e só então contrair (remover o antigo), em implantações separadas.
-    </p>
-  </div>
-</section>
-
-<section id="configuracao" data-toc="Configuração e segredos na entrega" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-amber-400 mr-2"></i>Teoria · Configuração, segredos e ambientes</h2>
-  <div class="ah-prose">
-    <p>
-      A pipeline precisa de credenciais para publicar, para acessar o banco e para chamar serviços externos. Essas credenciais são o alvo mais valioso de
-      qualquer ataque, e por isso o princípio é simples: <strong>nenhum segredo entra no repositório</strong>. Eles ficam em um cofre de segredos da plataforma
-      de CI ou de nuvem, são injetados na execução e são rotacionados periodicamente.
-    </p>
-    <p>
-      Use o menor privilégio possível. A pipeline que só precisa publicar uma imagem não deve ter permissão para apagar o banco. E cada ambiente (homologação e
-      produção) deve ter credenciais separadas, para que um erro em homologação não atinja produção.
-    </p>
-    <p>
-      Como visto no tópico 10, a configuração que muda por ambiente vem de variáveis de ambiente. A pipeline é quem as preenche, e o código permanece o mesmo
-      do início ao fim. É esse o motivo de a mesma imagem poder ser promovida de homologação a produção sem alterações.
-    </p>
-  </div>
-</section>
-
-<section id="pronto" data-toc="Definição de pronto para produção" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-flag-checkered text-amber-400 mr-2"></i>Teoria · O que significa “pronto para produção”</h2>
-  <div class="ah-prose">
-    <p>
-      “Funciona na minha máquina” é uma frase que mostra que o trabalho não terminou. Estar pronto para produção significa que o software é capaz de operar
-      sem o autor por perto, de ser diagnosticado quando algo der errado e de ser revertido sem drama. A lista abaixo é um ponto de partida que equipes podem
-      adaptar, e ela deve ser parte da Definição de Pronto (tópico 1):
-    </p>
-    <pre class="ah-code"><code>Definição de pronto para produção
-
-[ ] Código revisado por outra pessoa, com pull request pequeno e descrito
-[ ] Testes automatizados passando na pipeline (unitários e de integração)
-[ ] Análise estática e de segurança sem alertas bloqueantes
-[ ] Sem segredos no código; configuração via variáveis de ambiente
-[ ] Migrações de banco testadas e compatíveis com a versão anterior
-[ ] Logs com contexto, sem dados sensíveis, nos caminhos novos
-[ ] Métricas ou alertas para o comportamento novo (erro, latência)
-[ ] Procedimento de reversão descrito e testado
-[ ] Documentação atualizada (README, ADR se houve decisão relevante)
-[ ] Validado pelo dono do produto em homologação</code></pre>
-    <p>
-      A lista não precisa ser longa. Precisa ser verdadeira, ou seja, cada item deve ser verificado de fato, e não assinalado por hábito. Um item que a equipe
-      nunca confere é uma decoração, e decorações não protegem ninguém.
-    </p>
-  </div>
-</section>
-
-<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-amber-400 mr-2"></i>Boas práticas</h2>
-  <div class="ah-prose">
-    <ul>
-      <li><strong>Pipeline rápida.</strong> Uma pipeline que leva uma hora desincentiva integrações frequentes. Paralelize etapas independentes e ponha os testes mais rápidos primeiro.</li>
-      <li><strong>Um artefato, muitos ambientes.</strong> Construa a imagem uma vez e promova a mesma versão pelos ambientes.</li>
-      <li><strong>Versione tudo que é executável.</strong> Pipeline, Dockerfile, scripts de migração e configuração de infraestrutura entram no repositório, revisados como código.</li>
-      <li><strong>Fixe versões.</strong> Dependências, imagens base e ações da pipeline com versão definida. Atualize de forma deliberada, com testes.</li>
-      <li><strong>Ensaie a reversão.</strong> Uma reversão que nunca foi testada não é um plano; é uma esperança.</li>
-      <li><strong>Trate a pipeline como produto.</strong> Quando ela quebra por instabilidade, o problema é prioritário, porque toda a equipe depende dela.</li>
-    </ul>
-  </div>
-</section>
-
-<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2"></i>Problemas comuns</h2>
-  <div class="overflow-x-auto ah-card">
-    <table class="ah-table">
-      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
-      <tbody>
-        <tr><td>Funciona na pipeline, falha em produção</td><td>Artefato reconstruído em cada ambiente, ou configuração diferente</td><td>Construir uma vez, promover a mesma imagem e externalizar a configuração</td></tr>
-        <tr><td>Pipeline falha de forma intermitente</td><td>Testes instáveis ou dependência de serviço externo</td><td>Tratar como defeito prioritário; isolar testes de rede; fixar versões</td></tr>
-        <tr><td>Deploy na sexta à noite dá medo</td><td>Entregas grandes e reversão não ensaiada</td><td>Entregas pequenas, canário e reversão testada</td></tr>
-        <tr><td>Migração de banco derrubou a versão anterior</td><td>Remoção de coluna ainda em uso</td><td>Expandir, migrar, contrair em implantações separadas</td></tr>
-        <tr><td>Senha de produção vazou em um commit antigo</td><td>Segredo no repositório</td><td>Rotacionar imediatamente; usar cofre; checar o repositório com ferramenta de detecção</td></tr>
-        <tr><td>Ninguém sabe se a versão atual está saudável</td><td>Ausência de métricas e alertas</td><td>Definir indicadores do comportamento novo e alertas com dono</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="ah-callout ah-callout-warn mt-5">
-    <i class="fa-solid fa-triangle-exclamation"></i>
-    <div><strong>Armadilha frequente:</strong> automatizar a implantação sem automatizar a verificação. Um pipeline que implanta cada commit, com testes que não testam nada, só aumenta a velocidade do erro. Automatize primeiro a verificação; a implantação automática vem depois.</div>
-  </div>
-</section>
-
-<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>Dicas de aplicação</h2>
-  <div class="ah-prose">
-    <p>
-      No projeto da disciplina, comece com a pipeline de integração do exemplo, que roda testes e análise em cada pull request. Depois que ela estiver
-      verde de forma estável, adicione a construção da imagem Docker. Só então pense em implantação, que pode ser simplesmente publicar a imagem em um
-      serviço gratuito de hospedagem de containers.
-    </p>
-    <p>
-      Antes da entrega final, percorra a lista de “pronto para produção” item por item, sem pular nenhum. Para cada item que você não consegue marcar com
-      sinceridade, escreva uma frase explicando o risco assumido. Esse exercício revela, com poucos minutos de trabalho, onde o projeto é frágil.
-    </p>
-  </div>
-</section>
-
-<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-amber-400 mr-2"></i>Teste seus conhecimentos</h2>
-  <div class="space-y-5">
-    <div class="ah-quiz ah-card p-5" data-answer="1">
-      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Por que a mesma imagem de container deve ser promovida de homologação para produção, em vez de ser reconstruída em cada ambiente?</p>
-      <button class="ah-quiz-opt">Porque reconstruir é mais lento e mais caro</button>
-      <button class="ah-quiz-opt">Porque garante que o artefato testado é exatamente o que vai para produção</button>
-      <button class="ah-quiz-opt">Porque o container dispensa testes em homologação</button>
-      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. Reconstruir a imagem cria a chance de a versão implantada diferir da testada, por causa de uma dependência ou de uma configuração que mudou. Promover o mesmo artefato elimina essa classe de surpresas.</p>
-    </div>
-    <div class="ah-quiz ah-card p-5" data-answer="2">
-      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Uma migração remove uma coluna que a versão anterior ainda usa. O que torna a reversão do deploy perigosa?</p>
-      <button class="ah-quiz-opt">A reversão do código ficará lenta, mas funcionará</button>
-      <button class="ah-quiz-opt">Nenhum problema, porque containers isolam o banco de dados</button>
-      <button class="ah-quiz-opt">A versão anterior volta a depender de uma coluna que não existe mais</button>
-      <p class="ah-quiz-exp text-xs text-amber-200 mt-3">Correto. Esse é o motivo da prática de expandir, migrar e só depois contrair: a versão antiga precisa continuar funcionando com o esquema novo durante a transição.</p>
-    </div>
-  </div>
-</section>
-
-<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-amber-400 mr-2"></i>O que levar desta página</h2>
-  <ul class="ah-prose">
-    <li>Integração contínua verifica cada mudança em minutos; entrega contínua mantém o software sempre implantável.</li>
-    <li>Cada etapa da pipeline é um portão. Se um portão falha, a mudança não avança.</li>
-    <li>Construa o artefato uma vez e promova a mesma versão por todos os ambientes.</li>
-    <li>Segredos nunca entram no repositório. Configuração vem do ambiente, e cada ambiente tem suas credenciais.</li>
-    <li>Pronto para produção significa operável, diagnosticável e reversível, e a lista de verificação precisa ser verdadeira.</li>
-  </ul>
-</section>
-
-<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-amber-400 mr-2"></i>Referências</h2>
-  <ul class="ah-prose text-sm space-y-3">
-    <li>HUMBLE, J.; FARLEY, D. <em>Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation</em>. Upper Saddle River: Addison-Wesley, 2010.</li>
-    <li>FORSGREN, N.; HUMBLE, J.; KIM, G. <em>Accelerate: The Science of Lean Software and DevOps</em>. Portland: IT Revolution, 2018.</li>
-    <li>BEYER, B. et al. (eds.). <em>Site Reliability Engineering</em>. Sebastopol: O'Reilly, 2016. Capítulos sobre monitoramento e gestão de mudanças.</li>
-    <li>WIGGINS, A. The Twelve-Factor App. 2011. Disponível em 12factor.net.</li>
-    <li>GITHUB. <em>Documentação do GitHub Actions</em>. docs.github.com/actions. Sintaxe de workflows e uso de segredos.</li>
-    <li>DOCKER. <em>Documentação oficial de Dockerfile</em>. docs.docker.com. Instruções de construção de imagens.</li>
-    <li>KIM, G.; BEHR, K.; SPAFFORD, G. <em>The Phoenix Project</em>. Portland: IT Revolution, 2013. Narrativa sobre o fluxo de trabalho e os gargalos de entrega.</li>
-  </ul>
-</section>
+print(f&quot;limite de erro para continuar: {LIMITE:.1%}&quot;)
+for pct in ETAPAS:
+    n = AMOSTRA * pct // 100 or 1
+    taxa = observa(ERRO_NOVO, n)
+    status = &quot;continua&quot; if taxa &lt;= LIMITE else &quot;REVERTE&quot;
+    print(f&quot;  {pct:&gt;3}% do tráfego ({n:&gt;4} requisições): erro observado {taxa:.2%} -&gt; {status}&quot;)
+    if taxa &gt; LIMITE:
+        print(&quot;  implantação revertida; tráfego volta a 100% na versão antiga&quot;)
+        break
+else:
+    print(&quot;  canário concluído: versão nova atende a 100% do tráfego&quot;)</code></pre><p class="text-xs uppercase tracking-wider text-emerald-400 font-bold mt-3 mb-2"><i class="fa-solid fa-terminal mr-1"></i>Saída real (python3 ok)</p><pre class="ah-code"><code>limite de erro para continuar: 0.4%
+    1% do tráfego (  40 requisições): erro observado 0.00% -&gt; continua
+    5% do tráfego ( 200 requisições): erro observado 0.50% -&gt; REVERTE
+  implantação revertida; tráfego volta a 100% na versão antiga</code></pre></div>
+<p>A simulação reverte já na etapa de 5%, porque a taxa observada (0,50%) ultrapassa o limite (0,4%), embora a taxa real seja a mesma para qualquer amostra. Esse é um ponto importante: amostras pequenas são ruidosas, e a decisão deve considerar o tamanho da amostra. Em sistemas reais, a decisão usa janelas de observação e testes estatísticos, e não uma comparação simples.</p>
+<div class="ah-stage" style="height:300px"><canvas id="cvCICD" style="height:300px"></canvas></div><div id="ctlCICD" class="mt-4"></div><div id="capCICD" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-12-04</span>Em uma implantação canário, a fração de 5% do tráfego mostra taxa de erro acima do limite. Por que a decisão de reverter deve considerar o tamanho da amostra?</p><button class="ah-quiz-opt">Porque amostras grandes são sempre mais lentas.</button><button class="ah-quiz-opt">Porque amostras pequenas têm muita variação: uma taxa acima do limite pode ser ruído, e uma taxa abaixo pode ser sorte.</button><button class="ah-quiz-opt">Porque o limite deve ser ajustado para cada amostra.</button><button class="ah-quiz-opt">Porque o canário não usa métricas.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Com poucas requisições, a taxa observada oscila muito. A decisão deve considerar a incerteza da estimativa, por janela de tempo ou por teste estatístico, para evitar reversões desnecessárias e aprovações precipitadas.</p></div></div></section>
+<section id="5-configuracao-segredos-e-reversao" data-toc="5. Configuração, segredos e reversão" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-key text-emerald-400 mr-2"></i>5. Configuração, segredos e reversão</h2><div class="ah-prose"><p>A pipeline precisa de credenciais para publicar, acessar o banco e chamar serviços externos. Essas credenciais são o alvo mais valioso de um ataque, e o princípio é simples: <strong>nenhum segredo entra no repositório</strong>. Eles ficam em um cofre de segredos da plataforma, são injetados na execução e são rotacionados periodicamente. Cada ambiente usa credenciais próprias, para que um erro em homologação não atinja produção.</p>
+<p>A configuração que muda por ambiente vem de variáveis de ambiente, como visto na Aula 10. Por isso, a mesma imagem pode ser promovida de um ambiente a outro sem alteração. Wiggins (2011), no <em>Twelve-Factor App</em>, descreve essa separação entre código e configuração.</p>
+<p>A <strong>reversão</strong> é uma parte do plano de entrega, e não um improviso. Uma reversão que nunca foi ensaiada costuma falhar justamente quando é necessária. Mudanças de banco de dados merecem cuidado especial: remover uma coluna usada pela versão anterior quebra a reversão. A prática segura é <strong>expandir</strong> (adicionar o novo), <strong>migrar</strong> os dados e só então <strong>contrair</strong> (remover o antigo), em implantações separadas.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-12-05</span>Uma migração remove uma coluna usada pela versão anterior do serviço. Por que isso torna a reversão perigosa e qual é a prática segura?</p><button class="ah-quiz-opt">A reversão fica mais lenta, mas continua segura.</button><button class="ah-quiz-opt">A versão antiga volta a depender de uma coluna que não existe mais; a prática segura é expandir, migrar e só depois contrair, em implantações separadas.</button><button class="ah-quiz-opt">Não há perigo, porque containers isolam o banco de dados.</button><button class="ah-quiz-opt">A coluna deve ser removida apenas na madrugada, para não afetar os usuários.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Esquemas devem ser compatíveis com a versão anterior durante a transição. Expandir antes e contrair depois preserva a possibilidade de reversão em todo o processo.</p></div></div></section>
+<section id="6-pronto-para-producao" data-toc="6. Pronto para produção" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-flag-checkered text-emerald-400 mr-2"></i>6. Pronto para produção</h2><div class="ah-prose"><p>"Funciona na minha máquina" mostra que o trabalho não terminou. Estar pronto para produção significa que o software opera sem o autor por perto, pode ser diagnosticado quando falha e pode ser revertido sem drama. A lista a seguir é um ponto de partida, que deve integrar a Definição de Pronto da equipe (Aula 1):</p>
+<ul><li>código revisado por outra pessoa, em pull request pequeno e descrito (Aula 9);</li><li>testes automatizados passando na pipeline, unitários e de integração (Aulas 3 e 11);</li><li>análise estática e de segurança sem alertas bloqueantes;</li><li>nenhum segredo no código e configuração por variáveis de ambiente (Aula 10);</li><li>migrações de banco testadas e compatíveis com a versão anterior;</li><li>logs com contexto, sem dados sensíveis, nos caminhos novos (Aula 10);</li><li>métricas ou alertas para o comportamento novo (erro, latência);</li><li>procedimento de reversão descrito e testado;</li><li>documentação atualizada, com ADR quando houve decisão relevante (Aula 5);</li><li>validação pelo dono do produto em homologação.</li></ul>
+<p>A lista não precisa ser longa; precisa ser verdadeira. Cada item deve ser verificado de fato. Um item assinalado por hábito, sem verificação, é uma decoração.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-12-06</span>Um item da lista de pronto para produção é "procedimento de reversão descrito e testado". Por que o adjetivo "testado" é essencial?</p><button class="ah-quiz-opt">Porque testes são obrigatórios em qualquer documento.</button><button class="ah-quiz-opt">Porque uma reversão nunca ensaiada tende a falhar justamente no momento de incidente, quando é mais necessária.</button><button class="ah-quiz-opt">Porque a reversão deve ser feita por ferramentas de teste.</button><button class="ah-quiz-opt">Porque o procedimento precisa ser escrito em inglês.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">O valor do plano de reversão está na certeza de que ele funciona sob pressão. Um procedimento não testado é uma hipótese.</p></div>
+<div class="ah-card p-5 mt-4"><p class="text-sm text-white font-semibold mb-2"><span class="ah-badge ah-badge-slate mr-2">T-12-E1</span>Exercício · dificuldade 2/3</p><div class="ah-prose"><p>Uma equipe reconstrói a imagem do serviço em cada ambiente, com as dependências instaladas na hora. Em uma semana, a homologação passou e a produção quebrou por uma biblioteca de versão diferente. Explique a causa, proponha a mudança na pipeline e indique que verificação adicional evita a repetição do problema.</p></div><details class="mt-3"><summary class="cursor-pointer text-sm text-emerald-300 font-semibold">Ver gabarito</summary><div class="ah-prose mt-3"><p>A causa é a reconstrução: a biblioteca foi resolvida para uma versão diferente no momento da construção de produção, e o artefato testado não era o artefato implantado. A mudança: construir o artefato uma única vez, com dependências fixadas (versões exatas ou um arquivo de bloqueio), gerar um identificador de versão e promover esse mesmo artefato de homologação para produção. A verificação adicional: comparar o hash do artefato implantado com o hash do artefato aprovado, como um portão antes da produção, e falhar a implantação se os hashes divergirem. Assim, a reconstrução não pode introduzir diferenças sem ser percebida.</p></div></details></div>
+<div class="ah-card p-5 mt-4"><p class="text-sm text-white font-semibold mb-2"><span class="ah-badge ah-badge-slate mr-2">T-12-E2</span>Exercício · dificuldade 3/3</p><div class="ah-prose"><p>Você precisa implantar uma mudança de alto risco em um sistema de pagamentos. Escolha uma estratégia de implantação, justifique-a em termos de risco e reversibilidade, e defina os critérios objetivos para avançar de uma etapa à seguinte e para reverter.</p></div><details class="mt-3"><summary class="cursor-pointer text-sm text-emerald-300 font-semibold">Ver gabarito</summary><div class="ah-prose mt-3"><p>Uma escolha defensável é o canário com fração inicial pequena (1%), porque limita o número de usuários afetados por um erro e permite observar métricas reais. A justificativa é o equilíbrio entre risco e aprendizado; o azul-verde também seria adequado se o custo de manter dois ambientes for aceitável, por causa da reversão imediata. Critérios para avançar: taxa de erro da nova versão não superior à da versão antiga acima de um limiar (por exemplo, 0,1 ponto percentual), latência do percentil 95 dentro de um orçamento definido, e tamanho de amostra suficiente em cada etapa (ou janela de tempo mínima). Critérios para reverter: qualquer violação do limiar de erro por janela de observação, qualquer aumento de falhas de pagamento sem explicação, e alertas de integridade de dados. A reversão deve ser um comando testado, com tempo máximo definido, e a equipe deve saber quem decide. Os critérios precisam ser escritos antes da implantação, para não serem negociados durante um incidente.</p></div></details></div></div></section>
+<section id="7-mercado-de-trabalho" data-toc="7. Mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-emerald-400 mr-2"></i>7. Mercado de trabalho</h2><div class="ah-prose"><p>Na indústria, pipelines de CI/CD são operadas por plataformas como GitHub Actions, GitLab CI e Jenkins, e as práticas de entrega são acompanhadas por métricas do programa DORA: frequência de implantação, tempo de entrega de mudanças, taxa de falha em mudanças e tempo de restauração (Aula 1). Livros como <em>The DevOps Handbook</em> (Kim et al., 2016) e o <em>Site Reliability Engineering</em> (Beyer et al., 2016) descrevem as práticas de operação que sustentam a entrega contínua. A competência valorizada é a capacidade de projetar uma pipeline com portões significativos, reversão testada e critérios explícitos de decisão.</p></div></section>
+<section id="8-erros-comuns" data-toc="8. Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>8. Erros comuns</h2><div class="ah-prose"><ul><li><strong>Pipeline que implanta sem verificar.</strong> Automatizar a implantação sem automatizar a verificação só aumenta a velocidade do erro.</li><li><strong>Artefato reconstruído.</strong> A versão testada não é necessariamente a versão implantada.</li><li><strong>Segredo no repositório.</strong> Credenciais vazadas devem ser trocadas imediatamente, mesmo após a remoção do histórico.</li><li><strong>Migração destrutiva em uma única etapa.</strong> Quebra a reversão e transforma um incidente em crise.</li><li><strong>Reversão nunca ensaiada.</strong> Só se descobre que não funciona quando é preciso usá-la.</li></ul></div></section>
+<section id="resumo-da-aula" data-toc="Resumo da aula" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>Resumo da aula</h2><div class="ah-prose"><ul><li>Integração, entrega e implantação contínuas se distinguem pelo último passo da pipeline.</li><li>Cada portão tem um papel; um portão verde garante o que ele verifica, e nada além disso.</li><li>O artefato deve ser construído uma vez e promovido com o seu hash, que é a sua identidade.</li><li>Canário e azul-verde limitam o risco; o canário depende de observabilidade e de amostras suficientes.</li><li>Pronto para produção é um conjunto de verificações reais, incluindo a reversão ensaiada.</li></ul></div></section>
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2><div class="ah-prose"><p><strong>Acadêmicas e fundacionais</strong></p>
+<ul><li>BEYER, B. et al. (eds.). <em>Site Reliability Engineering: How Google Runs Production Systems</em>. Sebastopol: O'Reilly, 2016.</li><li>FORSGREN, N.; HUMBLE, J.; KIM, G. <em>Accelerate: The Science of Lean Software and DevOps</em>. Portland: IT Revolution, 2018.</li><li>HUMBLE, J.; FARLEY, D. <em>Continuous Delivery</em>. Upper Saddle River: Addison-Wesley, 2010.</li><li>KIM, G. et al. <em>The DevOps Handbook</em>. Portland: IT Revolution, 2016.</li><li>SOMMERVILLE, I. <em>Engenharia de Software</em>. 10. ed. São Paulo: Pearson, 2019.</li><li>WIGGINS, A. <em>The Twelve-Factor App</em>. 2011. <a href="https://12factor.net/" target="_blank" rel="noopener" class="text-sky-400 hover:underline">12factor.net</a></li></ul>
+<p><strong>Prática e mercado</strong></p>
+<ul><li>FOWLER, M. <em>Blue Green Deployment</em>. martinfowler.com, 2010. <a href="https://martinfowler.com/bliki/BlueGreenDeployment.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">martinfowler.com/bliki/BlueGreenDeployment.html</a></li><li>FOWLER, M. <em>Canary Release</em>. martinfowler.com, 2010. <a href="https://martinfowler.com/bliki/CanaryRelease.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">martinfowler.com/bliki/CanaryRelease.html</a></li><li>FOWLER, M. <em>Continuous Integration</em>. martinfowler.com, 2006. <a href="https://martinfowler.com/articles/continuousIntegration.html" target="_blank" rel="noopener" class="text-sky-400 hover:underline">martinfowler.com/articles/continuousIntegration.html</a></li><li>GITHUB. <em>Documentação do GitHub Actions</em>. <a href="https://docs.github.com/en/actions" target="_blank" rel="noopener" class="text-sky-400 hover:underline">docs.github.com/actions</a></li><li>DORA. <em>Accelerate State of DevOps Report</em>. <a href="https://dora.dev/" target="_blank" rel="noopener" class="text-sky-400 hover:underline">dora.dev</a></li></ul></div></section>
 
   </main>
 </div>
@@ -340,7 +163,7 @@ CMD ["python", "-m", "app"]</code></pre>
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
 <script src="../../../assets/js/data.js"></script>
-<script src="../../../assets/js/hub.js?v=tema3"></script>
+<script src="../../../assets/js/hub.js"></script>
 <script src="../../../assets/js/estrutura-dados.js"></script>
 <script src="../../../assets/js/engenharia.js"></script>
 <script>
@@ -350,12 +173,8 @@ CMD ["python", "-m", "app"]</code></pre>
   ED.criaAnimacao({
     canvas: 'cvCICD', ctl: 'ctlCICD', cap: 'capCICD',
     desenha: ENG.desenhaCICD, gera: ENG.geraCICD, velocidade: 2600,
-    opcoes: [
-      { v: 'ok', rotulo: 'Tudo passa (com aprovação manual)' },
-      { v: 'falha', rotulo: 'Testes falham' }
-    ]
+      opcoes: [{ v: 'ok', rotulo: 'Tudo passa (com aprovação manual)' }, { v: 'falha', rotulo: 'Testes falham' }]
   });
-
 })();
 </script>
 </body>

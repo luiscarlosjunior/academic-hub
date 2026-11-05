@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-root="../../../">
 <head>
-<script>try{if(localStorage.getItem('academic-hub:tema')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atributos de qualidade, trade-offs e decisões registradas (ADR) · Arquitetura de Software · AcademicHub</title>
-<meta name="description" content="Como transformar requisitos não funcionais em cenários medidos, por que toda decisão arquitetural é um trade-off e como registrar decisões em ADRs, com animação de escolha entre monólito, modular e microsserviços.">
+<title>Atributos de qualidade, trade-offs e decisões arquiteturais (ADR) · Engenharia de Software, Arquitetura e Programação · AcademicHub</title>
+<meta name="description" content="Aula de arquitetura de software: o que é arquitetura, como transformar atributos de qualidade em cenários medidos, análise de trade-offs por fronteira de Pareto, modelagem de latência em filas e registro de decisões em ADRs.">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../../../assets/css/hub.css?v=tema5">
+<link rel="stylesheet" href="../../../assets/css/hub.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
 </head>
 <body class="min-h-full flex flex-col" data-topic="es/05-atributos-trade-offs-adr">
@@ -31,258 +30,159 @@
 
   <main class="lg:col-span-9 order-1 lg:order-2 space-y-8 min-w-0">
 
-<section id="visao" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Visão geral</h2>
-  <div class="ah-prose">
-    <p>
-      A arquitetura de um sistema é o conjunto de decisões estruturais que são caras de mudar depois. Qual é a linguagem, quais partes existem e como elas
-      conversam, onde fica o banco, quem chama quem. Bass, Clements e Kazman (2012) definem a arquitetura pelas estruturas do sistema, pelos elementos
-      que as compõem, por suas propriedades visíveis externamente e pelos relacionamentos entre eles. O ponto central é que <strong>a arquitetura é a
-      parte do sistema que determina seus atributos de qualidade</strong>.
-    </p>
-    <p>
-      Esta página é a primeira da trilha de Arquitetura. Ela trata do método: como dizer com precisão quais qualidades importam, como enxergar os
-      trade-offs entre elas e como registrar as decisões para que o raciocínio sobreviva a quem chegar depois.
-    </p>
-    <p><strong>Objetivos desta página.</strong> Ao final, você deve conseguir:</p>
-    <ul>
-      <li>transformar um requisito não funcional vago em um cenário de atributo de qualidade com medida;</li>
-      <li>identificar trade-offs entre atributos e explicar por que não existe arquitetura ótima em abstrato;</li>
-      <li>escrever um ADR (registro de decisão arquitetural) completo, com contexto, decisão e consequências;</li>
-      <li>usar visões arquiteturais diferentes para comunicar a arquitetura a públicos diferentes.</li>
-    </ul>
-  </div>
-</section>
+<section id="visao-geral" data-toc="Visão geral" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-eye text-emerald-400 mr-2"></i>Visão geral</h2><div class="ah-prose"><p>Esta é a <strong>Aula 5</strong>, a primeira da trilha de Arquitetura. Uma arquitetura é o conjunto de decisões estruturais que são caras de mudar depois: as partes do sistema, suas responsabilidades, como elas se comunicam e onde ficam os dados. Essas decisões determinam os <strong>atributos de qualidade</strong> do sistema, e quase toda decisão arquitetural importante é um <strong>trade-off</strong>, isto é, melhora um atributo à custa de outro.</p>
+<p>Ao final da aula você deverá ser capaz de:</p>
+<ul><li>definir arquitetura de software com as referências da área (Bass, Clements e Kazman, 2012; ISO/IEC/IEEE 42010) e distingui-la de uma lista de tecnologias;</li><li>transformar requisitos de qualidade em <strong>cenários</strong> com estímulo, ambiente, resposta e medida;</li><li>identificar <strong>pontos de sensibilidade</strong> e <strong>pontos de trade-off</strong> e analisar alternativas por dominância de Pareto;</li><li>modelar, com a fórmula de fila M/M/1, por que a latência cresce de forma não linear com a carga;</li><li>escrever um <strong>ADR</strong> (Architecture Decision Record) completo, incluindo as consequências negativas.</li></ul>
+<div class="ah-callout ah-callout-info mt-5"><i class="fa-solid fa-circle-info"></i><div><strong>Pré-requisitos</strong> Aulas 1 a 4 e noções de probabilidade elementar para a seção 4. A fórmula de fila é apresentada e derivada de forma intuitiva, sem exigir teoria de filas avançada.</div></div>
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Como estudar</strong> Para cada exemplo, escreva antes de executar: qual alternativa você espera que vença e por quê. A diferença entre a sua previsão e o resultado é o que mais ensina.</div></div>
+<div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>ID</th><th>Tipo</th><th>Tema</th><th>Dificuldade</th><th>Seção</th></tr></thead><tbody><tr><td>T-05-01</td><td>Teste de múltipla escolha</td><td>conceitos</td><td>1/3</td><td>1. O que é arquitetura de software</td></tr><tr><td>T-05-02</td><td>Teste de múltipla escolha</td><td>cenários</td><td>2/3</td><td>2. Atributos de qualidade e cenários</td></tr><tr><td>T-05-03</td><td>Teste de múltipla escolha</td><td>trade-offs</td><td>2/3</td><td>2. Atributos de qualidade e cenários</td></tr><tr><td>T-05-04</td><td>Teste de múltipla escolha</td><td>Pareto</td><td>2/3</td><td>3. Análise de trade-offs por dominância</td></tr><tr><td>T-05-05</td><td>Teste de múltipla escolha</td><td>desempenho</td><td>3/3</td><td>4. Latência, carga e a fila M/M/1</td></tr><tr><td>T-05-06</td><td>Teste de múltipla escolha</td><td>ADR</td><td>2/3</td><td>5. Decisões arquiteturais registradas (ADR)</td></tr><tr><td>T-05-E1</td><td>Exercício discursivo</td><td>cenários</td><td>2/3</td><td>5. Decisões arquiteturais registradas (ADR)</td></tr><tr><td>T-05-E2</td><td>Exercício discursivo</td><td>ADR</td><td>3/3</td><td>5. Decisões arquiteturais registradas (ADR)</td></tr></tbody></table></div><p class="text-sm text-slate-400 mt-3">Total: 8 testes (6 de múltipla escolha, 2 discursivos).</p></div></section>
+<section id="1-o-que-e-arquitetura-de-software" data-toc="1. O que é arquitetura de software" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-cubes text-emerald-400 mr-2"></i>1. O que é arquitetura de software</h2><div class="ah-prose"><h3 class="ah-h3 mt-6">1.1 Definições</h3>
+<p>Garlan e Shaw (1994) descreveram a arquitetura de software como o nível de projeto em que se tratam a organização do sistema em componentes, as interações entre eles e os padrões que guiam sua composição. Bass, Clements e Kazman (2012) a definem como a estrutura ou estruturas do sistema, compostas por elementos de software, pelas propriedades externamente visíveis desses elementos e pelos relacionamentos entre eles. A norma ISO/IEC/IEEE 42010 (2022) formaliza a ideia de <strong>descrição de arquitetura</strong>: um conjunto de visões, cada uma voltada a um conjunto de <em>stakeholders</em> e às suas preocupações.</p>
+<p>Duas consequências dessas definições são importantes. A primeira é que <strong>arquitetura é sobre propriedades</strong>: uma arquitetura existe para dar ao sistema certas qualidades, e a escolha de componentes só se justifica por essas qualidades. A segunda é que <strong>arquitetura não é uma lista de tecnologias</strong>. Escolher um framework é uma decisão de projeto, que pode ser trocada; a arquitetura é a organização das partes que sobrevive a essas trocas quando bem projetada.</p>
+<h3 class="ah-h3 mt-6">1.2 Visões</h3>
+<p>Kruchten (1995) propôs o modelo 4+1: visões lógica, de processo, de desenvolvimento e física, unificadas por cenários. Cada visão responde a preocupações diferentes: a lógica trata de responsabilidades e conceitos do domínio; a de processo, de concorrência e comunicação em tempo de execução; a de desenvolvimento, da organização do código; a física, da implantação em hardware. Clements et al. (2010) sistematizaram a documentação dessas visões, e a Aula 8 apresenta o modelo C4, que organiza as visões em níveis de zoom.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-05-01</span>Qual das afirmações sobre arquitetura de software está de acordo com a definição de Bass, Clements e Kazman (2012)?</p><button class="ah-quiz-opt">Arquitetura é a lista de tecnologias usadas no projeto.</button><button class="ah-quiz-opt">Arquitetura é a estrutura do sistema, com seus elementos, suas propriedades visíveis e seus relacionamentos.</button><button class="ah-quiz-opt">Arquitetura é o diagrama de classes de um módulo.</button><button class="ah-quiz-opt">Arquitetura só existe em sistemas distribuídos.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">A definição enfatiza estrutura, propriedades externamente visíveis e relacionamentos. Tecnologias e diagramas de classes são artefatos que podem expressar a arquitetura, mas não a definem.</p></div></div></section>
+<section id="2-atributos-de-qualidade-e-cenarios" data-toc="2. Atributos de qualidade e cenários" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-emerald-400 mr-2"></i>2. Atributos de qualidade e cenários</h2><div class="ah-prose"><h3 class="ah-h3 mt-6">2.1 O problema da vagueza</h3>
+<p>"O sistema deve ser escalável" não orienta nenhuma decisão. Escalável para quê, sob qual carga, a que custo? A solução proposta por Bass et al. (2012) é o <strong>cenário de atributo de qualidade</strong>, uma frase estruturada em seis partes:</p>
+<div class="overflow-x-auto ah-card mt-4"><table class="ah-table"><thead><tr><th>Parte</th><th>Pergunta</th><th>Exemplo</th></tr></thead><tbody><tr><td>Fonte do estímulo</td><td>quem ou o que dispara?</td><td>um usuário pagante</td></tr><tr><td>Estímulo</td><td>o que acontece?</td><td>pico de 10 vezes a carga normal</td></tr><tr><td>Artefato</td><td>qual parte é afetada?</td><td>o serviço de catálogo</td></tr><tr><td>Ambiente</td><td>em que condição?</td><td>operação normal, réplicas em funcionamento</td></tr><tr><td>Resposta</td><td>o que o sistema faz?</td><td>atende e escala réplicas automaticamente</td></tr><tr><td>Medida</td><td>quanto é aceitável?</td><td>p95 abaixo de 300 ms; erros abaixo de 0,5%</td></tr></tbody></table></div>
+<p>Um cenário bem escrito é testável e custa algo. Um pico de 10 vezes com medida de 300 ms exige uma capacidade muito diferente de um pico de 2 vezes com medida de 2 segundos. Esse custo é o que o cliente precisa conhecer para decidir.</p>
+<h3 class="ah-h3 mt-6">2.2 Pontos de sensibilidade e de trade-off</h3>
+<p>Kazman, Klein e Clements (2000), no método ATAM, distinguem dois conceitos. Um <strong>ponto de sensibilidade</strong> é uma decisão que afeta fortemente um atributo: o número de réplicas, por exemplo, afeta a disponibilidade. Um <strong>ponto de trade-off</strong> é uma decisão que afeta dois ou mais atributos em sentidos opostos: a replicação melhora a disponibilidade e pode piorar a consistência e o custo. Toda decisão arquitetural importante é um ponto de trade-off, e a pergunta de controle é sempre: <em>o que estamos pagando por isso?</em></p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-05-02</span>Qual das alternativas é um cenário de atributo de qualidade bem formado?</p><button class="ah-quiz-opt">O sistema deve ser seguro e rápido.</button><button class="ah-quiz-opt">Em pico de 5 mil logins por minuto, 99% das autenticações respondem em até 500 ms.</button><button class="ah-quiz-opt">A autenticação deve usar a melhor tecnologia disponível.</button><button class="ah-quiz-opt">O sistema deve ter uma arquitetura moderna.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Apenas a alternativa B tem estímulo, ambiente e medida verificável. As demais são adjetivos ou escolhas de tecnologia sem critério de verificação.</p></div>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-05-03</span>Uma decisão aumenta a disponibilidade de um serviço e, ao mesmo tempo, aumenta a dificuldade de manter todas as cópias de dados iguais. Como ATAM classifica essa decisão?</p><button class="ah-quiz-opt">Ponto de sensibilidade apenas para disponibilidade.</button><button class="ah-quiz-opt">Ponto de trade-off, por afetar dois atributos em sentidos opostos.</button><button class="ah-quiz-opt">Risco de implantação.</button><button class="ah-quiz-opt">Requisito funcional.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">Um ponto de trade-off é justamente a decisão que afeta atributos em direções opostas. A replicação é o exemplo clássico, discutido também no teorema CAP da trilha de Sistemas Distribuídos.</p></div></div></section>
+<section id="3-analise-de-trade-offs-por-dominancia" data-toc="3. Análise de trade-offs por dominância" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-sitemap text-emerald-400 mr-2"></i>3. Análise de trade-offs por dominância</h2><div class="ah-prose"><h3 class="ah-h3 mt-6">3.1 Dominância de Pareto</h3>
+<p>Quando há várias alternativas e vários atributos, a pergunta "qual é a melhor?" não tem resposta até que se conheçam os pesos. Antes de pesar, porém, é possível eliminar alternativas sem nenhuma discussão. Uma alternativa A <strong>domina</strong> B se A é pelo menos tão boa que B em todos os atributos e estritamente melhor em pelo menos um. Nenhuma função de utilidade monotônica (aquela que cresce quando um atributo melhora) preferirá B a A. O conjunto das alternativas não dominadas é a <strong>fronteira de Pareto</strong>, e é nela que a decisão deve ser tomada.</p>
+<p>A dominância é uma ferramenta de <strong>descarte</strong>, não de escolha final: ela reduz o espaço, e a escolha dentro da fronteira depende dos pesos definidos pelos cenários prioritários.</p>
+<h3 class="ah-h3 mt-6">3.2 Exemplo executável</h3>
+<p>O programa a seguir aplica a dominância a cinco alternativas (e uma sexta, claramente inferior) avaliadas em quatro atributos com notas de 1 a 5.</p>
+<div class="ah-card p-4 mt-4"><p class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2"><i class="fa-brands fa-python mr-1"></i>Exemplo executável · 05/01-pareto.py</p><pre class="ah-code"><code>&quot;&quot;&quot;Fronteira de Pareto entre alternativas arquiteturais.
 
-<section id="cenarios" data-toc="Cenários de qualidade" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bullseye text-sky-400 mr-2"></i>Teoria · Cenários de atributo de qualidade</h2>
-  <div class="ah-prose">
-    <p>
-      “O sistema deve ser escalável” não orienta nenhuma decisão. Escalável para quê, em qual carga, com qual custo? Bass et al. (2012) propõem o
-      <strong>cenário de atributo de qualidade</strong>, uma frase estruturada com seis partes que transforma a qualidade em algo verificável:
-    </p>
-    <div class="overflow-x-auto ah-card mt-4">
-      <table class="ah-table">
-        <thead><tr><th>Parte</th><th>Pergunta</th><th>Exemplo</th></tr></thead>
-        <tbody>
-          <tr><td>Fonte do estímulo</td><td>Quem ou o que dispara?</td><td>Um usuário pagante</td></tr>
-          <tr><td>Estímulo</td><td>O que acontece?</td><td>Pico de 10 vezes a carga normal durante a campanha</td></tr>
-          <tr><td>Artefato</td><td>Qual parte do sistema é afetada?</td><td>O serviço de catálogo</td></tr>
-          <tr><td>Ambiente</td><td>Em que condição?</td><td>Operação normal, com as réplicas em funcionamento</td></tr>
-          <tr><td>Resposta</td><td>O que o sistema faz?</td><td>Atende as requisições e escala réplicas automaticamente</td></tr>
-          <tr><td>Medida</td><td>Quanto é aceitável?</td><td>Percentil 95 abaixo de 300 ms; erros abaixo de 0,5%</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p>
-      Um cenário bem escrito pode ser testado. Ele também mostra quando o atributo é caro: um pico de 10 vezes com medida de 300 ms custa muito mais
-      do que um pico de 2 vezes com medida de 2 segundos. Esse custo é o que o cliente precisa conhecer para decidir.
-    </p>
-    <p>
-      Os atributos mais citados são desempenho, disponibilidade, modificabilidade, segurança, testabilidade, usabilidade e custo. Eles não são
-      independentes, e é aí que começam os trade-offs.
-    </p>
-  </div>
-</section>
+Uma alternativa A domina B se A é pelo menos tão boa em todos os atributos
+e estritamente melhor em pelo menos um. Alternativas dominadas nunca devem
+ser escolhidas, qualquer que seja o peso dos atributos. As notas são de 1 a 5
+(maior é melhor; para custo, 5 significa mais barato). Dados fictícios.
+&quot;&quot;&quot;
 
-<section id="tradeoffs" data-toc="Trade-offs" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-scale-balanced text-sky-400 mr-2"></i>Teoria · Trade-offs: toda escolha custa outra coisa</h2>
-  <div class="ah-prose">
-    <p>
-      Um <strong>trade-off</strong> ocorre quando melhorar um atributo piora outro. O exemplo mais conhecido é o cache: ele reduz a latência de leitura,
-      mas pode servir dados desatualizados e exige lógica de invalidação. Outro exemplo é a replicação: aumenta a disponibilidade, mas torna mais
-      difícil manter todas as cópias iguais, como o tópico 8 de Sistemas Distribuídos mostra com o teorema CAP.
-    </p>
-    <p>
-      O método ATAM (Kazman, Klein e Clements, 2000) organiza a análise em torno de dois conceitos. Um <strong>ponto de sensibilidade</strong> é uma decisão
-      que afeta fortemente um atributo. Um <strong>ponto de trade-off</strong> é uma decisão que afeta dois ou mais atributos em sentidos opostos. Toda
-      decisão de arquitetura importante é um ponto de trade-off, e a pergunta útil é sempre a mesma: <em>o que estamos pagando por isso?</em>
-    </p>
-    <p>
-      Não há arquitetura ótima em abstrato. A melhor escolha depende dos cenários prioritários, do tamanho da equipe, do orçamento e da fase do produto.
-      A animação desta página mostra esse ponto: a mesma comparação muda de vencedor conforme os pesos mudam.
-    </p>
-  </div>
-</section>
+atributos = [&quot;desempenho&quot;, &quot;escalabilidade&quot;, &quot;simplicidade&quot;, &quot;custo&quot;]
+alternativas = {
+    &quot;monólito&quot;:            [2, 1, 5, 5],
+    &quot;monólito modular&quot;:    [3, 2, 4, 4],
+    &quot;microsserviços&quot;:      [4, 5, 1, 2],
+    &quot;serverless&quot;:          [3, 4, 3, 3],
+    &quot;monólito com cache&quot;:  [4, 1, 4, 4],
+    &quot;microsserviços caros&quot;: [3, 4, 1, 1],  # dominada por &quot;microsserviços&quot;
+}
 
-<section id="visoes" data-toc="Visões arquiteturais" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-clone text-sky-400 mr-2"></i>Teoria · Visões: cada público vê uma parte</h2>
-  <div class="ah-prose">
-    <p>
-      Uma arquitetura não cabe em um diagrama. Kruchten (1995) propôs o modelo <strong>4+1</strong>, com quatro visões que tratam de preocupações
-      diferentes e um conjunto de cenários que as amarra:
-    </p>
-    <ul>
-      <li><strong>Lógica:</strong> os conceitos e as responsabilidades do domínio, para quem projeta regras de negócio.</li>
-      <li><strong>De processo:</strong> processos, threads e comunicação em tempo de execução, para quem se preocupa com concorrência e desempenho.</li>
-      <li><strong>De desenvolvimento:</strong> módulos, pacotes e camadas do código, para quem escreve e organiza o código.</li>
-      <li><strong>Física:</strong> os nós de hardware e a implantação, para quem opera o sistema.</li>
-      <li><strong>Cenários:</strong> casos de uso que mostram como as visões funcionam juntas.</li>
-    </ul>
-    <p>
-      O modelo C4, que aparece no tópico 8, é uma forma mais recente e mais simples de organizar visões em níveis de zoom. O princípio é o mesmo: não
-      tente mostrar tudo em um diagrama só, e deixe claro para qual público cada visão foi feita.
-    </p>
-  </div>
-</section>
+def domina(a, b):
+    return all(x &gt;= y for x, y in zip(a, b)) and any(x &gt; y for x, y in zip(a, b))
 
-<section id="animacao" data-toc="Animação: a escolha muda com os pesos" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-film text-sky-400 mr-2"></i>Animação · O vencedor depende dos pesos</h2>
-  <p class="ah-lead text-sm mb-4">Três opções são avaliadas de 1 a 5 em quatro atributos. Cada quadro muda a importância relativa dos atributos. Observe como a barra vencedora muda, sem que a tabela de notas tenha sido alterada.</p>
-  <div class="ah-stage" style="height:300px"><canvas id="cvTradeoff" style="height:300px"></canvas></div>
-  <div id="ctlTradeoff" class="mt-4"></div>
-  <div id="capTradeoff" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div>
-</section>
+fronteira = []
+for nome, nota in alternativas.items():
+    if not any(domina(outra, nota) for o, outra in alternativas.items() if o != nome):
+        fronteira.append(nome)
 
-<section id="adr" data-toc="Registros de decisão (ADR)" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-signature text-sky-400 mr-2"></i>Teoria · Registros de decisão arquitetural (ADR)</h2>
-  <div class="ah-prose">
-    <p>
-      Um <strong>ADR</strong> (<em>Architecture Decision Record</em>) é um documento curto que registra uma decisão arquitetural significativa. Nygard
-      (2011) popularizou o formato. Ele responde a uma pergunta que o código não responde: <em>por que foi feito assim, e o que tínhamos em mente?</em>
-    </p>
-    <p>Um ADR tem poucas seções, e cada uma tem uma função:</p>
-    <ul>
-      <li><strong>Título e número:</strong> identificam a decisão de forma estável. Decisões nunca são apagadas; quando mudam, um novo ADR as substitui.</li>
-      <li><strong>Status:</strong> proposta, aceita, substituída ou descontinuada.</li>
-      <li><strong>Contexto:</strong> as forças em jogo, os requisitos e as restrições que tornavam a decisão necessária.</li>
-      <li><strong>Decisão:</strong> o que foi escolhido, escrito no presente e de forma direta.</li>
-      <li><strong>Consequências:</strong> o que fica melhor, o que fica pior e o que passa a ser necessário fazer por causa da decisão. Esta é a seção mais negligenciada e a mais valiosa.</li>
-    </ul>
-    <p>
-      Os ADRs ficam no próprio repositório, versionados junto com o código. Assim, a história da arquitetura é revisada da mesma forma que o código,
-      e uma mudança de decisão aparece no histórico de commits.
-    </p>
-  </div>
-</section>
+print(&quot;Atributos:&quot;, &quot;, &quot;.join(atributos))
+for nome, nota in alternativas.items():
+    marca = &quot;NA FRONTEIRA&quot; if nome in fronteira else &quot;dominada&quot;
+    quem = [o for o, outra in alternativas.items() if o != nome and domina(outra, nota)]
+    print(f&quot;  {nome:&lt;20} {nota}  {marca}&quot; + (f&quot;  (dominada por: {&#x27;, &#x27;.join(quem)})&quot; if quem else &quot;&quot;))</code></pre><p class="text-xs uppercase tracking-wider text-emerald-400 font-bold mt-3 mb-2"><i class="fa-solid fa-terminal mr-1"></i>Saída real (python3 ok)</p><pre class="ah-code"><code>Atributos: desempenho, escalabilidade, simplicidade, custo
+  monólito             [2, 1, 5, 5]  NA FRONTEIRA
+  monólito modular     [3, 2, 4, 4]  NA FRONTEIRA
+  microsserviços       [4, 5, 1, 2]  NA FRONTEIRA
+  serverless           [3, 4, 3, 3]  NA FRONTEIRA
+  monólito com cache   [4, 1, 4, 4]  NA FRONTEIRA
+  microsserviços caros [3, 4, 1, 1]  dominada  (dominada por: microsserviços, serverless)</code></pre></div>
+<p>A saída identifica a alternativa dominada e quem a domina. Note que a fronteira não escolhe um vencedor: ela apenas mostra que, para qualquer conjunto de pesos, a alternativa dominada está em desvantagem. A escolha entre as cinco restantes é uma decisão de prioridade, e precisa ser registrada com a justificativa.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-05-04</span>Na análise de dominância, o que significa dizer que a alternativa A domina a alternativa B?</p><button class="ah-quiz-opt">A tem nota maior que B em todos os atributos.</button><button class="ah-quiz-opt">A é pelo menos tão boa quanto B em todos os atributos e estritamente melhor em pelo menos um.</button><button class="ah-quiz-opt">A é mais barata que B.</button><button class="ah-quiz-opt">A foi escolhida pela equipe em uma reunião anterior.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">A dominância exige igualdade ou superioridade em todos os atributos e superioridade estrita em pelo menos um. A alternativa A pode ter nota igual em alguns atributos.</p></div>
+<h3 class="ah-h3 mt-6">3.3 Animação: a escolha muda com os pesos</h3>
+<p>Três alternativas são avaliadas em quatro atributos com notas de 1 a 5. Cada quadro muda a importância relativa dos atributos, sem alterar as notas. Observe que a alternativa vencedora muda com os pesos: a decisão depende das prioridades, não de uma superioridade absoluta.</p>
+<div class="ah-stage" style="height:300px"><canvas id="cvTradeoff" style="height:300px"></canvas></div><div id="ctlTradeoff" class="mt-4"></div><div id="capTradeoff" class="ah-card p-4 mt-3 text-sm text-slate-300 leading-relaxed min-h-[4.5rem]"></div></div></section>
+<section id="4-latencia-carga-e-a-fila-m-m-1" data-toc="4. Latência, carga e a fila M/M/1" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-chart-line text-emerald-400 mr-2"></i>4. Latência, carga e a fila M/M/1</h2><div class="ah-prose"><h3 class="ah-h3 mt-6">4.1 Por que a relação não é linear</h3>
+<p>Um intuito comum é que dobrar a carga dobra a latência. Não é o caso. Em um servidor que atende requisições com taxa μ e recebe requisições com taxa λ, a utilização é <code>ρ = λ/μ</code>. Para o modelo de fila M/M/1 (chegadas e atendimentos aleatórios, com um servidor), o tempo médio de resposta é</p>
+<p><code>W = 1 / (μ − λ)</code>, válida para <code>ρ &lt; 1</code>.</p>
+<p>Kleinrock (1975) apresentou essa e outras relações da teoria das filas. Perto da saturação, o denominador tende a zero e a latência cresce sem limite. Little (1961) demonstrou uma relação ainda mais geral, <code>L = λW</code>, entre o número médio de itens no sistema, a taxa de chegada e o tempo de permanência, que vale independentemente da distribuição das chegadas.</p>
+<p>A consequência arquitetural é direta: <strong>operar perto da saturação é uma escolha com custo em latência</strong>. Um atributo de desempenho só pode ser garantido se a arquitetura mantiver a utilização abaixo de um limite, o que tem custo de infraestrutura. Esse é um trade-off entre desempenho e custo, e o modelo permite quantificá-lo.</p>
+<div class="ah-card p-4 mt-4"><p class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2"><i class="fa-brands fa-python mr-1"></i>Exemplo executável · 05/02-latencia-carga.py</p><pre class="ah-code"><code>&quot;&quot;&quot;Trade-off entre custo e latência: modelo de fila M/M/1.
 
-<section id="exemplo" data-toc="Exemplo prático: um ADR completo" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-code text-sky-400 mr-2"></i>Exemplo prático · Um ADR para as notificações</h2>
-  <div class="ah-prose">
-    <p>
-      Imagine o sistema de biblioteca do tópico anterior. Quando um livro é devolvido com atraso, o sistema precisa enviar um e-mail. A equipe precisa
-      decidir se o envio acontece dentro da mesma requisição que registra a devolução ou em um processo separado. Eis um ADR para essa decisão:
-    </p>
-    <pre class="ah-code"><code># ADR-0007: Envio de notificações de atraso por fila
+Um serviço com taxa de atendimento mu (req/s) recebendo taxa de chegada
+lambda (req/s) tem utilização rho = lambda/mu e tempo médio de resposta
+W = 1/(mu - lambda) para rho &lt; 1 (Kleinrock, 1975). A resposta cresce sem
+limite perto da saturação, por isso dobrar a carga não dobra a latência.
+&quot;&quot;&quot;
+
+MU = 100.0   # req/s que uma instância atende (valor ilustrativo)
+
+print(f&quot;{&#x27;carga (rho)&#x27;:&gt;12} {&#x27;lambda&#x27;:&gt;8} {&#x27;latência média (ms)&#x27;:&gt;22}&quot;)
+for rho in [0.50, 0.75, 0.90, 0.95, 0.99]:
+    lam = rho * MU
+    w_ms = 1000.0 / (MU - lam)
+    print(f&quot;{rho:&gt;12.2f} {lam:&gt;8.1f} {w_ms:&gt;22.1f}&quot;)
+
+print()
+# Quantas instâncias para manter a latência abaixo de 50 ms com lambda = 300 req/s?
+lam = 300.0
+for n in range(1, 8):
+    mu_total = n * MU
+    if mu_total &lt;= lam:
+        continue
+    w_ms = 1000.0 / (mu_total - lam)
+    if w_ms &lt;= 50:
+        print(f&quot;instâncias necessárias para W &lt;= 50 ms: {n} (W = {w_ms:.1f} ms)&quot;)
+        break</code></pre><p class="text-xs uppercase tracking-wider text-emerald-400 font-bold mt-3 mb-2"><i class="fa-solid fa-terminal mr-1"></i>Saída real (python3 ok)</p><pre class="ah-code"><code> carga (rho)   lambda    latência média (ms)
+        0.50     50.0                   20.0
+        0.75     75.0                   40.0
+        0.90     90.0                  100.0
+        0.95     95.0                  200.0
+        0.99     99.0                 1000.0
+
+instâncias necessárias para W &lt;= 50 ms: 4 (W = 10.0 ms)</code></pre></div>
+<p>A tabela mostra o comportamento não linear: passar de 90% para 99% de utilização multiplica a latência por dez. O segundo bloco de saída mostra como a fórmula orienta uma decisão de dimensionamento: quantas instâncias garantem a meta de latência para uma carga conhecida.</p>
+<div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>O modelo é uma aproximação</strong> M/M/1 supõe chegadas e tempos de serviço exponenciais e independentes. Sistemas reais têm distribuições diferentes, e os tempos de cauda (p95, p99) são mais sensíveis do que a média. Use o modelo para entender a forma da curva, e meça o sistema real para dimensionar.</div></div>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-05-05</span>Um serviço com taxa de atendimento de 100 req/s recebe 90 req/s. Qual é o tempo médio de resposta pelo modelo M/M/1?</p><button class="ah-quiz-opt">10 ms.</button><button class="ah-quiz-opt">100 ms.</button><button class="ah-quiz-opt">1000 ms.</button><button class="ah-quiz-opt">0,1 ms.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">W = 1/(μ − λ) = 1/(100 − 90) = 0,1 s = 100 ms. Note que com 50 req/s o tempo seria de 20 ms: a relação entre carga e latência é fortemente não linear.</p></div></div></section>
+<section id="5-decisoes-arquiteturais-registradas-adr" data-toc="5. Decisões arquiteturais registradas (ADR)" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-file-signature text-emerald-400 mr-2"></i>5. Decisões arquiteturais registradas (ADR)</h2><div class="ah-prose"><h3 class="ah-h3 mt-6">5.1 O que é um ADR</h3>
+<p>Nygard (2011) propôs o <strong>ADR</strong> (<em>Architecture Decision Record</em>) como um documento curto que registra uma decisão arquitetural significativa, junto com o seu contexto e as suas consequências. Ele responde a uma pergunta que o código não responde: <em>por que foi feito assim, e que alternativas foram consideradas?</em> Richards e Ford (2020) recomendam que decisões arquiteturais sejam tratadas como artefatos de primeira classe, versionados junto com o código.</p>
+<h3 class="ah-h3 mt-6">5.2 Estrutura</h3>
+<p>Um ADR completo tem seções com funções específicas:</p>
+<ul><li><strong>Título e número</strong>, estáveis. Decisões nunca são apagadas; quando mudam, um novo ADR as substitui e o antigo recebe o status "substituído".</li><li><strong>Status</strong>: proposta, aceita, substituída ou descontinuada.</li><li><strong>Contexto</strong>: as forças em jogo, os requisitos e as restrições que tornaram a decisão necessária.</li><li><strong>Decisão</strong>: o que foi escolhido, escrito no presente e de forma direta.</li><li><strong>Consequências</strong>: o que melhora, o que piora e o que passa a ser necessário fazer. Esta é a seção mais negligenciada e a mais valiosa.</li><li><strong>Alternativas consideradas</strong> (recomendada): cada alternativa rejeitada, com o motivo. Ela evita que a equipe repita a mesma discussão.</li></ul>
+<p>Um ADR deve caber em uma ou duas páginas. Se precisar de muito mais, o problema provavelmente é de escopo: a decisão está misturada com várias outras.</p>
+<h3 class="ah-h3 mt-6">5.3 Exemplo</h3>
+<p>O ADR a seguir registra a decisão de enviar notificações por fila, e não de forma síncrona. Ele serve de modelo para os ADRs do projeto da disciplina.</p>
+<pre class="ah-code"><code># ADR-0007: Envio de notificações de atraso por fila
 
 Status: aceita (2026-10-02)
 
 ## Contexto
-A devolução registra o estado do empréstimo e, quando há atraso, precisa
-notificar o aluno. O servidor de e-mail da faculdade é instável: já houve
-quedas de até 40 minutos. O usuário não deve ver erro ao devolver um livro
-por causa do e-mail.
+A devolução registra o estado do empréstimo e, em caso de atraso, precisa
+notificar o aluno. O servidor de e-mail é instável (quedas de até 40 minutos).
+A devolução não deve falhar por causa do e-mail.
 
 ## Decisão
-O registro da devolução publica o evento "EmprestimoAtrasado" em uma fila.
-Um consumidor separado envia o e-mail, com até 3 tentativas e fila de
-mensagens mortas para os casos que não passarem.
+O registro da devolução publica o evento EmprestimoAtrasado em uma fila.
+Um consumidor separado envia o e-mail, com até 3 tentativas e uma fila de
+mensagens mortas para o que não puder ser entregue.
+
+## Alternativas consideradas
+- Envio síncrono na mesma requisição: rejeitado, porque acopla a devolução
+  à disponibilidade do servidor de e-mail.
+- Varredura periódica do banco: rejeitada por latência e carga desnecessária.
 
 ## Consequências
 + A devolução responde em tempo constante, mesmo com o e-mail fora do ar.
 + Falhas de envio ficam isoladas e podem ser reprocessadas.
-- O e-mail pode chegar com atraso de minutos, e o sistema deve aceitar isso.
-- Passa a existir um componente novo para operar (a fila) e monitorar.
+- O e-mail pode atrasar alguns minutos, e o sistema deve aceitar isso.
+- Passa a existir um componente novo para operar e monitorar (a fila).
 - O consumidor precisa ser idempotente: o mesmo evento pode chegar duas vezes.</code></pre>
-    <p>
-      O que torna esse ADR útil é a clareza das consequências. Alguém que, dois anos depois, quiser enviar o e-mail de forma síncrona vai ler que a
-      decisão foi tomada por causa da instabilidade do servidor, e vai saber exatamente o que precisa ser reavaliado. Sem o registro, a mudança parece
-      uma simplificação; com ele, a mudança é uma reabertura de decisão, com contexto.
-    </p>
-  </div>
-</section>
-
-<section id="boas" data-toc="Boas práticas" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-star text-sky-400 mr-2"></i>Boas práticas</h2>
-  <div class="ah-prose">
-    <ul>
-      <li><strong>Comece pelos atributos prioritários.</strong> Liste de cinco a dez cenários e ordene por impacto no negócio. Eles guiam todas as decisões seguintes.</li>
-      <li><strong>Registre só decisões difíceis de reverter.</strong> Escolha de nome de variável não merece ADR. Escolha de banco de dados, de estilo arquitetural ou de protocolo merece.</li>
-      <li><strong>Escreva as consequências negativas.</strong> Uma decisão sem custos declarados não foi analisada.</li>
-      <li><strong>Considere alternativas.</strong> Um ADR que lista pelo menos duas opções rejeitadas, com o motivo, poupa a equipe de repetir a mesma discussão.</li>
-      <li><strong>Revise decisões com dados.</strong> Um ADR deve ser revisitado quando as premissas do contexto mudarem, como o crescimento de carga ou a entrada de uma nova equipe.</li>
-      <li><strong>Mantenha o ADR curto.</strong> Uma ou duas páginas. Se precisar de vinte, o problema provavelmente é de escopo.</li>
-    </ul>
-  </div>
-</section>
-
-<section id="problemas" data-toc="Problemas comuns" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-sky-400 mr-2"></i>Problemas comuns</h2>
-  <div class="overflow-x-auto ah-card">
-    <table class="ah-table">
-      <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
-      <tbody>
-        <tr><td>“Vamos usar microsserviços porque é moderno”</td><td>Tecnologia escolhida sem cenário de atributo</td><td>Escrever o cenário que a escolha resolve; sem ele, a escolha não se justifica</td></tr>
-        <tr><td>Ninguém sabe por que o sistema usa duas linguagens</td><td>Decisão sem registro</td><td>Criar ADR retroativo com o contexto que a equipe lembra e marcar a origem</td></tr>
-        <tr><td>Requisito não funcional virou “o sistema deve ser rápido”</td><td>Ausência de cenários</td><td>Reescrever com fonte, estímulo, artefato, ambiente, resposta e medida</td></tr>
-        <tr><td>ADRs que só listam o que foi feito</td><td>Consequências omitidas</td><td>Exigir ao menos uma consequência negativa em cada ADR</td></tr>
-        <tr><td>Arquitetura pensada para dez milhões de usuários com cem usuários reais</td><td>Otimização prematura de atributos sem cenário real</td><td>Priorizar o cenário atual e deixar pontos de extensão para o futuro</td></tr>
-        <tr><td>Decisão tomada e depois contradita sem registro</td><td>ADR não atualizado</td><td>Criar um novo ADR que substitui o anterior, e marcar o antigo como substituído</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="ah-callout ah-callout-warn mt-5">
-    <i class="fa-solid fa-triangle-exclamation"></i>
-    <div><strong>Armadilha frequente:</strong> confundir arquitetura com a lista de tecnologias do projeto. Uma arquitetura descreve as partes, as responsabilidades e as relações entre elas. A escolha de um framework é uma decisão, e pode ser trocada sem mudar a arquitetura se as partes estiverem bem separadas.</div>
-  </div>
-</section>
-
-<section id="dicas" data-toc="Dicas de aplicação" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-lightbulb text-sky-400 mr-2"></i>Dicas de aplicação</h2>
-  <div class="ah-prose">
-    <p>
-      Em um projeto de disciplina, escreva pelo menos três ADRs: a escolha de linguagem e banco, a forma de comunicação entre as partes e uma decisão
-      que tenha sido difícil. A terceira costuma ser a mais instrutiva, porque obriga a descrever o trade-off real que a equipe enfrentou.
-    </p>
-    <p>
-      Quando estiver em dúvida entre duas opções, escreva o ADR com as duas. Se a escrita da consequência negativa de uma delas parecer óbvia demais,
-      talvez a escolha já esteja feita, e o ADR só precise registrá-la.
-    </p>
-  </div>
-</section>
-
-<section id="quiz" data-toc="Teste seus conhecimentos" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-5"><i class="fa-solid fa-circle-question text-sky-400 mr-2"></i>Teste seus conhecimentos</h2>
-  <div class="space-y-5">
-    <div class="ah-quiz ah-card p-5" data-answer="1">
-      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual dos itens é um cenário de atributo de qualidade bem formado?</p>
-      <button class="ah-quiz-opt">O sistema deve ser seguro e rápido</button>
-      <button class="ah-quiz-opt">Em pico de login de 5 mil usuários por minuto, 99% das autenticações respondem em até 500 ms</button>
-      <button class="ah-quiz-opt">A autenticação deve usar a melhor tecnologia disponível</button>
-      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. Há estímulo, ambiente e medida verificável. As outras opções são adjetivos ou escolhas de tecnologia, sem critério de verificação.</p>
-    </div>
-    <div class="ah-quiz ah-card p-5" data-answer="2">
-      <p class="ah-quiz-q text-sm text-white font-semibold mb-3">Qual é a principal diferença entre um ponto de sensibilidade e um ponto de trade-off no método ATAM?</p>
-      <button class="ah-quiz-opt">O ponto de sensibilidade custa mais caro de implementar</button>
-      <button class="ah-quiz-opt">O ponto de trade-off é sempre um erro de projeto</button>
-      <button class="ah-quiz-opt">A sensibilidade afeta fortemente um atributo; o trade-off afeta dois ou mais atributos em sentidos opostos</button>
-      <p class="ah-quiz-exp text-xs text-sky-200 mt-3">Correto. Toda decisão que impacta dois atributos em direções opostas é um trade-off. Sensibilidade descreve o impacto sobre um único atributo.</p>
-    </div>
-  </div>
-</section>
-
-<section id="checklist" data-toc="O que levar" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-square-check text-sky-400 mr-2"></i>O que levar desta página</h2>
-  <ul class="ah-prose">
-    <li>A arquitetura é o conjunto de decisões caras de mudar. Ela determina os atributos de qualidade do sistema.</li>
-    <li>Atributos sem cenário mensurável não orientam decisão. Escreva o cenário com estímulo, ambiente e medida.</li>
-    <li>Toda decisão arquitetural importante é um trade-off. Pergunte sempre o que se paga por ela.</li>
-    <li>ADRs registram o contexto e as consequências de decisões difíceis de reverter, versionados com o código.</li>
-    <li>Visões diferentes servem públicos diferentes. Nenhum diagrama mostra tudo.</li>
-  </ul>
-</section>
-
-<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-sky-400 mr-2"></i>Referências</h2>
-  <ul class="ah-prose text-sm space-y-3">
-    <li>BASS, L.; CLEMENTS, P.; KAZMAN, R. <em>Software Architecture in Practice</em>. 3. ed. Boston: Addison-Wesley, 2012. Partes sobre atributos de qualidade e cenários.</li>
-    <li>KAZMAN, R.; KLEIN, M.; CLEMENTS, P. <em>ATAM: Method for Architecture Evaluation</em>. Pittsburgh: Software Engineering Institute, CMU/SEI-2000-TR-004, 2000.</li>
-    <li>KRUCHTEN, P. The 4+1 View Model of Architecture. <em>IEEE Software</em>, v. 12, n. 6, p. 42–50, 1995.</li>
-    <li>NYGARD, M. <em>Documenting Architecture Decisions</em>. Cognitect Blog, 2011. Origem do formato ADR.</li>
-    <li>RICHARDS, M.; FORD, N. <em>Fundamentals of Software Architecture</em>. Sebastopol: O'Reilly, 2020. Capítulos sobre características arquiteturais e trade-offs.</li>
-    <li>FORD, N.; PARSONS, R.; KUA, P. <em>Building Evolutionary Architectures</em>. Sebastopol: O'Reilly, 2017.</li>
-  </ul>
-</section>
+<p>Repare que as consequências negativas são tão específicas quanto as positivas. Um ADR que só lista benefícios não analisou a decisão.</p>
+<div class="ah-quiz ah-card p-5 mt-4" data-answer="1"><p class="ah-quiz-q text-sm text-white font-semibold mb-3"><span class="ah-badge ah-badge-slate mr-2">T-05-06</span>Qual seção de um ADR é a mais valiosa para quem lerá a decisão anos depois?</p><button class="ah-quiz-opt">O título, porque identifica a decisão.</button><button class="ah-quiz-opt">As consequências, porque registram os custos aceitos e o que precisa ser reavaliado se o contexto mudar.</button><button class="ah-quiz-opt">O status, porque indica se a decisão ainda está em vigor.</button><button class="ah-quiz-opt">A lista de tecnologias, porque ela muda com frequência.</button><p class="ah-quiz-exp text-xs text-emerald-300 mt-3">As consequências registram o que a equipe aceitou em troca. Sem elas, uma mudança de decisão parece uma simplificação, e não uma reabertura fundamentada.</p></div>
+<div class="ah-card p-5 mt-4"><p class="text-sm text-white font-semibold mb-2"><span class="ah-badge ah-badge-slate mr-2">T-05-E1</span>Exercício · dificuldade 2/3</p><div class="ah-prose"><p>Transforme em cenário de atributo de qualidade completo (fonte, estímulo, artefato, ambiente, resposta e medida) o requisito: "o sistema de matrículas deve aguentar a época de inscrições sem cair."</p></div><details class="mt-3"><summary class="cursor-pointer text-sm text-emerald-300 font-semibold">Ver gabarito</summary><div class="ah-prose mt-3"><p>Uma resposta forte preenche as seis partes com valores e justificativa. Por exemplo: <em>Fonte</em>: estudantes inscritos no portal. <em>Estímulo</em>: pico de 20 mil acessos simultâneos nas duas primeiras horas da janela de inscrições. <em>Artefato</em>: o serviço de inscrição e o banco de matrículas. <em>Ambiente</em>: operação normal, com uma zona de disponibilidade inteira indisponível. <em>Resposta</em>: o serviço continua aceitando inscrições, possivelmente com degradação (fila de espera informada ao usuário). <em>Medida</em>: disponibilidade de 99,9% durante a janela de inscrição; p95 abaixo de 1 segundo; nenhuma inscrição confirmada perdida. O ponto importante é que "não cair" foi substituído por uma medida e por um ambiente de falha, e as duas ações (aceitar com degradação ou recusar) são decisões que o cliente deve tomar.</p></div></details></div>
+<div class="ah-card p-5 mt-4"><p class="text-sm text-white font-semibold mb-2"><span class="ah-badge ah-badge-slate mr-2">T-05-E2</span>Exercício · dificuldade 3/3</p><div class="ah-prose"><p>Escreva a seção de consequências de um ADR que decide manter um monólito modular em vez de migrar para microsserviços, em uma equipe de quatro pessoas. Inclua pelo menos duas consequências negativas e uma condição objetiva que deveria reabrir a decisão.</p></div><details class="mt-3"><summary class="cursor-pointer text-sm text-emerald-300 font-semibold">Ver gabarito</summary><div class="ah-prose mt-3"><p>Uma seção forte inclui, por exemplo: (+) menor custo operacional, sem rede de serviços para operar; (+) transações locais simples; (−) escalar partes isoladamente exige mais trabalho, porque o módulo é implantado junto com o restante; (−) disciplina necessária para manter as fronteiras entre módulos, que um monólito não impõe sozinho (a verificação automática de dependências é o mecanismo); (−) equipes futuras maiores podem exigir revisão. Condição objetiva para reabrir: por exemplo, "se um módulo passar a exigir implantação independente em mais de uma por mês, ou se a equipe ultrapassar 12 pessoas trabalhando no mesmo código, a decisão deve ser reavaliada com um novo ADR". A condição é objetiva porque pode ser observada, e não apenas sentida.</p></div></details></div></div></section>
+<section id="6-mercado-de-trabalho" data-toc="6. Mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-emerald-400 mr-2"></i>6. Mercado de trabalho</h2><div class="ah-prose"><p>Na indústria, decisões arquiteturais são registradas em ADRs em muitas organizações de tecnologia, e o formato é tratado como prática recomendada em radares de tecnologia de consultorias como a Thoughtworks. Frameworks de qualidade em nuvem, como o <em>Well-Architected Framework</em> da AWS, organizam os atributos em pilares (por exemplo, confiabilidade, desempenho, segurança e custo) e pedem que cada decisão seja justificada em relação a eles. A competência valorizada em entrevistas de arquitetura é a capacidade de justificar uma escolha por seus trade-offs, reconhecendo o que se perde, e não apenas o que se ganha.</p></div></section>
+<section id="7-erros-comuns" data-toc="7. Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-triangle-exclamation text-emerald-400 mr-2"></i>7. Erros comuns</h2><div class="ah-prose"><ul><li><strong>Requisito não funcional vago.</strong> "Rápido" e "seguro" sem medida não orientam nenhuma decisão.</li><li><strong>Tecnologia por moda.</strong> Escolher microsserviços porque são modernos, sem cenário que os justifique.</li><li><strong>Decisão sem registro.</strong> Um ano depois, ninguém sabe por que o sistema usa duas linguagens.</li><li><strong>ADR sem consequências negativas.</strong> Uma decisão sem custos declarados não foi analisada.</li><li><strong>Arquitetura para escala imaginária.</strong> Projetar para dez milhões de usuários quando há cem reais, sem cenário que o justifique.</li></ul></div></section>
+<section id="resumo-da-aula" data-toc="Resumo da aula" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-square-check text-emerald-400 mr-2"></i>Resumo da aula</h2><div class="ah-prose"><ul><li>Arquitetura é a estrutura de um sistema orientada às suas propriedades; não é uma lista de tecnologias.</li><li>Atributos de qualidade se tornam decisões quando são escritos como cenários com medida.</li><li>Toda decisão importante é um trade-off; a dominância de Pareto elimina alternativas sem discussão de pesos.</li><li>A latência cresce de forma não linear com a utilização; operar perto da saturação tem custo.</li><li>Um ADR registra contexto, decisão, alternativas e, sobretudo, consequências.</li></ul></div></section>
+<section id="referencias" data-toc="Referências" class="ah-card p-6 sm:p-8 ah-reveal"><h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Referências</h2><div class="ah-prose"><p><strong>Acadêmicas e normativas</strong></p>
+<ul><li>BASS, L.; CLEMENTS, P.; KAZMAN, R. <em>Software Architecture in Practice</em>. 3. ed. Boston: Addison-Wesley, 2012.</li><li>CLEMENTS, P. et al. <em>Documenting Software Architectures: Views and Beyond</em>. 2. ed. Boston: Addison-Wesley, 2010.</li><li>GARLAN, D.; SHAW, M. <em>An Introduction to Software Architecture</em>. Technical Report CMU-CS-94-166, Carnegie Mellon University, 1994.</li><li>ISO/IEC/IEEE 42010:2022. <em>Software, systems and enterprise: architecture description</em>. Genebra: ISO, 2022.</li><li>KAZMAN, R.; KLEIN, M.; CLEMENTS, P. <em>ATAM: Method for Architecture Evaluation</em>. CMU/SEI-2000-TR-004. Pittsburgh: Software Engineering Institute, 2000.</li><li>KLEINROCK, L. <em>Queueing Systems, Volume 1: Theory</em>. New York: Wiley, 1975.</li><li>KRUCHTEN, P. The 4+1 view model of architecture. <em>IEEE Software</em>, v. 12, n. 6, p. 42–50, 1995.</li><li>LITTLE, J. D. C. A proof for the queuing formula: L = λW. <em>Operations Research</em>, v. 9, n. 3, p. 383–387, 1961.</li><li>NYGARD, M. <em>Documenting Architecture Decisions</em>. Cognitect Blog, 2011. <a href="https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions" target="_blank" rel="noopener" class="text-sky-400 hover:underline">cognitect.com/blog/2011/11/15/documenting-architecture-decisions</a></li><li>RICHARDS, M.; FORD, N. <em>Fundamentals of Software Architecture</em>. Sebastopol: O'Reilly, 2020.</li><li>FORD, N.; PARSONS, R.; KUA, P. <em>Building Evolutionary Architectures</em>. Sebastopol: O'Reilly, 2017.</li><li>SOMMERVILLE, I. <em>Engenharia de Software</em>. 10. ed. São Paulo: Pearson, 2019.</li></ul>
+<p><strong>Mercado</strong></p>
+<ul><li>AWS. <em>Well-Architected Framework</em>. <a href="https://aws.amazon.com/architecture/well-architected/" target="_blank" rel="noopener" class="text-sky-400 hover:underline">aws.amazon.com/architecture/well-architected</a></li><li>THOUGHTWORKS. <em>Technology Radar</em>. <a href="https://www.thoughtworks.com/radar" target="_blank" rel="noopener" class="text-sky-400 hover:underline">thoughtworks.com/radar</a></li></ul></div></section>
 
   </main>
 </div>
@@ -292,7 +192,7 @@ mensagens mortas para os casos que não passarem.
 <footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
 
 <script src="../../../assets/js/data.js"></script>
-<script src="../../../assets/js/hub.js?v=tema3"></script>
+<script src="../../../assets/js/hub.js"></script>
 <script src="../../../assets/js/estrutura-dados.js"></script>
 <script src="../../../assets/js/engenharia.js"></script>
 <script>
@@ -303,7 +203,6 @@ mensagens mortas para os casos que não passarem.
     canvas: 'cvTradeoff', ctl: 'ctlTradeoff', cap: 'capTradeoff',
     desenha: ENG.desenhaTradeoff, gera: ENG.geraTradeoff, velocidade: 3200
   });
-
 })();
 </script>
 </body>
