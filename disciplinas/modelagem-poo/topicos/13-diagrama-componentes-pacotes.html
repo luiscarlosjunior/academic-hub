@@ -30,279 +30,393 @@
   </aside>
 
   <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
-<!-- ============================ IDEIA ============================ -->
-<section id="ideia" data-toc="Subindo o nível" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-boxes-stacked text-emerald-400 mr-2"></i>Quando a classe é pequena demais para enxergar o sistema</h2>
+<section id="ideia" data-toc="Por que subir o nível de abstração" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>Por que subir o nível de abstração</h2>
   <div class="ah-prose">
-    <p>
-      Um sistema com 300 classes não cabe em um <a href="08-diagrama-classes.html" class="text-emerald-400 hover:underline">diagrama de classes</a>
-      legível. Para falar de <strong>arquitetura</strong>, sobe-se o nível de abstração: pacotes agrupam
-      elementos em <em>namespaces</em>; componentes representam <em>partes substituíveis</em> do sistema,
-      definidas pelo que elas fornecem e pelo que exigem.
-    </p>
-  </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 my-6">
-    <div class="ah-card p-5" style="border-top:3px solid #38bdf8">
-      <h3 class="ah-h3 text-sm mb-2 text-sky-300"><i class="fa-solid fa-folder-tree mr-2"></i>Pacote</h3>
-      <p class="text-xs text-slate-400 leading-relaxed">
-        Agrupamento lógico, quase sempre correspondendo a um diretório/namespace. Serve para
-        <b>organizar</b> e controlar visibilidade. Mostra <b>dependências</b>, não interfaces.
-      </p>
-      <p class="text-[11px] text-slate-500 mt-2">Ex.: <code>br.com.loja.dominio</code></p>
-    </div>
-    <div class="ah-card p-5" style="border-top:3px solid #a855f7">
-      <h3 class="ah-h3 text-sm mb-2 text-purple-300"><i class="fa-solid fa-puzzle-piece mr-2"></i>Componente</h3>
-      <p class="text-xs text-slate-400 leading-relaxed">
-        Unidade <b>substituível</b> com contrato explícito: interfaces <b>fornecidas</b> e
-        <b>requeridas</b>. Se outro componente cumprir o mesmo contrato, pode trocar de lugar.
-      </p>
-      <p class="text-[11px] text-slate-500 mt-2">Ex.: <code>ServicoPagamento</code>, <code>RepositorioPedidos</code></p>
-    </div>
-  </div>
-</section>
+<p>Um sistema de streaming como o Melodia tem centenas de classes: catálogo, reprodução, assinatura, pagamento, recomendação, autenticação. Um diagrama de classes com todas elas não cabe em uma página, e não responde à pergunta que mais importa no dia a dia: <strong>quais partes podem mudar sem que as outras percam</strong>?</p>
+<p>Para isso, a modelagem sobe um nível. Em vez de classes, desenhamos <em>componentes</em> (peças com um contrato) e <em>pacotes</em> (agrupamentos que organizam código e controlam a visibilidade). O diagrama de componentes mostra o que cada peça oferece e o que precisa; o diagrama de pacotes mostra como o código é organizado e quem depende de quem.</p>
 
-<!-- ============================ COMPONENTES ============================ -->
-<section id="componentes" data-toc="Diagrama de componentes" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug-circle-bolt text-emerald-400 mr-2"></i>Fornece e requer: o encaixe</h2>
-  <p class="ah-lead text-sm mb-4">
-    A notação de “pirulito e soquete”: o <strong>círculo</strong> é uma interface <em>fornecida</em>;
-    o <strong>semicírculo</strong> é uma interface <em>requerida</em>. Quando se encaixam, os componentes
-    conversam — sem que nenhum conheça a implementação do outro.
-  </p>
+<h3 class="ah-h3 mt-6 mb-2">De onde vem a ideia</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>Componentes como unidade de reuso.</strong> Clemens Szyperski, em <em>Component Software: Beyond Object-Oriented Programming</em> (1998), define componente como uma unidade de composição com interfaces bem definidas, implantada de forma independente.</li>
+<li><strong>Na UML.</strong> Os pacotes já existiam na UML 1.x. Os componentes ganharam forma completa com a UML 2.0, que trouxe portas, interfaces fornecidas e requeridas. A especificação atual está na OMG (UML 2.5.1).</li>
+<li><strong>Na prática de hoje.</strong> O modelo C4, de Simon Brown, usa o diagrama de componentes como o terceiro de quatro níveis: contexto, contêineres, componentes e código.</li>
+</ul>
 
-  <div class="flex flex-wrap gap-2 mb-4" id="cp-cenario">
-    <button class="ah-chip active" data-c="cartao">Pagamento por cartão</button>
-    <button class="ah-chip" data-c="pix">Trocar para Pix</button>
-  </div>
+<h3 class="ah-h3 mt-6 mb-2">Onde isso é usado, de verdade</h3>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Onde</th><th>O que é o componente ou pacote</th><th>Exemplo no Melodia</th></tr></thead>
+<tbody>
+<tr><td>Java (pacotes)</td><td>pasta e namespace; <code>public</code> e pacote-privado controlam a visibilidade</td><td><code>catalogo</code>, <code>reproducao</code>, <code>assinatura</code></td></tr>
+<tr><td>Java (módulos, JEP 261, Java 9)</td><td>conjunto de pacotes com <code>requires</code> e <code>exports</code> no <code>module-info.java</code></td><td>módulo <code>melodia.reproducao</code> exige <code>melodia.catalogo</code></td></tr>
+<tr><td>Maven e Gradle (multi-módulo)</td><td>cada subprojeto é uma unidade compilada e versionada</td><td>um módulo Maven por componente</td></tr>
+<tr><td>npm (workspaces)</td><td>cada pacote tem seu <code>package.json</code> e suas dependências declaradas</td><td>um pacote para o player web, outro para o catálogo</td></tr>
+<tr><td>Microsserviços</td><td>cada serviço é um componente implantado separadamente</td><td>serviço de assinatura separado do de reprodução</td></tr>
+<tr><td>Diagramas de implantação</td><td>componente é colocado em um nó (servidor, celular, CDN)</td><td>o player roda no celular; o catálogo, na nuvem</td></tr>
+</tbody></table></div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-    <div class="lg:col-span-2">
-      <div class="ah-stage p-4 overflow-x-auto">
-        <svg viewBox="0 0 640 330" class="w-full" style="min-width:560px;height:330px" id="cp-svg"></svg>
-      </div>
-    </div>
-    <div class="space-y-3">
-      <div id="cp-nota" class="ah-card p-5"></div>
-      <div class="ah-card p-5">
-        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Código correspondente</h3>
-        <pre class="ah-code text-[10px]" id="cp-codigo"></pre>
-      </div>
-    </div>
-  </div>
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Por que isso importa para quem programa:</strong> o diagrama de componentes é o mapa que decide <em>quem pode importar quem</em>. Quando o mapa está certo, uma mudança no catálogo não obriga a recompilar a reprodução. Quando está errado, qualquer mudança vira uma reação em cadeia.</div></div>
 
-  <div class="ah-callout ah-callout-tip mt-5">
-    <i class="fa-solid fa-arrows-rotate"></i>
-    <div>
-      Repare que o <code>ProcessadorPedidos</code> não mudou <strong>uma linha</strong> ao trocar cartão por
-      Pix. Ele depende da <em>interface</em>, não da implementação — é exatamente o
-      <a href="16-principios-solid.html" class="text-emerald-400 hover:underline">Princípio da Inversão de
-      Dependência</a> desenhado.
-    </div>
   </div>
 </section>
-
-<!-- ============================ PACOTES ============================ -->
-<section id="pacotes" data-toc="Diagrama de pacotes" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-folder-tree text-emerald-400 mr-2"></i>Camadas e o pecado da dependência circular</h2>
-  <p class="ah-lead text-sm mb-4">
-    Em uma arquitetura em camadas, as setas de dependência devem apontar <strong>sempre na mesma direção</strong>.
-    Ative a dependência invertida abaixo e veja o problema aparecer.
-  </p>
-
-  <div class="flex flex-wrap items-center gap-3 mb-4">
-    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-      <input type="checkbox" id="pk-ciclo" class="accent-rose-500">
-      <span>adicionar dependência de <code>dominio</code> → <code>ui</code></span>
-    </label>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-    <div class="lg:col-span-2">
-      <div class="ah-stage p-4">
-        <svg viewBox="0 0 560 320" class="w-full" style="height:320px" id="pk-svg"></svg>
-      </div>
-    </div>
-    <div class="space-y-3">
-      <div id="pk-diag" class="ah-callout ah-callout-ok text-xs"></div>
-      <div class="ah-card p-5">
-        <h3 class="ah-h3 text-sm mb-2">Regras de boa vizinhança</h3>
-        <ul class="text-[11px] text-slate-400 space-y-2 leading-relaxed">
-          <li>• Dependências apontam <b>sempre para dentro</b>: UI → aplicação → domínio.</li>
-          <li>• O <b>domínio</b> não deve depender de nada — nem de banco, nem de framework.</li>
-          <li>• Ciclos entre pacotes impedem compilar, testar ou publicar separadamente.</li>
-          <li>• Para quebrar um ciclo, inverta a dependência com uma <b>interface</b> no pacote de baixo.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================ QUIZ ============================ -->
-<!-- APROFUNDAMENTO:INI -->
-<section id="aprof-componentes" data-toc="Aprofundamento: componentes e contratos" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-boxes-stacked text-emerald-400 mr-2"></i>Componente: uma peça com contrato</h2>
+<section id="componentes" data-toc="Componentes: fornece e requer" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-plug-circle-bolt text-emerald-400 mr-2"></i>Componentes: fornece e requer</h2>
   <div class="ah-prose">
-    <p>
-      Um <strong>componente</strong> é uma parte modular e substituível do sistema, que oferece e consome serviços por meio de
-      <strong>interfaces</strong>. Ele esconde a implementação: quem usa o componente conhece apenas o contrato. Essa é a
-      ocultação de informação (tópico 03) aplicada em escala de arquitetura.
-    </p>
-    <p>
-      Na UML, o componente é um retângulo com o estereótipo <code>«component»</code>, e suas interfaces aparecem como
-      <strong>pirulito</strong> (interface <em>fornecida</em>, ○) e <strong>soquete</strong> (interface <em>requerida</em>, ◗).
-      A conexão entre um pirulito e um soquete é uma relação de montagem, e mostra quem depende de quem.
-    </p>
-  </div>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
-    <div class="ah-card p-5 border-t-4 border-emerald-400"><div class="text-xs font-bold text-emerald-300 mb-2">Interface fornecida</div><p class="text-xs text-slate-400 leading-relaxed">O que o componente oferece. Ex.: <code>IAssinatura</code>, com <code>assinar()</code>.</p></div>
-    <div class="ah-card p-5 border-t-4 border-amber-400"><div class="text-xs font-bold text-amber-300 mb-2">Interface requerida</div><p class="text-xs text-slate-400 leading-relaxed">O que o componente precisa de fora. Ex.: <code>IPagamento</code>, com <code>cobrar()</code>.</p></div>
-    <div class="ah-card p-5 border-t-4 border-indigo-400"><div class="text-xs font-bold text-indigo-300 mb-2">Porta</div><p class="text-xs text-slate-400 leading-relaxed">Ponto de interação do componente com o exterior, agrupando interfaces relacionadas.</p></div>
-  </div>
-  <div class="ah-callout ah-callout-tip mt-5">
-    <i class="fa-solid fa-lightbulb"></i>
-    <div>
-      <strong>Substituibilidade:</strong> se o gateway de pagamento muda, o componente de cobrança continua válido desde que
-      implemente a mesma interface requerida. Esse é o benefício de desenhar pelo contrato.
-    </div>
+
+<p>Um componente é uma peça com <strong>contrato</strong>. O contrato tem duas metades, e a notação da UML mostra as duas:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Elemento</th><th>Notação</th><th>Significado</th><th>No Melodia</th></tr></thead>
+<tbody>
+<tr><td>Interface fornecida</td><td>círculo (pirulito) ligado ao componente</td><td>o que o componente oferece a quem quiser usar</td><td><code>CatalogoMusica</code> oferecida pelo catálogo</td></tr>
+<tr><td>Interface requerida</td><td>semicírculo (soquete) que encaixa no pirulito</td><td>o que o componente precisa de outro para funcionar</td><td>o player requer <code>VerificadorAssinatura</code></td></tr>
+<tr><td>Porta</td><td>quadrado na borda do componente</td><td>ponto de entrada ou saída tipado por uma interface</td><td>porta de catálogo recebe buscas</td></tr>
+</tbody></table></div>
+
+<h3 class="ah-h3 mt-6 mb-2">O mesmo desenho, em Mermaid</h3>
+<p>Na prática, as setas tracejadas indicam implementação, e as sólidas indicam que um componente requer outro. O diagrama abaixo mostra a montagem do Melodia no código que você vai rodar logo adiante.</p>
+<div class="ah-diagram"><pre class="mermaid">
+flowchart LR
+    App["app.Main (montagem)"] --> Player["Player (reproducao)"]
+    Player -- "requer" --> CI["«interface» CatalogoMusica (catalogo)"]
+    Player -- "requer" --> VI["«interface» VerificadorAssinatura (assinatura)"]
+    CM["CatalogoMemoria (catalogo)"] -- "fornece" --> CI
+    AA["AssinaturaAtiva (assinatura)"] -- "fornece" --> VI
+    App --> CM
+    App --> AA
+</pre></div>
+
+<h3 class="ah-h3 mt-6 mb-2">Como o encaixe aparece no código</h3>
+<p>Em Java, uma interface fornecida é um tipo público. Uma interface requerida é um parâmetro de construtor. Veja o player: ele não sabe qual catálogo existe, só que existe algo que implementa <code>CatalogoMusica</code>.</p>
+<p class="text-xs text-slate-400 mb-1">catalogo/CatalogoMusica.java (interface fornecida)</p>
+<pre class="ah-code"><code>package catalogo;
+
+import java.util.Optional;
+
+/** Interface fornecida pelo componente catálogo: quem quiser buscar faixas depende só disto. */
+public interface CatalogoMusica {
+    Optional&lt;Musica&gt; buscar(String id);
+}</code></pre>
+<p class="text-xs text-slate-400 mb-1 mt-4">reproducao/Player.java (componente que requer as duas interfaces)</p>
+<pre class="ah-code"><code>package reproducao;
+
+import assinatura.VerificadorAssinatura;
+import catalogo.CatalogoMusica;
+import catalogo.Musica;
+
+/**
+ * Componente reprodução. Requer duas interfaces (catálogo e assinatura) e não conhece
+ * nenhuma implementação concreta: quem monta o player decide quais usar.
+ */
+public class Player {
+
+    private final CatalogoMusica catalogo;
+    private final VerificadorAssinatura assinaturas;
+
+    public Player(CatalogoMusica catalogo, VerificadorAssinatura assinaturas) {
+        this.catalogo = catalogo;
+        this.assinaturas = assinaturas;
+    }
+
+    public String tocar(String usuario, String id) {
+        if (!assinaturas.podeOuvir(usuario)) {
+            return &quot;negado: &quot; + usuario + &quot; sem assinatura ativa&quot;;
+        }
+        return catalogo.buscar(id)
+                .map(m -&gt; &quot;tocando &quot; + m.titulo() + &quot; (&quot; + m.segundos() + &quot; s) para &quot; + usuario)
+                .orElse(&quot;faixa &quot; + id + &quot; não encontrada&quot;);
+    }
+}</code></pre>
+<div class="ah-card p-5 mt-4"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Animação</div><div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>package app;
+
+import assinatura.AssinaturaAtiva;
+import catalogo.CatalogoMemoria;
+import catalogo.Musica;
+import reproducao.Player;
+
+/** Ponto de montagem (composition root): só aqui os componentes são ligados entre si. */
+public class Main {
+
+    public static void main(String[] args) {
+        CatalogoMemoria catalogo = new CatalogoMemoria(
+                new Musica(&quot;m1&quot;, &quot;Aquarela&quot;, 200),
+                new Musica(&quot;m2&quot;, &quot;Garota&quot;, 180));
+        AssinaturaAtiva assinaturas = new AssinaturaAtiva(&quot;ana&quot;);
+        Player player = new Player(catalogo, assinaturas);
+
+        System.out.println(player.tocar(&quot;ana&quot;, &quot;m1&quot;));
+        System.out.println(player.tocar(&quot;bruno&quot;, &quot;m2&quot;));
+        System.out.println(player.tocar(&quot;ana&quot;, &quot;m9&quot;));
+    }
+}</code></pre>
+<script type="application/json" class="ah-steps">[{"linha": 11, "titulo": "Passo 1: cria o componente catálogo", "texto": "O catálogo é criado com duas faixas. Ele fornece CatalogoMusica, e nada mais.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa on\">catalogo</span><span class=\"ah-caixa \">assinatura</span><span class=\"ah-caixa \">reproducao</span></div>"}, {"linha": 14, "titulo": "Passo 2: cria o componente assinatura", "texto": "A assinatura fornece VerificadorAssinatura. O catálogo não sabe que ela existe.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">catalogo</span><span class=\"ah-caixa on\">assinatura</span><span class=\"ah-caixa \">reproducao</span></div>"}, {"linha": 15, "titulo": "Passo 3: liga a reprodução às interfaces", "texto": "O Player recebe as duas interfaces pelo construtor. Ele requer CatalogoMusica e VerificadorAssinatura, e não sabe qual implementação está por trás.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">catalogo</span><span class=\"ah-caixa ok\">assinatura</span><span class=\"ah-caixa on\">reproducao</span></div>"}, {"linha": 17, "titulo": "Passo 4: uso", "texto": "Só agora o sistema funciona. A montagem é o único lugar que conhece todas as peças.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa ok\">catalogo</span><span class=\"ah-caixa ok\">assinatura</span><span class=\"ah-caixa ok\">reproducao</span></div>"}]</script>
+</div></div>
+<div class="ah-callout ah-callout-info mt-5"><i class="fa-solid fa-circle-info"></i><div><strong>Leitura da animação:</strong> repare que a montagem (<code>app.Main</code>) é o único lugar que conhece todas as peças. Os componentes se conhecem apenas pelas interfaces. Esse ponto de montagem é o que a arquitetura chama de <em>composition root</em>.</div></div>
+
   </div>
 </section>
-
-<section id="aprof-pacotes" data-toc="Pacotes: espaços de nomes" class="ah-card p-6 sm:p-8 ah-reveal">
+<section id="pacotes" data-toc="Pacotes: organização e visibilidade" class="ah-card p-6 sm:p-8 ah-reveal">
   <h2 class="ah-h2 mb-3"><i class="fa-solid fa-folder-tree text-emerald-400 mr-2"></i>Pacotes: organização e visibilidade</h2>
   <div class="ah-prose">
-    <p>
-      Um <strong>pacote</strong> agrupa elementos relacionados e cria um espaço de nomes. Dois elementos podem se chamar
-      <code>Pagamento</code> desde que estejam em pacotes diferentes. Em Java, o pacote corresponde à declaração
-      <code>package</code> no topo do arquivo, e o diagrama de pacotes espelha a estrutura de diretórios do projeto.
-    </p>
-  </div>
-  <div class="ah-diagram mt-5">
-    <pre class="mermaid">
-classDiagram
-    namespace catalogo {
-        class Musica
-        class Album
-    }
-    namespace assinatura {
-        class Assinatura
-        class Plano
-    }
-    namespace cobranca {
-        class ContaBancaria
-        class Transacao
-    }
-    Assinatura --&gt; Plano
-    Assinatura --&gt; ContaBancaria
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Três pacotes. A dependência de <code>assinatura</code> para <code>cobranca</code> é a única que atravessa a fronteira; <code>catalogo</code> não depende de ninguém.</p>
-</section>
 
-<section id="aprof-aciclico" data-toc="Dependências acíclicas" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-emerald-400 mr-2"></i>O princípio das dependências acíclicas</h2>
+<p>Um pacote é um espaço de nomes e um limite de visibilidade. No diagrama, é desenhado como uma pasta com o nome do pacote. Uma seta tracejada de pacote para pacote significa que um importa do outro. No código Java, cada <code>import</code> é uma dependência desenhada.</p>
+<p>No Melodia, os pacotes são quatro: <code>catalogo</code> (dados e busca), <code>assinatura</code> (quem pode ouvir), <code>reproducao</code> (o player) e <code>app</code> (a montagem). Repare nas dependências: <code>app</code> depende de todos; <code>reproducao</code> depende de <code>catalogo</code> e <code>assinatura</code>; e <code>catalogo</code> e <code>assinatura</code> não dependem de ninguém.</p>
+<div class="ah-diagram"><pre class="mermaid">
+flowchart TD
+    app --> reproducao
+    app --> catalogo
+    app --> assinatura
+    reproducao --> catalogo
+    reproducao --> assinatura
+</pre></div>
+<h3 class="ah-h3 mt-6 mb-2">Visibilidade: o que sai do pacote</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li><code>public</code>: parte da interface do pacote, visível para quem importa.</li>
+<li>sem modificador (pacote-privado): detalhe interno, invisível fora dele. Em <code>CatalogoMemoria</code>, o <code>HashMap</code> é pacote-privado no sentido prático: ninguém de fora o acessa.</li>
+<li><code>public</code> em excesso: cada método público é um contrato que alguém pode usar. Torne público só o que o componente promete.</li>
+</ul>
+<div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Erro comum:</strong> colocar tudo em um pacote <code>util</code> ou <code>model</code>. Assim o pacote vira um depósito, e todo mundo depende de todo mundo. Pacotes devem ser organizados por responsabilidade, como fizemos com <code>catalogo</code> e <code>assinatura</code>.</div></div>
+
+  </div>
+</section>
+<section id="ciclos" data-toc="Ciclos: o pecado da dependência circular" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-rotate text-emerald-400 mr-2"></i>Ciclos: o pecado da dependência circular</h2>
   <div class="ah-prose">
-    <p>
-      Robert C. Martin propôs, entre os princípios de empacotamento, que o grafo de dependências entre pacotes seja
-      <strong>acíclico</strong>. Um ciclo significa que, para compilar ou testar um pacote, é preciso compilar outro que depende
-      dele, e assim por diante. O ciclo cria um bloco que não pode ser separado.
-    </p>
-  </div>
-  <div class="ah-diagram mt-5">
-    <pre class="mermaid">
+
+<p>Robert C. Martin, em <em>Agile Software Development</em> (2003) e no livro <em>Clean Architecture</em> (2017), descreve o princípio das <strong>dependências acíclicas</strong>: o grafo de dependências entre pacotes e componentes não pode ter ciclos. Se A depende de B, e B depende de A, nenhum dos dois pode ser compilado, testado, implantado ou versionado sozinho.</p>
+<p>O ciclo quase sempre nasce de um atalho conveniente. A faixa precisa saber tocar a si mesma, então ganha um método <code>tocarPara</code>. Esse método chama o player, e o player precisa do tipo <code>Musica</code>. Dois pacotes se conhecem, e a conveniência vira um nó.</p>
+<div class="ah-diagram"><pre class="mermaid">
 flowchart LR
-    A["assinatura"] --&gt; B["cobranca"]
-    B --&gt; C["relatorios"]
-    C --&gt; A
-    </pre>
-  </div>
-  <p class="ah-diagram-cap">Ciclo: <code>assinatura → cobranca → relatorios → assinatura</code>. Nenhum dos três pode ser testado ou reutilizado isoladamente.</p>
-  <div class="ah-callout ah-callout-warn mt-5">
-    <i class="fa-solid fa-triangle-exclamation"></i>
-    <div>
-      <strong>Como quebrar um ciclo:</strong> extraia o elemento compartilhado para um terceiro pacote, ou inverta uma dependência
-      com uma interface (DIP, tópico 16). Na maioria dos casos, o ciclo indica uma responsabilidade mal distribuída.
-    </div>
-  </div>
-</section>
+    catalogo -- "Musica.tocarPara chama Player" --> reproducao
+    reproducao -- "Player.reproduzir recebe Musica" --> catalogo
+</pre></div>
+<p>A animação abaixo segue o ciclo passo a passo, a partir dos dois arquivos da versão ruim. Use os botões para avançar.</p>
+<div class="ah-card p-5 mt-4"><div class="text-xs uppercase tracking-wide text-fuchsia-300 font-bold mb-2">Animação</div><div class="ah-stepper">
+<pre class="ah-code ah-stepper-code"><code>// arquivo: catalogo/Musica.java
+package catalogo;
 
-<section id="aprof-java" data-toc="Pacotes e módulos em Java" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-brands fa-java text-emerald-400 mr-2"></i>Do diagrama de pacotes ao Java</h2>
-<pre class="ah-code"><code><span class="cm">// src/com/melodia/cobranca/ContaBancaria.java</span>
-<span class="kw">package</span> com.melodia.cobranca;
+import reproducao.Player;
 
-<span class="kw">public class</span> <span class="ty">ContaBancaria</span> { <span class="cm">/* ... */</span> }
+/** Ruim: a faixa sabe tocar a si mesma. Agora catalogo depende de reproducao... */
+public record Musica(String id, String titulo, int segundos) {
 
-<span class="cm">// src/com/melodia/assinatura/Assinatura.java  (depende de cobranca)</span>
-<span class="kw">package</span> com.melodia.assinatura;
-<span class="kw">import</span> com.melodia.cobranca.<span class="ty">ContaBancaria</span>;
+    public String tocarPara(String usuario) {
+        return new Player().reproduzir(usuario, this);
+    }
+}
 
-<span class="cm">// module-info.java: o componente declara o que oferece e o que exige (Java 9+)</span>
-<span class="kw">module</span> com.melodia.assinatura {
-    <span class="kw">requires</span> com.melodia.cobranca;   <span class="cm">// interface requerida</span>
-    <span class="kw">exports</span> com.melodia.assinatura;  <span class="cm">// interface fornecida</span>
+// arquivo: reproducao/Player.java
+package reproducao;
+
+import catalogo.Musica;
+
+/** ...e reproducao depende de catalogo (Musica). Ciclo: catalogo -&gt; reproducao -&gt; catalogo. */
+public class Player {
+
+    public String reproduzir(String usuario, Musica m) {
+        return &quot;tocando &quot; + m.titulo() + &quot; (&quot; + m.segundos() + &quot; s) para &quot; + usuario;
+    }
 }</code></pre>
-  <div class="ah-prose mt-4">
-    <p>
-      O <code>module-info.java</code> torna a noção de componente concreta: <code>requires</code> é o soquete, <code>exports</code>
-      é o pirulito. Um compilador que aceite <code>requires</code> circular entre módulos não existe; o Java bloqueia o ciclo, que
-      é exatamente o que o princípio pede.
-    </p>
+<script type="application/json" class="ah-steps">[{"linha": 3, "titulo": "Passo 1: catalogo depende de reprodução", "texto": "Para que a faixa saiba tocar a si mesma, catalogo/Musica.java importa reproducao.Player. Uma seta de catalogo para reproducao aparece.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">catalogo → reproducao</span></div>"}, {"linha": 9, "titulo": "Passo 2: o método cria a dependência", "texto": "tocarPara usa new Player(). A dependência deixa de ser só um import: é uso concreto.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">catalogo → reproducao</span><span class=\"ah-caixa \">reproducao → catalogo: ainda não</span></div>"}, {"linha": 16, "titulo": "Passo 3: reprodução depende de catálogo", "texto": "Agora reproducao/Player.java importa catalogo.Musica. A seta volta, e fecha o ciclo.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">catalogo → reproducao</span><span class=\"ah-caixa erro\">reproducao → catalogo</span></div>"}, {"linha": 21, "titulo": "Passo 4: o ciclo está fechado", "texto": "catalogo → reproducao → catalogo. Nenhum dos dois pode ser compilado, versionado ou testado sem o outro. Para quebrar: a interface vai para o pacote de quem usa, e não para quem implementa.", "visual": "<div class=\"ah-linha-tempo\"><span class=\"ah-caixa erro\">ciclo fechado</span></div>"}]</script>
+</div></div>
+<h3 class="ah-h3 mt-6 mb-2">Como quebrar o ciclo</h3>
+<ol class="list-decimal pl-5 space-y-2">
+<li><strong>Mover o comportamento para quem usa.</strong> O método <code>tocarPara</code> não pertence à faixa. Ele pertence ao player, ou à montagem.</li>
+<li><strong>Inverter a dependência com uma interface.</strong> Se o player precisa de algo do catálogo, o contrato fica no pacote de quem usa (o player), e o catálogo implementa.</li>
+<li><strong>Separar o dado do comportamento.</strong> <code>Musica</code> como <code>record</code> é só dado, e não conhece reprodução.</li>
+</ol>
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Regra prática:</strong> se você precisa de um <code>import</code> na direção oposta à do diagrama, pare. Ou o comportamento está no lugar errado, ou falta uma interface.</div></div>
+
   </div>
 </section>
+<section id="onde-usado" data-toc="Onde é usado, e como, no dia a dia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-screwdriver-wrench text-emerald-400 mr-2"></i>Onde é usado, e como, no dia a dia</h2>
+  <div class="ah-prose">
 
-<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios</h2>
-  <div class="space-y-4">
-    <details class="ah-card p-5">
-      <summary class="cursor-pointer text-sm font-semibold text-white">1. Você precisa trocar o provedor de e-mail do Melodia sem mexer no módulo de assinatura. Quais interfaces desenhar?</summary>
-      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> o módulo de assinatura exige uma interface <code>IEnvioEmail</code> (soquete). Cada provedor fornece uma implementação (pirulito) em seu próprio componente. A troca de provedor é trocar a montagem, sem alterar a assinatura.</p></div>
-    </details>
-    <details class="ah-card p-5">
-      <summary class="cursor-pointer text-sm font-semibold text-white">2. No diagrama de pacotes, <code>relatorios</code> depende de <code>assinatura</code>, e <code>assinatura</code> depende de <code>relatorios</code> para gerar o recibo. Como resolver?</summary>
-      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> extrair a geração do recibo para um pacote próprio que ambos usam, ou inverter a dependência: <code>assinatura</code> define uma interface <code>Recibo</code> e <code>relatorios</code> a implementa. Ambas as soluções eliminam o ciclo.</p></div>
-    </details>
-    <details class="ah-card p-5">
-      <summary class="cursor-pointer text-sm font-semibold text-white">3. Qual a diferença entre a dependência de pacotes e a de componentes?</summary>
-      <div class="ah-prose mt-4 text-sm"><p><strong>Gabarito:</strong> o pacote é uma unidade de organização (nome, arquivos, visibilidade). O componente é uma unidade de implantação e contrato, com interfaces explícitas. Um componente pode conter vários pacotes, e a dependência entre componentes é mais forte, porque envolve um contrato publicado.</p></div>
-    </details>
+<p>O diagrama de componentes não é só um desenho para a prova. Ele é lido por pessoas diferentes em momentos diferentes:</p>
+<div class="overflow-x-auto ah-card mt-3"><table class="ah-table">
+<thead><tr><th>Quem lê</th><th>Pergunta que o diagrama responde</th><th>Quando</th></tr></thead>
+<tbody>
+<tr><td>Arquiteto</td><td>quais são as peças, e onde estão as fronteiras?</td><td>antes de começar o projeto, e em cada grande mudança</td></tr>
+<tr><td>Desenvolvedor</td><td>posso importar esta classe daqui? quem me fornece este contrato?</td><td>ao criar um pacote ou módulo novo</td></tr>
+<tr><td>Equipe de testes</td><td>o que posso testar isoladamente, com dublês no lugar das dependências?</td><td>ao montar a estratégia de testes</td></tr>
+<tr><td>DevOps</td><td>qual componente vai em qual servidor, e o que pode ser implantado sem os outros?</td><td>ao desenhar a implantação e os pipelines</td></tr>
+<tr><td>Quem chega ao projeto</td><td>como o sistema se divide, sem ler as 300 classes?</td><td>na primeira semana</td></tr>
+</tbody></table></div>
+
+<h3 class="ah-h3 mt-6 mb-2">Exemplo de uso no Melodia: a equipe de reprodução</h3>
+<p>Imagine que a equipe de reprodução quer trocar o catálogo em memória por um catálogo em banco de dados. Como o player requer apenas <code>CatalogoMusica</code>, a mudança acontece em um arquivo novo (<code>CatalogoBanco</code>) e na linha de montagem. Nenhum arquivo de <code>reproducao</code> é recompilado com outra intenção, e os testes do player continuam usando o <code>CatalogoMemoria</code>.</p>
+<p>Agora imagine o contrário: o player importa diretamente <code>CatalogoMemoria</code>. A troca de banco vira uma cirurgia em todo o player, e os testes passam a precisar do banco de verdade. O diagrama de componentes mostra essa diferença antes de qualquer linha de código.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">Ferramentas que mostram o grafo real</h3>
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>jdeps</strong>, que vem com o JDK, lista as dependências entre pacotes de um projeto compilado.</li>
+<li><strong>Arquitetura como código</strong>, com regras executadas nos testes: uma verificação diz quando um pacote importa outro que não deveria.</li>
+<li><strong>Revisão de código</strong>: um <code>import</code> novo entre pacotes é um pedido de atenção, e não um detalhe.</li>
+</ul>
+
   </div>
 </section>
+<section id="aprof-java" data-toc="Do diagrama ao Java: os pacotes do Melodia" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-java text-emerald-400 mr-2"></i>Do diagrama ao Java: os pacotes do Melodia</h2>
+  <div class="ah-prose">
 
-<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
-  <ul class="ah-prose">
-    <li>MARTIN, Robert C. <em>Arquitetura Limpa</em>. Alta Books. Princípios de empacotamento, incluindo as dependências acíclicas.</li>
-    <li>OMG. UML 2.5.1, capítulos <em>Components</em> e <em>Packages</em>.</li>
-  </ul>
+<p>O projeto completo está em <code>disciplinas/modelagem-poo/exemplos/componentes/</code>, em duas versões: <code>melodia-bom</code> (acíclico) e <code>melodia-ruim</code> (com ciclo). Ambas compilam. A diferença não aparece na saída, e sim no grafo de dependências.</p>
+
+<h3 class="ah-h3 mt-6 mb-2">Como compilar e rodar</h3>
+<p class="text-xs text-slate-400 mb-1">Entre na pasta da versão e compile todos os arquivos, com o pacote em cada pasta:</p>
+<pre class="ah-code"><code>cd disciplinas/modelagem-poo/exemplos/componentes/melodia-bom
+javac -Xlint:all -d out $(find . -name &quot;*.java&quot;)
+java -cp out app.Main</code></pre>
+<p class="text-xs text-slate-400 mb-1 mt-4">Para ver o grafo de dependências entre pacotes (ferramenta do JDK):</p>
+<pre class="ah-code"><code>jdeps -summary -cp out out</code></pre>
+
+<h3 class="ah-h3 mt-6 mb-2">Saída real: versão boa</h3>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div><pre class="ah-code"><code>tocando Aquarela (200 s) para ana
+negado: bruno sem assinatura ativa
+faixa m9 não encontrada</code></pre>
+
+<h3 class="ah-h3 mt-6 mb-2">Código da versão boa, arquivo por arquivo</h3>
+<p class="text-xs text-slate-400 mb-1">catalogo/Musica.java: dado puro, sem import de outros pacotes</p>
+<pre class="ah-code"><code>package catalogo;
+
+/** Dado puro: não conhece reprodução nem assinatura. */
+public record Musica(String id, String titulo, int segundos) {}</code></pre>
+<p class="text-xs text-slate-400 mb-1 mt-4">catalogo/CatalogoMemoria.java: implementação trocável</p>
+<pre class="ah-code"><code>package catalogo;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+/** Implementação do catálogo em memória: trocável por um banco sem mudar quem usa a interface. */
+public class CatalogoMemoria implements CatalogoMusica {
+
+    private final Map&lt;String, Musica&gt; musicas = new HashMap&lt;&gt;();
+
+    public CatalogoMemoria(Musica... faixas) {
+        for (Musica m : faixas) {
+            musicas.put(m.id(), m);
+        }
+    }
+
+    @Override
+    public Optional&lt;Musica&gt; buscar(String id) {
+        return Optional.ofNullable(musicas.get(id));
+    }
+}</code></pre>
+<p class="text-xs text-slate-400 mb-1 mt-4">assinatura/VerificadorAssinatura.java e AssinaturaAtiva.java</p>
+<pre class="ah-code"><code>package assinatura;
+
+/** Interface fornecida pelo componente assinatura. */
+public interface VerificadorAssinatura {
+    boolean podeOuvir(String usuario);
+}
+
+package assinatura;
+
+import java.util.Set;
+
+/** Implementação simples: uma lista de usuários com assinatura ativa. */
+public class AssinaturaAtiva implements VerificadorAssinatura {
+
+    private final Set&lt;String&gt; ativos;
+
+    public AssinaturaAtiva(String... usuarios) {
+        this.ativos = Set.of(usuarios);
+    }
+
+    @Override
+    public boolean podeOuvir(String usuario) {
+        return ativos.contains(usuario);
+    }
+}</code></pre>
+<p class="text-xs text-slate-400 mb-1 mt-4">app/Main.java: a montagem</p>
+<pre class="ah-code"><code>package app;
+
+import assinatura.AssinaturaAtiva;
+import catalogo.CatalogoMemoria;
+import catalogo.Musica;
+import reproducao.Player;
+
+/** Ponto de montagem (composition root): só aqui os componentes são ligados entre si. */
+public class Main {
+
+    public static void main(String[] args) {
+        CatalogoMemoria catalogo = new CatalogoMemoria(
+                new Musica(&quot;m1&quot;, &quot;Aquarela&quot;, 200),
+                new Musica(&quot;m2&quot;, &quot;Garota&quot;, 180));
+        AssinaturaAtiva assinaturas = new AssinaturaAtiva(&quot;ana&quot;);
+        Player player = new Player(catalogo, assinaturas);
+
+        System.out.println(player.tocar(&quot;ana&quot;, &quot;m1&quot;));
+        System.out.println(player.tocar(&quot;bruno&quot;, &quot;m2&quot;));
+        System.out.println(player.tocar(&quot;ana&quot;, &quot;m9&quot;));
+    }
+}</code></pre>
+
+<h3 class="ah-h3 mt-6 mb-2">Saída real: versão ruim</h3>
+<div class="text-xs uppercase tracking-wide text-slate-400 font-bold mt-3 mb-1">Saída real</div><pre class="ah-code"><code>tocando Aquarela (200 s) para ana</code></pre>
+<p class="mt-3">A saída é a mesma, e o programa roda. O problema não aparece na execução, e sim na pergunta que o diagrama faz: <code>catalogo</code> importa <code>reproducao</code>, que importa <code>catalogo</code>. O <code>jdeps</code> mostra esse ciclo para quem procura; o <code>javac</code> aceita, porque ciclos entre pacotes são permitidos pela linguagem.</p>
+
+<div class="ah-callout ah-callout-warn mt-5"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Ponto importante:</strong> a linguagem permite o ciclo, e por isso ele é perigoso. Nenhum erro de compilação avisa. O custo aparece depois, quando alguém tenta separar os pacotes em módulos ou em builds independentes.</div></div>
+
+<h3 class="ah-h3 mt-6 mb-2">Ilustração de módulos (não compilada nesta aula)</h3>
+<p>A partir do Java 9, a mesma regra pode ser declarada em um <code>module-info.java</code>. Para o componente de reprodução, algo como <code>module melodia.reproducao { requires melodia.catalogo; requires melodia.assinatura; exports reproducao; }</code>. Um ciclo entre módulos não é permitido pelo sistema de módulos: o build falha. Vale mostrar essa diferença à turma como exemplo do que o ciclo custa.</p>
+
+  </div>
 </section>
-<!-- APROFUNDAMENTO:FIM -->
-<!-- APROF2:INI -->
-<section id="aprof2-exemplo" data-toc="Exemplo passo a passo: plataforma de e-commerce" class="ah-card p-6 sm:p-8 ah-reveal">
-  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-puzzle-piece text-emerald-400 mr-2"></i>Exemplo passo a passo: componentes de uma loja online</h2>
-  <p class="ah-lead text-sm mb-5">Como dividir uma loja em componentes com contratos claros, e como verificar que a divisão não criou dependências circulares.</p>
+<section id="exemplo-extra" data-toc="Exemplo extra: recomendação sem ciclo" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-emerald-400 mr-2"></i>Exemplo extra: recomendação sem ciclo</h2>
+  <div class="ah-prose">
 
-  <h3 class="ah-h3 mt-4 mb-3">Passo 1 — identificar componentes pelo contrato</h3>
-  <p class="ah-prose text-sm">Um componente é uma peça que oferece um serviço por uma interface e exige serviços de outras. Para a loja: <strong>Catalogo</strong> (oferece busca de produtos), <strong>Carrinho</strong> (oferece adicionar e somar, exige catálogo), <strong>Pagamento</strong> (oferece cobrar, exige o gateway) e <strong>Pedidos</strong> (oferece confirmar, exige carrinho e pagamento).</p>
-
-  <h3 class="ah-h3 mt-6 mb-3">Passo 2 — o diagrama de componentes</h3>
-  <div class="ah-diagram">
-    <pre class="mermaid">
+<p>O Melodia ganha uma funcionalidade nova: recomendar músicas com base no histórico de escuta e no catálogo. A tentação é fazer o catálogo consultar o histórico do player, ou o player consultar o catálogo de recomendação, e assim por diante. Vamos desenhar com cuidado.</p>
+<p>Três componentes novos ou existentes: <code>reproducao</code> (o player), <code>catalogo</code> (dados) e <code>recomendacao</code>, que requer as duas interfaces: <code>CatalogoMusica</code> e <code>HistoricoEscuta</code>. O player requer um <code>Recomendador</code>, e não a implementação.</p>
+<div class="ah-diagram"><pre class="mermaid">
+flowchart TD
+    Player["Player (reproducao)"] -- "requer" --> Rec["«interface» Recomendador (recomendacao)"]
+    Rec -. "implementa" .-> RecImpl["RecomendadorPorGenero (recomendacao)"]
+    RecImpl -- "requer" --> CI["«interface» CatalogoMusica (catalogo)"]
+    RecImpl -- "requer" --> HI["«interface» HistoricoEscuta (historico)"]
+    HI -. "implementa" .-> HM["HistoricoMemoria (historico)"]
+</pre></div>
+<h3 class="ah-h3 mt-6 mb-2">A versão que gera ciclo</h3>
+<p>Se o catálogo passar a consultar o player para saber o que está tocando, e o player passar a consultar o catálogo para recomendar, surge o ciclo que já vimos. Repare que ele não aparece no código de uma classe só: aparece na soma das dependências.</p>
+<div class="ah-diagram"><pre class="mermaid">
 flowchart LR
-    Catalogo["Catálogo"] --&gt; Carrinho["Carrinho"]
-    Carrinho --&gt; Pedidos["Pedidos"]
-    Pagamento["Pagamento"] --&gt; Pedidos
-    Pedidos --&gt; Notificacao["Notificação"]
-    </pre>
+    Catalogo["catalogo"] -- "consulta preferências" --> Player["reproducao"]
+    Player -- "pede recomendações" --> Catalogo
+</pre></div>
+<div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Como o desenho certo evita o ciclo:</strong> a recomendação recebe o histórico por uma interface (<code>HistoricoEscuta</code>) que vive no pacote da recomendação. O player só vê o <code>Recomendador</code>. Ninguém volta a importar o player.</div></div>
+
   </div>
-  <p class="ah-diagram-cap">Cada seta vai do que é exigido ao que é fornecido. Pedidos depende de dois componentes; ninguém depende de Pedidos, exceto a notificação, que é a folha do grafo.</p>
-
-  <h3 class="ah-h3 mt-6 mb-3">Passo 3 — verificar o grafo de dependências</h3>
-  <p class="ah-prose text-sm">Se a notificação passasse a consultar o catálogo para montar o e-mail, e o catálogo passasse a consultar pedidos para mostrar “produtos mais comprados”, o grafo ganharia um ciclo: Catálogo → Pedidos → Notificação → Catálogo. Um ciclo impede testar ou implantar um componente isolado. A solução é inverter uma das dependências por uma interface.</p>
-
-  <div class="ah-callout ah-callout-tip mt-5"><i class="fa-solid fa-lightbulb"></i><div><strong>Regra prática:</strong> desenhe as setas e confirme que o grafo é acíclico. Se encontrar um ciclo, extraia o elemento compartilhado para um terceiro componente, ou faça o consumidor depender de uma interface que ele mesmo define.</div></div>
 </section>
-<!-- APROF2:FIM -->
+<section id="aprof-exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-emerald-400 mr-2"></i>Exercícios com gabarito</h2>
+  <div class="ah-prose">
+
+<p>Os exercícios usam o Melodia. Tente antes de abrir o gabarito: o desenho importa mais que a resposta pronta.</p>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">1. (Fácil) No Melodia, quais são as interfaces fornecidas e requeridas pelo componente <code>reproducao</code>?</summary><div class="ah-prose mt-3 text-sm"><p><strong>Requeridas:</strong> <code>CatalogoMusica</code> e <code>VerificadorAssinatura</code>, passadas pelo construtor do <code>Player</code>. <strong>Fornecidas:</strong> nenhuma interface nova; o player oferece o método <code>tocar</code>, que é a sua interface de uso. Se você listou <code>Musica</code>, lembre que é um dado, e não uma interface.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">2. (Médio) Acrescente o componente <code>pagamento</code>, com a interface <code>Cobrador</code>, implementada por <code>CobradorPix</code> e <code>CobradorCartao</code>. A <code>assinatura</code> precisa cobrar a renovação. Desenhe as dependências e verifique se há ciclo.</summary><div class="ah-prose mt-3 text-sm"><p>A assinatura requer <code>Cobrador</code>, e os cobradores a implementam. Não há ciclo: <code>pagamento</code> não conhece <code>assinatura</code>.</p><div class="ah-diagram"><pre class="mermaid">
+flowchart LR
+    Assinatura["assinatura"] -- "requer" --> PI["«interface» Cobrador (pagamento)"]
+    PIX["CobradorPix (pagamento-pix)"] -. "implementa" .-> PI
+    CART["CobradorCartao (pagamento-cartao)"] -. "implementa" .-> PI
+</pre></div><p>Atenção: se o cobrador precisasse consultar a assinatura para saber o valor, surgiria um ciclo. A correção seria passar o valor como parâmetro.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">3. (Médio, streaming) Dado o ciclo da versão ruim, liste duas formas de quebrá-lo sem remover funcionalidades.</summary><div class="ah-prose mt-3 text-sm"><p><strong>Forma 1:</strong> remover o método <code>tocarPara</code> de <code>Musica</code> e colocar a chamada no player ou na montagem. <strong>Forma 2:</strong> definir uma interface no pacote que consome, por exemplo <code>ReproducaoListener</code> no <code>catalogo</code>, implementada pelo player. Em ambas, a seta de <code>catalogo</code> para <code>reproducao</code> desaparece.</p></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">4. (Desafio, streaming) Você implementou a recomendação. O histórico é gravado pelo player e lido pela recomendação. Desenhe o grafo que evita ciclo e diga em que pacote fica a interface <code>HistoricoEscuta</code>.</summary><div class="ah-prose mt-3 text-sm"><p>A interface <code>HistoricoEscuta</code> fica no pacote <code>recomendacao</code>, que é quem a requer. O player grava escutas em uma implementação que implementa essa interface (por exemplo, <code>HistoricoMemoria</code>, em outro pacote). Assim, <code>recomendacao</code> não importa <code>reproducao</code>, e o player só depende de <code>Recomendador</code>.</p><div class="ah-diagram"><pre class="mermaid">
+flowchart TD
+    Player["Player (reproducao)"] -- "requer" --> Rec["«interface» Recomendador (recomendacao)"]
+    Rec -. "implementa" .-> RecImpl["RecomendadorPorGenero (recomendacao)"]
+    RecImpl -- "requer" --> CI["«interface» CatalogoMusica (catalogo)"]
+    RecImpl -- "requer" --> HI["«interface» HistoricoEscuta (historico)"]
+    HI -. "implementa" .-> HM["HistoricoMemoria (historico)"]
+</pre></div></div></details>
+<details class="ah-card p-5 mb-3"><summary class="cursor-pointer text-sm font-semibold text-white">5. (Reflexão) Um colega propõe criar um pacote <code>util</code> com todas as classes compartilhadas, para evitar repetição. Quais são os riscos, e o que você faria no lugar?</summary><div class="ah-prose mt-3 text-sm"><p>Um pacote <code>util</code> tende a crescer e a ser importado por todos, o que cria dependências em todas as direções. O que fazer no lugar: colocar cada classe compartilhada no pacote de quem a define, e expor só as interfaces necessárias. Se duas classes realmente dividem um conceito, esse conceito merece um pacote próprio, com um nome que diga o que ele é.</p></div></details>
+
+  </div>
+</section>
 <section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
          style="background:linear-gradient(135deg,#1e293b,#11312a)">
   <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i>Teste seu entendimento</h2>
@@ -343,6 +457,23 @@ flowchart LR
     </div>
   </div>
 </section>
+<section id="aprof-referencias" data-toc="Para aprofundar" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Para aprofundar</h2>
+  <div class="ah-prose">
+
+<ul class="list-disc pl-5 space-y-2">
+<li>SZYPERSKI, Clemens. <em>Component Software: Beyond Object-Oriented Programming</em>. Addison-Wesley, 1998.</li>
+<li>BOOCH, G.; RUMBAUGH, J.; JACOBSON, I. <em>The Unified Modeling Language User Guide</em>. Addison-Wesley, 1999.</li>
+<li>MARTIN, Robert C. <em>Agile Software Development: Principles, Patterns, and Practices</em>. Prentice Hall, 2003.</li>
+<li>MARTIN, Robert C. <em>Clean Architecture</em>. Prentice Hall, 2017 (capítulos sobre componentes e dependências acíclicas).</li>
+<li>BROWN, Simon. <em>The C4 model for visualising software architecture</em>. c4model.com.</li>
+<li>OMG. <em>UML 2.5.1 Specification</em>, capítulo sobre componentes e pacotes. omg.org/spec/UML/2.5.1</li>
+<li>OpenJDK. <em>JEP 261: Module System</em>, Java 9. openjdk.org/jeps/261</li>
+<li>Oracle. Documentação da ferramenta <em>jdeps</em>, que acompanha o JDK.</li>
+</ul>
+
+  </div>
+</section>
   </main>
 </div>
 
@@ -354,199 +485,6 @@ flowchart LR
 <script src="../../../assets/js/data.js"></script>
 <script src="../../../assets/js/hub.js?v=tema3"></script>
 <script>
-/* ===================== Diagrama de componentes ===================== */
-(function componentes() {
-  const CENARIOS = {
-    cartao: {
-      impl: 'GatewayCartao', cor: '#38bdf8',
-      nota: `<h3 class="ah-h3 text-sm mb-2">Implementação atual: cartão</h3>
-        <p class="text-xs text-slate-400 leading-relaxed">O <b>ProcessadorPedidos</b> requer a interface
-        <code>IPagamento</code>. Quem a fornece é o <b>GatewayCartao</b>. O encaixe pirulito–soquete é a
-        ligação de montagem.</p>`,
-      codigo: `<span class="kw">interface</span> <span class="ty">IPagamento</span> {
-    <span class="ty">Recibo</span> <span class="fn">cobrar</span>(<span class="ty">double</span> v);
-}
-
-<span class="kw">class</span> <span class="ty">GatewayCartao</span> <span class="kw">implements</span> <span class="ty">IPagamento</span> { … }
-
-<span class="kw">class</span> <span class="ty">ProcessadorPedidos</span> {
-    <span class="kw">private final</span> <span class="ty">IPagamento</span> pagamento;
-
-    <span class="cm">// injeção: recebe a implementação de fora</span>
-    <span class="fn">ProcessadorPedidos</span>(<span class="ty">IPagamento</span> p) {
-        <span class="kw">this</span>.pagamento = p;
-    }
-}
-
-<span class="cm">// configuração</span>
-<span class="kw">new</span> <span class="ty">ProcessadorPedidos</span>(<span class="kw">new</span> <span class="ty">GatewayCartao</span>());`
-    },
-    pix: {
-      impl: 'GatewayPix', cor: '#10b981',
-      nota: `<h3 class="ah-h3 text-sm mb-2">Implementação trocada: Pix</h3>
-        <p class="text-xs text-slate-400 leading-relaxed">Trocamos o componente que <b>fornece</b>
-        <code>IPagamento</code>. O ProcessadorPedidos continua idêntico — só a linha de configuração mudou.
-        Essa é a definição prática de <b>substituibilidade</b>.</p>`,
-      codigo: `<span class="kw">interface</span> <span class="ty">IPagamento</span> {
-    <span class="ty">Recibo</span> <span class="fn">cobrar</span>(<span class="ty">double</span> v);
-}
-
-<span class="kw">class</span> <span class="ty">GatewayPix</span> <span class="kw">implements</span> <span class="ty">IPagamento</span> { … }
-
-<span class="kw">class</span> <span class="ty">ProcessadorPedidos</span> {
-    <span class="kw">private final</span> <span class="ty">IPagamento</span> pagamento;
-
-    <span class="cm">// NADA mudou aqui</span>
-    <span class="fn">ProcessadorPedidos</span>(<span class="ty">IPagamento</span> p) {
-        <span class="kw">this</span>.pagamento = p;
-    }
-}
-
-<span class="cm">// só a configuração mudou ↓</span>
-<span class="kw">new</span> <span class="ty">ProcessadorPedidos</span>(<span class="kw">new</span> <span class="ty">GatewayPix</span>());`
-    }
-  };
-
-  let sel = 'cartao';
-
-  function comp(x, y, w, h, nome, cor) {
-    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#1e293b" stroke="${cor}" stroke-width="1.8"/>
-      <rect x="${x - 7}" y="${y + 14}" width="14" height="9" fill="#1e293b" stroke="${cor}" stroke-width="1.5"/>
-      <rect x="${x - 7}" y="${y + 30}" width="14" height="9" fill="#1e293b" stroke="${cor}" stroke-width="1.5"/>
-      <text x="${x + w / 2}" y="${y + h / 2 + 2}" text-anchor="middle" font-size="12" font-weight="700"
-        font-family="Inter, sans-serif" fill="#fff">${nome}</text>
-      <text x="${x + w - 10}" y="${y + 16}" text-anchor="end" font-size="8.5"
-        font-family="Fira Code, monospace" fill="${cor}">«component»</text>`;
-  }
-
-  function desenha() {
-    const c = CENARIOS[sel];
-    let out = '';
-
-    out += comp(60, 110, 190, 76, 'ProcessadorPedidos', '#a855f7');
-    out += comp(410, 110, 180, 76, c.impl, c.cor);
-
-    /* soquete (requerida) no processador */
-    out += `<line x1="250" y1="148" x2="298" y2="148" stroke="#a855f7" stroke-width="2"/>
-            <path d="M310,130 A19,19 0 0 0 310,166" fill="none" stroke="#a855f7" stroke-width="2.4"/>`;
-
-    /* pirulito (fornecida) na implementação */
-    out += `<line x1="410" y1="148" x2="332" y2="148" stroke="${c.cor}" stroke-width="2"/>
-            <circle cx="322" cy="148" r="10" fill="none" stroke="${c.cor}" stroke-width="2.4"/>`;
-
-    out += `<text x="322" y="118" text-anchor="middle" font-size="10.5"
-              font-family="Fira Code, monospace" fill="#e2e8f0">«interface»</text>
-            <text x="322" y="105" text-anchor="middle" font-size="11.5" font-weight="700"
-              font-family="Inter, sans-serif" fill="#fff">IPagamento</text>
-            <text x="160" y="205" text-anchor="middle" font-size="9.5"
-              font-family="Inter, sans-serif" fill="#c4b5fd">requer (soquete)</text>
-            <text x="500" y="205" text-anchor="middle" font-size="9.5"
-              font-family="Inter, sans-serif" fill="${c.cor}">fornece (pirulito)</text>`;
-
-    /* componentes de apoio */
-    out += comp(60, 240, 190, 60, 'RepositorioPedidos', '#f59e0b');
-    out += `<line x1="155" y1="186" x2="155" y2="240" stroke="#64748b" stroke-width="1.6" stroke-dasharray="6 4"/>
-            <polyline points="149,232 155,240 161,232" fill="none" stroke="#64748b" stroke-width="1.6"/>
-            <text x="165" y="218" font-size="9" font-family="Fira Code, monospace" fill="#94a3b8">«use»</text>`;
-
-    out += comp(410, 240, 180, 60, 'API do Banco', '#64748b');
-    out += `<line x1="500" y1="186" x2="500" y2="240" stroke="#64748b" stroke-width="1.6" stroke-dasharray="6 4"/>
-            <polyline points="494,232 500,240 506,232" fill="none" stroke="#64748b" stroke-width="1.6"/>
-            <text x="510" y="218" font-size="9" font-family="Fira Code, monospace" fill="#94a3b8">«use»</text>`;
-
-    out += `<text x="320" y="40" text-anchor="middle" font-size="11" font-family="Inter, sans-serif" fill="#64748b">
-              troque a implementação no seletor acima e observe o lado esquerdo do diagrama</text>`;
-
-    document.getElementById('cp-svg').innerHTML = out;
-    document.getElementById('cp-nota').innerHTML = c.nota;
-    document.getElementById('cp-codigo').innerHTML = c.codigo;
-  }
-
-  document.getElementById('cp-cenario').addEventListener('click', e => {
-    const b = e.target.closest('[data-c]');
-    if (!b) return;
-    sel = b.getAttribute('data-c');
-    document.querySelectorAll('#cp-cenario .ah-chip').forEach(c => c.classList.toggle('active', c === b));
-    desenha();
-  });
-  desenha();
-})();
-
-/* ===================== Diagrama de pacotes ===================== */
-(function pacotes() {
-  const PK = [
-    { id: 'ui',   n: 'ui', x: 200, y: 30,  d: 'telas, controllers web' },
-    { id: 'app',  n: 'aplicacao', x: 200, y: 130, d: 'casos de uso, orquestração' },
-    { id: 'dom',  n: 'dominio', x: 200, y: 230, d: 'entidades e regras de negócio' },
-    { id: 'infra',n: 'infraestrutura', x: 400, y: 130, d: 'banco, e-mail, filas' }
-  ];
-  const BASE = [['ui', 'app'], ['app', 'dom'], ['infra', 'dom']];
-
-  function pacote(p) {
-    return `<path d="M${p.x},${p.y + 12} L${p.x},${p.y} L${p.x + 52},${p.y} L${p.x + 58},${p.y + 12}
-                     L${p.x + 140},${p.y + 12} L${p.x + 140},${p.y + 62} L${p.x},${p.y + 62} Z"
-              fill="#1e293b" stroke="#10b981" stroke-width="1.7"/>
-            <text x="${p.x + 70}" y="${p.y + 36}" text-anchor="middle" font-size="12" font-weight="700"
-              font-family="Fira Code, monospace" fill="#fff">${p.n}</text>
-            <text x="${p.x + 70}" y="${p.y + 52}" text-anchor="middle" font-size="8.5"
-              font-family="Inter, sans-serif" fill="#94a3b8">${p.d}</text>`;
-  }
-
-  function desenha() {
-    const ciclo = document.getElementById('pk-ciclo').checked;
-    const deps = ciclo ? [...BASE, ['dom', 'ui']] : BASE;
-    let out = '';
-
-    deps.forEach(([a, b]) => {
-      const A = PK.find(p => p.id === a), B = PK.find(p => p.id === b);
-      const ruim = ciclo && ((a === 'dom' && b === 'ui'));
-      const cor = ruim ? '#ef4444' : 'rgba(100,116,139,.7)';
-      const desvio = ruim ? 150 : 0;
-
-      const x1 = A.x + 70 + (desvio ? -74 : 0), y1 = A.y + (B.y > A.y ? 62 : 0);
-      const x2 = B.x + 70 + (desvio ? -74 : 0), y2 = B.y + (B.y > A.y ? 0 : 62);
-
-      if (A.y === B.y) {
-        out += `<line x1="${A.x}" y1="${A.y + 36}" x2="${B.x + 146}" y2="${B.y + 36}" stroke="${cor}" stroke-width="1.7" stroke-dasharray="6 4"/>
-                <polyline points="${B.x + 154},${B.y + 30} ${B.x + 146},${B.y + 36} ${B.x + 154},${B.y + 42}"
-                  fill="none" stroke="${cor}" stroke-width="1.7"/>`;
-      } else if (desvio) {
-        out += `<path d="M${A.x},${A.y + 36} L${A.x - 60},${A.y + 36} L${A.x - 60},${B.y + 36} L${B.x - 8},${B.y + 36}"
-                  fill="none" stroke="${cor}" stroke-width="2" stroke-dasharray="6 4"/>
-                <polyline points="${B.x - 16},${B.y + 30} ${B.x - 8},${B.y + 36} ${B.x - 16},${B.y + 42}"
-                  fill="none" stroke="${cor}" stroke-width="2"/>
-                <text x="${A.x - 56}" y="${(A.y + B.y) / 2 + 40}" font-size="9"
-                  font-family="Fira Code, monospace" fill="#f87171">«use» ✗</text>`;
-      } else {
-        out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2 - 8}" stroke="${cor}" stroke-width="1.7" stroke-dasharray="6 4"/>
-                <polyline points="${x2 - 6},${y2 - 16} ${x2},${y2 - 8} ${x2 + 6},${y2 - 16}"
-                  fill="none" stroke="${cor}" stroke-width="1.7"/>`;
-      }
-    });
-
-    PK.forEach(p => out += pacote(p));
-    document.getElementById('pk-svg').innerHTML = out;
-
-    const d = document.getElementById('pk-diag');
-    if (ciclo) {
-      d.className = 'ah-callout ah-callout-warn text-xs';
-      d.innerHTML = `<i class="fa-solid fa-circle-xmark"></i>
-        <div><b class="text-rose-300">Ciclo detectado:</b> <code>ui → aplicacao → dominio → ui</code>.
-        Nenhum dos três pode ser compilado, testado ou versionado de forma independente. Na prática, viraram
-        um pacote só. Para quebrar: declare uma interface no <code>dominio</code> e faça a <code>ui</code> implementá-la.</div>`;
-    } else {
-      d.className = 'ah-callout ah-callout-ok text-xs';
-      d.innerHTML = `<i class="fa-solid fa-circle-check"></i>
-        <div><b class="text-emerald-300">Arquitetura acíclica.</b> Todas as dependências apontam para o
-        <code>dominio</code>, que não depende de ninguém. É possível testar o domínio sem banco, sem tela e
-        sem framework.</div>`;
-    }
-  }
-
-  document.getElementById('pk-ciclo').addEventListener('change', desenha);
-  desenha();
-})();
-
 AH.initReveal();
 </script>
 </body>
