@@ -1106,6 +1106,179 @@
     calc();
   };
 
+  /* ==================================================================== */
+  /* Parte 8 · Agentes                                                    */
+  /* ==================================================================== */
+
+  /* ------------------------------------------------------------------ */
+  /* agentloop: o laço pensar → agir → observar, com a janela de contexto */
+  /* {janela, passos:[{f:'pensa'|'age'|'obs'|'fim', t, d, tok}]}          */
+  /* ------------------------------------------------------------------ */
+  IAS.agentloop = function (box) {
+    const D = dados(box), P = D.passos || [], J = D.janela || 10000;
+    const nome = { pensa: 'Pensar', age: 'Agir', obs: 'Observar', fim: 'Parar e entregar' };
+    const svg =
+      '<svg viewBox="0 0 520 250" role="img" aria-label="Laço de um agente: pensar, agir com uma ferramenta, observar o resultado e repetir até parar">' +
+      '<defs><marker id="al-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--muted)"/></marker></defs>' +
+      '<path d="M205,52 C290,40 330,70 350,105" style="fill:none;stroke:var(--line);stroke-width:2" marker-end="url(#al-ar)"/>' +
+      '<path d="M350,150 C330,190 290,210 225,205" style="fill:none;stroke:var(--line);stroke-width:2" marker-end="url(#al-ar)"/>' +
+      '<path d="M140,200 C95,180 90,95 130,62" style="fill:none;stroke:var(--line);stroke-width:2" marker-end="url(#al-ar)"/>' +
+      '<path d="M120,130 L60,130" style="fill:none;stroke:var(--line);stroke-width:2;stroke-dasharray:5 4" marker-end="url(#al-ar)"/>' +
+      '<g data-n="pensa"><rect x="130" y="22" width="120" height="50" rx="12"/><text x="190" y="44">Pensar</text><text class="s" x="190" y="61">plano e próximo passo</text></g>' +
+      '<g data-n="age"><rect x="300" y="102" width="130" height="50" rx="12"/><text x="365" y="124">Agir</text><text class="s" x="365" y="141">chama uma ferramenta</text></g>' +
+      '<g data-n="obs"><rect x="130" y="180" width="120" height="50" rx="12"/><text x="190" y="202">Observar</text><text class="s" x="190" y="219">lê o resultado</text></g>' +
+      '<g data-n="fim"><rect x="-2" y="105" width="64" height="50" rx="12"/><text x="30" y="127">Parar</text><text class="s" x="30" y="144">entrega</text></g>' +
+      '<text class="c" x="190" y="128">contexto</text><text class="c s" x="190" y="145">tudo o que já aconteceu</text>' +
+      '</svg>';
+    const ui = h('div', 'ias-loop',
+      '<div class="ias-stage lp">' + svg + '</div>' +
+      '<div class="ias-ctx"><div class="hd"><span>Janela de contexto usada</span><b>0%</b></div><div class="tr"><i></i></div><small></small></div>' +
+      '<ol class="ias-trace"></ol>');
+    box.appendChild(ui);
+    const nos = [...ui.querySelectorAll('[data-n]')], tr = ui.querySelector('.ias-trace');
+    const barra = ui.querySelector('.ias-ctx i'), pc = ui.querySelector('.ias-ctx b'), nota = ui.querySelector('.ias-ctx small');
+    passoAPasso(box, P.length, i => {
+      const p = P[i];
+      nos.forEach(n => n.classList.toggle('on', n.dataset.n === p.f));
+      tr.innerHTML = '';
+      P.slice(0, i + 1).forEach((x, k) => {
+        const li = h('li', 'f-' + x.f + (k === i ? ' now' : ''), '<span>' + nome[x.f] + '</span>' + x.t);
+        tr.appendChild(li);
+      });
+      tr.scrollTop = tr.scrollHeight;
+      const usado = P.slice(0, i + 1).reduce((s, x) => s + (x.tok || 0), 0), fr = Math.min(1, usado / J);
+      barra.style.width = fr * 100 + '%';
+      barra.style.background = 'var(' + (fr > .8 ? '--red' : fr > .6 ? '--amber' : '--accent') + ')';
+      pc.textContent = pct(fr);
+      nota.textContent = dec(usado, 0) + ' de ' + dec(J, 0) + ' tokens (valores ilustrativos). Cada volta do laço soma o que foi pedido, feito e observado.';
+      return { t: (i + 1) + '. ' + nome[p.f], d: p.d };
+    }, 3600);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* cadeia: erros que se acumulam em n passos, com e sem verificação    */
+  /* chance de sucesso = p^n; com verificação que pega d dos erros:      */
+  /* (p + (1−p)·d)^n                                                     */
+  /* ------------------------------------------------------------------ */
+  IAS.cadeia = function (box) {
+    const ui = h('div', '',
+      '<div class="grid2"><div><label class="r">Acerto de cada passo (p) <span class="pv"></span></label><input type="range" data-k="p" min="80" max="99.5" step="0.5" value="95"></div>' +
+      '<div><label class="r">Número de passos (n) <span class="nv"></span></label><input type="range" data-k="n" min="1" max="40" step="1" value="10"></div></div>' +
+      '<div class="grid2" style="margin-top:6px"><div><label class="r">Erros pegos pela verificação a cada passo (d) <span class="dv"></span></label><input type="range" data-k="d" min="0" max="95" step="5" value="70"></div>' +
+      '<div class="ias-note">d representa testes, compilação ou revisão entre os passos: o erro pego é corrigido antes de seguir. Com d = 0 não há verificação.</div></div>' +
+      '<div class="ias-kpis"><div class="ias-kpi bad"><span>Sem verificar no caminho</span><b class="k-a"></b></div><div class="ias-kpi ok"><span>Verificando a cada passo</span><b class="k-b"></b></div><div class="ias-kpi"><span>Erros esperados sem verificar</span><b class="k-e"></b></div></div>' +
+      '<div class="ias-row"><button type="button" class="ias-btn pri" data-a="sim">▶ Simular uma execução</button><span class="ias-note sr" style="margin:0"></span></div>' +
+      '<div class="ias-chain"></div><p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    const v = k => +ui.querySelector('[data-k=' + k + ']').value;
+    const ch = ui.querySelector('.ias-chain');
+    function calc() {
+      const p = v('p') / 100, n = v('n'), d = v('d') / 100;
+      const sem = Math.pow(p, n), com = Math.pow(p + (1 - p) * d, n);
+      ui.querySelector('.pv').textContent = pct(p, 1); ui.querySelector('.nv').textContent = n; ui.querySelector('.dv').textContent = pct(d);
+      ui.querySelector('.k-a').textContent = pct(sem, 1); ui.querySelector('.k-b').textContent = pct(com, 1);
+      ui.querySelector('.k-e').textContent = dec(n * (1 - p), 2);
+      ui.querySelector('.nt').innerHTML = 'Sem verificar: <strong>p<sup>n</sup></strong>. Verificando: <strong>(p + (1 − p)·d)<sup>n</sup></strong>. A conta supõe passos independentes e que um erro não pego estraga o resultado. Na prática, um agente que lê a saída de um teste consegue se corrigir, e é exatamente por isso que o teste precisa existir no meio do caminho.';
+      ch.innerHTML = ''; for (let k = 0; k < n; k++) ch.appendChild(h('i', '', String(k + 1)));
+      ui.querySelector('.sr').textContent = '';
+    }
+    let rodando = false;
+    async function simula() {
+      if (rodando) return; rodando = true; calc();
+      const p = v('p') / 100, n = v('n'), d = v('d') / 100, cs = [...ch.children];
+      let ok = true, pegos = 0;
+      for (let k = 0; k < n; k++) {
+        const erro = Math.random() > p, pego = erro && Math.random() < d;
+        cs[k].className = !erro ? 'c' : pego ? 'fx' : 'w';
+        if (erro && !pego) ok = false; if (pego) pegos++;
+        if (!reduz()) await espera(n > 20 ? 60 : 140);
+      }
+      ui.querySelector('.sr').innerHTML = ok ? '<b style="color:var(--accent)">Chegou ao fim correto</b> (' + pegos + ' erro(s) pego(s) e corrigido(s) no caminho).' : '<b style="color:var(--red)">Terminou com erro</b>: ao menos um passo errado passou sem ser pego.';
+      rodando = false;
+    }
+    ui.addEventListener('input', calc);
+    ui.querySelector('[data-a=sim]').addEventListener('click', simula);
+    calc();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* confiab: pass@k (ao menos uma certa) × pass^k (todas certas)        */
+  /* ------------------------------------------------------------------ */
+  IAS.confiab = function (box) {
+    const ui = h('div', '',
+      '<div class="grid2"><div><label class="r">Acerto de uma execução (p) <span class="pv"></span></label><input type="range" data-k="p" min="10" max="99" step="1" value="60"></div>' +
+      '<div><label class="r">Execuções da mesma tarefa (k) <span class="kv"></span></label><input type="range" data-k="k" min="1" max="10" step="1" value="8"></div></div>' +
+      '<div class="ias-stage cf"></div>' +
+      '<div class="ias-kpis"><div class="ias-kpi ok"><span>pass@k · ao menos uma certa</span><b class="k-a"></b></div><div class="ias-kpi bad"><span>pass^k · todas certas</span><b class="k-b"></b></div></div>' +
+      '<p class="ias-note nt"></p>');
+    box.appendChild(ui);
+    const v = k => +ui.querySelector('[data-k=' + k + ']').value, st = ui.querySelector('.cf');
+    function calc() {
+      const p = v('p') / 100, K = v('k');
+      const W = 520, H = 210, L = 40, R = 14, T = 12, B = 30, X = k => L + (k - 1) / 9 * (W - L - R), Y = y => T + (1 - y) * (H - T - B);
+      let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Curvas de pass@k e pass^k para k de 1 a 10">';
+      [0, .25, .5, .75, 1].forEach(g => { s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(g) + '" y2="' + Y(g) + '" style="stroke:var(--line)"/><text x="' + (L - 6) + '" y="' + (Y(g) + 4) + '" text-anchor="end" style="fill:var(--muted);font:11px var(--mono)">' + g * 100 + '%</text>'; });
+      for (let k = 1; k <= 10; k++) s += '<text x="' + X(k) + '" y="' + (H - 10) + '" text-anchor="middle" style="fill:var(--muted);font:11px var(--mono)">' + k + '</text>';
+      const cur = f => [...Array(10)].map((_, i) => (i ? 'L' : 'M') + X(i + 1) + ',' + Y(f(i + 1))).join(' ');
+      const at = k => 1 - Math.pow(1 - p, k), hat = k => Math.pow(p, k);
+      s += '<line x1="' + X(K) + '" x2="' + X(K) + '" y1="' + T + '" y2="' + (H - B) + '" style="stroke:var(--fg);stroke-dasharray:4 4;opacity:.5"/>';
+      s += '<path d="' + cur(at) + '" style="fill:none;stroke:var(--accent);stroke-width:3"/><path d="' + cur(hat) + '" style="fill:none;stroke:var(--red);stroke-width:3"/>';
+      s += '<circle cx="' + X(K) + '" cy="' + Y(at(K)) + '" r="5" style="fill:var(--accent)"/><circle cx="' + X(K) + '" cy="' + Y(hat(K)) + '" r="5" style="fill:var(--red)"/></svg>';
+      st.innerHTML = s;
+      ui.querySelector('.pv').textContent = pct(p); ui.querySelector('.kv').textContent = K;
+      ui.querySelector('.k-a').textContent = pct(at(K), 1); ui.querySelector('.k-b').textContent = pct(hat(K), 1);
+      ui.querySelector('.nt').innerHTML = 'A curva verde responde “com várias tentativas, alguma acerta?”. A vermelha responde “se eu rodar esta tarefa todo dia, ela acerta sempre?”. Para dar autonomia a um agente, a segunda pergunta é a que importa. Fórmulas: pass@k = 1 − (1 − p)<sup>k</sup> e pass^k = p<sup>k</sup>, supondo execuções independentes.';
+    }
+    ui.addEventListener('input', calc); calc();
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* autonomia: que nível de autonomia uma tarefa comporta              */
+  /* níveis de Feng, McDonald e Zhang (2025); o menor limite vence       */
+  /* ------------------------------------------------------------------ */
+  IAS.autonomia = function (box) {
+    const N = [
+      ['Operador', 'A pessoa decide cada passo; o agente executa comandos explícitos.', 'Sem guarda extra: a pessoa já está em cada decisão.'],
+      ['Colaborador', 'Pessoa e agente planejam e executam juntos, lado a lado.', 'Ambiente isolado, mudanças pequenas e revisão de cada diff.'],
+      ['Consultor', 'O agente conduz e consulta a pessoa sobre preferências e conhecimento.', 'Plano aprovado antes de executar, limite de passos e de custo, rastro completo.'],
+      ['Aprovador', 'O agente trabalha sozinho e pede aprovação para casos de risco definidos antes.', 'Lista explícita do que exige aprovação, saída por PR, testes na esteira, credencial mínima.'],
+      ['Observador', 'O agente age com autonomia total; a pessoa monitora.', 'Ação reversível e automática de desfazer, alarmes, orçamento, auditoria e revisão periódica de amostras.']
+    ];
+    const Q = [
+      { k: 'rev', t: 'Se o agente errar, dá para desfazer?', o: [['sim', 'Sim, totalmente', 5], ['parcial', 'Em parte', 3], ['nao', 'Não', 2]] },
+      { k: 'imp', t: 'Quem é afetado por um erro?', o: [['local', 'Só o ambiente de teste', 5], ['equipe', 'A equipe', 4], ['clientes', 'Clientes ou produção', 3]] },
+      { k: 'ver', t: 'Existe um verificador automático confiável?', o: [['forte', 'Forte (testes, compilação, regras)', 5], ['fraco', 'Fraco ou parcial', 3], ['nenhum', 'Nenhum', 2]] },
+      { k: 'his', t: 'Como foi o histórico (pass^k) nesta tarefa?', o: [['alto', 'Alto e medido', 5], ['medio', 'Médio', 4], ['baixo', 'Baixo', 2], ['sem', 'Sem dados ainda', 2]] }
+    ];
+    let html = '<div class="ias-aut">';
+    Q.forEach(q => { html += '<div class="q"><p>' + q.t + '</p><div class="ops">' + q.o.map((o, i) => '<button type="button" data-q="' + q.k + '" data-v="' + o[0] + '" aria-pressed="' + (i === 0 ? 'true' : 'false') + '">' + o[1] + '</button>').join('') + '</div></div>'; });
+    html += '<div class="q"><p>Tríade letal: o agente tem ao mesmo tempo…</p><div class="ias-chk"><label><input type="checkbox" data-t="1"> acesso a dados privados</label><label><input type="checkbox" data-t="2"> contato com conteúdo não confiável (web, issues, e-mails)</label><label><input type="checkbox" data-t="3"> como enviar dados para fora</label></div></div>';
+    html += '</div><div class="ias-esc lv"></div><div class="ias-verdict vd"></div>';
+    const ui = h('div', '', html); box.appendChild(ui);
+    const esc = ui.querySelector('.lv');
+    N.slice().reverse().forEach((n, j) => { const i = N.length - j; esc.appendChild(h('div', '', '<b>L' + i + '</b><span><strong>' + n[0] + '.</strong> ' + n[1] + '</span>')); });
+    const sel = {}; Q.forEach(q => sel[q.k] = q.o[0][0]);
+    function calc() {
+      let nv = 5; const motivos = [];
+      Q.forEach(q => { const o = q.o.find(x => x[0] === sel[q.k]); if (o[2] < 5) motivos.push([o[2], q.t.replace('?', '') + ': ' + o[1].toLowerCase()]); nv = Math.min(nv, o[2]); });
+      const tri = [...ui.querySelectorAll('[data-t]')].filter(c => c.checked).length;
+      if (tri === 3) { nv = Math.min(nv, 2); motivos.push([2, 'As três condições da tríade letal estão presentes']); }
+      [...esc.children].forEach((d, j) => d.classList.toggle('on', N.length - j === nv));
+      const lim = motivos.filter(m => m[0] === nv).map(m => m[1]);
+      const vd = ui.querySelector('.vd');
+      vd.className = 'ias-verdict vd' + (nv <= 2 ? ' stop' : nv === 3 ? ' warn' : '');
+      vd.innerHTML = '<b>Nível sugerido: L' + nv + ' · ' + N[nv - 1][0] + '.</b> ' + (lim.length ? 'O que limita: ' + lim.join('; ') + '.' : 'Nenhum fator limita: só faz sentido se o histórico foi medido de verdade.') + '<br><span style="color:var(--muted)">Guardas mínimas:</span> ' + N[nv - 1][2] + (tri === 3 ? '<br><span style="color:var(--muted)">Antes de subir de nível:</span> retire uma das três condições, por exemplo, bloqueando o envio de dados para fora.' : '');
+    }
+    ui.addEventListener('click', e => {
+      const b = e.target.closest('button[data-q]'); if (!b) return;
+      sel[b.dataset.q] = b.dataset.v;
+      ui.querySelectorAll('button[data-q="' + b.dataset.q + '"]').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+      calc();
+    });
+    ui.addEventListener('change', calc);
+    calc();
+  };
+
   /* ---------------------------- inicialização ------------------------ */
   function init() {
     document.querySelectorAll('[data-ias]').forEach(box => {

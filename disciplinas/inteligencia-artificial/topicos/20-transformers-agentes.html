@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-root="../../../">
+<head>
+<script>try{if(localStorage.getItem('academic-hub:tema')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transformers e Agentes de IA · AcademicHub</title>
+<meta name="description" content="Atenção, self-attention, o bloco Transformer, do GPT ao ChatGPT, e agentes baseados em modelos de linguagem.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/hub.css?v=tema5">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body class="min-h-full flex flex-col" data-topic="ia/20-transformers-agentes">
+
+<header id="ah-header" class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-50"></header>
+
+<section class="ah-grid-bg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="ah-topic-hero"></div>
+</section>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 w-full">
+
+  <aside class="lg:col-span-3 order-2 lg:order-1 ah-no-print">
+    <div class="lg:sticky lg:top-20">
+      <p class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2 px-3">Nesta página</p>
+      <nav id="ah-toc" class="space-y-0.5"></nav>
+    </div>
+  </aside>
+
+  <main class="lg:col-span-9 order-1 lg:order-2 space-y-8">
+
+<!-- ============================ IDEIA ============================ -->
+<section id="ideia" data-toc="Antes do Transformer" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-4"><i class="fa-solid fa-route text-indigo-400 mr-2"></i>Antes do Transformer: o gargalo da sequência</h2>
+  <div class="ah-prose">
+    <p>
+      Um modelo de linguagem precisa lidar com sequências. Até 2017, o padrão era a <strong>rede recorrente</strong>:
+      lê um token por vez e atualiza um estado oculto. Hochreiter e Schmidhuber (1997) propuseram a LSTM para lidar com
+      dependências longas, mas o processamento continuava sequencial: o passo <em>t</em> só começa depois do passo <em>t−1</em>.
+    </p>
+    <p>
+      Sutskever, Vinyals e Le (2014) traduziram frases com um <strong>codificador</strong> que comprimia a frase inteira
+      em um único vetor, lido por um <strong>decodificador</strong>. Esse vetor é um gargalo: frases longas perdem
+      informação. Bahdanau, Cho e Bengio (2015) resolveram isso permitindo que o decodificador <strong>consulte</strong>
+      todos os estados do codificador a cada palavra gerada. Essa consulta é a <em>atenção</em>.
+    </p>
+    <p>
+      Vaswani et al. (2017) fizeram a pergunta decisiva: e se a atenção for o <em>único</em> mecanismo de mistura de
+      informação? Sem recorrência, todos os tokens são processados em paralelo. Esse é o Transformer.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-6">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="rnnCanvas" style="height:260px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="rnn-gargalo" class="ah-btn ah-btn-primary">Sem atenção: vetor único</button>
+        <button id="rnn-atencao" class="ah-btn">Com atenção: consulta a cada palavra</button>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-2">Os pesos das ligações são ilustrativos. Eles mostram que, com atenção, cada palavra gerada olha para as palavras de entrada que importam.</p>
+    </div>
+    <div class="ah-card p-4 text-xs text-slate-400 leading-relaxed">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Por que isso importa</h3>
+      <ul class="space-y-2">
+        <li><strong class="text-white">Dependência longa:</strong> a atenção liga qualquer par de posições em um passo, sem atravessar a sequência.</li>
+        <li><strong class="text-white">Paralelismo:</strong> a GPU calcula todos os tokens de uma vez, o que torna possível treinar com enormes volumes de texto.</li>
+        <li><strong class="text-white">Custo:</strong> a atenção compara todos os pares de tokens. Para <em>n</em> tokens, isso custa <em>n²</em>, e é o gargalo de contextos longos.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ATENÇÃO ============================ -->
+<section id="atencao" data-toc="Self-attention: consulta, chave e valor" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-magnifying-glass text-indigo-400 mr-2"></i>Self-attention: consulta, chave e valor</h2>
+  <p class="ah-lead text-sm mb-5">
+    Cada token produz três vetores, por meio de matrizes que o modelo aprende: uma <strong>consulta</strong> (Q, o que
+    eu procuro), uma <strong>chave</strong> (K, o que eu ofereço) e um <strong>valor</strong> (V, a informação que eu
+    entrego). A saída de cada token é uma média dos valores, ponderada pela compatibilidade entre sua consulta e as chaves.
+  </p>
+
+  <div class="ah-card p-5 my-4 text-center">
+    <div class="font-mono text-sm text-slate-200">Attention(Q, K, V) = softmax( Q Kᵀ / √d<sub>k</sub> ) · V</div>
+    <p class="text-[11px] text-slate-500 mt-2">Fórmula central de Vaswani et al. (2017), equação 1.</p>
+  </div>
+
+  <div class="ah-prose">
+    <p>
+      Lendo a fórmula da direita para a esquerda: <strong>V</strong> são as informações; <strong>Q Kᵀ</strong> mede a
+      compatibilidade de cada consulta com cada chave (um produto escalar por par de tokens); a divisão por
+      <strong>√d<sub>k</sub></strong> controla a escala; o <strong>softmax</strong> transforma cada linha em pesos
+      positivos que somam 1. A soma final é a mistura dos valores.
+    </p>
+    <p>
+      Pense em uma biblioteca. A consulta é a pergunta do leitor, a chave é o título de cada livro e o valor é o
+      conteúdo. O leitor não lê todos os livros: compara a pergunta com os títulos e ganha mais peso dos conteúdos
+      mais relevantes. O Transformer faz isso em cada camada, para cada token, ao mesmo tempo.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Passo a passo com números</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    Três tokens, <em>o</em>, <em>gato</em> e <em>dorme</em>, com embeddings de dimensão 2 escolhidos à mão. As matrizes
+    de projeção são pequenas para que as contas caibam na tela. Use “Próximo” para ver cada etapa.
+  </p>
+  <div class="ah-stepper">
+    <pre class="ah-code ah-stepper-code"><code>Q, K, V = X @ Wq, X @ Wk, X @ Wv
+S = Q @ K.T / sqrt(d_k)
+A = softmax(S)
+Z = A @ V</code></pre>
+    <script type="application/json" class="ah-steps">[
+      {"linha": 0, "titulo": "Projeções: três vetores por token", "texto": "X tem uma linha por token. Com Wq = Wk = identidade, Q e K são iguais a X. Wv mistura as coordenadas e produz V. Por exemplo, o token <em>dorme</em> vira Q = K = (1; 1) e V = (1; 2,5).", "visual": "<div class='font-mono text-xs leading-relaxed'><div>Q = K: o [1, 0] · gato [0, 1] · dorme [1, 1]</div><div>V: o [1; 0,5] · gato [0; 2] · dorme [1; 2,5]</div></div>"},
+      {"linha": 1, "titulo": "Pontuações e escala", "texto": "O produto Q Kᵀ dá a compatibilidade de cada par. Dividir por √2 ≈ 1,41 mantém os valores moderados. Note que <em>dorme</em> se compara consigo mesmo com o maior valor (2 / √2 = 1,414).", "visual": "<div class='font-mono text-xs leading-relaxed'><div>S = [0,707 0 0,707 ; 0 0,707 0,707 ; 0,707 0,707 1,414]</div></div>"},
+      {"linha": 2, "titulo": "Softmax: pesos de atenção", "texto": "Cada linha vira uma distribuição que soma 1. A linha de <em>dorme</em> dá peso 0,503 para si mesmo e 0,248 para cada um dos outros dois tokens.", "visual": "<div class='font-mono text-xs leading-relaxed'><div>A = [0,401 0,198 0,401 ; 0,198 0,401 0,401 ; 0,248 0,248 0,503]</div><div>soma de cada linha = 1,000</div></div>"},
+      {"linha": 3, "titulo": "Saída: média ponderada dos valores", "texto": "A linha de <em>gato</em> vira 0,198·(1; 0,5) + 0,401·(0; 2) + 0,401·(1; 2,5) = (0,599; 1,904). Cada token sai com uma mistura de informação de toda a frase.", "visual": "<div class='font-mono text-xs leading-relaxed'><div>Z = [0,802 1,599 ; 0,599 1,904 ; 0,752 1,879]</div></div>"},
+      {"linha": -1, "titulo": "Máscara causal (para geração)", "texto": "Em um modelo que gera texto, o token na posição t não pode ver os seguintes. Basta colocar −∞ acima da diagonal antes do softmax. A linha de <em>gato</em> passa a ser (0,33; 0,67; 0), e a de <em>o</em> vira (1; 0; 0).", "visual": "<div class='font-mono text-xs leading-relaxed'><div>A (causal) = [1 0 0 ; 0,33 0,67 0 ; 0,248 0,248 0,503]</div></div>"}
+    ]</script>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Por que dividir por √d<sub>k</sub></h3>
+  <div class="ah-prose">
+    <p>
+      Se as coordenadas de Q e K forem independentes, com média 0 e variância 1, o produto escalar de dois vetores de
+      dimensão <em>d<sub>k</sub></em> tem variância <em>d<sub>k</sub></em>. Com dimensões grandes, os escores ficam muito
+      grandes em módulo, o softmax vira quase um “vencedor leva tudo” e os gradientes encolhem. Dividir por
+      √d<sub>k</sub> devolve a variância a 1. O experimento abaixo, feito com vetores aleatórios, confirma isso.
+    </p>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-4">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="attnCanvas" style="height:300px"></canvas></div>
+      <div class="flex flex-wrap gap-2 mt-3 items-center">
+        <button id="attn-escala" class="ah-btn ah-btn-primary">Com escala 1/√d<sub>k</sub></button>
+        <span class="text-[11px] text-slate-500">Mapa de calor dos pesos de atenção de “dorme” e dos demais tokens.</span>
+      </div>
+    </div>
+    <div class="ah-card p-4">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Desvio-padrão do produto escalar</h3>
+      <table class="ah-table text-xs">
+        <thead><tr><th>d<sub>k</sub></th><th>sem escala</th><th>com escala</th></tr></thead>
+        <tbody>
+          <tr><td>4</td><td>2,04</td><td>1,02</td></tr>
+          <tr><td>64</td><td>7,85</td><td>0,98</td></tr>
+          <tr><td>512</td><td>22,56</td><td>1,00</td></tr>
+        </tbody>
+      </table>
+      <p class="text-[10px] text-slate-500 mt-2">Simulação com 2.000 pares de vetores normais padrão (saída real, abaixo).</p>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Código: atenção em NumPy</h3>
+  <pre class="ah-code text-[11px] my-4">import numpy as np
+
+def softmax(z):
+    e = np.exp(z - z.max(axis=-1, keepdims=True))
+    return e / e.sum(axis=-1, keepdims=True)
+
+X = np.array([[1.0, 0.0],   # o
+              [0.0, 1.0],   # gato
+              [1.0, 1.0]])  # dorme
+Wq = np.eye(2)
+Wk = np.eye(2)
+Wv = np.array([[1.0, 0.5],
+               [0.0, 2.0]])
+
+Q, K, V = X @ Wq, X @ Wk, X @ Wv
+d_k = Q.shape[1]
+S = Q @ K.T / np.sqrt(d_k)
+A = softmax(S)
+Z = A @ V
+
+mascara = np.triu(np.ones((3, 3), dtype=bool), k=1)
+Acausal = softmax(np.where(mascara, -np.inf, S))
+
+print("pesos de atencao (sem mascara):")
+print(np.round(A, 3))
+print("saida Z = A @ V:")
+print(np.round(Z, 3))
+print("pesos com mascara causal:")
+print(np.round(Acausal, 3))
+
+rng = np.random.default_rng(0)
+for d in [4, 64, 512]:
+    q = rng.standard_normal((2000, d)); k = rng.standard_normal((2000, d))
+    dots = (q * k).sum(1)
+    print(f"d={d}: sem escala {dots.std():.2f}; com escala {(dots/np.sqrt(d)).std():.2f}")</pre>
+  <div class="ah-prose"><p><strong>Saída real do programa</strong> (executado com Python 3 e NumPy 2.4):</p></div>
+  <pre class="ah-code text-[11px] my-4">pesos de atencao (sem mascara):
+[[0.401 0.198 0.401]
+ [0.198 0.401 0.401]
+ [0.248 0.248 0.503]]
+saida Z = A @ V:
+[[0.802 1.599]
+ [0.599 1.904]
+ [0.752 1.879]]
+pesos com mascara causal:
+[[1.    0.    0.   ]
+ [0.33  0.67  0.   ]
+ [0.248 0.248 0.503]]
+d=4: sem escala 2.04; com escala 1.02
+d=64: sem escala 7.85; com escala 0.98
+d=512: sem escala 22.56; com escala 1.00</pre>
+</section>
+
+<!-- ============================ BLOCO TRANSFORMER ============================ -->
+<section id="bloco" data-toc="O bloco Transformer" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-layer-group text-indigo-400 mr-2"></i>O bloco Transformer: atenção, residual e normalização</h2>
+  <p class="ah-lead text-sm mb-5">
+    Um Transformer é uma pilha de blocos idênticos. Cada bloco tem duas subcamadas: atenção multi-cabeça e uma rede
+    feed-forward por posição. Cada subcamada vem envolvida por uma conexão residual e uma normalização.
+  </p>
+
+  <div class="ah-stage mb-4"><canvas id="blocoCanvas" style="height:170px"></canvas></div>
+
+  <div class="ah-prose">
+    <p>
+      <strong>Múltiplas cabeças.</strong> Em vez de uma única atenção de dimensão <em>d</em>, usa-se <em>h</em> cabeças de
+      dimensão <em>d/h</em>, cada uma com suas matrizes Wq, Wk e Wv. Cada cabeça aprende um tipo de relação (por exemplo,
+      sujeito–verbo ou pronome–antecedente). As saídas são concatenadas e projetadas por uma matriz Wo. Clark et al.
+      (2019) mostraram que cabeças diferentes do BERT se especializam em padrões sintáticos distintos.
+    </p>
+    <p>
+      <strong>Feed-forward.</strong> Aplicada a cada posição separadamente:
+      FFN(x) = max(0, x W<sub>1</sub> + b<sub>1</sub>) W<sub>2</sub> + b<sub>2</sub>, com a camada oculta quatro vezes
+      maior que <em>d</em> no artigo original. É onde boa parte dos parâmetros do modelo fica.
+    </p>
+    <p>
+      <strong>Residual e normalização.</strong> Cada subcamada computa x + Subcamada(x). A conexão residual dá um caminho
+      direto para o gradiente, o que permite empilhar dezenas de camadas. A normalização por camada (Ba, Kiros e Hinton,
+      2016) estabiliza as ativações. Xiong et al. (2020) mostraram que aplicar a normalização <em>antes</em> de cada
+      subcamada (pré-norma) torna o aquecimento do treino menos delicado, e é a versão usada na família GPT.
+    </p>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Sem recorrência, a ordem precisa ser ensinada</h3>
+  <div class="ah-prose">
+    <p>
+      A atenção não sabe onde cada token está: se trocarmos as palavras de lugar, a mistura de valores é a mesma. Por isso
+      somamos a cada embedding um vetor de <strong>codificação posicional</strong>. Vaswani et al. (2017) usaram senoides
+      de frequências diferentes:
+    </p>
+  </div>
+  <div class="ah-card p-5 my-4 text-center">
+    <div class="font-mono text-sm text-slate-200">PE(pos, 2i) = sen( pos / 10000<sup>2i/d</sup> ) &nbsp;·&nbsp; PE(pos, 2i+1) = cos( pos / 10000<sup>2i/d</sup> )</div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="peCanvas" style="height:230px"></canvas></div>
+      <div class="flex items-center gap-3 mt-3">
+        <label class="text-xs text-slate-400">Posição</label>
+        <input id="pe-pos" type="range" min="0" max="40" value="5" class="flex-1 accent-indigo-500">
+        <span id="pe-pos-v" class="font-mono text-indigo-300 w-8 text-center">5</span>
+      </div>
+    </div>
+    <div class="ah-card p-4">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Vetor da posição escolhida</h3>
+      <div id="pe-vetor" class="font-mono text-xs text-slate-300 space-y-1"></div>
+      <p class="text-[10px] text-slate-500 mt-3 leading-relaxed">Frequências altas oscilam depressa com a posição; as baixas mudam devagar. Juntas, codificam uma posição de forma única.</p>
+    </div>
+  </div>
+
+  <div class="ah-prose mt-6">
+    <p>Um exemplo pequeno, com quatro posições e dimensão 4, feito com o código abaixo:</p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">import numpy as np
+
+def codificacao_posicional(n_pos, d):
+    PE = np.zeros((n_pos, d))
+    pos = np.arange(n_pos)[:, None]
+    i = np.arange(0, d, 2)[None, :]
+    angulo = pos / np.power(10000, i / d)
+    PE[:, 0::2] = np.sin(angulo)
+    PE[:, 1::2] = np.cos(angulo)
+    return PE
+
+PE = codificacao_posicional(4, 4)
+np.set_printoptions(precision=3, suppress=True)
+print("PE para posicoes 0..3, d = 4:")
+print(PE)
+print("distancia entre posicoes 0 e 1:", round(float(np.linalg.norm(PE[0] - PE[1])), 3))
+print("distancia entre posicoes 0 e 3:", round(float(np.linalg.norm(PE[0] - PE[3])), 3))</pre>
+  <div class="ah-prose"><p><strong>Saída real do programa:</strong></p></div>
+  <pre class="ah-code text-[11px] my-4">PE para posicoes 0..3, d = 4:
+[[ 0.     1.     0.     1.   ]
+ [ 0.841  0.54   0.01   1.   ]
+ [ 0.909 -0.416  0.02   1.   ]
+ [ 0.141 -0.99   0.03   1.   ]]
+distancia entre posicoes 0 e 1: 0.959
+distancia entre posicoes 0 e 3: 1.995</pre>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>Os modelos atuais trocaram parte desse esquema por variantes como a RoPE (Su et al., 2021), que codifica a posição rotacionando Q e K. A ideia de fundo é a mesma: a informação de posição precisa entrar na atenção.</div>
+  </div>
+</section>
+
+<!-- ============================ GERAÇÃO ============================ -->
+<section id="geracao" data-toc="Treinar e gerar texto" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-indigo-400 mr-2"></i>Treinar e gerar: prever o próximo token</h2>
+  <p class="ah-lead text-sm mb-5">
+    O objetivo que o GPT original otimiza é simples de enunciar: dado o prefixo, prever o próximo token. Toda a
+    capacidade do modelo sai de repetir essa tarefa sobre enormes volumes de texto.
+  </p>
+  <div class="ah-prose">
+    <p>
+      Para uma sequência <em>x<sub>1</sub>…x<sub>T</sub></em>, o modelo estima P(x<sub>t</sub> | x<sub>&lt;t</sub>) para cada
+      posição. A perda é a entropia cruzada: −Σ log P(x<sub>t</sub> | x<sub>&lt;t</sub>), somada sobre as posições.
+      Na fase de treino, a máscara causal impede que cada posição veja o futuro, e todas as posições são calculadas em
+      paralelo; esse é o <em>teacher forcing</em> sem recorrência.
+    </p>
+    <p>
+      Para gerar, o modelo produz um vetor de <strong>logits</strong> (um número por token do vocabulário), aplica o
+      softmax e escolhe um token. A escolha pode ser <em>gulosa</em> (o mais provável), por <em>amostragem</em> ou com
+      restrições como top-k e top-p (Holtzman et al., 2020). A <strong>temperatura</strong> T divide os logits antes do
+      softmax: T baixo concentra a probabilidade no topo, T alto a espalha.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-6">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="tempCanvas" style="height:230px"></canvas></div>
+      <div class="flex items-center gap-3 mt-3">
+        <label class="text-xs text-slate-400">Temperatura T</label>
+        <input id="temp-T" type="range" min="0.1" max="3" step="0.1" value="1" class="flex-1 accent-indigo-500">
+        <span id="temp-T-v" class="font-mono text-indigo-300 w-10 text-center">1,0</span>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-2">Exemplo: depois de “o gato”, os logits de quatro próximas palavras são 2,0; 1,0; 0,1 e −1,0.</p>
+    </div>
+    <div class="ah-card p-4 text-xs text-slate-400 leading-relaxed">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Efeito de T</h3>
+      <ul class="space-y-2">
+        <li><strong class="text-white">T → 0:</strong> escolha gulosa (argmax). Repetitivo, mas estável.</li>
+        <li><strong class="text-white">T = 1:</strong> distribuição do modelo sem alteração.</li>
+        <li><strong class="text-white">T alto:</strong> mais variedade, e mais chance de erro.</li>
+      </ul>
+    </div>
+  </div>
+
+  <pre class="ah-code text-[11px] my-4">import numpy as np
+
+def softmax(z):
+    e = np.exp(z - z.max())
+    return e / e.sum()
+
+logits = np.array([2.0, 1.0, 0.1, -1.0])  # dorme, come, voa, é
+for T in [0.5, 1.0, 2.0]:
+    print("T =", T, softmax(logits / T).round(3))</pre>
+  <div class="ah-prose"><p><strong>Saída real do programa:</strong></p></div>
+  <pre class="ah-code text-[11px] my-4">T = 0.5 [0.862 0.117 0.019 0.002]
+T = 1.0 [0.638 0.235 0.095 0.032]
+T = 2.0 [0.451 0.274 0.174 0.101]</pre>
+</section>
+
+<!-- ============================ DO GPT AO CHATGPT ============================ -->
+<section id="do-gpt-ao-chatgpt" data-toc="Do GPT ao ChatGPT" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-timeline text-indigo-400 mr-2"></i>Do GPT ao ChatGPT: três ideias que se somaram</h2>
+  <p class="ah-lead text-sm mb-5">
+    O ChatGPT não é uma arquitetura nova. É um Transformer decoder grande, pré-treinado para prever o próximo token e
+    depois <strong>alinhado</strong> a instruções humanas. A história tem três ideias que se somaram: pré-treino em
+    texto em larga escala, escala de parâmetros e dados, e alinhamento com feedback humano.
+  </p>
+
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Ano</th><th>Marco</th><th>Ideia central</th><th>Referência</th></tr></thead>
+      <tbody>
+        <tr><td>2017</td><td>Transformer</td><td>só atenção; BLEU 28,4 em inglês–alemão (WMT 2014), 3,5 dias em oito GPUs P100</td><td>Vaswani et al. (2017)</td></tr>
+        <tr><td>2018</td><td>GPT-1</td><td>decoder pré-treinado com o próximo token e depois ajustado a tarefas; cerca de 117 M parâmetros</td><td>Radford et al. (2018)</td></tr>
+        <tr><td>2018</td><td>BERT</td><td>encoder bidirecional treinado para completar palavras mascaradas</td><td>Devlin et al. (2019)</td></tr>
+        <tr><td>2019</td><td>GPT-2</td><td>1,5 bilhão de parâmetros; texto gerado com boa coerência de parágrafo</td><td>Radford et al. (2019)</td></tr>
+        <tr><td>2020</td><td>GPT-3</td><td>175 bilhões de parâmetros; aprendizado em contexto, sem atualizar pesos</td><td>Brown et al. (2020)</td></tr>
+        <tr><td>2020</td><td>Leis de escala</td><td>a perda cai como lei de potência com parâmetros, dados e cálculo</td><td>Kaplan et al. (2020)</td></tr>
+        <tr><td>2022</td><td>Chinchilla</td><td>para um dado cálculo, parâmetros e tokens devem crescer juntos</td><td>Hoffmann et al. (2022)</td></tr>
+        <tr><td>2022</td><td>InstructGPT</td><td>RLHF: modelo de 1,3 B foi preferido a saídas do GPT-3 de 175 B</td><td>Ouyang et al. (2022)</td></tr>
+        <tr><td>2022</td><td>ChatGPT</td><td>família GPT-3.5 com RLHF semelhante ao InstructGPT</td><td>OpenAI (2022)</td></tr>
+        <tr><td>2023</td><td>DPO</td><td>alinhamento direto com pares de preferência, sem modelo de recompensa separado</td><td>Rafailov et al. (2023)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="ah-h3 mt-6 mb-3">Como um modelo vira assistente</h3>
+  <div class="ah-prose">
+    <p>
+      Um modelo pré-treinado completa texto, mas não segue instruções. Ouyang et al. (2022) propuseram três etapas,
+      descritas no passo a passo abaixo. A primeira ensina o formato de uma boa resposta. A segunda aprende o que as
+      pessoas preferem entre duas respostas. A terceira otimiza o modelo para obter notas altas nesse modelo de preferências.
+      Christiano et al. (2017) já tinham usado preferências humanas para treinar agentes de aprendizado por reforço.
+    </p>
+  </div>
+  <div class="ah-stepper">
+    <pre class="ah-code ah-stepper-code"><code>modelo = pretreinar(corpus)                  # prever o próximo token
+modelo = ajustar(modelo, demonstracoes)      # SFT: respostas escritas por pessoas
+recompensa = treinar(comparacoes)            # pessoas escolhem a melhor de duas respostas
+modelo = otimizar(modelo, recompensa)        # ex.: PPO</code></pre>
+    <script type="application/json" class="ah-steps">[
+      {"linha": 0, "titulo": "Pré-treino", "texto": "O modelo lê grandes volumes de texto e aprende a prever o próximo token. Nessa etapa ele aprende gramática, fatos e estilo, mas ainda não sabe que deve responder a uma pergunta.", "visual": "<div class='font-mono text-xs'>objetivo: maximizar log P(próximo token | contexto)</div>"},
+      {"linha": 1, "titulo": "Ajuste supervisionado (SFT)", "texto": "Pessoas escrevem respostas modelares a instruções. O modelo é ajustado para imitar esse formato. Ouyang et al. (2022) usaram esse conjunto como ponto de partida.", "visual": "<div class='font-mono text-xs'>pares (instrução, resposta escrita por uma pessoa)</div>"},
+      {"linha": 2, "titulo": "Modelo de recompensa", "texto": "Para uma mesma instrução, o modelo gera duas respostas. Uma pessoa indica a melhor. Com muitas comparações, treina-se um modelo que dá uma nota a cada resposta.", "visual": "<div class='font-mono text-xs'>pares (resposta A, resposta B, quem foi preferida)</div>"},
+      {"linha": 3, "titulo": "Otimização por reforço", "texto": "O modelo de linguagem é ajustado para maximizar a nota do modelo de recompensa, com uma penalidade para não se afastar demais do modelo original. Esse é o RLHF. O DPO (Rafailov et al., 2023) chega a um objetivo parecido sem o passo de reforço.", "visual": "<div class='font-mono text-xs'>maximizar recompensa − β · divergência do modelo de referência</div>"}
+    ]</script>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Escala: quantos parâmetros tem cada modelo</h3>
+  <div class="ah-prose">
+    <p>
+      Cada bloco tem aproximadamente 12·d² parâmetros: 4d² na atenção (Wq, Wk, Wv e Wo) e 8d² no feed-forward. Com <em>L</em>
+      blocos, o total sem embedding é cerca de 12·L·d². O cálculo abaixo ignora vieses e normalizações, então é uma
+      aproximação; o GPT-2 medium publicado tem cerca de 355 M, e o valor abaixo é 353 M.
+    </p>
+  </div>
+  <pre class="ah-code text-[11px] my-4">def params_por_bloco(d, ff_mult=4):
+    atencao = 4 * d * d            # Wq, Wk, Wv, Wo (ignorando vieses)
+    mlp = 2 * ff_mult * d * d      # duas matrizes d x 4d
+    return atencao + mlp
+
+for nome, d, L, V in [("GPT-2 small", 768, 12, 50257),
+                      ("GPT-2 medium", 1024, 24, 50257),
+                      ("GPT-3 175B", 12288, 96, 50257)]:
+    nao_emb = L * params_por_bloco(d)
+    emb = V * d
+    print(f"{nome}: blocos={L}, d={d}, sem embedding={nao_emb/1e6:,.0f} M, com embedding={(nao_emb+emb)/1e6:,.0f} M")</pre>
+  <div class="ah-prose"><p><strong>Saída real do programa:</strong></p></div>
+  <pre class="ah-code text-[11px] my-4">GPT-2 small: blocos=12, d=768, sem embedding=85 M, com embedding=124 M
+GPT-2 medium: blocos=24, d=1024, sem embedding=302 M, com embedding=353 M
+GPT-3 175B: blocos=96, d=12288, sem embedding=173,946 M, com embedding=174,564 M</pre>
+  <div class="ah-callout ah-callout-info my-4">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>Note que o total cresce com <em>d²</em>, e a atenção cresce com <em>n²</em> em relação ao comprimento do contexto. Por isso os modelos grandes investem tanto em eficiência de memória e de cálculo, tema da próxima seção.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Eficiência e variantes</h3>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Técnica</th><th>Problema que resolve</th><th>Referência</th></tr></thead>
+      <tbody>
+        <tr><td>KV cache</td><td>na geração, reaproveita K e V dos tokens anteriores em vez de recalculá-los</td><td>prática padrão em implementações de inferência</td></tr>
+        <tr><td>FlashAttention</td><td>calcula a atenção exata em blocos que cabem na memória rápida da GPU, com menos acessos à memória</td><td>Dao et al. (2022)</td></tr>
+        <tr><td>PagedAttention</td><td>gerencia a memória do KV cache em páginas, reduzindo desperdício em servidores com muitas requisições</td><td>Kwon et al. (2023)</td></tr>
+        <tr><td>RoPE</td><td>codifica a posição rotacionando Q e K, o que ajuda a generalizar para contextos mais longos</td><td>Su et al. (2021)</td></tr>
+        <tr><td>Mistura de especialistas (MoE)</td><td>aumenta parâmetros sem aumentar o cálculo por token, porque só alguns especialistas são ativados</td><td>Shazeer et al. (2017)</td></tr>
+        <tr><td>Vision Transformer (ViT)</td><td>trata uma imagem como sequência de patches 16×16, com o mesmo bloco</td><td>Dosovitskiy et al. (2021)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ AGENTES ============================ -->
+<section id="agentes" data-toc="Agentes com modelos de linguagem" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-robot text-indigo-400 mr-2"></i>Agentes: o modelo dentro de um laço</h2>
+  <p class="ah-lead text-sm mb-5">
+    Wooldridge e Jennings (1995) definem um agente como um sistema que percebe o ambiente por sensores e age sobre ele
+    por atuadores, buscando seus objetivos. Russell e Norvig (2021) organizam isso no ciclo <em>percepção → decisão → ação</em>.
+    Um <strong>agente baseado em LLM</strong> usa um modelo de linguagem como o componente de decisão.
+  </p>
+
+  <div class="ah-prose">
+    <p>
+      Um agente desse tipo tem quatro partes. O <strong>modelo</strong> lê o contexto e escolhe a próxima ação ou
+      resposta. As <strong>ferramentas</strong> são funções que o agente pode chamar: busca, calculadora, banco de
+      dados, execução de código. A <strong>memória</strong> guarda o que já aconteceu, dentro do contexto ou em um
+      armazenamento externo. O <strong>laço</strong> repete o ciclo até uma resposta final ou um limite de passos.
+    </p>
+    <p>
+      O formato mais citado é o ReAct, de Yao et al. (2023): o modelo alterna <em>pensamento</em> (raciocínio em texto),
+      <em>ação</em> (uma chamada de ferramenta) e <em>observação</em> (o resultado da ferramenta, devolvido ao contexto).
+      A observação é o que fecha o laço: o próximo pensamento depende dela.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-6">
+    <div class="lg:col-span-2">
+      <div class="ah-stage"><canvas id="agentCanvas" style="height:260px"></canvas></div>
+      <p class="text-[11px] text-slate-500 mt-2">O laço ReAct se repete: a observação de um passo se torna o contexto do passo seguinte.</p>
+    </div>
+    <div class="ah-card p-4 text-xs text-slate-400 leading-relaxed">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Técnicas que aparecem no laço</h3>
+      <ul class="space-y-2">
+        <li><strong class="text-white">Cadeia de pensamento:</strong> escrever o raciocínio antes da resposta melhora tarefas de múltiplos passos (Wei et al., 2022).</li>
+        <li><strong class="text-white">Ferramentas:</strong> o modelo aprende quando chamar uma função (Schick et al., 2023).</li>
+        <li><strong class="text-white">Reflexão:</strong> após uma falha, o agente escreve uma crítica e tenta de novo (Shinn et al., 2023).</li>
+        <li><strong class="text-white">Recuperação:</strong> buscar documentos antes de responder reduz a dependência da memória do modelo (Lewis et al., 2020).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Exemplo executável: um laço ReAct</h3>
+  <div class="ah-prose">
+    <p>
+      O programa abaixo implementa o laço completo. Para rodar sem chave de API, o “modelo” é uma regra fixa que imita
+      a saída de um LLM: ele escolhe a próxima ação olhando as observações já recebidas. Troque essa função por uma
+      chamada a um modelo real e a estrutura do laço continua igual.
+    </p>
+  </div>
+  <pre class="ah-code text-[11px] my-4"># Laço de agente no estilo ReAct. O "modelo" é uma regra fixa, para o exemplo rodar sem API.
+BASE = {"inauguração de Brasília": "1960"}
+
+ferramentas = {
+    "buscar": lambda termo: BASE.get(termo, "sem resultado"),
+    "calcular": lambda expr: str(eval(expr, {"__builtins__": {}})),  # eval: só para o exemplo
+}
+
+def modelo(historico):
+    # imita a saída de um LLM: escolhe a próxima ação olhando o que já foi observado
+    observacoes = [h for h in historico if h.startswith("Observação")]
+    if not observacoes:
+        return "Pensamento: preciso do ano em que Brasília foi inaugurada.\nAção: buscar[inauguração de Brasília]"
+    if len(observacoes) == 1:
+        return "Pensamento: agora subtraio esse ano de 1985.\nAção: calcular[1985 - 1960]"
+    return "Pensamento: tenho o resultado.\nResposta: 25 anos."
+
+def executa(acao):
+    nome, arg = acao.split("[", 1)
+    return ferramentas[nome.strip()](arg.rstrip("]"))
+
+historico = ["Pergunta: quantos anos separam a inauguração de Brasília de 1985?"]
+for passo in range(1, 6):
+    saida = modelo(historico)
+    historico.append(saida)
+    print(f"--- passo {passo}")
+    print(saida)
+    if "Resposta:" in saida:
+        break
+    obs = executa(saida.split("Ação: ")[1])
+    historico.append(f"Observação: {obs}")
+    print(f"Observação: {obs}")</pre>
+  <div class="ah-prose"><p><strong>Saída real do programa:</strong></p></div>
+  <pre class="ah-code text-[11px] my-4">--- passo 1
+Pensamento: preciso do ano em que Brasília foi inaugurada.
+Ação: buscar[inauguração de Brasília]
+Observação: 1960
+--- passo 2
+Pensamento: agora subtraio esse ano de 1985.
+Ação: calcular[1985 - 1960]
+Observação: 25
+--- passo 3
+Pensamento: tenho o resultado.
+Resposta: 25 anos.</pre>
+  <div class="ah-callout ah-callout-warn my-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><code>eval</code> executa qualquer expressão que chegar. Em um agente real, uma saída do modelo pode conter código malicioso. Use um interpretador de expressões aritméticas restrito, nunca <code>eval</code> sobre texto gerado.</div>
+  </div>
+
+  <h3 class="ah-h3 mt-8 mb-3">Limites do laço</h3>
+  <div class="ah-prose">
+    <p>
+      Se cada passo estiver certo com probabilidade <em>p</em>, e os passos forem independentes, a chance de um laço de
+      <em>n</em> passos acertar tudo é <em>pⁿ</em>. Com <em>p</em> = 0,9 e <em>n</em> = 10, isso dá 0,9¹⁰ ≈ 0,35.
+      Esse cálculo é simplificado, porque erros não são independentes, mas mostra por que agentes precisam de limites de
+      passos, validação das ações e pontos de verificação. Dois outros riscos são a alucinação, em que o modelo afirma algo
+      falso com confiança (Ji et al., 2023), e a ação com efeito externo, como enviar uma mensagem ou apagar um arquivo,
+      que deve passar por confirmação humana.
+    </p>
+  </div>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Sistema</th><th>O que faz</th><th>Referência</th></tr></thead>
+      <tbody>
+        <tr><td>Generative Agents</td><td>agentes com memória, reflexão e planejamento em um ambiente simulado de vilarejo</td><td>Park et al. (2023)</td></tr>
+        <tr><td>Voyager</td><td>agente que escreve e acumula código para jogar Minecraft, com uma biblioteca de habilidades</td><td>Wang et al. (2023)</td></tr>
+        <tr><td>AutoGen</td><td>framework em que vários agentes conversam para dividir uma tarefa, como planejar, programar e revisar</td><td>Wu et al. (2023)</td></tr>
+        <tr><td>Toolformer</td><td>modelo que aprende, por autosupervisão, quando e como chamar ferramentas</td><td>Schick et al. (2023)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ MERCADO ============================ -->
+<section id="mercado" data-toc="No mercado de trabalho" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-briefcase text-indigo-400 mr-2"></i>Onde Transformers e agentes aparecem no trabalho</h2>
+  <p class="ah-lead text-sm mb-5">O Transformer deixou de ser só um componente de tradução. Hoje ele aparece em produtos de texto, visão, biologia e infraestrutura. A tabela mostra cada uso com a referência que o sustenta.</p>
+  <div class="ah-card overflow-x-auto my-4">
+    <table class="ah-table">
+      <thead><tr><th>Área</th><th>Onde aparece</th><th>Referência</th></tr></thead>
+      <tbody>
+        <tr><td>Assistentes e geração de código</td><td>escrita, revisão de código, atendimento e busca</td><td>Brown et al. (2020); Ouyang et al. (2022)</td></tr>
+        <tr><td>Visão computacional</td><td>classificação e detecção com patches de imagem</td><td>Dosovitskiy et al. (2021)</td></tr>
+        <tr><td>Biologia estrutural</td><td>o AlphaFold 2 usa blocos baseados em atenção sobre resíduos e alinhamentos</td><td>Jumper et al. (2021)</td></tr>
+        <tr><td>Infraestrutura de inferência</td><td>FlashAttention, PagedAttention e KV cache para servir modelos com custo menor</td><td>Dao et al. (2022); Kwon et al. (2023)</td></tr>
+        <tr><td>Agentes e RAG</td><td>sistemas que consultam bases, chamam ferramentas e revisam o próprio trabalho</td><td>Lewis et al. (2020); Yao et al. (2023)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ah-prose">
+    <p>
+      Na prática, há três perfis de trabalho. O <strong>engenheiro de aplicações</strong> monta sistemas sobre modelos
+      prontos: escolhe o modelo, escreve os prompts, conecta ferramentas e controla custo. O <strong>engenheiro de avaliação</strong>
+      cria conjuntos de testes, mede alucinação e compara versões, porque um agente sem medição não se sabe se melhora.
+      O <strong>engenheiro de infraestrutura</strong> cuida da latência e do custo de servir o modelo, em que KV cache,
+      quantização e lotes contínuos fazem diferença. Os três precisam entender a arquitetura descrita nesta página.
+    </p>
+  </div>
+  <div class="ah-callout ah-callout-tip my-4">
+    <i class="fa-solid fa-lightbulb"></i>
+    <div>Pergunta comum em entrevistas: “por que o Transformer escalou melhor que a RNN?”. A resposta tem três partes: paralelismo no treino, caminho curto entre posições distantes e um objetivo simples (prever o próximo token) que aproveita dados em larga escala.</div>
+  </div>
+</section>
+
+<!-- ============================ ERROS COMUNS ============================ -->
+<section id="erros-comuns" data-toc="Erros comuns" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-bug text-indigo-400 mr-2"></i>Erros comuns</h2>
+  <ol class="space-y-3 my-4">
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">1. Esquecer a máscara causal na geração</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Sem a máscara, o modelo aprende a copiar o token seguinte durante o treino e falha ao gerar, porque esse token ainda não existe. A máscara é obrigatória em decoders.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">2. Tomar a atenção como explicação</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um peso alto não prova que aquele token causou a saída. Jain e Wallace (2019) mostraram que pesos de atenção nem sempre explicam as predições. Use atenção como pista, não como prova.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">3. Usar a temperatura errada</div>
+      <p class="text-xs text-slate-400 leading-relaxed">T muito baixo gera textos repetitivos. T alto para tarefas factuais aumenta o erro. Ajuste conforme o uso, e não só pelo valor padrão.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">4. Agente sem limite e sem validação</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Um laço sem limite de passos pode gastar muito e nunca terminar. Ações com efeito externo precisam ser validadas antes de executar.</p>
+    </li>
+    <li class="ah-card p-4">
+      <div class="text-sm font-semibold text-white mb-1">5. Avaliar um agente com um exemplo</div>
+      <p class="text-xs text-slate-400 leading-relaxed">Como a saída é aleatória, um sucesso pode ser sorte. Rode o agente em muitas tarefas, repita cada uma várias vezes e compare taxas de sucesso.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================ EXERCÍCIOS ============================ -->
+<section id="exercicios" data-toc="Exercícios com gabarito" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-pen-to-square text-indigo-400 mr-2"></i>Exercícios com gabarito</h2>
+  <p class="ah-lead text-sm mb-5">Tente antes de abrir a resposta. Os cálculos usam os números desta página.</p>
+  <div class="space-y-3">
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">1. Pesos da atenção</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Na matriz de pesos do passo a passo (com escala 1/√2), qual é o peso que “gato” dá a “dorme”? Use a linha de <em>gato</em>.</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> <strong>0,401</strong>. A linha de “gato” é [0,198; 0,401; 0,401], e a última coluna corresponde a “dorme”. A soma da linha é 1.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">2. Parâmetros</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Um modelo tem 24 blocos e <em>d</em> = 1024. Quantos parâmetros aproximados, sem embedding, ele tem?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> 12 · 24 · 1024² ≈ <strong>302 M</strong>, valor da saída do programa da seção.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">3. Laço de agente</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Cada passo de um agente acerta com probabilidade 0,95, de forma independente. Qual a chance de acertar 20 passos seguidos?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> 0,95²⁰ ≈ <strong>0,36</strong>. Mesmo com passos bons, a cadeia longa falha com frequência, o que justifica verificações intermediárias.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">4. Máscara causal</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Quantos zeros tem a matriz causal 3×3 mostrada na seção?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> <strong>3</strong>. São as posições acima da diagonal: (1,2), (1,3) e (2,3), em notação de 1 a 3.</p>
+    </details>
+    <details class="ah-card p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-white">5. Temperatura</summary>
+      <p class="text-xs text-slate-400 leading-relaxed mt-3">Qual método de decodificação corresponde a T tendendo a zero?</p>
+      <p class="text-xs text-emerald-300 leading-relaxed mt-3"><strong>Gabarito:</strong> a decodificação <strong>gulosa</strong> (argmax): o token de maior probabilidade é sempre escolhido.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section id="quiz" data-toc="Teste seu entendimento" class="ah-card p-6 sm:p-8 ah-reveal"
+         style="background:linear-gradient(135deg,#1e293b,#221b47)">
+  <h2 class="ah-h2 mb-1"><i class="fa-solid fa-graduation-cap text-indigo-400 mr-2"></i>Teste seu entendimento</h2>
+  <p class="text-xs text-slate-400 mb-6">Seis perguntas sobre Transformers e agentes.</p>
+
+  <div class="space-y-5">
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">1. Por que a atenção divide o produto Q Kᵀ por √d<sub>k</sub>?</p>
+      <button class="ah-quiz-opt">Para que a variância dos escores não cresça com a dimensão e o softmax não sature</button>
+      <button class="ah-quiz-opt">Para normalizar os valores V</button>
+      <button class="ah-quiz-opt">Para tornar a máscara causal possível</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        O produto escalar de vetores de dimensão d<sub>k</sub> tem variância d<sub>k</sub>. A divisão devolve a variância a 1,
+        como mostra a tabela da seção (7,85 sem escala, 0,98 com escala, para d<sub>k</sub> = 64).
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">2. Em um decoder como o GPT, o que a máscara causal impede?</p>
+      <button class="ah-quiz-opt">Que a posição t veja tokens posteriores a t</button>
+      <button class="ah-quiz-opt">Que a atenção use várias cabeças</button>
+      <button class="ah-quiz-opt">Que o embedding seja aprendido</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Sem a máscara, o modelo copiaria o token seguinte durante o treino e não aprenderia a prever. Com ela, todas as
+        posições são calculadas em paralelo sem vazamento de informação do futuro.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">3. O que a conexão residual faz em um bloco Transformer?</p>
+      <button class="ah-quiz-opt">Substitui a atenção por uma convolução</button>
+      <button class="ah-quiz-opt">Soma a entrada à saída da subcamada, facilitando o fluxo do gradiente em redes profundas</button>
+      <button class="ah-quiz-opt">Remove a normalização da camada</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        A soma x + Subcamada(x) cria um caminho direto para o gradiente, o que permite empilhar muitas camadas. A
+        normalização continua presente; em muitas implementações atuais ela vem antes de cada subcamada.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">4. Qual é a principal diferença entre BERT e GPT original?</p>
+      <button class="ah-quiz-opt">BERT é um encoder bidirecional; GPT é um decoder com máscara causal</button>
+      <button class="ah-quiz-opt">BERT não usa atenção</button>
+      <button class="ah-quiz-opt">GPT usa recorrência no lugar da atenção</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        Essa diferença define o uso típico: o BERT entende textos inteiros (classificação, extração), e o GPT gera texto
+        token a token.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="1">
+      <p class="font-medium text-slate-200 mb-3 text-sm">5. Em qual etapa do InstructGPT as pessoas comparam duas respostas?</p>
+      <button class="ah-quiz-opt">No pré-treino</button>
+      <button class="ah-quiz-opt">No treinamento do modelo de recompensa</button>
+      <button class="ah-quiz-opt">No mascaramento da atenção</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        As comparações entre respostas treinam o modelo de recompensa, que depois guia a otimização por reforço.
+        O pré-treino usa texto comum, sem julgamento humano.
+      </p>
+    </div>
+
+    <div class="ah-quiz ah-card p-5" data-answer="0">
+      <p class="font-medium text-slate-200 mb-3 text-sm">6. No ReAct, o que fecha o laço e influencia o próximo pensamento?</p>
+      <button class="ah-quiz-opt">A observação devolvida pela ferramenta, adicionada ao contexto</button>
+      <button class="ah-quiz-opt">A temperatura, que volta a zero a cada passo</button>
+      <button class="ah-quiz-opt">O número de cabeças de atenção</button>
+      <p class="ah-quiz-exp text-xs mt-3 p-3 rounded-lg bg-slate-950/70 border border-slate-700 text-slate-300 leading-relaxed">
+        No exemplo da seção, o segundo pensamento (“agora subtraio esse ano de 1985”) só existe porque a observação
+        “1960” entrou no histórico.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ REFERÊNCIAS ============================ -->
+<section id="referencias" data-toc="Referências desta aula" class="ah-card p-6 sm:p-8 ah-reveal">
+  <h2 class="ah-h2 mb-3"><i class="fa-solid fa-book text-indigo-400 mr-2"></i>Referências desta aula</h2>
+  <div class="ah-prose text-sm">
+    <p><strong>Atenção e arquitetura</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>VASWANI, A. et al. Attention is all you need. <em>NeurIPS</em>, 2017. arXiv:1706.03762.</li>
+      <li>BAHDANAU, D.; CHO, K.; BENGIO, Y. Neural machine translation by jointly learning to align and translate. <em>ICLR</em>, 2015. arXiv:1409.0473.</li>
+      <li>SUTSKEVER, I.; VINYALS, O.; LE, Q. V. Sequence to sequence learning with neural networks. <em>NeurIPS</em>, 2014.</li>
+      <li>HOCHREITER, S.; SCHMIDHUBER, J. Long short-term memory. <em>Neural Computation</em>, v. 9, n. 8, 1997.</li>
+      <li>BA, J. L.; KIROS, J. R.; HINTON, G. E. Layer normalization. arXiv:1607.06450, 2016.</li>
+      <li>XIONG, R. et al. On layer normalization in the Transformer architecture. <em>ICML</em>, 2020. arXiv:2002.04745.</li>
+      <li>SU, J. et al. RoFormer: enhanced transformer with rotary position embedding. arXiv:2104.09864, 2021.</li>
+      <li>SHAZEER, N. et al. Outrageously large neural networks: the sparsely-gated mixture-of-experts layer. <em>ICLR</em>, 2017. arXiv:1701.06538.</li>
+      <li>CLARK, K. et al. What does BERT look at? An analysis of BERT's attention. <em>BlackboxNLP</em>, 2019.</li>
+      <li>JAIN, S.; WALLACE, B. C. Attention is not explanation. <em>NAACL</em>, 2019. arXiv:1902.10186.</li>
+      <li>DAO, T. et al. FlashAttention: fast and memory-efficient exact attention with IO-awareness. <em>NeurIPS</em>, 2022. arXiv:2205.14135.</li>
+      <li>KWON, W. et al. Efficient memory management for large language model serving with PagedAttention. <em>SOSP</em>, 2023.</li>
+    </ul>
+    <p class="mt-4"><strong>Pré-treino, escala e alinhamento</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>BENGIO, Y. et al. A neural probabilistic language model. <em>Journal of Machine Learning Research</em>, v. 3, 2003.</li>
+      <li>RADFORD, A. et al. Improving language understanding by generative pre-training. OpenAI, 2018.</li>
+      <li>RADFORD, A. et al. Language models are unsupervised multitask learners. OpenAI, 2019.</li>
+      <li>DEVLIN, J. et al. BERT: pre-training of deep bidirectional transformers for language understanding. <em>NAACL</em>, 2019. arXiv:1810.04805.</li>
+      <li>BROWN, T. et al. Language models are few-shot learners. <em>NeurIPS</em>, 2020. arXiv:2005.14165.</li>
+      <li>KAPLAN, J. et al. Scaling laws for neural language models. arXiv:2001.08361, 2020.</li>
+      <li>HOFFMANN, J. et al. Training compute-optimal large language models. <em>NeurIPS</em>, 2022. arXiv:2203.15556.</li>
+      <li>CHRISTIANO, P. et al. Deep reinforcement learning from human preferences. <em>NeurIPS</em>, 2017.</li>
+      <li>OUYANG, L. et al. Training language models to follow instructions with human feedback. <em>NeurIPS</em>, 2022. arXiv:2203.02155.</li>
+      <li>RAFAILOV, R. et al. Direct preference optimization: your language model is secretly a reward model. <em>NeurIPS</em>, 2023. arXiv:2305.18290.</li>
+      <li>HOLTZMAN, A. et al. The curious case of neural text degeneration. <em>ICLR</em>, 2020. arXiv:1904.09751.</li>
+      <li>OPENAI. Introducing ChatGPT. Blog, 2022.</li>
+    </ul>
+    <p class="mt-4"><strong>Aplicações e visão</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>DOSOVITSKIY, A. et al. An image is worth 16×16 words: transformers for image recognition at scale. <em>ICLR</em>, 2021. arXiv:2010.11929.</li>
+      <li>JUMPER, J. et al. Highly accurate protein structure prediction with AlphaFold. <em>Nature</em>, v. 596, 2021.</li>
+      <li>ELHAGE, N. et al. A mathematical framework for transformer circuits. <em>Transformer Circuits Thread</em>, 2021.</li>
+      <li>OLSSON, C. et al. In-context learning and induction heads. arXiv:2209.11895, 2022.</li>
+    </ul>
+    <p class="mt-4"><strong>Agentes e riscos</strong></p>
+    <ul class="list-disc pl-5 space-y-1 text-xs text-slate-400">
+      <li>WOOLDRIDGE, M.; JENNINGS, N. R. Intelligent agents: theory and practice. <em>The Knowledge Engineering Review</em>, 1995.</li>
+      <li>RUSSELL, S.; NORVIG, P. <em>Artificial Intelligence: A Modern Approach</em>. 4. ed. Pearson, 2021.</li>
+      <li>WEI, J. et al. Chain-of-thought prompting elicits reasoning in large language models. <em>NeurIPS</em>, 2022. arXiv:2201.11903.</li>
+      <li>KOJIMA, T. et al. Large language models are zero-shot reasoners. <em>NeurIPS</em>, 2022. arXiv:2205.11916.</li>
+      <li>YAO, S. et al. ReAct: synergizing reasoning and acting in language models. <em>ICLR</em>, 2023. arXiv:2210.03629.</li>
+      <li>SCHICK, T. et al. Toolformer: language models can teach themselves to use tools. <em>NeurIPS</em>, 2023. arXiv:2302.04761.</li>
+      <li>SHINN, N. et al. Reflexion: language agents with verbal reinforcement learning. <em>NeurIPS</em>, 2023. arXiv:2303.11366.</li>
+      <li>LEWIS, P. et al. Retrieval-augmented generation for knowledge-intensive NLP tasks. <em>NeurIPS</em>, 2020. arXiv:2005.11401.</li>
+      <li>PARK, J. S. et al. Generative agents: interactive simulacra of human behavior. <em>UIST</em>, 2023. arXiv:2304.03442.</li>
+      <li>WANG, G. et al. Voyager: an open-ended embodied agent with large language models. arXiv:2305.16291, 2023.</li>
+      <li>WU, Q. et al. AutoGen: enabling next-gen LLM applications via multi-agent conversation. arXiv:2308.08155, 2023.</li>
+      <li>JI, Z. et al. Survey of hallucination in natural language generation. <em>ACM Computing Surveys</em>, 2023. arXiv:2202.03629.</li>
+    </ul>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full ah-no-print" id="ah-topic-nav"></div>
+
+<footer id="ah-footer" class="border-t border-slate-800 bg-slate-900/60"></footer>
+
+<script src="../../../assets/js/data.js"></script>
+<script src="../../../assets/js/hub.js?v=tema3"></script>
+<script>
+/* ===================== Gargalo do codificador × atenção ===================== */
+(function rnnDemo() {
+  const TOK = ['o', 'gato', 'dorme'];
+  const SAI = ['The', 'cat', 'sleeps'];
+  /* pesos ilustrativos: linha = palavra gerada, coluna = palavra de entrada */
+  const PESO = [[0.2, 0.5, 0.3], [0.1, 0.3, 0.6], [0.2, 0.2, 0.6]];
+  let modo = 'gargalo', t = 0;
+  const cv = AH.canvas('rnnCanvas', desenha);
+
+  function caixa(ctx, x, y, w, h, txt, cor, alfa) {
+    ctx.globalAlpha = alfa;
+    AH.roundRect(ctx, x - w / 2, y - h / 2, w, h, 8);
+    ctx.fillStyle = cor; ctx.fill();
+    ctx.strokeStyle = 'rgba(148,163,184,.35)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '600 12px Inter, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, x, y);
+    ctx.globalAlpha = 1;
+  }
+  function seta(ctx, x1, y1, x2, y2, alfa, largura) {
+    ctx.strokeStyle = `rgba(129,140,248,${alfa})`; ctx.lineWidth = largura;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const xs = [w * 0.18, w * 0.5, w * 0.82];
+    const yIn = h - 36, yOut = 36, yMeio = h / 2;
+    const ativoIn = Math.floor(t / 1.4) % 3;
+    const ativoOut = Math.floor(t / 2.2) % 3;
+    const visiveis = 1 + Math.floor(t / 2.2) % 3;
+
+    if (modo === 'gargalo') {
+      xs.forEach((x, i) => seta(ctx, x, yIn - 20, w / 2, yMeio + 24, i === ativoIn ? 0.95 : 0.25, i === ativoIn ? 2.5 : 1.2));
+      caixa(ctx, w / 2, yMeio, 176, 44, 'vetor único (gargalo)', 'rgba(245,158,11,.18)', 1);
+      for (let j = 0; j < visiveis; j++) seta(ctx, w / 2, yMeio - 24, xs[j], yOut + 20, 0.7, 1.5);
+    } else {
+      for (let j = 0; j < visiveis; j++) {
+        xs.forEach((x, i) => {
+          const p = PESO[j][i];
+          const forte = j === ativoOut;
+          seta(ctx, x, yIn - 20, xs[j], yOut + 20, forte ? 0.15 + 0.85 * p : 0.05 + 0.15 * p, forte ? 1 + 5 * p : 0.8);
+        });
+      }
+    }
+
+    TOK.forEach((tk, i) => caixa(ctx, xs[i], yIn, 92, 34, tk, 'rgba(30,41,59,1)', 1));
+    SAI.forEach((s, j) => caixa(ctx, xs[j], yOut, 92, 34, s, j < visiveis ? 'rgba(49,46,129,.7)' : 'rgba(30,41,59,1)', j < visiveis ? 1 : 0.35));
+    ctx.fillStyle = 'rgba(148,163,184,.7)'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('entrada (codificador)', 8, h - 8);
+    ctx.textAlign = 'right';
+    ctx.fillText('saída (decodificador)', w - 8, 14);
+  }
+
+  const bG = document.getElementById('rnn-gargalo'), bA = document.getElementById('rnn-atencao');
+  function marca() {
+    bG.classList.toggle('ah-btn-primary', modo === 'gargalo');
+    bA.classList.toggle('ah-btn-primary', modo === 'atencao');
+  }
+  bG.addEventListener('click', () => { modo = 'gargalo'; marca(); });
+  bA.addEventListener('click', () => { modo = 'atencao'; marca(); });
+  marca();
+  AH.loop(cv.el, dt => { t += dt; cv.draw(cv.ctx, cv.w, cv.h); }).start();
+})();
+
+/* ===================== Mapa de calor da atenção ===================== */
+(function attnDemo() {
+  const TOK = ['o', 'gato', 'dorme'];
+  /* escores brutos Q Kᵀ (saída de atencao_pagina.py) */
+  const S = [[1, 0, 1], [0, 1, 1], [1, 1, 2]];
+  let escala = true;
+  const cv = AH.canvas('attnCanvas', desenha);
+  const botao = document.getElementById('attn-escala');
+
+  function softmax(l) {
+    const m = Math.max(...l), e = l.map(v => Math.exp(v - m)), s = e.reduce((a, b) => a + b, 0);
+    return e.map(v => v / s);
+  }
+  function pesos() {
+    const f = escala ? Math.SQRT2 : 1;
+    return S.map(l => softmax(l.map(v => v / f)));
+  }
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const A = pesos();
+    const cell = Math.min(80, (h - 100) / 3, (w - 130) / 3), x0 = 110, y0 = 52;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#cbd5e1'; ctx.font = '600 12px Inter, sans-serif';
+    TOK.forEach((tk, j) => {
+      ctx.fillText(tk, x0 + j * cell + cell / 2, y0 - 16);
+      ctx.fillText(tk, x0 - 36, y0 + j * cell + cell / 2);
+    });
+    A.forEach((linha, i) => linha.forEach((p, j) => {
+      ctx.fillStyle = `rgba(99,102,241,${0.08 + 0.85 * p})`;
+      ctx.fillRect(x0 + j * cell + 2, y0 + i * cell + 2, cell - 4, cell - 4);
+      ctx.fillStyle = p > 0.5 ? '#ffffff' : '#e2e8f0';
+      ctx.font = '500 13px Fira Code, monospace';
+      ctx.fillText(p.toFixed(3).replace('.', ','), x0 + j * cell + cell / 2, y0 + i * cell + cell / 2);
+    }));
+    ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('linha = consulta · coluna = chave', x0 + 1.5 * cell, y0 + 3 * cell + 18);
+    ctx.textAlign = 'left';
+    ctx.fillText(escala ? 'escala 1/√2 aplicada' : 'sem escala', 8, 14);
+  }
+  botao.addEventListener('click', () => {
+    escala = !escala;
+    botao.innerHTML = escala ? 'Com escala 1/√d<sub>k</sub>' : 'Sem escala';
+    cv.draw(cv.ctx, cv.w, cv.h);
+  });
+  cv.draw(cv.ctx, cv.w, cv.h);
+})();
+
+/* ===================== Pipeline do bloco ===================== */
+(function blocoDemo() {
+  const ROT = [['Tokens'], ['Embedding', '+ posição'], ['Atenção', 'multi-cabeça'], ['Soma', '+ norma'], ['FFN'], ['Soma', '+ norma'], ['Saída']];
+  const COR = ['#334155', '#334155', '#4f46e5', '#0f766e', '#7c3aed', '#0f766e', '#334155'];
+  let t = 0;
+  const cv = AH.canvas('blocoCanvas', desenha);
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const n = ROT.length, margem = 12;
+    const bw = (w - 2 * margem) / n - 10, bh = 58, cy = h / 2 - 6;
+    const xs = ROT.map((_, i) => margem + i * ((w - 2 * margem) / n) + bw / 2);
+    const p = (t * 0.45) % 1, gap = p * (n - 1), i0 = Math.floor(gap), frac = gap - i0;
+    const ativo = Math.min(n - 1, i0 + (frac > 0.5 ? 1 : 0));
+
+    for (let i = 0; i < n - 1; i++) {
+      ctx.strokeStyle = 'rgba(148,163,184,.35)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(xs[i] + bw / 2, cy); ctx.lineTo(xs[i + 1] - bw / 2, cy); ctx.stroke();
+    }
+    ROT.forEach((rot, i) => {
+      AH.roundRect(ctx, xs[i] - bw / 2, cy - bh / 2, bw, bh, 8);
+      ctx.fillStyle = COR[i]; ctx.globalAlpha = i === ativo ? 1 : 0.55; ctx.fill(); ctx.globalAlpha = 1;
+      if (i === ativo) { ctx.strokeStyle = '#a5b4fc'; ctx.lineWidth = 2; ctx.stroke(); }
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '600 10px Inter, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      rot.forEach((linha, k) => ctx.fillText(linha, xs[i], cy + (k - (rot.length - 1) / 2) * 13));
+    });
+    const px = xs[i0] + (xs[Math.min(n - 1, i0 + 1)] - xs[i0]) * frac;
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(px, cy, 6, 0, 6.29); ctx.fill();
+    ctx.fillStyle = 'rgba(148,163,184,.8)'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('o bloco se repete L vezes (GPT-2 small: 12)', w / 2, h - 10);
+  }
+  AH.loop(cv.el, dt => { t += dt; cv.draw(cv.ctx, cv.w, cv.h); }).start();
+})();
+
+/* ===================== Codificação posicional ===================== */
+(function peDemo() {
+  const D = 16;
+  const CORES = ['#38bdf8', '#a855f7', '#10b981', '#f59e0b'];
+  const DIMS = [0, 2, 6, 14];
+  const cv = AH.canvas('peCanvas', desenha);
+  const sl = document.getElementById('pe-pos');
+  const sv = document.getElementById('pe-pos-v');
+
+  function valor(pos, dim) {
+    const i = Math.floor(dim / 2), freq = Math.pow(10000, (2 * i) / D), a = pos / freq;
+    return dim % 2 === 0 ? Math.sin(a) : Math.cos(a);
+  }
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const X = pos => 36 + (pos / 40) * (w - 56), Y = v => h / 2 - v * (h / 2 - 18);
+    ctx.strokeStyle = 'rgba(148,163,184,.15)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(36, Y(0)); ctx.lineTo(w - 20, Y(0)); ctx.stroke();
+    DIMS.forEach((dim, k) => {
+      ctx.strokeStyle = CORES[k]; ctx.lineWidth = 2; ctx.beginPath();
+      for (let pos = 0; pos <= 40; pos += 0.25) {
+        const x = X(pos), y = Y(valor(pos, dim));
+        pos === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = CORES[k]; ctx.font = '10px Fira Code, monospace'; ctx.textAlign = 'left';
+      ctx.fillText('dim ' + dim, w - 70, 14 + k * 13);
+    });
+    const p = +sl.value;
+    ctx.strokeStyle = 'rgba(251,191,36,.7)'; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(X(p), 10); ctx.lineTo(X(p), h - 10); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(148,163,184,.7)'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('posição →', 36, h - 6);
+  }
+  function atualiza() {
+    const p = +sl.value;
+    sv.textContent = p;
+    const linhas = [0, 1, 2, 3].map(d => `<div>dim ${d}: ${valor(p, d).toFixed(3).replace('.', ',')}</div>`);
+    document.getElementById('pe-vetor').innerHTML = linhas.join('') + '<div class="text-slate-600">… (16 dimensões no total)</div>';
+    cv.draw(cv.ctx, cv.w, cv.h);
+  }
+  sl.addEventListener('input', atualiza);
+  atualiza();
+})();
+
+/* ===================== Temperatura e amostragem ===================== */
+(function tempDemo() {
+  const PAL = ['dorme', 'come', 'voa', 'é'];
+  const LOG = [2.0, 1.0, 0.1, -1.0];
+  const sl = document.getElementById('temp-T');
+  const sv = document.getElementById('temp-T-v');
+  const cv = AH.canvas('tempCanvas', desenha);
+  let T = 1;
+
+  function softmax(z) {
+    const m = Math.max(...z), e = z.map(v => Math.exp(v - m)), s = e.reduce((a, b) => a + b, 0);
+    return e.map(v => v / s);
+  }
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const P = softmax(LOG.map(v => v / T));
+    const top = P.indexOf(Math.max(...P));
+    const x0 = 96, barMax = w - x0 - 70;
+    ctx.textBaseline = 'middle';
+    P.forEach((p, i) => {
+      const y = 36 + i * ((h - 60) / 4);
+      ctx.fillStyle = '#cbd5e1'; ctx.font = '600 12px Inter, sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(PAL[i], x0 - 12, y);
+      ctx.fillStyle = 'rgba(30,41,59,1)'; ctx.fillRect(x0, y - 10, barMax, 20);
+      ctx.fillStyle = i === top ? '#10b981' : '#6366f1';
+      ctx.fillRect(x0, y - 10, barMax * p, 20);
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '500 12px Fira Code, monospace'; ctx.textAlign = 'left';
+      ctx.fillText(p.toFixed(3).replace('.', ','), x0 + barMax + 10, y);
+    });
+    ctx.fillStyle = 'rgba(148,163,184,.8)'; ctx.font = '11px Inter, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('probabilidade do próximo token · T = ' + T.toFixed(1).replace('.', ','), 8, 14);
+  }
+  sl.addEventListener('input', () => {
+    T = +sl.value;
+    sv.textContent = T.toFixed(1).replace('.', ',');
+    cv.draw(cv.ctx, cv.w, cv.h);
+  });
+  cv.draw(cv.ctx, cv.w, cv.h);
+})();
+
+/* ===================== Laço ReAct ===================== */
+(function reactDemo() {
+  const FASES = [
+    { nome: 'Pensamento', cor: '#6366f1', txt: 'preciso do ano em que Brasília foi inaugurada' },
+    { nome: 'Ação', cor: '#f59e0b', txt: 'buscar[inauguração de Brasília]' },
+    { nome: 'Observação', cor: '#10b981', txt: 'resultado 1960 entra no contexto do próximo passo' }
+  ];
+  let t = 0;
+  const cv = AH.canvas('agentCanvas', desenha);
+
+  function desenha(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2 - 16, r = Math.min(w, h) * 0.3;
+    const pts = [0, 1, 2].map(i => {
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+      return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+    });
+    const ativo = Math.floor(t / 1.8) % 3;
+    const frac = (t / 1.8) % 1;
+
+    for (let i = 0; i < 3; i++) {
+      const a = pts[i], b = pts[(i + 1) % 3];
+      ctx.strokeStyle = i === ativo ? 'rgba(165,180,252,.9)' : 'rgba(148,163,184,.25)';
+      ctx.lineWidth = i === ativo ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    const a = pts[ativo], b = pts[(ativo + 1) % 3];
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath(); ctx.arc(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac, 5, 0, 6.29); ctx.fill();
+
+    FASES.forEach((f, i) => {
+      const p = pts[i];
+      AH.roundRect(ctx, p.x - 62, p.y - 20, 124, 40, 10);
+      ctx.fillStyle = i === ativo ? f.cor : 'rgba(30,41,59,1)'; ctx.fill();
+      ctx.strokeStyle = f.cor; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#f1f5f9'; ctx.font = '600 12px Inter, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(f.nome, p.x, p.y);
+    });
+
+    ctx.fillStyle = '#cbd5e1'; ctx.font = '500 12px Fira Code, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(FASES[ativo].txt, cx, h - 22);
+  }
+  AH.loop(cv.el, dt => { t += dt; cv.draw(cv.ctx, cv.w, cv.h); }).start();
+})();
+AH.initReveal();
+</script>
+</body>
+</html>

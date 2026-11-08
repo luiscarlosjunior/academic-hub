@@ -75,7 +75,10 @@ const AH_DATA = {
           tags: ['Simulated Annealing', 'Tabu', 'GRASP', 'VNS'], nivel: 'Avançado', minutos: 32 },
         { id: '19-metaheuristicas-populacao', titulo: 'Metaheurísticas Populacionais', icone: 'fa-people-group',
           resumo: 'Algoritmos genéticos, PSO, ACO, evolução diferencial, busca harmônica e cuckoo search, com referências originais.',
-          tags: ['Populacional', 'DE', 'Harmony', 'Cuckoo'], nivel: 'Avançado', minutos: 34 }
+          tags: ['Populacional', 'DE', 'Harmony', 'Cuckoo'], nivel: 'Avançado', minutos: 34 },
+        { id: '20-transformers-agentes', titulo: 'Transformers e Agentes de IA', icone: 'fa-brain',
+          resumo: 'Atenção e self-attention, o bloco Transformer, do GPT ao ChatGPT e agentes ReAct com ferramentas, com citações originais.',
+          tags: ['Transformer', 'Atenção', 'LLM', 'Agentes'], nivel: 'Avançado', minutos: 45 }
       ]
     },
     {
@@ -926,7 +929,7 @@ const AH_DATA = {
       cor: 'indigo',
       corHex: '#0e9f7e',
       descricao:
-        'Como a engenharia de software e a IA generativa trabalham juntas: o que a pesquisa mostra, como LLMs e agentes geram código, o método para especificar, contextualizar, gerar e verificar, como liderar a adoção no ciclo inteiro e como construir, publicar e operar sistemas na AWS com IA.',
+        'Como a engenharia de software e a IA generativa trabalham juntas: o que a pesquisa mostra, como LLMs e agentes geram código, o método para especificar, contextualizar, gerar e verificar, como liderar a adoção no ciclo inteiro e como construir, publicar e operar sistemas na AWS com IA, incluindo agentes que ganham autonomia aos poucos.',
       topicos: [
         { id: '01-ia-no-ciclo-inteiro', titulo: 'Parte 1 · IA no ciclo inteiro: usar em tudo, com critério', icone: 'fa-arrows-spin',
           resumo: 'Como adotar IA em engenharia, DevOps e FinOps: evidências, a matemática do gargalo, 16 casos de empresas, mitos e fatos, um dia de trabalho com IA, cultura, governança, métricas e um plano de 90 dias.',
@@ -948,7 +951,10 @@ const AH_DATA = {
           tags: ['AIOps', 'Operação', 'Incidentes'], nivel: 'Intermediário', minutos: 60 },
         { id: '07-ia-com-aws', titulo: 'Parte 7 · IA com AWS', icone: 'fa-cloud-arrow-up',
           resumo: 'Mapa dos serviços de IA da AWS, Amazon Q Developer e Kiro, tráfego privado para modelos com PrivateLink, governança, custo por cliente e um checklist de revisão.',
-          tags: ['AWS', 'Bedrock', 'Governança'], nivel: 'Intermediário', minutos: 60 }
+          tags: ['AWS', 'Bedrock', 'Governança'], nivel: 'Intermediário', minutos: 60 },
+        { id: '08-agentes-de-ia', titulo: 'Parte 8 · Agentes de IA: como funcionam e como ganham autonomia', icone: 'fa-robot',
+          resumo: 'O que é um agente em LLM, o laço pensar-agir-observar, ferramentas e MCP, fluxos antes de agentes, vantagens e desvantagens com pesquisa (ReAct, SWE-agent, τ-bench, METR), níveis de autonomia, tríade letal e um agente configurado com guardas.',
+          tags: ['Agentes', 'Autonomia', 'Pesquisa'], nivel: 'Intermediário', minutos: 90 }
       ]
     },
     {
