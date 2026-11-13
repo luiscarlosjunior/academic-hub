@@ -39,7 +39,32 @@ Leitura do diagrama:
 
 ## 2. O esquema
 
-Está pronto em `src/streaming/Conexao.java`. Não precisa alterá-lo. As regras que ele impõe:
+Está pronto em `src/streaming/Conexao.java`. Não precisa alterá-lo. O script SQL que cria as tabelas é este:
+
+```sql
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS usuario (
+    id    INTEGER PRIMARY KEY,
+    nome  TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    plano TEXT NOT NULL CHECK (plano IN ('gratuito', 'premium')));
+
+CREATE TABLE IF NOT EXISTS playlist (
+    id         INTEGER PRIMARY KEY,
+    nome       TEXT    NOT NULL,
+    usuario_id INTEGER NOT NULL REFERENCES usuario(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS curtida (
+    usuario_id  INTEGER NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    playlist_id INTEGER NOT NULL REFERENCES playlist(id) ON DELETE CASCADE,
+    data        TEXT    NOT NULL,
+    PRIMARY KEY (usuario_id, playlist_id));
+```
+
+Para testar no terminal, salve o bloco acima em `esquema.sql` e rode `sqlite3 teste.db < esquema.sql`. O `PRAGMA` liga a verificação de chave estrangeira, que vale só para a conexão atual.
+
+As regras que o esquema impõe:
 
 - `usuario.email` é UNIQUE;
 - `usuario.plano` só aceita `'gratuito'` e `'premium'`;
