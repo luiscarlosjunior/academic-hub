@@ -13,6 +13,7 @@ Material para uma disciplina de **4 horas**, dividida em **dois dias de 2 horas*
 |---|---|---|---|
 | 1 | 0:00–1:00 | Explicação e demonstração | Conceitos, `SELECT`, `JOIN`, CRUD em SQL (roteiro `sql/03-consultas.sql`) |
 | 1 | 1:00–2:00 | **Exercícios de SQL** | 5 exercícios em `exercicios/EXERCICIOS.md`, parte 1 |
+| 1 | 2:00–2:40 | **Exercício de modelagem** (extra, antes do dia 2) | Diagrama ER da escola em Mermaid, criação do script, CRUD e evolução do modelo, em `exercicios/modelagem-escola/ENUNCIADO.md` |
 | 2 | 0:00–1:00 | Explicação e demonstração | JDBC, `Connection`, `PreparedStatement`, DAO, transações (`aula/Dia2Demo.java`) |
 | 2 | 1:00–2:00 | **Exercícios de Java** | 4 métodos no projeto `exercicios/dia2-java-aluno`, parte 2 |
 
@@ -34,6 +35,11 @@ aulas-sql-java-eclipse/
 │   └── saidas/                      ← saída real de cada demonstração
 ├── exercicios/
 │   ├── EXERCICIOS.md                ← enunciados e gabaritos dos dois dias
+│   ├── modelagem-escola/            ← exercício de modelagem (diagrama Mermaid + CRUD em SQL)
+│   │   ├── ENUNCIADO.md             ← enunciado, com o diagrama e como abrir no navegador ou no VS Code
+│   │   ├── escola.mmd               ← diagrama para os alunos (parte A)
+│   │   ├── escola-com-professor.mmd ← gabarito da parte D (use só depois de tentar)
+│   │   └── gabarito/                ← gabarito.sql (roda sem erro) e saida-esperada.txt
 │   └── dia2-java-aluno/             ← projeto Eclipse para o aluno (4 métodos a implementar)
 └── (apresentação: https://claude.ai/artifact/7mRePSDYhwS44WU3Km9p7b, 33 slides, privada até ser compartilhada)
 ```
